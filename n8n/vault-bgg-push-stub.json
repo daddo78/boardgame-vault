@@ -1,0 +1,48 @@
+{
+  "name": "Vault - BGG Push (STUB, not implemented)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "BGG does not publish a write API. Setting own/fortrade/rating/comment on your BGG collection from automation means driving BGG's logged-in website, which is undocumented and can break at any time.\n\nIf you want to pursue this yourself:\n1. Log into boardgamegeek.com in a normal browser.\n2. Capture your session cookie (DevTools > Application > Cookies).\n3. Store it as an n8n credential (e.g. HTTP Header Auth with a Cookie header) — never paste it into chat with an AI assistant.\n4. Replace the HTTP Request node below with a call to BGG's actual collection-edit endpoint, which you'll need to find via your browser's network tab while editing your collection manually, and verify yourself.\n\nThis workflow intentionally stops short of that and just returns not_implemented, so your frontend has a stable endpoint to call without breaking.",
+        "height": 420,
+        "width": 480
+      },
+      "id": "n0",
+      "name": "Sticky Note - Read Me First",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, 60]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vault/bgg-push",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "n1",
+      "name": "Webhook - POST bgg-push",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'not_implemented', message: 'Pushing collection changes to BoardGameGeek requires an unofficial, undocumented endpoint and your own BGG session \\u2014 see the sticky note in this workflow for how to wire it up yourself.' } }}",
+        "options": {}
+      },
+      "id": "n2",
+      "name": "Respond - Not Implemented",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [420, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - POST bgg-push": { "main": [[{ "node": "Respond - Not Implemented", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": {},
+  "pinData": {}
+}

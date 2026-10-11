@@ -1,0 +1,61 @@
+{
+  "name": "Vault - Update Rating / Thinning",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vault/update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "n1",
+      "name": "Webhook - POST update",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = items[0].json.body || items[0].json;\nconst fields = body.fields || {};\nconst update = { game_id: body.id, updated_at: new Date().toISOString() };\nif ('desireToPlay' in fields) update.desire_to_play = fields.desireToPlay;\nif ('thinningCandidate' in fields) update.thinning_candidate = fields.thinningCandidate;\nreturn [{ json: update }];"
+      },
+      "id": "n2",
+      "name": "Code - Map Patch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "updateRow",
+        "tableId": "REPLACE_WITH_YOUR_VAULT_TABLE",
+        "matchingColumns": ["game_id"]
+      },
+      "id": "n3",
+      "name": "Data Table - Update Row",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "notes": "After import: pick your Data Table, operation 'Update Row', match column game_id, and map the incoming fields (desire_to_play, thinning_candidate, updated_at) to columns."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'ok' } }}",
+        "options": {}
+      },
+      "id": "n4",
+      "name": "Respond - OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - POST update": { "main": [[{ "node": "Code - Map Patch", "type": "main", "index": 0 }]] },
+    "Code - Map Patch": { "main": [[{ "node": "Data Table - Update Row", "type": "main", "index": 0 }]] },
+    "Data Table - Update Row": { "main": [[{ "node": "Respond - OK", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": {},
+  "pinData": {}
+}
