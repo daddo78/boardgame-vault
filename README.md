@@ -5,7 +5,7 @@ A local HTML page for your board game collection, backed by n8n (as the database
 ## What's here
 
 - `index.html` — the page. Open it directly in a browser (no server needed).
-- `n8n/*.json` — six importable n8n workflows that back the page.
+- `n8n/*.json` — seven importable n8n workflows that back the page, including a one-time seed of your actual 105-game collection.
 
 ## Honest limitation up front
 
@@ -46,8 +46,13 @@ In n8n: **Workflows → Import from File**, one at a time, for each file in `n8n
 4. `vault-confirm.json`
 5. `vault-bgg-pull.json`
 6. `vault-bgg-push-stub.json`
+7. `vault-seed-initial-collection.json`
 
 After each import, **every node named "Data Table - ..." needs manual attention**: click into it and pick your actual `vault_games` table from the dropdown (I set a placeholder `tableId` since that ID is unique to your instance and didn't exist until you created the table in step 1), then confirm the column mappings match the table above.
+
+**Run `vault-seed-initial-collection.json` once**, manually, via its "Execute workflow" button (it uses a Manual Trigger, not a webhook, since it's a one-time admin action, not something the page calls). It has your actual 105 games — titles, genres, types, descriptions, expansions — embedded directly in its Code node, pulled from the collection list you originally gave me. It upserts them into the Data Table tagged `game_id: "manual-g<N>"`, so re-running it is harmless (no duplicates from re-running it specifically).
+
+One caveat: if you also run "Sync from BGG" later, BGG-sourced rows are tagged `game_id: "bgg-<bggid>"` — a different id scheme. A game you own that's both in your seeded list *and* pulled from BGG will show up **twice** until you manually delete one copy from the Data Table (there's no automatic title-matching/merge between the two id schemes in this version).
 
 In `vault-identify-photo.json`, open **HTTP - OpenRouter Vision** and:
 - Attach your OpenRouter credential (an HTTP Header Auth credential with header `Authorization: Bearer <your OpenRouter key>`).
