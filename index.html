@@ -54,9 +54,11 @@
   .card { background: var(--card-bg); border: 2px solid var(--card-border); border-radius: 0.9rem; padding: 1.35rem; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s; position: relative; box-shadow: var(--shadow); }
   .card:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(34,51,59,0.2); }
   .card.thinning { border-color: var(--accent); }
-  .card-header { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 0.75rem; }
-  .game-num { background: var(--gold); border: 2px solid var(--card-border); color: var(--ink); font-family: var(--font-display); font-weight: 800; font-size: 0.85rem; width: 2.3rem; height: 2.3rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
-  .game-num img { width: 100%; height: 100%; object-fit: cover; border-radius: 0.3rem; }
+  .card-header { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 0.75rem; padding-right: 1.6rem; }
+  .game-num { background: var(--gold); border: 2px solid var(--card-border); color: var(--ink); font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; width: 4.6rem; height: 4.6rem; border-radius: 0.7rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+  .game-num img { width: 100%; height: 100%; object-fit: cover; border-radius: 0.5rem; }
+  .card-delete-btn { position: absolute; top: 0.9rem; right: 0.9rem; width: 2rem; height: 2rem; border-radius: 0.5rem; background: #fff; border: 2px solid var(--card-border); color: var(--text-muted); cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; z-index: 1; }
+  .card-delete-btn:hover { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
   .game-title { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--ink); line-height: 1.3; }
   .bgg-rating { font-size: 0.75rem; color: var(--teal-dark); font-weight: 700; }
   .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0 0.85rem; }
@@ -103,6 +105,27 @@
   .toast { position: fixed; bottom: 1.75rem; left: 50%; transform: translateX(-50%); background: var(--ink); border: 2px solid var(--card-border); color: #fff; padding: 0.7rem 1.2rem; border-radius: 0.6rem; font-size: 0.85rem; z-index: 200; box-shadow: var(--shadow); display: none; font-weight: 600; }
   .toast.show { display: block; }
   .toast.err { background: var(--accent-dark); border-color: var(--accent-dark); }
+
+  @media (max-width: 640px) {
+    header { padding: 2rem 1rem 1.5rem; }
+    header .deco { display: none; }
+    header p { font-size: 0.95rem; }
+    .icon-btn { top: 0.85rem; right: 0.85rem; width: 2.2rem; height: 2.2rem; font-size: 1rem; }
+    .toolbar-container { margin: -1rem auto 1.25rem; padding: 0 1rem; top: 0.5rem; }
+    .toolbar { padding: 0.65rem 0.85rem; gap: 0.6rem; }
+    .toolbar select, .toolbar button.pill { flex: 1 1 auto; font-size: 0.85rem; padding: 0.55rem 0.7rem; }
+    .stats-badge { margin-left: 0; width: 100%; text-align: center; }
+    .grid { padding: 0 1rem; gap: 1rem; grid-template-columns: 1fr; }
+    .card { padding: 1.1rem; }
+    .card-header { padding-right: 2.2rem; gap: 0.7rem; }
+    .game-num { width: 3.6rem; height: 3.6rem; font-size: 1.1rem; }
+    .game-title { font-size: 1.1rem; }
+    .card-delete-btn { width: 2.2rem; height: 2.2rem; }
+    .modal { padding: 1.25rem; max-height: 90vh; }
+    .fab { bottom: 1.25rem; right: 1.25rem; width: 3.4rem; height: 3.4rem; font-size: 1.6rem; }
+    .star-btn { font-size: 1.5rem; padding: 0.1rem; }
+    .ranker-box { flex-wrap: wrap; gap: 0.5rem; }
+  }
 </style>
 </head>
 <body>
@@ -112,7 +135,7 @@
     <span class="deco d3">♟️</span>
     <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
     <h1>Game Garage <span>Collection</span></h1>
-    <p>Shelf collection catalog, synced to n8n &amp; BoardGameGeek, with a desire-to-play thinning ranker.</p>
+    <p>Shelf collection catalog, synced to n8n, with a desire-to-play thinning ranker.</p>
     <div class="sync-status" id="syncStatus">Not configured yet — click ⚙ to set your n8n webhook URL.</div>
   </header>
 
@@ -129,7 +152,6 @@
         <option value="title-asc">Title (A-Z)</option>
       </select>
       <button class="pill" id="thinFilterBtn">Thinning only</button>
-      <button class="pill" id="syncBggBtn">⟳ Sync from BGG</button>
       <div class="stats-badge" id="statsCount">0 Games Cataloged</div>
     </div>
   </div>
@@ -145,8 +167,6 @@
       <h2>Garage Settings</h2>
       <label>n8n base webhook URL</label>
       <input type="text" id="n8nUrlInput" placeholder="https://your-n8n.example.com/webhook/vault" />
-      <label>Your BoardGameGeek username (for Sync from BGG)</label>
-      <input type="text" id="bggUserInput" placeholder="yourbggusername" />
       <div class="modal-actions">
         <button class="btn ghost" id="settingsCancel">Cancel</button>
         <button class="btn primary" id="settingsSave">Save</button>
@@ -158,7 +178,7 @@
   <div class="modal-overlay" id="addModal">
     <div class="modal">
       <h2>Add a Game by Photo</h2>
-      <p style="color:var(--text-muted); font-size:0.85rem;">Snap or upload a photo of the box. An n8n workflow will ask your configured vision model to read the title, then look it up on BGG.</p>
+      <p style="color:var(--text-muted); font-size:0.85rem;">Snap or upload a photo of the box. An n8n workflow reads the title with your vision model, saves it straight to your collection, and tries to find cover art.</p>
       <label>Box photo</label>
       <input type="file" id="photoInput" accept="image/*" capture="environment" />
       <div id="identifyArea"></div>
@@ -169,11 +189,22 @@
     </div>
   </div>
 
+  <!-- Delete confirmation modal -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+      <h2>Delete Game?</h2>
+      <p style="color:var(--text-muted); font-size:0.9rem; margin-top:0.5rem;">Remove "<span id="deleteGameTitle" style="color:var(--ink); font-weight:700;"></span>" from your collection? This can't be undone.</p>
+      <div class="modal-actions">
+        <button class="btn ghost" id="deleteCancel">Cancel</button>
+        <button class="btn primary" id="deleteConfirm" style="background:var(--accent); border-color:var(--accent-dark);">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
     const LS_URL = 'vault_n8n_base_url';
-    const LS_BGG_USER = 'vault_bgg_username';
     const LS_CACHE = 'vault_collection_cache_v1';
     const DEFAULT_N8N_BASE = 'https://n8n.ondorilabo.com/webhook/vault';
 
@@ -181,7 +212,6 @@
     let thinOnly = false;
 
     function n8nBase() { return (localStorage.getItem(LS_URL) || DEFAULT_N8N_BASE).replace(/\/+$/, ''); }
-    function bggUser() { return localStorage.getItem(LS_BGG_USER) || ''; }
 
     function toast(msg, isErr) {
       const t = document.getElementById('toast');
@@ -280,6 +310,43 @@
       if (el) el.classList.toggle('open');
     }
 
+    let pendingDeleteId = null;
+    const deleteModal = document.getElementById('deleteModal');
+    function openDeleteModal(id) {
+      const g = collection.find(x => x.id === id);
+      if (!g) return;
+      pendingDeleteId = id;
+      document.getElementById('deleteGameTitle').textContent = g.title;
+      deleteModal.classList.add('open');
+    }
+    document.getElementById('deleteCancel').addEventListener('click', () => {
+      deleteModal.classList.remove('open');
+      pendingDeleteId = null;
+    });
+    document.getElementById('deleteConfirm').addEventListener('click', async () => {
+      if (!pendingDeleteId) return;
+      const id = pendingDeleteId;
+      pendingDeleteId = null;
+      deleteModal.classList.remove('open');
+      const idx = collection.findIndex(g => g.id === id);
+      const prev = idx !== -1 ? collection[idx] : null;
+      collection = collection.filter(g => g.id !== id);
+      render();
+      try {
+        await n8nFetch('/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        localStorage.setItem(LS_CACHE, JSON.stringify(collection));
+        toast('Removed "' + (prev ? prev.title : 'game') + '" from your collection.');
+      } catch (e) {
+        if (prev && idx !== -1) collection.splice(idx, 0, prev);
+        render();
+        toast('Could not delete: ' + e.message, true);
+      }
+    });
+
     function render() {
       const grid = document.getElementById('gamesGrid');
       const empty = document.getElementById('emptyState');
@@ -310,7 +377,7 @@
       grid.innerHTML = '';
       empty.style.display = (collection.length === 0) ? 'block' : 'none';
       if (collection.length === 0) {
-        empty.textContent = n8nBase() ? 'No games yet — tap the + button to add one.' : 'Set your n8n webhook URL in Settings, then add games or sync from BGG.';
+        empty.textContent = n8nBase() ? 'No games yet — tap the + button to add one.' : 'Set your n8n webhook URL in Settings to load your collection.';
       }
 
       filtered.forEach(g => {
@@ -341,6 +408,7 @@
         const bggBadge = g.bggRating ? '<div class="bgg-rating">BGG ' + Number(g.bggRating).toFixed(1) + '★</div>' : '';
 
         card.innerHTML =
+          '<button class="card-delete-btn" data-delete="' + g.id + '" title="Delete game">&#128465;</button>' +
           '<div>' +
             '<div class="card-header">' + numCell +
               '<div><h2 class="game-title">' + g.title + '</h2>' + bggBadge + '</div>' +
@@ -373,6 +441,8 @@
       if (thin) { toggleThinning(thin.dataset.thin); return; }
       const exp = e.target.closest('[data-exp]');
       if (exp) { toggleExp(exp.dataset.exp); return; }
+      const del = e.target.closest('[data-delete]');
+      if (del) { openDeleteModal(del.dataset.delete); return; }
     });
 
     document.getElementById('searchInput').addEventListener('input', render);
@@ -388,34 +458,13 @@
     const settingsModal = document.getElementById('settingsModal');
     document.getElementById('settingsBtn').addEventListener('click', () => {
       document.getElementById('n8nUrlInput').value = n8nBase();
-      document.getElementById('bggUserInput').value = bggUser();
       settingsModal.classList.add('open');
     });
     document.getElementById('settingsCancel').addEventListener('click', () => settingsModal.classList.remove('open'));
     document.getElementById('settingsSave').addEventListener('click', () => {
       localStorage.setItem(LS_URL, document.getElementById('n8nUrlInput').value.trim());
-      localStorage.setItem(LS_BGG_USER, document.getElementById('bggUserInput').value.trim());
       settingsModal.classList.remove('open');
       loadCollection();
-    });
-
-    // Sync from BGG
-    document.getElementById('syncBggBtn').addEventListener('click', async () => {
-      const username = bggUser();
-      if (!username) { toast('Set your BGG username in Settings first.', true); return; }
-      setSyncStatus('Syncing from BGG for "' + username + '"…');
-      try {
-        const result = await n8nFetch('/bgg-pull', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username })
-        });
-        toast('BGG sync: ' + (result.added || 0) + ' added, ' + (result.updated || 0) + ' updated.');
-        await loadCollection();
-      } catch (e) {
-        setSyncStatus(e.message, true);
-        toast('BGG sync failed: ' + e.message, true);
-      }
     });
 
     // Add-by-photo modal
@@ -432,7 +481,7 @@
       const fileInput = document.getElementById('photoInput');
       const file = fileInput.files[0];
       if (!file) { toast('Choose or take a photo first.', true); return; }
-      identifyArea.innerHTML = '<div class="spinner"></div>';
+      identifyArea.innerHTML = '<div class="spinner"></div><p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:0.5rem;">Reading the box and finding cover art…</p>';
       try {
         const base = n8nBase();
         if (!base) throw new Error('Set your n8n webhook URL in Settings first.');
@@ -440,38 +489,10 @@
         form.append('photo', file, file.name || 'box.jpg');
         const res = await fetch(base + '/identify', { method: 'POST', body: form });
         if (!res.ok) throw new Error('Identify request failed (' + res.status + ')');
-        const data = await res.json();
-        const candidates = data.candidates || [];
-        if (candidates.length === 0) {
-          identifyArea.innerHTML = '<p style="color:var(--text-muted); margin-top:1rem;">No matches found on BGG. Try a clearer photo of the title.</p>';
-          return;
-        }
-        identifyArea.innerHTML = '<p style="color:var(--text-muted); margin-top:1rem; font-size:0.85rem;">Pick the right match:</p>' +
-          candidates.map((c, i) =>
-            '<div class="candidate" data-cidx="' + i + '">' +
-              (c.thumbnail ? '<img src="' + c.thumbnail + '">' : '<div style="width:48px;height:48px;background:#1e293b;border-radius:0.4rem;"></div>') +
-              '<div><div class="ctitle">' + c.title + '</div><div class="cyear">' + (c.yearPublished || '') + '</div></div>' +
-            '</div>'
-          ).join('');
-        identifyArea.querySelectorAll('[data-cidx]').forEach(el => {
-          el.addEventListener('click', async () => {
-            const c = candidates[Number(el.dataset.cidx)];
-            identifyArea.innerHTML = '<div class="spinner"></div>';
-            try {
-              const saved = await n8nFetch('/confirm', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bggId: c.bggId })
-              });
-              addModal.classList.remove('open');
-              toast('Added "' + (saved.title || c.title) + '" to the Vault.');
-              await loadCollection();
-            } catch (e) {
-              toast('Could not save: ' + e.message, true);
-              addModal.classList.remove('open');
-            }
-          });
-        });
+        const saved = await res.json();
+        addModal.classList.remove('open');
+        toast('Added "' + (saved.title || 'game') + '" to your collection.');
+        await loadCollection();
       } catch (e) {
         identifyArea.innerHTML = '';
         toast(e.message, true);
