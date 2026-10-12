@@ -1,4 +1,4 @@
-# Game Garage Collection
+# Board Game Garage Collection
 
 A board game collection tracker: a static page (`index.html`) backed by n8n as the database + automation layer. BoardGameGeek integration is disabled for now (see below) — cover art comes from an AI web-search agent instead.
 
@@ -6,8 +6,8 @@ Live at **https://bg.ondorilabo.com** (GitHub Pages, custom domain via Cloudflar
 
 ## Current status
 
-- **Fully working:** your 105 real games, star ratings, thinning flags, delete (with confirmation), and adding new games by photo — all live against your actual n8n at `n8n.ondorilabo.com`.
-- **Cover art:** 71 of 105 games (68%) have real box art, found by an n8n workflow that uses an OpenRouter web-search-grounded model, preferring GameNerdz product pages, then falling back to Wikipedia/publisher/BGG pages. It's best-effort — some games just don't turn up a usable image, and it correctly leaves those blank rather than guessing wrong.
+- **Fully working:** your full 216-game collection (matching your authoritative list, base games and standalone expansions each tracked separately), star ratings, thinning flags, delete (with confirmation), and adding new games by photo — all live against your actual n8n at `n8n.ondorilabo.com`.
+- **Cover art:** 134 of 216 games (62%) have real box art, found by an n8n workflow that uses an OpenRouter web-search-grounded model, preferring GameNerdz product pages, then falling back to Wikipedia/publisher/BGG pages. It's best-effort — some games just don't turn up a usable image, and it correctly leaves those blank rather than guessing wrong.
 - **n8n backend: built directly in your n8n instance** via n8n's own MCP connector (not hand-imported JSON). The `n8n/*.json` files in this repo are a stale reference snapshot from before I had direct n8n access — don't re-import them, they don't match what's actually running.
 - **BoardGameGeek: disabled on purpose**, not broken. See below.
 
@@ -53,11 +53,11 @@ Asking an LLM to directly output an image URL is unreliable — it tends to hall
 2. Fetch that page's HTML directly (deterministic, no LLM involved) and extract its `og:image` meta tag — the same tag virtually every product/wiki page uses for link-preview thumbnails.
 3. Validate the extracted URL actually returns `image/*` content before saving it.
 
-This took the hit rate from ~25% (asking the model to guess an image URL directly) to **68%** (page-then-extract, with GameNerdz preferred).
+This took the hit rate from ~25% (asking the model to guess an image URL directly) to **62-68%** (page-then-extract, with GameNerdz preferred), depending on how obscure the batch of titles is.
 
 ## Configuring the page
 
-The page already defaults to the live n8n URL (`https://n8n.ondorilabo.com/webhook/vault`), so it works out of the box. Click ⚙ if you ever need to point it elsewhere.
+The page already defaults to the live n8n URL (`https://n8n.ondorilabo.com/webhook/vault`), so it works out of the box. Click the gear icon if you ever need to point it elsewhere.
 
 ## Security note
 
