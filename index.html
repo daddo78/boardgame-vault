@@ -164,6 +164,15 @@
         <input type="text" id="searchInput" placeholder="Search title, genre, expansion name..." />
       </div>
       <select id="genreFilter"><option value="ALL">All Genres</option></select>
+      <select id="ratingFilter">
+        <option value="ALL">All Ratings</option>
+        <option value="5">★★★★★ Only</option>
+        <option value="4">★★★★ Only</option>
+        <option value="3">★★★ Only</option>
+        <option value="2">★★ Only</option>
+        <option value="1">★ Only</option>
+        <option value="0">Unrated</option>
+      </select>
       <select id="sortSelect">
         <option value="num-asc">Number (# Ascending)</option>
         <option value="rank-desc">Desire to Play (High to Low)</option>
@@ -226,11 +235,13 @@
     const LS_URL = 'vault_n8n_base_url';
     const LS_CACHE = 'vault_collection_cache_v1';
     const DEFAULT_N8N_BASE = 'https://n8n.ondorilabo.com/webhook/vault';
-    const PLACEHOLDER_ICON = '<svg class="placeholder-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-      '<circle cx="24" cy="10" r="7" fill="#283048"/>' +
-      '<rect x="9" y="17" width="30" height="9" rx="4.5" fill="#283048"/>' +
-      '<rect x="15" y="17" width="8" height="27" rx="4" fill="#283048"/>' +
-      '<rect x="25" y="17" width="8" height="27" rx="4" fill="#283048"/>' +
+    const PLACEHOLDER_ICON = '<svg class="placeholder-icon" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="24" cy="9" r="8" fill="#183153"/>' +
+      '<rect x="16" y="15" width="16" height="18" rx="7" fill="#183153"/>' +
+      '<rect x="3" y="18" width="13" height="10" rx="5" transform="rotate(-28 9.5 23)" fill="#183153"/>' +
+      '<rect x="32" y="18" width="13" height="10" rx="5" transform="rotate(28 38.5 23)" fill="#183153"/>' +
+      '<rect x="14" y="30" width="9" height="22" rx="4.5" fill="#183153"/>' +
+      '<rect x="25" y="30" width="9" height="22" rx="4.5" fill="#183153"/>' +
       '</svg>';
 
     let collection = [];
@@ -377,6 +388,7 @@
       const empty = document.getElementById('emptyState');
       const search = document.getElementById('searchInput').value.toLowerCase();
       const genre = document.getElementById('genreFilter').value;
+      const ratingFilter = document.getElementById('ratingFilter').value;
       const sortBy = document.getElementById('sortSelect').value;
 
       let filtered = collection.filter(g => {
@@ -384,8 +396,9 @@
         const expMatch = expansions.some(e => e.toLowerCase().includes(search));
         const matchSearch = (g.title || '').toLowerCase().includes(search) || (g.genre || '').toLowerCase().includes(search) || (g.type || '').toLowerCase().includes(search) || (g.desc || '').toLowerCase().includes(search) || expMatch;
         const matchGenre = (genre === 'ALL') || (g.genre || '').includes(genre);
+        const matchRating = (ratingFilter === 'ALL') || ((g.desireToPlay || 0) === Number(ratingFilter));
         const matchThin = !thinOnly || g.thinningCandidate;
-        return matchSearch && matchGenre && matchThin;
+        return matchSearch && matchGenre && matchRating && matchThin;
       });
 
       filtered.sort((a, b) => {
@@ -472,6 +485,7 @@
 
     document.getElementById('searchInput').addEventListener('input', render);
     document.getElementById('genreFilter').addEventListener('change', render);
+    document.getElementById('ratingFilter').addEventListener('change', render);
     document.getElementById('sortSelect').addEventListener('change', render);
     document.getElementById('thinFilterBtn').addEventListener('click', (e) => {
       thinOnly = !thinOnly;
