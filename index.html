@@ -3,112 +3,108 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Game Garage Collection</title>
+<title>Board Game Garage Collection</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f5ecd9;
+    --bg: #f0f0e8;
     --card-bg: #ffffff;
-    --card-border: #22333b;
-    --ink: #22333b;
-    --accent: #e8573f;
-    --accent-dark: #c8432d;
-    --teal: #2cb5b8;
-    --teal-dark: #1f8f91;
-    --gold: #f4b400;
-    --danger: #e8573f;
-    --text: #22333b;
-    --text-muted: #5c6b7a;
-    --tag-bg: #e6f6f6;
-    --tag-border: #2cb5b8;
-    --exp-bg: #fbf5e8;
-    --shadow: 4px 4px 0 rgba(34,51,59,0.16);
-    --shadow-sm: 3px 3px 0 rgba(34,51,59,0.16);
+    --card-border: #283048;
+    --ink: #283048;
+    --accent: #b8511f;
+    --accent-dark: #8f3f16;
+    --teal: #283048;
+    --teal-dark: #161c2c;
+    --gold: #f0a010;
+    --danger: #b8511f;
+    --text: #283048;
+    --text-muted: #6b7280;
+    --tag-bg: #e9ebf2;
+    --tag-border: #283048;
+    --exp-bg: #f6f4ea;
+    --shadow: 4px 4px 0 rgba(40,48,72,0.18);
+    --shadow-sm: 3px 3px 0 rgba(40,48,72,0.18);
     --font-body: 'Outfit', sans-serif;
     --font-display: 'Space Grotesk', sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background-color: var(--bg); color: var(--text); font-family: var(--font-body); line-height: 1.5; padding-bottom: 5rem; }
-  header { background: var(--teal); padding: 2.75rem 1.5rem 2.25rem; text-align: center; border-bottom: 4px solid var(--card-border); position: relative; overflow: hidden; }
-  header .deco { position: absolute; font-size: 2.4rem; opacity: 0.35; filter: grayscale(0.1); }
-  header .deco.d1 { top: 1.2rem; left: 6%; transform: rotate(-12deg); }
-  header .deco.d2 { bottom: 1rem; right: 8%; transform: rotate(10deg); }
-  header .deco.d3 { top: 2.2rem; right: 14%; transform: rotate(18deg); font-size: 1.8rem; }
-  header h1 { font-family: var(--font-display); font-size: clamp(2.1rem, 5vw, 3.3rem); font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.02em; text-shadow: 3px 3px 0 rgba(34,51,59,0.25); position: relative; z-index: 1; }
-  header h1 span { color: var(--gold); }
-  header p { color: #fff; opacity: 0.92; margin-top: 0.6rem; font-size: 1.05rem; font-weight: 600; position: relative; z-index: 1; }
-  .sync-status { margin-top: 0.75rem; font-size: 0.8rem; color: #fff; opacity: 0.85; position: relative; z-index: 1; }
-  .sync-status.err { color: #2a1008; background: #fff; display: inline-block; padding: 0.2rem 0.6rem; border-radius: 0.4rem; opacity: 1; font-weight: 700; }
-  .icon-btn { position: absolute; top: 1.25rem; right: 1.25rem; background: #fff; border: 2px solid var(--card-border); color: var(--ink); width: 2.4rem; height: 2.4rem; border-radius: 0.6rem; cursor: pointer; font-size: 1.1rem; box-shadow: var(--shadow-sm); z-index: 2; }
+  header { background: var(--bg); padding: 2.25rem 1.5rem 1.5rem; text-align: center; position: relative; }
+  header .logo { max-width: 520px; width: 90%; height: auto; }
+  header p { color: var(--text); opacity: 0.75; margin-top: 0.75rem; font-size: 1.05rem; font-weight: 600; }
+  .sync-status { margin-top: 0.6rem; font-size: 0.8rem; color: var(--text-muted); }
+  .sync-status.err { color: #fff; background: var(--accent); display: inline-block; padding: 0.2rem 0.6rem; border-radius: 0.4rem; opacity: 1; font-weight: 700; }
+  .icon-btn { position: absolute; top: 1.25rem; right: 1.25rem; background: #fff; border: none; color: var(--ink); width: 2.4rem; height: 2.4rem; border-radius: 0.6rem; cursor: pointer; font-size: 1.1rem; box-shadow: var(--shadow-sm); z-index: 2; }
   .icon-btn:hover { background: var(--gold); }
   .toolbar-container { max-width: 1300px; margin: -1.25rem auto 2rem; padding: 0 1.5rem; position: sticky; top: 1rem; z-index: 50; }
-  .toolbar { background: #fff; border: 2px solid var(--card-border); border-radius: 0.9rem; padding: 0.75rem 1.25rem; display: flex; flex-wrap: wrap; gap: 0.85rem; align-items: center; box-shadow: var(--shadow); }
+  .toolbar { background: #fff; border-radius: 0.9rem; padding: 0.75rem 1.25rem; display: flex; flex-wrap: wrap; gap: 0.85rem; align-items: center; box-shadow: var(--shadow); }
   .search-box { flex: 1 1 240px; }
-  .search-box input { width: 100%; background: var(--exp-bg); border: 2px solid var(--card-border); padding: 0.6rem 1rem; border-radius: 0.6rem; color: var(--ink); font-size: 0.95rem; outline: none; font-family: var(--font-body); }
-  .search-box input:focus { border-color: var(--teal); }
-  select, button.pill { background: var(--exp-bg); color: var(--ink); border: 2px solid var(--card-border); padding: 0.6rem 1rem; border-radius: 0.6rem; cursor: pointer; outline: none; font-family: var(--font-body); font-weight: 600; font-size: 0.9rem; }
+  .search-box input { width: 100%; background: var(--exp-bg); border: none; padding: 0.6rem 1rem; border-radius: 0.6rem; color: var(--ink); font-size: 0.95rem; outline: none; font-family: var(--font-body); }
+  .search-box input:focus { box-shadow: 0 0 0 2px var(--teal) inset; }
+  select, button.pill { background: var(--exp-bg); color: var(--ink); border: none; padding: 0.6rem 1rem; border-radius: 0.6rem; cursor: pointer; outline: none; font-family: var(--font-body); font-weight: 600; font-size: 0.9rem; }
   button.pill:hover { background: var(--teal); color: #fff; }
-  button.pill.active { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
-  .stats-badge { background: var(--gold); border: 2px solid var(--card-border); color: var(--ink); padding: 0.5rem 0.9rem; border-radius: 0.6rem; font-weight: 800; font-size: 0.85rem; white-space: nowrap; margin-left: auto; }
+  button.pill.active { background: var(--accent); color: #fff; }
+  .stats-badge { background: var(--gold); color: var(--ink); padding: 0.5rem 0.9rem; border-radius: 0.6rem; font-weight: 800; font-size: 0.85rem; white-space: nowrap; margin-left: auto; }
   .grid { max-width: 1300px; margin: 0 auto; padding: 0 1.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 1.5rem; }
-  .card { background: var(--card-bg); border: 2px solid var(--card-border); border-radius: 0.9rem; padding: 1.35rem; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s; position: relative; box-shadow: var(--shadow); }
+  .card { background: var(--card-bg); border-radius: 0.9rem; padding: 1.35rem; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s; position: relative; box-shadow: var(--shadow); }
   .card:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(34,51,59,0.2); }
-  .card.thinning { border-color: var(--accent); }
+  .card.thinning { box-shadow: var(--shadow), inset 4px 0 0 var(--accent); }
+  .card.thinning:hover { box-shadow: 6px 6px 0 rgba(34,51,59,0.2), inset 4px 0 0 var(--accent); }
   .card-header { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 0.75rem; padding-right: 1.6rem; }
-  .game-num { background: var(--gold); border: 2px solid var(--card-border); color: var(--ink); font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; width: 4.6rem; height: 4.6rem; border-radius: 0.7rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+  .game-num { background: var(--gold); color: var(--ink); font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; width: 4.6rem; height: 4.6rem; border-radius: 0.7rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
   .game-num img { width: 100%; height: 100%; object-fit: cover; border-radius: 0.5rem; }
-  .card-delete-btn { position: absolute; top: 0.9rem; right: 0.9rem; width: 2rem; height: 2rem; border-radius: 0.5rem; background: #fff; border: 2px solid var(--card-border); color: var(--text-muted); cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; z-index: 1; }
-  .card-delete-btn:hover { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
+  .game-num .placeholder-icon { width: 60%; height: 60%; opacity: 0.8; }
+  .card-delete-btn { position: absolute; top: 0.9rem; right: 0.9rem; width: 2rem; height: 2rem; border-radius: 0.5rem; background: var(--exp-bg); border: none; color: var(--text-muted); cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; z-index: 1; }
+  .card-delete-btn:hover { background: var(--accent); color: #fff; }
   .game-title { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--ink); line-height: 1.3; }
   .bgg-rating { font-size: 0.75rem; color: var(--teal-dark); font-weight: 700; }
   .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0 0.85rem; }
-  .tag { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 0.4rem; text-transform: uppercase; border: 1.5px solid; }
-  .tag-genre { background: var(--tag-bg); border-color: var(--tag-border); color: var(--teal-dark); }
-  .tag-type { background: #fbf0db; border-color: #e0c585; color: #8a6d1f; }
-  .tag-thin { background: #fde7e2; border-color: var(--accent); color: var(--accent-dark); }
+  .tag { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 0.4rem; text-transform: uppercase; }
+  .tag-genre { background: var(--tag-bg); color: var(--teal-dark); }
+  .tag-type { background: #fbf0db; color: #8a6d1f; }
+  .tag-thin { background: #fde7e2; color: var(--accent-dark); }
   .desc { font-size: 0.92rem; color: var(--text-muted); margin-bottom: 1rem; }
-  .expansions-toggle { background: var(--exp-bg); border: 2px solid var(--card-border); color: var(--ink); border-radius: 0.6rem; padding: 0.45rem 0.8rem; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 1rem; }
+  .expansions-toggle { background: var(--exp-bg); border: none; color: var(--ink); border-radius: 0.6rem; padding: 0.45rem 0.8rem; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 1rem; }
   .expansions-toggle:hover { background: var(--gold); }
-  .exp-list { display: none; background: var(--exp-bg); border: 2px solid var(--card-border); border-top: none; border-radius: 0 0 0.6rem 0.6rem; padding: 0.7rem; margin: -1rem 0 1rem; list-style: none; }
+  .exp-list { display: none; background: var(--exp-bg); border-radius: 0.6rem; padding: 0.7rem; margin: -0.6rem 0 1rem; list-style: none; }
   .exp-list.open { display: block; }
-  .exp-item { font-size: 0.8rem; color: var(--text); display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid #e3d8bd; }
-  .exp-item:last-child { border-bottom: none; }
-  .exp-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
-  .ranker-box { background: var(--exp-bg); border: 2px solid var(--card-border); border-radius: 0.7rem; padding: 0.7rem 1rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+  .exp-item { font-size: 0.8rem; color: var(--text); display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; }
+  .exp-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; flex-shrink: 0; }
+  .ranker-box { background: var(--exp-bg); border-radius: 0.7rem; padding: 0.7rem 1rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
   .ranker-label { font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: var(--ink); }
   .stars { display: flex; gap: 0.2rem; }
   .star-btn { background: none; border: none; font-size: 1.3rem; color: #cbbd9a; cursor: pointer; transition: transform 0.15s, color 0.15s; }
   .star-btn:hover { transform: scale(1.2); }
   .star-btn.active { color: var(--accent); }
-  .thin-toggle { width: 100%; background: #fff; border: 2px solid var(--card-border); color: var(--ink); padding: 0.5rem; border-radius: 0.6rem; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
-  .thin-toggle.on { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
-  .fab { position: fixed; bottom: 1.75rem; right: 1.75rem; width: 3.6rem; height: 3.6rem; border-radius: 50%; background: var(--accent); color: #fff; border: 3px solid var(--card-border); font-size: 1.8rem; font-weight: 700; cursor: pointer; box-shadow: var(--shadow); z-index: 60; }
+  .thin-toggle { width: 100%; background: var(--exp-bg); border: none; color: var(--ink); padding: 0.5rem; border-radius: 0.6rem; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+  .thin-toggle.on { background: var(--accent); color: #fff; }
+  .fab { position: fixed; bottom: 1.75rem; right: 1.75rem; width: 3.6rem; height: 3.6rem; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.8rem; font-weight: 700; cursor: pointer; box-shadow: var(--shadow); z-index: 60; }
   .fab:hover { background: var(--accent-dark); }
   .modal-overlay { position: fixed; inset: 0; background: rgba(34,51,59,0.55); display: none; align-items: center; justify-content: center; z-index: 100; padding: 1.5rem; }
   .modal-overlay.open { display: flex; }
-  .modal { background: var(--card-bg); border: 3px solid var(--card-border); border-radius: 0.9rem; padding: 1.75rem; max-width: 460px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 8px 8px 0 rgba(34,51,59,0.3); }
+  .modal { background: var(--card-bg); border-radius: 0.9rem; padding: 1.75rem; max-width: 460px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 8px 8px 0 rgba(34,51,59,0.3); }
   .modal h2 { font-family: var(--font-display); margin-bottom: 1rem; color: var(--ink); text-transform: uppercase; }
   .modal label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem; margin-top: 0.9rem; font-weight: 700; }
-  .modal input[type=text], .modal input[type=file] { width: 100%; background: var(--exp-bg); border: 2px solid var(--card-border); padding: 0.6rem 0.8rem; border-radius: 0.5rem; color: var(--ink); font-size: 0.9rem; font-family: var(--font-body); }
+  .modal input[type=text], .modal input[type=file] { width: 100%; background: var(--exp-bg); border: none; padding: 0.6rem 0.8rem; border-radius: 0.5rem; color: var(--ink); font-size: 0.9rem; font-family: var(--font-body); }
   .modal-actions { display: flex; gap: 0.6rem; margin-top: 1.5rem; }
-  .btn { flex: 1; padding: 0.65rem; border-radius: 0.6rem; border: 2px solid var(--card-border); background: var(--exp-bg); color: var(--ink); cursor: pointer; font-weight: 700; font-size: 0.9rem; }
-  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent-dark); }
+  .btn { flex: 1; padding: 0.65rem; border-radius: 0.6rem; border: none; background: var(--exp-bg); color: var(--ink); cursor: pointer; font-weight: 700; font-size: 0.9rem; }
+  .btn.primary { background: var(--accent); color: #fff; }
   .btn.ghost { background: transparent; }
-  .candidate { display: flex; gap: 0.75rem; align-items: center; border: 2px solid var(--card-border); border-radius: 0.6rem; padding: 0.6rem; margin-top: 0.6rem; cursor: pointer; }
-  .candidate:hover { border-color: var(--teal); background: var(--tag-bg); }
+  .candidate { display: flex; gap: 0.75rem; align-items: center; background: var(--exp-bg); border-radius: 0.6rem; padding: 0.6rem; margin-top: 0.6rem; cursor: pointer; }
+  .candidate:hover { background: var(--tag-bg); }
   .candidate img { width: 48px; height: 48px; object-fit: cover; border-radius: 0.4rem; background: var(--exp-bg); }
   .candidate .ctitle { font-weight: 700; font-size: 0.9rem; color: var(--ink); }
   .candidate .cyear { font-size: 0.75rem; color: var(--text-muted); }
   .spinner { border: 3px solid var(--exp-bg); border-top-color: var(--accent); border-radius: 50%; width: 1.4rem; height: 1.4rem; animation: spin 0.8s linear infinite; margin: 1rem auto; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .empty-state { text-align: center; color: var(--text-muted); padding: 4rem 1rem; max-width: 1300px; margin: 0 auto; font-weight: 600; }
-  .toast { position: fixed; bottom: 1.75rem; left: 50%; transform: translateX(-50%); background: var(--ink); border: 2px solid var(--card-border); color: #fff; padding: 0.7rem 1.2rem; border-radius: 0.6rem; font-size: 0.85rem; z-index: 200; box-shadow: var(--shadow); display: none; font-weight: 600; }
+  .toast { position: fixed; bottom: 1.75rem; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 0.7rem 1.2rem; border-radius: 0.6rem; font-size: 0.85rem; z-index: 200; box-shadow: var(--shadow); display: none; font-weight: 600; }
   .toast.show { display: block; }
-  .toast.err { background: var(--accent-dark); border-color: var(--accent-dark); }
+  .toast.err { background: var(--accent-dark); }
 
   @media (max-width: 640px) {
-    header { padding: 2rem 1rem 1.5rem; }
-    header .deco { display: none; }
+    header { padding: 1.5rem 3.1rem 1.25rem; }
+    header .logo { max-width: 290px; }
     header p { font-size: 0.95rem; }
     .icon-btn { top: 0.85rem; right: 0.85rem; width: 2.2rem; height: 2.2rem; font-size: 1rem; }
     .toolbar-container { margin: -1rem auto 1.25rem; padding: 0 1rem; top: 0.5rem; }
@@ -130,11 +126,8 @@
 </head>
 <body>
   <header>
-    <span class="deco d1">🎲</span>
-    <span class="deco d2">🎲</span>
-    <span class="deco d3">♟️</span>
     <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
-    <h1>Game Garage <span>Collection</span></h1>
+    <img class="logo" src="assets/logo-horizontal.jpg" alt="Board Game Garage Collection" />
     <p>Shelf collection catalog, synced to n8n, with a desire-to-play thinning ranker.</p>
     <div class="sync-status" id="syncStatus">Not configured yet — click ⚙ to set your n8n webhook URL.</div>
   </header>
@@ -207,6 +200,14 @@
     const LS_URL = 'vault_n8n_base_url';
     const LS_CACHE = 'vault_collection_cache_v1';
     const DEFAULT_N8N_BASE = 'https://n8n.ondorilabo.com/webhook/vault';
+    const PLACEHOLDER_ICON = '<svg class="placeholder-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<rect x="6" y="6" width="36" height="36" rx="8" fill="#283048" fill-opacity="0.18"/>' +
+      '<circle cx="16" cy="16" r="3" fill="#283048"/>' +
+      '<circle cx="32" cy="16" r="3" fill="#283048"/>' +
+      '<circle cx="24" cy="24" r="3" fill="#283048"/>' +
+      '<circle cx="16" cy="32" r="3" fill="#283048"/>' +
+      '<circle cx="32" cy="32" r="3" fill="#283048"/>' +
+      '</svg>';
 
     let collection = [];
     let thinOnly = false;
@@ -403,7 +404,7 @@
 
         const numCell = g.photoUrl
           ? '<div class="game-num"><img src="' + g.photoUrl + '" alt=""></div>'
-          : '<div class="game-num">#' + (g.num || '?') + '</div>';
+          : '<div class="game-num">' + PLACEHOLDER_ICON + '</div>';
 
         const bggBadge = g.bggRating ? '<div class="bgg-rating">BGG ' + Number(g.bggRating).toFixed(1) + '★</div>' : '';
 
