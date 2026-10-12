@@ -4,33 +4,47 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Board Game Garage Collection</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
   :root {
-    --bg: #f0f0e8;
+    --bg: #f0f1f3;
     --card-bg: #ffffff;
-    --card-border: #283048;
-    --ink: #283048;
+    --card-border: #183153;
+    --ink: #183153;
     --accent: #b8511f;
     --accent-dark: #8f3f16;
-    --teal: #283048;
-    --teal-dark: #161c2c;
-    --gold: #f0a010;
+    --teal: #146ebe;
+    --teal-dark: #0f5493;
+    --gold: #ffd43b;
+    --gold-dark: #e0ab00;
     --danger: #b8511f;
-    --text: #283048;
+    --text: #183153;
     --text-muted: #6b7280;
-    --tag-bg: #e9ebf2;
-    --tag-border: #283048;
+    --tag-bg: #e3edf8;
+    --tag-border: #146ebe;
     --exp-bg: #f6f4ea;
-    --shadow: 4px 4px 0 rgba(40,48,72,0.18);
-    --shadow-sm: 3px 3px 0 rgba(40,48,72,0.18);
+    --shadow: 4px 4px 0 rgba(24,49,83,0.18);
+    --shadow-sm: 3px 3px 0 rgba(24,49,83,0.18);
     --font-body: 'Outfit', sans-serif;
-    --font-display: 'Space Grotesk', sans-serif;
+    --font-display: 'Fredoka', sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background-color: var(--bg); color: var(--text); font-family: var(--font-body); line-height: 1.5; padding-bottom: 5rem; }
-  header { background: var(--bg); padding: 2.25rem 1.5rem 1.5rem; text-align: center; position: relative; }
-  header .logo { max-width: 520px; width: 90%; height: auto; }
+  header { background: var(--bg); padding: 2.25rem 1.5rem 1.5rem; text-align: center; position: relative; overflow: hidden; }
+  header .logo { max-width: 520px; width: 90%; height: auto; position: relative; z-index: 1; }
+  .header-deco { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+  .header-deco i { position: absolute; color: var(--card-border); opacity: 0.1; }
+  .header-deco i:nth-child(1) { top: 8%; left: 4%; font-size: 2.4rem; transform: rotate(-18deg); }
+  .header-deco i:nth-child(2) { top: 62%; left: 9%; font-size: 1.8rem; transform: rotate(12deg); }
+  .header-deco i:nth-child(3) { top: 15%; left: 20%; font-size: 1.3rem; transform: rotate(20deg); }
+  .header-deco i:nth-child(4) { top: 68%; left: 24%; font-size: 2rem; transform: rotate(-8deg); }
+  .header-deco i:nth-child(5) { top: 10%; right: 22%; font-size: 1.6rem; transform: rotate(15deg); }
+  .header-deco i:nth-child(6) { top: 66%; right: 18%; font-size: 1.9rem; transform: rotate(-14deg); }
+  .header-deco i:nth-child(7) { top: 18%; right: 7%; font-size: 1.4rem; transform: rotate(-22deg); }
+  .header-deco i:nth-child(8) { top: 60%; right: 4%; font-size: 2.2rem; transform: rotate(10deg); }
+  .header-deco i:nth-child(9) { top: 4%; left: 42%; font-size: 1.5rem; transform: rotate(8deg); }
+  .header-deco i:nth-child(10) { top: 78%; left: 46%; font-size: 1.6rem; transform: rotate(-10deg); }
   header p { color: var(--text); opacity: 0.75; margin-top: 0.75rem; font-size: 1.05rem; font-weight: 600; }
   .sync-status { margin-top: 0.6rem; font-size: 0.8rem; color: var(--text-muted); }
   .sync-status.err { color: #fff; background: var(--accent); display: inline-block; padding: 0.2rem 0.6rem; border-radius: 0.4rem; opacity: 1; font-weight: 700; }
@@ -126,7 +140,19 @@
 </head>
 <body>
   <header>
-    <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
+    <div class="header-deco" aria-hidden="true">
+      <i class="fa-solid fa-dice-d20"></i>
+      <i class="fa-solid fa-chess-knight"></i>
+      <i class="fa-solid fa-dice-six"></i>
+      <i class="fa-solid fa-trophy"></i>
+      <i class="fa-solid fa-puzzle-piece"></i>
+      <i class="fa-solid fa-chess-rook"></i>
+      <i class="fa-solid fa-dice-five"></i>
+      <i class="fa-solid fa-hat-wizard"></i>
+      <i class="fa-solid fa-chess-king"></i>
+      <i class="fa-solid fa-chess-pawn"></i>
+    </div>
+    <button class="icon-btn" id="settingsBtn" title="Settings"><i class="fa-solid fa-gear"></i></button>
     <img class="logo" src="assets/logo-horizontal.jpg" alt="Board Game Garage Collection" />
     <p>Shelf collection catalog, synced to n8n, with a desire-to-play thinning ranker.</p>
     <div class="sync-status" id="syncStatus">Not configured yet — click ⚙ to set your n8n webhook URL.</div>
@@ -152,7 +178,7 @@
   <main class="grid" id="gamesGrid"></main>
   <div class="empty-state" id="emptyState" style="display:none;"></div>
 
-  <button class="fab" id="addFab" title="Add a game by photo">+</button>
+  <button class="fab" id="addFab" title="Add a game by photo"><i class="fa-solid fa-plus"></i></button>
 
   <!-- Settings modal -->
   <div class="modal-overlay" id="settingsModal">
@@ -386,7 +412,7 @@
 
         let starsHtml = '';
         for (let i = 1; i <= 5; i++) {
-          starsHtml += '<button class="star-btn ' + (i <= rank ? 'active' : '') + '" data-id="' + g.id + '" data-rank="' + i + '">&#9733;</button>';
+          starsHtml += '<button class="star-btn ' + (i <= rank ? 'active' : '') + '" data-id="' + g.id + '" data-rank="' + i + '"><i class="fa-solid fa-star"></i></button>';
         }
 
         let expHtml = '';
@@ -407,7 +433,7 @@
         const bggBadge = g.bggRating ? '<div class="bgg-rating">BGG ' + Number(g.bggRating).toFixed(1) + '★</div>' : '';
 
         card.innerHTML =
-          '<button class="card-delete-btn" data-delete="' + g.id + '" title="Delete game">&#128465;</button>' +
+          '<button class="card-delete-btn" data-delete="' + g.id + '" title="Delete game"><i class="fa-solid fa-trash"></i></button>' +
           '<div>' +
             '<div class="card-header">' + numCell +
               '<div><h2 class="game-title">' + g.title + '</h2>' + bggBadge + '</div>' +
