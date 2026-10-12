@@ -1,13 +1,13 @@
 # Board Game Garage Collection
 
-A board game collection tracker: a static page (`index.html`) backed by n8n as the database + automation layer. BoardGameGeek integration is disabled for now (see below) — cover art comes from an AI web-search agent instead.
+A board game collection tracker: a static page (`index.html`) backed by n8n as the database + automation layer. BoardGameGeek integration is disabled for now (see below). Each game shows an AI-picked [Tabler Icons](https://tablericons.com/) glyph instead of box-art photos — see "How game icons are picked" below.
 
 Live at **https://bg.ondorilabo.com** (GitHub Pages, custom domain via Cloudflare) and on **https://daddo78.github.io/boardgame-vault/**.
 
 ## Current status
 
-- **Fully working:** your full 216-game collection (matching your authoritative list, base games and standalone expansions each tracked separately), star ratings, thinning flags, delete (with confirmation), and adding new games by photo — all live against your actual n8n at `n8n.ondorilabo.com`.
-- **Cover art:** 134 of 216 games (62%) have real box art, found by an n8n workflow that uses an OpenRouter web-search-grounded model, preferring GameNerdz product pages, then falling back to Wikipedia/publisher/BGG pages. It's best-effort — some games just don't turn up a usable image, and it correctly leaves those blank rather than guessing wrong.
+- **Fully working:** your full 216-game collection (matching your authoritative list, base games and standalone expansions each tracked separately), star ratings with an exact-rating filter, thinning flags, delete (with confirmation), and adding new games by photo — all live against your actual n8n at `n8n.ondorilabo.com`.
+- **Icons, not photos:** every game shows a Tabler Icons glyph picked by an AI model from the real ~5,200-icon catalog (not a hand-made genre mapping) — see "How game icons are picked" below. Cover-art photo fetching is retired (workflow unpublished, not deleted).
 - **n8n backend: built directly in your n8n instance** via n8n's own MCP connector (not hand-imported JSON). The `n8n/*.json` files in this repo are a stale reference snapshot from before I had direct n8n access — don't re-import them, they don't match what's actually running.
 - **BoardGameGeek: disabled on purpose**, not broken. See below.
 
@@ -27,7 +27,7 @@ index.html (static page, no build step)
   → fetch()
 n8n webhooks at https://n8n.ondorilabo.com/webhook/vault/*
   → n8n Data Table "vault_games" (your collection, source of truth)
-  → OpenRouter (vision model for photo→title; web-search model for cover art)
+  → OpenRouter (vision model for photo→title; chat model for icon picking)
 ```
 
 ### n8n workflows (all published, in your personal project)
@@ -37,23 +37,23 @@ n8n webhooks at https://n8n.ondorilabo.com/webhook/vault/*
 | Vault - Get Collection | `GET /vault/collection` | Returns all games as JSON |
 | Vault - Update Rating / Thinning | `POST /vault/update` | Patches `desireToPlay` / `thinningCandidate` |
 | Vault - Delete Game | `POST /vault/delete` | Removes a game by id |
-| Vault - Identify Game From Photo | `POST /vault/identify` | Photo → OpenRouter vision guesses title/genre/type → saves directly → triggers cover-art lookup |
-| Vault - Find Cover Art | `POST /vault/find-cover-art` | OpenRouter web search finds a likely source page (GameNerdz preferred), extracts its `og:image` tag, validates it's a real image, saves it |
-| Vault - Backfill Cover Art (run once) | manual trigger only | One-time batch: finds cover art for every game currently missing a photo |
+| Vault - Identify Game From Photo | `POST /vault/identify` | Photo → OpenRouter vision guesses title/genre/type → saves directly → assigns an icon |
+| Vault - Assign Icon For Game | `POST /vault/assign-icon` | Fetches the live Tabler Icons catalog, asks OpenRouter to pick one icon for a single game, validates the pick against the catalog, saves it |
+| Vault - Assign Game Icons (run once) | manual trigger only | Batch version of the above — assigns (or re-assigns anything still on the generic "meeple" fallback) icons for every game in one run |
 
-Unpublished (BGG-dependent, inactive): `Vault - BGG Pull Sync`, `Vault - Confirm & Save Game`, `Vault - BGG Push (STUB)`.
+Unpublished (retired, inactive): `Vault - Find Cover Art`, `Vault - Backfill Cover Art (run once)` (superseded by the icon system), and the BGG-dependent `Vault - BGG Pull Sync`, `Vault - Confirm & Save Game`, `Vault - BGG Push (STUB)`.
 
-The Data Table (`vault_games`) columns: `game_id` (string, PK — `manual-g<N>` for the original seeded games, `manual-<slug>-<timestamp>` for photo-added games, `bgg-<id>` reserved for any future BGG data), `bgg_id`, `num`, `title`, `genre`, `type`, `desc`, `expansions` (JSON-encoded array), `desire_to_play`, `thinning_candidate`, `bgg_rating`, `photo_url`, `added_at`, `updated_at`.
+The Data Table (`vault_games`) columns: `game_id` (string, PK — `manual-g<N>` for the original seeded games, `manual-<slug>-<timestamp>` for photo-added games, `bgg-<id>` reserved for any future BGG data), `bgg_id`, `num`, `title`, `genre`, `type`, `desc`, `expansions` (JSON-encoded array), `desire_to_play`, `thinning_candidate`, `bgg_rating`, `photo_url` (unused now, kept for potential future revert), `icon`, `added_at`, `updated_at`.
 
-## How the cover-art agent works
+## How game icons are picked
 
-Asking an LLM to directly output an image URL is unreliable — it tends to hallucinate plausible-looking but nonexistent asset paths (tested this; got 404s). The working approach instead:
+Each game gets a [Tabler Icons](https://tablericons.com/) outline glyph instead of a cover photo, rendered via the `@tabler/icons-webfont` CDN (`<i class="ti ti-{icon}">`). The picking process, learning from the same hallucination problem the old cover-art agent hit:
 
-1. Ask an OpenRouter `:online` (web-search-grounded) model for a *webpage* likely to carry good box art — preferring a GameNerdz product page, then publisher/retailer, then Wikipedia, then BGG — and only accept a URL that genuinely appeared in its search results.
-2. Fetch that page's HTML directly (deterministic, no LLM involved) and extract its `og:image` meta tag — the same tag virtually every product/wiki page uses for link-preview thumbnails.
-3. Validate the extracted URL actually returns `image/*` content before saving it.
+1. Fetch the **live** Tabler Icons catalog JSON (`unpkg.com/@tabler/icons/icons.json`, ~5,200 names) at workflow run time — never a hardcoded list that could drift out of date.
+2. Ask an OpenRouter chat model (`openai/gpt-4o-mini`) to pick the single best-fitting icon name for each game from that real list, based on title/genre/type/description.
+3. Validate the model's pick against the fetched name set before saving — an invented or slightly-off name (e.g. a plausible-sounding `"zombie"` that doesn't actually exist in the catalog) falls back to `"meeple"` rather than rendering a broken icon.
 
-This took the hit rate from ~25% (asking the model to guess an image URL directly) to **62-68%** (page-then-extract, with GameNerdz preferred), depending on how obscure the batch of titles is.
+The batch workflow is idempotent: re-running it only re-processes games still on the `"meeple"` fallback, so it can be re-run with a stronger prompt to keep chipping away at the hard cases. Starting from a first pass (33% fell back to meeple), two more passes with progressively more specific prompting (concrete examples like "trading euro game → coin", "tile-laying → layout-grid") brought that down to 4%.
 
 ## Configuring the page
 
