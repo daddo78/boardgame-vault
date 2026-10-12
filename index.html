@@ -6,6 +6,7 @@
 <title>Board Game Garage Collection</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css">
 <style>
   :root {
     --bg: #f0f1f3;
@@ -66,8 +67,7 @@
   .card.thinning:hover { box-shadow: 6px 6px 0 rgba(34,51,59,0.2), inset 4px 0 0 var(--accent); }
   .card-header { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 0.75rem; padding-right: 1.6rem; }
   .game-num { background: var(--gold); color: var(--ink); font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; width: 4.6rem; height: 4.6rem; border-radius: 0.7rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
-  .game-num img { width: 100%; height: 100%; object-fit: cover; border-radius: 0.5rem; transform: scale(1.35); }
-  .game-num .placeholder-icon { width: 60%; height: 60%; opacity: 0.8; }
+  .game-num i { font-size: 2.3rem; color: var(--card-border); }
   .card-delete-btn { position: absolute; top: 0.9rem; right: 0.9rem; width: 2rem; height: 2rem; border-radius: 0.5rem; background: var(--exp-bg); border: none; color: var(--text-muted); cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; z-index: 1; }
   .card-delete-btn:hover { background: var(--accent); color: #fff; }
   .game-title { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--ink); line-height: 1.3; }
@@ -129,6 +129,7 @@
     .card { padding: 1.1rem; }
     .card-header { padding-right: 2.2rem; gap: 0.7rem; }
     .game-num { width: 3.6rem; height: 3.6rem; font-size: 1.1rem; }
+    .game-num i { font-size: 1.8rem; }
     .game-title { font-size: 1.1rem; }
     .card-delete-btn { width: 2.2rem; height: 2.2rem; }
     .modal { padding: 1.25rem; max-height: 90vh; }
@@ -235,9 +236,7 @@
     const LS_URL = 'vault_n8n_base_url';
     const LS_CACHE = 'vault_collection_cache_v1';
     const DEFAULT_N8N_BASE = 'https://n8n.ondorilabo.com/webhook/vault';
-    const PLACEHOLDER_ICON = '<svg class="placeholder-icon" viewBox="0 0 24 24" fill="#183153" stroke="none" xmlns="http://www.w3.org/2000/svg">' +
-      '<path d="M9 20h-5a1 1 0 0 1 -1 -1c0 -2 3.378 -4.907 4 -6c-1 0 -4 -.5 -4 -2c0 -2 4 -3.5 6 -4c0 -1.5 .5 -4 3 -4s3 2.5 3 4c2 .5 6 2 6 4c0 1.5 -3 2 -4 2c.622 1.093 4 4 4 6a1 1 0 0 1 -1 1h-5c-1 0 -2 -4 -3 -4s-2 4 -3 4z" />' +
-      '</svg>';
+    const DEFAULT_ICON = 'meeple';
 
     let collection = [];
     let thinOnly = false;
@@ -434,9 +433,7 @@
             '</ul>';
         }
 
-        const numCell = g.photoUrl
-          ? '<div class="game-num"><img src="' + g.photoUrl + '" alt=""></div>'
-          : '<div class="game-num">' + PLACEHOLDER_ICON + '</div>';
+        const numCell = '<div class="game-num"><i class="ti ti-' + (g.icon || DEFAULT_ICON) + '"></i></div>';
 
         const bggBadge = g.bggRating ? '<div class="bgg-rating">BGG ' + Number(g.bggRating).toFixed(1) + '★</div>' : '';
 
