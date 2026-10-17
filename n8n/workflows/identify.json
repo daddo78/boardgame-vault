@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "383c500e-4307-4ff0-9a24-2cc10e5e0577",
+      "id": "097a0161-dd7e-418f-a45f-54f05cddb893",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "5d053363-d432-4e19-9ccb-aa7545a613c0"
+      "webhookId": "01847264-cc08-4da0-84d8-d253537013e5"
     },
     {
-      "id": "1c60e0eb-3b9e-4ca6-9e08-822e9d3c886c",
+      "id": "e1bf6e24-c582-465a-85ac-78d99f16c842",
       "name": "Photo To Base64",
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
@@ -40,7 +40,7 @@
       }
     },
     {
-      "id": "a7cf26c0-a5cd-4f40-94ca-89b63af68eb6",
+      "id": "6cb2aa28-1f28-4d4b-aaec-3c3cf51e3e77",
       "name": "Build Vision Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -49,11 +49,11 @@
         300
       ],
       "parameters": {
-        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n  };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    let expansions = [];\n    try { const v = JSON.parse(f[F.expansions] || '[]'); if (Array.isArray(v)) expansions = v.map(String); } catch (e) {}\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions, desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    const bin = $('Webhook').first().binary || {};\n    const key = Object.keys(bin)[0];\n    if (!key) throw new Error('No photo uploaded');\n    const mime = bin[key].mimeType || 'image/jpeg';\n    const b64 = $input.first().json.photoB64;\n    const instructions = [\n      'Identify the board game in this photo (usually the box front, back or spine).',\n      'Reply with JSON only:',\n      '{\"identified\": true|false, \"title\": \"official title as on the box, e.g. \\\\\"Dune: Imperium\\\\\"\",',\n      ' \"genre\": \"theme/setting, 1-2 short labels joined by \\\\\" / \\\\\", e.g. \\\\\"Nature / Ecology\\\\\", \\\\\"Sci-Fi / Space\\\\\"\",',\n      ' \"type\": \"core mechanics, 1-2 labels joined by \\\\\" / \\\\\", e.g. \\\\\"Engine Building / Tableau\\\\\", \\\\\"Deck Building\\\\\"\",',\n      ' \"desc\": \"one vivid sentence (max ~22 words) about what players do\",',\n      ' \"expansions\": [\"titles of expansions visible in the photo, else empty\"],',\n      ' \"confidence\": 0.0-1.0, \"reason\": \"only if not identified\"}',\n      'Style example from this collection: {\"title\":\"Earth\",\"genre\":\"Nature / Ecology\",\"type\":\"Engine Building / Tableau\",\"desc\":\"Construct an interconnected 4x4 flora and fauna island ecosystem with zero downtime on rival turns.\"}',\n    ].join('\\n');\n    return [{ json: { requestBody: {\n      model: 'anthropic/claude-sonnet-5.5', max_tokens: 600, temperature: 0,\n      messages: [\n        { role: 'system', content: 'You identify board games from photos for a personal collection catalog. Reply with JSON only.' },\n        { role: 'user', content: [\n          { type: 'text', text: instructions },\n          { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },\n        ] },\n      ],\n    } } }];\n  "
+        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n  };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    let expansions = [];\n    try { const v = JSON.parse(f[F.expansions] || '[]'); if (Array.isArray(v)) expansions = v.map(String); } catch (e) {}\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions, desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    const bin = $('Webhook').first().binary || {};\n    const key = Object.keys(bin)[0];\n    if (!key) throw new Error('No photo uploaded');\n    const mime = bin[key].mimeType || 'image/jpeg';\n    const b64 = $input.first().json.photoB64;\n    const instructions = [\n      'Identify the board game in this photo (usually the box front, back or spine).',\n      'Reply with JSON only:',\n      '{\"identified\": true|false, \"title\": \"official title as on the box, e.g. \\\\\"Dune: Imperium\\\\\"\",',\n      ' \"genre\": \"theme/setting, 1-2 short labels joined by \\\\\" / \\\\\", e.g. \\\\\"Nature / Ecology\\\\\", \\\\\"Sci-Fi / Space\\\\\"\",',\n      ' \"type\": \"core mechanics, 1-2 labels joined by \\\\\" / \\\\\", e.g. \\\\\"Engine Building / Tableau\\\\\", \\\\\"Deck Building\\\\\"\",',\n      ' \"desc\": \"one vivid sentence (max ~22 words) about what players do\",',\n      ' \"expansions\": [\"titles of expansions visible in the photo, else empty\"],',\n      ' \"confidence\": 0.0-1.0, \"reason\": \"only if not identified\"}',\n      'Style example from this collection: {\"title\":\"Earth\",\"genre\":\"Nature / Ecology\",\"type\":\"Engine Building / Tableau\",\"desc\":\"Construct an interconnected 4x4 flora and fauna island ecosystem with zero downtime on rival turns.\"}',\n    ].join('\\n');\n    return [{ json: { requestBody: {\n      model: 'anthropic/claude-sonnet-5.5', max_tokens: 1500, temperature: 0, reasoning: { enabled: false },\n      messages: [\n        { role: 'system', content: 'You identify board games from photos for a personal collection catalog. Reply with JSON only.' },\n        { role: 'user', content: [\n          { type: 'text', text: instructions },\n          { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },\n        ] },\n      ],\n    } } }];\n  "
       }
     },
     {
-      "id": "840a42ae-1c5f-45d2-901e-e444fe450ff2",
+      "id": "e9b98cf3-6209-47e2-bd3b-4f9eca045ae2",
       "name": "Ask Vision Model",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -97,7 +97,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "b31a5dec-9a5a-4507-86bf-f56174da1c7f",
+      "id": "fc3b364f-80ac-456b-a8aa-f84da2598bcc",
       "name": "Parse Identification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -110,7 +110,7 @@
       }
     },
     {
-      "id": "afadeca8-2c69-41b9-b470-32105fd5fc16",
+      "id": "95877a53-dd5f-4d32-92e2-b54e620f66b7",
       "name": "Identified?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -127,7 +127,7 @@
           },
           "conditions": [
             {
-              "id": "60acebec-2236-463e-b279-1acd7350368a",
+              "id": "3347dfa4-df79-481d-a3c0-58c3985d6ffa",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -143,7 +143,7 @@
       }
     },
     {
-      "id": "8caf2892-2660-4b41-a32e-21efabac0587",
+      "id": "0ce34211-8239-424f-a6fd-834332672572",
       "name": "List All Games",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -193,8 +193,8 @@
       },
       "credentials": {
         "airtableTokenApi": {
-          "id": "AIRTABLE_CRED_ID",
-          "name": "Airtable – Board Game Garage"
+          "id": "DjPIwMJ1Lmar6CuJ",
+          "name": "Airtable Personal Access Token account"
         }
       },
       "retryOnFail": true,
@@ -202,7 +202,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "85052a7e-bf90-4a8b-92f0-084af4ec6d96",
+      "id": "a10ddcd5-c129-4116-8906-489d3bf85ee6",
       "name": "Prepare New Record",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -215,7 +215,7 @@
       }
     },
     {
-      "id": "17ef3f16-ec5f-412b-bad7-cd3d3b0668bf",
+      "id": "dbd4159b-006e-41fc-a633-7b1c02f7acb8",
       "name": "New Game?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -232,7 +232,7 @@
           },
           "conditions": [
             {
-              "id": "38507a8b-83ea-4edc-9c53-cc2a780eceb1",
+              "id": "e56021ca-f584-430b-a8ad-85d8c7c67ab9",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -248,7 +248,7 @@
       }
     },
     {
-      "id": "b0023f59-133a-4b07-8caa-91f05cadf7df",
+      "id": "5b323525-e16b-4e64-b327-cf1b91e29b4f",
       "name": "Create Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -268,8 +268,8 @@
       },
       "credentials": {
         "airtableTokenApi": {
-          "id": "AIRTABLE_CRED_ID",
-          "name": "Airtable – Board Game Garage"
+          "id": "DjPIwMJ1Lmar6CuJ",
+          "name": "Airtable Personal Access Token account"
         }
       },
       "retryOnFail": true,
@@ -277,7 +277,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "1c35e257-8d6c-4634-b02f-77657c21ad33",
+      "id": "e744a7cd-eacc-47f7-84d9-ab5952b169a6",
       "name": "Enrich Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -290,7 +290,7 @@
       }
     },
     {
-      "id": "74ca8a9d-6156-49a7-b9ef-a6d21a04a486",
+      "id": "20745cde-ebb1-4735-9508-16a0af4b5ca9",
       "name": "BGG Enrich",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
@@ -313,7 +313,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "1400d6e8-7638-4c74-9242-2040d9c91ebc",
+      "id": "426d78e6-a9a5-4c6e-a112-5f81877a245f",
       "name": "Icon Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -326,7 +326,7 @@
       }
     },
     {
-      "id": "725c35cf-cdcb-414d-894f-b91b99efe26e",
+      "id": "201b7475-72ff-457c-856b-a5eb5c991301",
       "name": "Assign Icon",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
@@ -349,7 +349,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "e1d01d3a-18df-4251-91ef-75d7636e4a55",
+      "id": "8f22355a-f35d-41da-b45e-4422fa5b099a",
       "name": "Reload Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -383,8 +383,8 @@
       },
       "credentials": {
         "airtableTokenApi": {
-          "id": "AIRTABLE_CRED_ID",
-          "name": "Airtable – Board Game Garage"
+          "id": "DjPIwMJ1Lmar6CuJ",
+          "name": "Airtable Personal Access Token account"
         }
       },
       "retryOnFail": true,
@@ -392,7 +392,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "18bfde7a-d897-4bd2-ae46-195b055aa11e",
+      "id": "3ca12102-875b-4103-b13d-9e3e6a50d7e9",
       "name": "Shape Game",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -405,7 +405,7 @@
       }
     },
     {
-      "id": "c4587161-946f-4fe0-8ddd-7d61b91fb3b8",
+      "id": "cea84ace-e550-44ea-88e1-9994db1f98d4",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -422,7 +422,7 @@
       }
     },
     {
-      "id": "51c54887-0b08-4c27-957b-2f4c7d10cc4f",
+      "id": "3f1fc7b8-a8d8-4586-bece-31b3f90f989c",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,

@@ -24,7 +24,7 @@ const ID = {
 };
 
 const CRED = {
-  airtable: { airtableTokenApi: { id: AIRTABLE_CRED, name: 'Airtable – Board Game Garage' } },
+  airtable: { airtableTokenApi: { id: AIRTABLE_CRED, name: 'Airtable Personal Access Token account' } },
   openrouter: { httpHeaderAuth: { id: 'vxwyGYOyusPAYIJd', name: 'OpenRouter API' } },
   bgg: { httpHeaderAuth: { id: BGG_CRED, name: 'BGG API Token' } },
 };
@@ -264,7 +264,7 @@ const iconOne = wf(ID.iconOne, 'Vault — Assign Icon (single)', [
       'Reply with JSON only: {"candidates":["name1","name2",...]}',
     ].join('\n');
     return [{ json: { requestBody: {
-      model: '__ICON_MODEL__', max_tokens: 300, temperature: 0.2,
+      model: '__ICON_MODEL__', max_tokens: 1000, temperature: 0.2, reasoning: { enabled: false },
       messages: [
         { role: 'system', content: 'You pick pictograms from the Tabler Icons library for a board game collection app. Reply with JSON only.' },
         { role: 'user', content: prompt },
@@ -443,7 +443,7 @@ const identify = wf(ID.identify, 'Vault — Identify Game From Photo', [
       'Style example from this collection: {"title":"Earth","genre":"Nature / Ecology","type":"Engine Building / Tableau","desc":"Construct an interconnected 4x4 flora and fauna island ecosystem with zero downtime on rival turns."}',
     ].join('\n');
     return [{ json: { requestBody: {
-      model: '__VISION_MODEL__', max_tokens: 600, temperature: 0,
+      model: '__VISION_MODEL__', max_tokens: 1500, temperature: 0, reasoning: { enabled: false },
       messages: [
         { role: 'system', content: 'You identify board games from photos for a personal collection catalog. Reply with JSON only.' },
         { role: 'user', content: [

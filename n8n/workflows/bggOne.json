@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "da2f67f6-ee9c-40a0-9cda-cdc7c38a7f13",
+      "id": "ae759069-0ae7-4815-8098-8a7f48d8868a",
       "name": "When Called By Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -18,7 +18,7 @@
       }
     },
     {
-      "id": "a3957c6c-06b2-4a64-81bd-919772520050",
+      "id": "faba7f73-ed3c-4f29-9ba8-26fe060a7aa9",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -35,10 +35,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "6f050395-74e8-4a1c-8456-6dd04254781a"
+      "webhookId": "55c7faf3-a1a4-40d2-b4a2-8d7ac27cacc5"
     },
     {
-      "id": "68cb6a0a-c2e0-46e3-af49-192143f74a1a",
+      "id": "5b233e82-de94-482f-8d27-93968152b2b3",
       "name": "Normalize",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -51,7 +51,7 @@
       }
     },
     {
-      "id": "dcbea3eb-ee5a-40ea-88a2-f10fcb16c601",
+      "id": "a2b1e07b-d0a7-4c97-9022-cf505d18db87",
       "name": "Find Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -85,8 +85,8 @@
       },
       "credentials": {
         "airtableTokenApi": {
-          "id": "AIRTABLE_CRED_ID",
-          "name": "Airtable – Board Game Garage"
+          "id": "DjPIwMJ1Lmar6CuJ",
+          "name": "Airtable Personal Access Token account"
         }
       },
       "retryOnFail": true,
@@ -94,7 +94,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "f4ded58c-2867-4da8-82d2-0fdc89717bce",
+      "id": "9338ef4e-96b8-4f8a-af2c-014a0018a09c",
       "name": "Prep",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -107,7 +107,7 @@
       }
     },
     {
-      "id": "bb35be75-2717-49a8-9055-5f240e75769e",
+      "id": "de76ac95-21eb-4123-9b53-5ae67959dc4b",
       "name": "BGG Search",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -145,7 +145,7 @@
       },
       "credentials": {
         "httpHeaderAuth": {
-          "id": "BGG_CRED_ID",
+          "id": "rZyqHvE3jW7FFkmj",
           "name": "BGG API Token"
         }
       },
@@ -154,7 +154,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "f7cd8123-92da-48b1-bf27-553e274eb12f",
+      "id": "e9ceaba2-5664-450b-a5a1-d598e5aacdfb",
       "name": "Find Candidates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -167,7 +167,7 @@
       }
     },
     {
-      "id": "049be563-0b2f-4c1b-b0ed-764ee1c23401",
+      "id": "23c76a4d-6064-46d4-bc49-db8996bec86d",
       "name": "Any Candidates?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -184,7 +184,7 @@
           },
           "conditions": [
             {
-              "id": "be26a1a6-6000-4056-8ff2-220170e033a1",
+              "id": "6383ae5d-d11e-4bc1-b2ee-9c0d33c34095",
               "leftValue": "={{ $json.found }}",
               "rightValue": "",
               "operator": {
@@ -200,7 +200,7 @@
       }
     },
     {
-      "id": "0f50f50a-c797-4e66-81e4-1cbcb6109755",
+      "id": "1d28e12a-cd8f-4b3e-bc87-5f1a1593a063",
       "name": "BGG Thing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -238,7 +238,7 @@
       },
       "credentials": {
         "httpHeaderAuth": {
-          "id": "BGG_CRED_ID",
+          "id": "rZyqHvE3jW7FFkmj",
           "name": "BGG API Token"
         }
       },
@@ -247,7 +247,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "3f3baad6-0954-4cf6-bc27-6c607436e7b6",
+      "id": "8328b210-6014-4c7a-b2fd-90e760acc839",
       "name": "Choose Match",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -260,7 +260,7 @@
       }
     },
     {
-      "id": "b6068314-9e4b-447a-b7cb-62a6f5f8340b",
+      "id": "e8d16379-554d-4fe8-b3a2-c0ccdbdc63ee",
       "name": "Apply?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -277,7 +277,7 @@
           },
           "conditions": [
             {
-              "id": "a9134814-e5e8-4161-959c-7087eb0851f0",
+              "id": "5c8358e6-d848-4fbe-895e-eb1937876bd2",
               "leftValue": "={{ $json.apply }}",
               "rightValue": "",
               "operator": {
@@ -293,7 +293,7 @@
       }
     },
     {
-      "id": "84a414d5-3c00-4631-8992-600b964ad82d",
+      "id": "85125ea5-0ac5-4fb1-a904-52164947eae3",
       "name": "Save BGG Data",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -313,8 +313,8 @@
       },
       "credentials": {
         "airtableTokenApi": {
-          "id": "AIRTABLE_CRED_ID",
-          "name": "Airtable – Board Game Garage"
+          "id": "DjPIwMJ1Lmar6CuJ",
+          "name": "Airtable Personal Access Token account"
         }
       },
       "retryOnFail": true,
@@ -322,7 +322,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "4dfcfbc5-c972-41e4-8c5a-c01b98e09279",
+      "id": "e3f72e1f-8916-4cfa-9217-c2eecae7a050",
       "name": "Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -335,7 +335,7 @@
       }
     },
     {
-      "id": "993e1572-9b11-4cb6-b324-4cd06cacc339",
+      "id": "9a06c14b-bb19-441d-8005-24d7fb5cada0",
       "name": "Throttle BGG",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
@@ -346,7 +346,7 @@
       "parameters": {
         "amount": 1.5
       },
-      "webhookId": "7f64d79a-eec4-4516-9e0b-792b21c74475"
+      "webhookId": "7e569d28-a385-46bc-b30f-080545f12afc"
     }
   ],
   "connections": {

@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "a138acef-ccf4-4b6e-a212-f26b239f388d",
+      "id": "b972af6a-a53b-44fc-ad9e-e7fded2ad96e",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "72d6ba12-d338-47fa-90ea-99af1f3412ee"
+      "webhookId": "ea7ea595-7e2e-4a8c-b734-e0250596e076"
     },
     {
-      "id": "a526de33-63be-4a4d-8928-f8652aca5d44",
+      "id": "22797b05-2a41-4ef4-b016-0c501d1eaefd",
       "name": "Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -37,7 +37,7 @@
       }
     },
     {
-      "id": "20a02ee9-e32a-4b77-9d4a-fc67f9020ff1",
+      "id": "b472df81-8904-4f5d-91a2-579500335c4d",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "b2317921-0ce7-4a08-b853-7dbceb907bf8",
+              "id": "dd4ce160-fed5-4c67-ad7f-273eb12b592a",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,7 +70,7 @@
       }
     },
     {
-      "id": "275ba9c1-78ca-49f2-85cc-5e99f897c631",
+      "id": "bed30a14-bb50-49cb-9a50-45d1cbb964d3",
       "name": "Find Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -104,8 +104,8 @@
       },
       "credentials": {
         "airtableTokenApi": {
-          "id": "AIRTABLE_CRED_ID",
-          "name": "Airtable – Board Game Garage"
+          "id": "DjPIwMJ1Lmar6CuJ",
+          "name": "Airtable Personal Access Token account"
         }
       },
       "retryOnFail": true,
@@ -113,7 +113,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "bb847cc7-0fbc-414a-87f9-fb2ef10635e0",
+      "id": "c25fde10-5f4a-4155-bb6c-ec7d47e50986",
       "name": "Check Found",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -126,7 +126,7 @@
       }
     },
     {
-      "id": "455a43c3-cfc4-4065-8f9f-765c1e6ca650",
+      "id": "55ba9932-e77d-454a-a5ad-25632996760d",
       "name": "Found?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -143,7 +143,7 @@
           },
           "conditions": [
             {
-              "id": "48797812-436b-4fff-a478-f35ed886affa",
+              "id": "06bf800c-b502-4c86-8fe1-61f9d0fa0cbe",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -159,7 +159,7 @@
       }
     },
     {
-      "id": "a92b8c66-fbf4-4579-8a75-cb8507284558",
+      "id": "8da9c747-6b35-4232-bc31-fddb446aaf3f",
       "name": "Update Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -179,8 +179,8 @@
       },
       "credentials": {
         "airtableTokenApi": {
-          "id": "AIRTABLE_CRED_ID",
-          "name": "Airtable – Board Game Garage"
+          "id": "DjPIwMJ1Lmar6CuJ",
+          "name": "Airtable Personal Access Token account"
         }
       },
       "retryOnFail": true,
@@ -188,7 +188,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "3f44ca62-97c9-48b1-8c0a-0a6522403538",
+      "id": "516e2630-0f64-4cce-93a4-69dfef89138d",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -205,7 +205,7 @@
       }
     },
     {
-      "id": "f7e3770c-60b8-4a95-8ec3-b96328c84a78",
+      "id": "22ee8c2c-f798-4355-9df1-89ff65121f7e",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
