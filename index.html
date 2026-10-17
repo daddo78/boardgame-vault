@@ -276,6 +276,7 @@
         <option value="recent-desc">Recently Played</option>
         <option value="stale-desc">Longest Since Played</option>
         <option value="bgg-desc">BGG Rating</option>
+        <option value="bggrank-asc">BGG Rank</option>
         <option value="weight-desc">Heaviest First</option>
         <option value="weight-asc">Lightest First</option>
       </select>
@@ -638,6 +639,8 @@
           // Never-played games first, then the ones gathering the most dust
           case 'stale-desc': return (lastTs(a) || -Infinity) - (lastTs(b) || -Infinity) || nA - nB;
           case 'bgg-desc': return (b.bggRating || 0) - (a.bggRating || 0) || nA - nB;
+          // #1 first; unranked games (expansions, very new or obscure titles) go last
+          case 'bggrank-asc': return (a.rank || Infinity) - (b.rank || Infinity) || nA - nB;
           case 'weight-desc': return (b.weight || 0) - (a.weight || 0) || nA - nB;
           case 'weight-asc': return (a.weight || 9) - (b.weight || 9) || nA - nB;
           default: return nA - nB;
