@@ -26,7 +26,7 @@ index.html (static page, no build step)
   → fetch()
 n8n webhooks at https://n8n.ondorilabo.com/webhook/vault/*   (Hostinger VPS, Cloudflare Tunnel)
   → Airtable base "Board Game Garage Collection", table "Games"   (source of truth)
-  → OpenRouter: Claude Sonnet 5.5 (photo → title), Claude Haiku 5.5 (icon picks)
+  → OpenRouter: Gemini 2.5 Flash Lite (photo → titles), Claude Haiku 5.5 (icon picks); only providers that don't store data
   → BoardGameGeek XML API2 with an app Bearer token (ratings, details, plays)
 ```
 

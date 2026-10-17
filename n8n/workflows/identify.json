@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "607b4229-8abe-4a1e-ac3d-c400c296f60a",
+      "id": "d9bef94e-d88a-4069-af82-639bb0ae8ab1",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "52a55318-6d42-4a7d-a840-771be218635b"
+      "webhookId": "26669eff-e1d8-490e-82eb-4bdf7aea655b"
     },
     {
-      "id": "7538d6f1-01ec-4e9a-923c-f71c4f01d2a3",
+      "id": "56c9ab91-ac5e-4b2e-ba1d-6e9a497f3f06",
       "name": "Photo To Base64",
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
@@ -40,7 +40,7 @@
       }
     },
     {
-      "id": "62ae947f-3a0a-4e33-b025-f1b4691f2e06",
+      "id": "bbc4f26d-acf6-44c0-9773-d64a3c7869a3",
       "name": "List All Games",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -99,7 +99,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "77460a6f-5168-4535-addd-188b858fa24f",
+      "id": "41d3f537-1be7-4b1e-9422-7a118449dfbd",
       "name": "Build Vision Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -108,11 +108,11 @@
         300
       ],
       "parameters": {
-        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    const bin = $('Webhook').first().binary || {};\n    const key = Object.keys(bin)[0];\n    if (!key) throw new Error('No photo uploaded');\n    const mime = bin[key].mimeType || 'image/jpeg';\n    const b64 = $('Photo To Base64').first().json.photoB64;\n    const owned = $input.all().flatMap((i) => i.json.records || []).map(toGame).map((g) => g.title).sort();\n    const instructions = [\n      'Identify every board game box visible in this photo (fronts, backs or spines). Skip anything you cannot read confidently.',\n      'Reply with JSON only:',\n      '{\"items\": [{',\n      '  \"title\": \"official title as printed, e.g. \\\\\"Dune: Imperium\\\\\"\",',\n      '  \"kind\": \"game\" or \"expansion\",',\n      '  \"baseGame\": \"for an expansion, the title of the game it expands; else null\",',\n      '  \"owned\": \"if this is the same game (any edition, spelling or language) as a title in the OWNED list below, that exact OWNED title; else null. An expansion is never the same game as its base game: for an expansion, only fill this if the expansion itself is in the list\",',\n      '  \"genre\": \"theme/setting, 1-2 short labels joined by \\\\\" / \\\\\", e.g. \\\\\"Nature / Ecology\\\\\"\",',\n      '  \"type\": \"core mechanics, 1-2 labels joined by \\\\\" / \\\\\", e.g. \\\\\"Engine Building / Tableau\\\\\"\",',\n      '  \"desc\": \"one vivid sentence (max ~22 words) about what players do\",',\n      '  \"confidence\": 0.0-1.0',\n      '}], \"reason\": \"only if no boxes could be identified\"}',\n      'Style example: {\"title\":\"Earth\",\"kind\":\"game\",\"genre\":\"Nature / Ecology\",\"type\":\"Engine Building / Tableau\",\"desc\":\"Construct an interconnected 4x4 flora and fauna island ecosystem with zero downtime on rival turns.\"}',\n      '',\n      'OWNED:',\n      ...owned,\n    ].join('\\n');\n    return [{ json: { requestBody: {\n      // Sonnet requires reasoning; keep it low so it doesn't crowd out the answer\n      model: 'anthropic/claude-sonnet-5.5', max_tokens: 8000, reasoning: { effort: 'low' },\n      // Only route to providers that don't store or train on the photo\n      provider: { data_collection: 'deny' },\n      messages: [\n        { role: 'system', content: 'You identify board games from photos for a personal collection catalog. Reply with JSON only.' },\n        { role: 'user', content: [\n          { type: 'text', text: instructions },\n          { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },\n        ] },\n      ],\n    } } }];\n  "
+        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    const bin = $('Webhook').first().binary || {};\n    const key = Object.keys(bin)[0];\n    if (!key) throw new Error('No photo uploaded');\n    const mime = bin[key].mimeType || 'image/jpeg';\n    const b64 = $('Photo To Base64').first().json.photoB64;\n    const owned = $input.all().flatMap((i) => i.json.records || []).map(toGame).map((g) => g.title).sort();\n    const instructions = [\n      'Identify every board game box visible in this photo (fronts, backs or spines). Skip anything you cannot read confidently.',\n      'Reply with JSON only:',\n      '{\"items\": [{',\n      '  \"title\": \"official title as printed, e.g. \\\\\"Dune: Imperium\\\\\"\",',\n      '  \"kind\": \"game\" or \"expansion\",',\n      '  \"baseGame\": \"for an expansion, the title of the game it expands; else null\",',\n      '  \"owned\": \"if this is the same game (any edition, spelling or language) as a title in the OWNED list below, that exact OWNED title; else null. An expansion is never the same game as its base game: for an expansion, only fill this if the expansion itself is in the list\",',\n      '  \"genre\": \"theme/setting, 1-2 short labels joined by \\\\\" / \\\\\", e.g. \\\\\"Nature / Ecology\\\\\"\",',\n      '  \"type\": \"core mechanics, 1-2 labels joined by \\\\\" / \\\\\", e.g. \\\\\"Engine Building / Tableau\\\\\"\",',\n      '  \"desc\": \"one vivid sentence (max ~22 words) about what players do\",',\n      '  \"confidence\": 0.0-1.0',\n      '}], \"reason\": \"only if no boxes could be identified\"}',\n      'Style example: {\"title\":\"Earth\",\"kind\":\"game\",\"genre\":\"Nature / Ecology\",\"type\":\"Engine Building / Tableau\",\"desc\":\"Construct an interconnected 4x4 flora and fauna island ecosystem with zero downtime on rival turns.\"}',\n      '',\n      'OWNED:',\n      ...owned,\n    ].join('\\n');\n    return [{ json: { requestBody: {\n      // Low reasoning keeps answers fast and cheap (some vision models require reasoning to be on)\n      model: 'google/gemini-2.5-flash-lite', max_tokens: 8000, reasoning: { effort: 'low' },\n      // Only route to providers that don't store or train on the photo\n      provider: { data_collection: 'deny' },\n      messages: [\n        { role: 'system', content: 'You identify board games from photos for a personal collection catalog. Reply with JSON only.' },\n        { role: 'user', content: [\n          { type: 'text', text: instructions },\n          { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },\n        ] },\n      ],\n    } } }];\n  "
       }
     },
     {
-      "id": "42aedb1e-eeaa-4182-83bc-d1f75e4790bf",
+      "id": "b785dc57-fc23-4e88-b9fa-2ca2822755ab",
       "name": "Ask Vision Model",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -156,7 +156,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "b4df5578-2d1e-4b02-a374-6b2b8b97a21a",
+      "id": "fc24f816-d806-4329-a4e1-56efaae21c1c",
       "name": "Plan",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -169,7 +169,7 @@
       }
     },
     {
-      "id": "03bcd962-c5a0-4aff-a15f-97634fabd31d",
+      "id": "6ff755db-0fe2-4a08-a546-d022c818446d",
       "name": "Identified?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -186,7 +186,7 @@
           },
           "conditions": [
             {
-              "id": "016de0f4-176e-4a56-be24-0eb22d28ce78",
+              "id": "ffac2c68-dee4-48de-b456-a3ebda5fd16c",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -202,7 +202,7 @@
       }
     },
     {
-      "id": "29ce1428-c0cd-475b-a04a-e586f9505432",
+      "id": "be05833f-1ae3-40e0-8a34-018bf4af6c08",
       "name": "Expansions To Add?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -219,7 +219,7 @@
           },
           "conditions": [
             {
-              "id": "e6d42c86-4dac-4c7f-acf3-f9236908d70f",
+              "id": "8d917509-8da6-49a0-b83b-a4b1bd65f662",
               "leftValue": "={{ $json.expRecords.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -235,7 +235,7 @@
       }
     },
     {
-      "id": "d61fb0fa-31d1-42c6-968e-201c4b63dfbd",
+      "id": "df95f855-6f69-4fb9-8756-9fb69d83b92a",
       "name": "Save Expansions",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -264,7 +264,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "d99d7e08-c3f5-4371-b92e-2ac779572c34",
+      "id": "22c4c27f-f099-4b19-bfc9-1e5e4cf45c29",
       "name": "After Expansions",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -277,7 +277,7 @@
       }
     },
     {
-      "id": "52ceb9d6-69ed-4e86-a30e-42fdf6c5f113",
+      "id": "158465ad-09ff-4c91-a551-ca2ae14fbbef",
       "name": "New Games?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -294,7 +294,7 @@
           },
           "conditions": [
             {
-              "id": "8a8704d9-bdb2-43b2-8ffd-032410986f5d",
+              "id": "009c9f1c-cb8e-4e39-aecf-39d595639092",
               "leftValue": "={{ $json.creates.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -310,7 +310,7 @@
       }
     },
     {
-      "id": "9ac1b240-5810-449a-9e17-53b9d4b612c7",
+      "id": "9fa2e643-baff-4521-9f1d-05b20b51b0b9",
       "name": "Create Records",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -339,7 +339,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "c8e25358-9cb4-4f61-947a-3ff63efef8c0",
+      "id": "cf23219e-c98d-4ca1-9180-6651c9572a6e",
       "name": "One Item Per New Game",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -352,7 +352,7 @@
       }
     },
     {
-      "id": "9d868de0-23ce-4fa2-b02d-a2faac0f6bb6",
+      "id": "82b7cfc1-7e05-4b74-85c4-0e4dcb4f3fc6",
       "name": "BGG Enrich",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
@@ -375,7 +375,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "cb99d25e-e0ef-40c3-9a2d-15c872b2c746",
+      "id": "8a6e2ee0-4b1e-4028-a37c-00959b15e5b8",
       "name": "Check BGG Duplicates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -388,7 +388,7 @@
       }
     },
     {
-      "id": "6fe8e174-3dee-4000-a625-e9a4c12367dd",
+      "id": "3a87a8e6-e051-4fc8-8b0a-ea7390fe34ae",
       "name": "Remove Duplicates?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -405,7 +405,7 @@
           },
           "conditions": [
             {
-              "id": "46ad860e-9d90-47b1-8dd1-ca90b7298f46",
+              "id": "5ed156c2-527b-4ebe-a181-43ccea695020",
               "leftValue": "={{ $json.dupes.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -421,7 +421,7 @@
       }
     },
     {
-      "id": "de3af4b6-ccf3-4dbb-ab2d-30bb0685a311",
+      "id": "7c9ada32-c5c0-49ab-b7bc-3c1dae426a0c",
       "name": "Delete Duplicates",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -447,7 +447,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "25960efb-c20f-4389-bc24-a42289dc45cb",
+      "id": "7bb1b579-6d42-4b1b-a5e8-58775c526c10",
       "name": "After Duplicates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -460,7 +460,7 @@
       }
     },
     {
-      "id": "e59ccd17-e3ba-4617-b8d5-11611aa0c35e",
+      "id": "1934aa58-5866-43fc-9db7-519b3a578f2e",
       "name": "Icons Needed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -477,7 +477,7 @@
           },
           "conditions": [
             {
-              "id": "1db47fee-1e27-4f34-8de7-da3852eab4f4",
+              "id": "f372f85a-b26f-444f-aa94-205dbc4c2d7a",
               "leftValue": "={{ $json.keep.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -493,7 +493,7 @@
       }
     },
     {
-      "id": "a0ffd10e-7924-456f-af23-a381605429a5",
+      "id": "fa715ffa-4076-43a8-9fa4-2a01f6888c26",
       "name": "One Item Per Kept Game",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -506,7 +506,7 @@
       }
     },
     {
-      "id": "4524046a-4558-4f9f-b763-17fa9ffc1420",
+      "id": "3df357c5-9a23-4596-9faa-15c02f58dbb8",
       "name": "Assign Icon",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
@@ -529,7 +529,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "64bf7478-acf2-4e7e-bcce-b10afb288f9c",
+      "id": "1b9b28e4-6bb8-4a14-bdbd-4aee9434a20f",
       "name": "Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -542,7 +542,7 @@
       }
     },
     {
-      "id": "30f9371f-b1d8-4953-a5d4-736cb5a546a6",
+      "id": "a00c8831-86cc-4496-82c6-32ee577e8c7d",
       "name": "Delete Photo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -555,7 +555,7 @@
       }
     },
     {
-      "id": "438486e2-06fe-4590-a0f5-3dcb689b651e",
+      "id": "0178d679-9481-444f-83a8-f20a22d28086",
       "name": "Delete Photo (no match)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -568,7 +568,7 @@
       }
     },
     {
-      "id": "19f7a48e-ceb8-4078-b8b6-32cabebdc221",
+      "id": "0e28f7c1-d217-45a7-b9b5-5fee1ee02f8a",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -585,7 +585,7 @@
       }
     },
     {
-      "id": "461365d3-dde6-4d3f-ae9b-8a8c9dcc33f6",
+      "id": "ed0fc630-b9a3-42af-b09a-32f62d748fe7",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,

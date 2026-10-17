@@ -9,7 +9,7 @@ const BASE = 'appb5FKsyLareQzG4';
 const TABLE = 'tblbGc0UuDxIPP2a8';
 const AT_URL = `https://api.airtable.com/v0/${BASE}/${TABLE}`;
 const TABLER_CSS = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css';
-const VISION_MODEL = 'anthropic/claude-sonnet-5.5';
+const VISION_MODEL = 'google/gemini-2.5-flash-lite';
 const ICON_MODEL = 'anthropic/claude-haiku-5.5';
 
 const ID = {
@@ -548,7 +548,7 @@ const identify = wf(ID.identify, 'Vault — Identify Games From Photo', [
       ...owned,
     ].join('\n');
     return [{ json: { requestBody: {
-      // Sonnet requires reasoning; keep it low so it doesn't crowd out the answer
+      // Low reasoning keeps answers fast and cheap (some vision models require reasoning to be on)
       model: '__VISION_MODEL__', max_tokens: 8000, reasoning: { effort: 'low' },
       // Only route to providers that don't store or train on the photo
       provider: { data_collection: 'deny' },
