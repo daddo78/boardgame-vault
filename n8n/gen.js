@@ -22,6 +22,7 @@ const ID = {
   bggOne: 'BGVaultBggOne001',
   bggBatch: 'BGVaultBggBatch1',
   syncPlays: 'BGVaultSyncPlays',
+  photoSweep: 'BGVaultPhotoSwp1',
 };
 
 const CRED = {
@@ -130,6 +131,23 @@ const execSub = (name, workflowId) => node(name, 'n8n-nodes-base.executeWorkflow
 const subTrigger = () => node('When Called By Another Workflow', 'n8n-nodes-base.executeWorkflowTrigger', 1.1, { inputSource: 'passthrough' });
 const manual = () => node('Run Manually', 'n8n-nodes-base.manualTrigger', 1, {});
 const wait = (name, seconds) => node(name, 'n8n-nodes-base.wait', 1.1, { amount: seconds }, { webhookId: uuid() });
+
+// n8n writes uploaded files to disk (executions/temp while running, then moves them under the execution's
+// id) and keeps them even for executions it doesn't save. This deletes the webhook's uploaded photo by the
+// file id n8n recorded for it, then passes items through unchanged. n8n then logs a harmless
+// "Failed to restore binary data" when it tries to move the now-missing file.
+const N8N_STORAGE = '/home/node/.n8n/storage';
+const deleteUploads = (name) => node(name, 'n8n-nodes-base.code', 2, { jsCode: [
+  "const fs = require('fs');",
+  "const bin = $('Webhook').first().binary || {};",
+  'for (const key of Object.keys(bin)) {',
+  "  const id = String(bin[key].id || ''); // e.g. filesystem-v2:workflows/<wf>/executions/temp/binary_data/<uuid>",
+  "  if (!id.includes(':')) continue;",
+  "  const file = '" + N8N_STORAGE + "/' + id.slice(id.indexOf(':') + 1);",
+  "  for (const f of [file, file + '.metadata']) { try { fs.rmSync(f, { force: true }); } catch (e) {} }",
+  '}',
+  'return $input.all();',
+].join('\n') });
 
 // connections: [from, to, fromOutput=0]
 const wf = (id, name, nodes, edges, extraSettings = {}) => {
@@ -493,31 +511,47 @@ const bggBatch = batch(ID.bggBatch, 'Vault — BGG Enrich (batch)', ID.bggOne, f
 
 // =====================================================================
 // 4. Identify From Photo  POST /webhook/vault/identify  multipart { photo }
+//    One photo can hold several boxes. Each one is classified before anything is written:
+//      skip      - already owned (same title, the model matched it to an owned title, or already listed as an expansion)
+//      expansion - an expansion of an owned game: appended to that game's Expansions list
+//      create    - new game: created, BGG-enriched, then removed again if its BGG ID matches an owned game
 // =====================================================================
-const identify = wf(ID.identify, 'Vault — Identify Game From Photo', [
+const identify = wf(ID.identify, 'Vault — Identify Games From Photo', [
   webhook('Webhook', 'POST', 'vault/identify'),
   node('Photo To Base64', 'n8n-nodes-base.extractFromFile', 1, {
     operation: 'binaryToPropery', binaryPropertyName: '={{ Object.keys($binary)[0] }}', destinationKey: 'photoB64', options: {},
   }),
+  airtableListAll('List All Games'),
   code('Build Vision Request', function () {
     const bin = $('Webhook').first().binary || {};
     const key = Object.keys(bin)[0];
     if (!key) throw new Error('No photo uploaded');
     const mime = bin[key].mimeType || 'image/jpeg';
-    const b64 = $input.first().json.photoB64;
+    const b64 = $('Photo To Base64').first().json.photoB64;
+    const owned = $input.all().flatMap((i) => i.json.records || []).map(toGame).map((g) => g.title).sort();
     const instructions = [
-      'Identify the board game in this photo (usually the box front, back or spine).',
+      'Identify every board game box visible in this photo (fronts, backs or spines). Skip anything you cannot read confidently.',
       'Reply with JSON only:',
-      '{"identified": true|false, "title": "official title as on the box, e.g. \\"Dune: Imperium\\"",',
-      ' "genre": "theme/setting, 1-2 short labels joined by \\" / \\", e.g. \\"Nature / Ecology\\", \\"Sci-Fi / Space\\"",',
-      ' "type": "core mechanics, 1-2 labels joined by \\" / \\", e.g. \\"Engine Building / Tableau\\", \\"Deck Building\\"",',
-      ' "desc": "one vivid sentence (max ~22 words) about what players do",',
-      ' "expansions": ["titles of expansions visible in the photo, else empty"],',
-      ' "confidence": 0.0-1.0, "reason": "only if not identified"}',
-      'Style example from this collection: {"title":"Earth","genre":"Nature / Ecology","type":"Engine Building / Tableau","desc":"Construct an interconnected 4x4 flora and fauna island ecosystem with zero downtime on rival turns."}',
+      '{"items": [{',
+      '  "title": "official title as printed, e.g. \\"Dune: Imperium\\"",',
+      '  "kind": "game" or "expansion",',
+      '  "baseGame": "for an expansion, the title of the game it expands; else null",',
+      '  "owned": "if this is the same game (any edition, spelling or language) as a title in the OWNED list below, that exact OWNED title; else null. An expansion is never the same game as its base game: for an expansion, only fill this if the expansion itself is in the list",',
+      '  "genre": "theme/setting, 1-2 short labels joined by \\" / \\", e.g. \\"Nature / Ecology\\"",',
+      '  "type": "core mechanics, 1-2 labels joined by \\" / \\", e.g. \\"Engine Building / Tableau\\"",',
+      '  "desc": "one vivid sentence (max ~22 words) about what players do",',
+      '  "confidence": 0.0-1.0',
+      '}], "reason": "only if no boxes could be identified"}',
+      'Style example: {"title":"Earth","kind":"game","genre":"Nature / Ecology","type":"Engine Building / Tableau","desc":"Construct an interconnected 4x4 flora and fauna island ecosystem with zero downtime on rival turns."}',
+      '',
+      'OWNED:',
+      ...owned,
     ].join('\n');
     return [{ json: { requestBody: {
-      model: '__VISION_MODEL__', max_tokens: 1500, temperature: 0, reasoning: { enabled: false },
+      // Sonnet requires reasoning; keep it low so it doesn't crowd out the answer
+      model: '__VISION_MODEL__', max_tokens: 8000, reasoning: { effort: 'low' },
+      // Only route to providers that don't store or train on the photo
+      provider: { data_collection: 'deny' },
       messages: [
         { role: 'system', content: 'You identify board games from photos for a personal collection catalog. Reply with JSON only.' },
         { role: 'user', content: [
@@ -528,59 +562,121 @@ const identify = wf(ID.identify, 'Vault — Identify Game From Photo', [
     } } }];
   }),
   openrouter('Ask Vision Model'),
-  code('Parse Identification', function () {
+  code('Plan', function () {
     const text = $input.first().json.choices?.[0]?.message?.content || '';
     let r = {};
     try { r = JSON.parse(text.match(/\{[\s\S]*\}/)[0]); } catch (e) {}
-    if (!r.identified || !r.title) {
+    const found = (Array.isArray(r.items) ? r.items : [])
+      .filter((i) => i && i.title && (i.confidence == null || Number(i.confidence) >= 0.5))
+      .map((i) => ({ title: String(i.title).trim(), kind: i.kind === 'expansion' ? 'expansion' : 'game', baseGame: i.baseGame ? String(i.baseGame) : null,
+        owned: i.owned ? String(i.owned) : null, genre: String(i.genre || ''), type: String(i.type || ''), desc: String(i.desc || '') }));
+    if (!found.length) {
       return [{ json: { ok: false, status: 422, message: 'Could not identify a game in that photo' + (r.reason ? ': ' + r.reason : '') } }];
     }
-    return [{ json: { ok: true, title: String(r.title).trim(), genre: String(r.genre || ''), type: String(r.type || ''),
-      desc: String(r.desc || ''), expansions: Array.isArray(r.expansions) ? r.expansions.map(String).filter(Boolean) : [],
-      confidence: r.confidence ?? null } }];
+    const games = $('List All Games').all().flatMap((i) => i.json.records || []).map(toGame);
+    const byTitle = new Map(games.map((g) => [normTitle(g.title), g]));
+    const expansionOwner = new Map();
+    for (const g of games) for (const e of g.expansions) expansionOwner.set(normTitle(e), g);
+    const skipped = [], expansions = [], creates = [], deferred = [];
+    const seen = new Set();
+    const expUpdates = new Map(); // recordId -> { game, list }
+    let num = Math.max(0, ...games.map((g) => Number(g.num) || 0));
+    for (const it of found) {
+      const key = normTitle(it.title);
+      if (seen.has(key)) continue; // same box twice in one photo
+      seen.add(key);
+      const sameTitle = byTitle.get(key);
+      const modelMatch = it.owned ? byTitle.get(normTitle(it.owned)) : null;
+      // For an expansion, the model sometimes points "owned" at the base game; that means "expansion of", not "duplicate"
+      const modelDupe = modelMatch && !(it.kind === 'expansion' && normTitle(modelMatch.title) !== key) ? modelMatch : null;
+      if (sameTitle || modelDupe) { skipped.push({ title: it.title, reason: 'already in your collection', existing: (sameTitle || modelDupe).title }); continue; }
+      const owner = expansionOwner.get(key);
+      if (owner) { skipped.push({ title: it.title, reason: 'already listed as an expansion', existing: owner.title }); continue; }
+      if (it.kind === 'expansion') {
+        // Base game: what the model named, else the longest owned title the expansion's name starts with
+        const base = (it.baseGame && byTitle.get(normTitle(it.baseGame))) || modelMatch
+          || games.filter((g) => key.startsWith(normTitle(g.title) + ' ')).sort((a, b) => b.title.length - a.title.length)[0];
+        if (base) {
+          const u = expUpdates.get(base.recordId) || { game: base, list: [...base.expansions] };
+          u.list.push(it.title);
+          expUpdates.set(base.recordId, u);
+          expansions.push({ title: it.title, base: base.title });
+          continue;
+        }
+      }
+      // At most 8 new games per photo keeps the run inside Cloudflare's ~100s response limit
+      if (creates.length >= 8) { deferred.push(it.title); continue; }
+      num += 1;
+      const gameId = `photo-g${num}`;
+      const now = new Date().toISOString();
+      creates.push({ gameId, title: it.title, fields: {
+        [F.title]: it.title, [F.gameId]: gameId, [F.num]: num, [F.genre]: it.genre, [F.type]: it.type, [F.desc]: it.desc,
+        [F.expansions]: '[]', [F.desireToPlay]: 0, [F.thinningCandidate]: false, [F.icon]: 'meeple', [F.addedAt]: now, [F.updatedAt]: now,
+      } });
+    }
+    const expRecords = [...expUpdates.entries()].map(([id, u]) => ({ id, fields: { [F.expansions]: JSON.stringify(u.list), [F.updatedAt]: new Date().toISOString() } }));
+    return [{ json: { ok: true, creates, skipped, expansions, deferred, expRecords,
+      ownedBgg: games.filter((g) => g.bggId).map((g) => ({ bggId: g.bggId, title: g.title })) } }];
   }),
   ifTrue('Identified?', '={{ $json.ok }}'),
-  airtableListAll('List All Games'),
-  code('Prepare New Record', function () {
-    const games = $input.all().flatMap((i) => i.json.records || []).map(toGame);
-    const g = $('Parse Identification').first().json;
-    const dupe = games.find((x) => normTitle(x.title) === normTitle(g.title));
-    if (dupe) return [{ json: { ok: false, status: 409, message: `"${dupe.title}" is already in your collection`, existing: dupe } }];
-    const num = Math.max(0, ...games.map((x) => Number(x.num) || 0)) + 1;
-    const now = new Date().toISOString();
-    const gameId = `photo-g${num}`;
-    return [{ json: { ok: true, gameId, fields: {
-      [F.title]: g.title, [F.gameId]: gameId, [F.num]: num, [F.genre]: g.genre, [F.type]: g.type, [F.desc]: g.desc,
-      [F.expansions]: JSON.stringify(g.expansions), [F.desireToPlay]: 0, [F.thinningCandidate]: false,
-      [F.icon]: 'meeple', [F.addedAt]: now, [F.updatedAt]: now,
-    } } }];
-  }),
-  ifTrue('New Game?', '={{ $json.ok }}'),
-  airtable('Create Record', 'POST', '', jsonBody('={{ JSON.stringify({ records: [{ fields: $json.fields }], typecast: true, returnFieldsByFieldId: true }) }}')),
-  code('Enrich Input', function () {
-    return [{ json: { id: $('Prepare New Record').first().json.gameId } }];
+  ifTrue('Expansions To Add?', '={{ $json.expRecords.length > 0 }}'),
+  airtable('Save Expansions', 'PATCH', '', jsonBody('={{ JSON.stringify({ records: $json.expRecords.slice(0, 10), typecast: true }) }}')),
+  code('After Expansions', function () { return [{ json: $('Plan').first().json }]; }),
+  ifTrue('New Games?', '={{ $json.creates.length > 0 }}'),
+  airtable('Create Records', 'POST', '', jsonBody('={{ JSON.stringify({ records: $json.creates.map(c => ({ fields: c.fields })), typecast: true, returnFieldsByFieldId: true }) }}')),
+  code('One Item Per New Game', function () {
+    return ($input.first().json.records || []).map((r) => ({ json: { id: r.fields[F.gameId], recordId: r.id, title: r.fields[F.title] } }));
   }),
   execSub('BGG Enrich', ID.bggOne),
-  code('Icon Input', function () {
-    return [{ json: { id: $('Prepare New Record').first().json.gameId } }];
+  code('Check BGG Duplicates', function () {
+    const plan = $('Plan').first().json;
+    const created = $('One Item Per New Game').all().map((i) => i.json);
+    const results = $input.all().map((i) => i.json);
+    const owned = new Map(plan.ownedBgg.map((o) => [Number(o.bggId), o.title]));
+    const keep = [], dupes = [];
+    created.forEach((c, i) => {
+      const bggId = Number(results[i]?.bgg?.id) || null;
+      if (bggId && owned.has(bggId)) { dupes.push({ ...c, existing: owned.get(bggId) }); return; }
+      if (bggId) owned.set(bggId, c.title); // two different-looking boxes of the same game in one photo
+      keep.push({ ...c, bggTitle: results[i]?.bgg?.name || null });
+    });
+    return [{ json: { keep, dupes } }];
   }),
+  ifTrue('Remove Duplicates?', '={{ $json.dupes.length > 0 }}'),
+  airtable('Delete Duplicates', 'DELETE', '{{ "?" + $json.dupes.map(d => "records[]=" + d.recordId).join("&") }}'),
+  code('After Duplicates', function () { return [{ json: $('Check BGG Duplicates').first().json }]; }),
+  ifTrue('Icons Needed?', '={{ $json.keep.length > 0 }}'),
+  code('One Item Per Kept Game', function () { return $input.first().json.keep.map((k) => ({ json: { id: k.id } })); }),
   execSub('Assign Icon', ID.iconOne),
-  airtableLookup('Reload Record', '={{ "{GameID}=\'" + $(\'Prepare New Record\').first().json.gameId + "\'" }}'),
-  code('Shape Game', function () {
-    const rec = ($input.first().json.records || [])[0];
-    return [{ json: { game: toGame(rec) } }];
+  code('Summary', function () {
+    const plan = $('Plan').first().json;
+    const check = $('Check BGG Duplicates').isExecuted ? $('Check BGG Duplicates').first().json : { keep: [], dupes: [] };
+    const added = check.keep.map((k) => ({ id: k.id, title: k.title }));
+    const skipped = [...plan.skipped, ...check.dupes.map((d) => ({ title: d.title, reason: 'same BGG game as one you own', existing: d.existing }))];
+    return [{ json: { ok: true, added, skipped, expansions: plan.expansions, deferred: plan.deferred,
+      // kept for older clients that read a single game
+      title: added[0]?.title || null } }];
   }),
-  respond('Respond OK', '={{ JSON.stringify($json.game) }}'),
+  deleteUploads('Delete Photo'),
+  deleteUploads('Delete Photo (no match)'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
 ], [
-  ['Webhook', 'Photo To Base64'], ['Photo To Base64', 'Build Vision Request'], ['Build Vision Request', 'Ask Vision Model'],
-  ['Ask Vision Model', 'Parse Identification'], ['Parse Identification', 'Identified?'],
-  ['Identified?', 'List All Games', 0], ['Identified?', 'Respond Error', 1],
-  ['List All Games', 'Prepare New Record'], ['Prepare New Record', 'New Game?'],
-  ['New Game?', 'Create Record', 0], ['New Game?', 'Respond Error', 1],
-  ['Create Record', 'Enrich Input'], ['Enrich Input', 'BGG Enrich'], ['BGG Enrich', 'Icon Input'], ['Icon Input', 'Assign Icon'],
-  ['Assign Icon', 'Reload Record'], ['Reload Record', 'Shape Game'], ['Shape Game', 'Respond OK'],
-]);
+  ['Webhook', 'Photo To Base64'], ['Photo To Base64', 'List All Games'], ['List All Games', 'Build Vision Request'],
+  ['Build Vision Request', 'Ask Vision Model'], ['Ask Vision Model', 'Plan'], ['Plan', 'Identified?'],
+  ['Identified?', 'Expansions To Add?', 0], ['Identified?', 'Delete Photo (no match)', 1], ['Delete Photo (no match)', 'Respond Error'],
+  ['Expansions To Add?', 'Save Expansions', 0], ['Expansions To Add?', 'After Expansions', 1], ['Save Expansions', 'After Expansions'],
+  ['After Expansions', 'New Games?'], ['New Games?', 'Create Records', 0], ['New Games?', 'Summary', 1],
+  ['Create Records', 'One Item Per New Game'], ['One Item Per New Game', 'BGG Enrich'], ['BGG Enrich', 'Check BGG Duplicates'],
+  ['Check BGG Duplicates', 'Remove Duplicates?'], ['Remove Duplicates?', 'Delete Duplicates', 0], ['Remove Duplicates?', 'After Duplicates', 1],
+  ['Delete Duplicates', 'After Duplicates'], ['After Duplicates', 'Icons Needed?'],
+  ['Icons Needed?', 'One Item Per Kept Game', 0], ['Icons Needed?', 'Summary', 1],
+  ['One Item Per Kept Game', 'Assign Icon'], ['Assign Icon', 'Summary'],
+  ['Summary', 'Delete Photo'], ['Delete Photo', 'Respond OK'],
+], {
+  // Photos must not outlive the request: never keep this workflow's executions (they'd hold the image)
+  saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none', saveManualExecutions: false, saveExecutionProgress: false,
+});
 
 // =====================================================================
 // 7. Sync Plays  daily + POST /webhook/vault/sync-plays
@@ -653,8 +749,34 @@ const syncPlays = wf(ID.syncPlays, 'Vault — Sync Plays From BGG', [
   ['Anything To Save?', 'Save Play Counts', 0], ['Anything To Save?', 'Result', 1], ['Save Play Counts', 'Result'],
 ]);
 
+// =====================================================================
+// 8. Photo Sweep  every 15 min: safety net for photo uploads left behind by a crashed identify run
+// =====================================================================
+const photoSweep = wf(ID.photoSweep, 'Vault — Photo Sweep', [
+  node('Every 15 Minutes', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ field: 'minutes', minutesInterval: 15 }] } }),
+  node('Delete Old Uploads', 'n8n-nodes-base.code', 2, { jsCode: [
+    "const fs = require('fs'), path = require('path');",
+    "const dir = '" + N8N_STORAGE + "/workflows/" + ID.identify + "/executions';",
+    "const cutoff = Date.now() - 10 * 60 * 1000;",
+    "const old = (p) => { try { return fs.statSync(p).mtimeMs < cutoff; } catch (e) { return false; } };",
+    "let removed = 0;",
+    "const ls = (d) => { try { return fs.readdirSync(d); } catch (e) { return []; } };",
+    "// In-progress uploads live in temp/binary_data; finished runs get a folder named by execution id",
+    "for (const f of ls(path.join(dir, 'temp', 'binary_data'))) {",
+    "  const p = path.join(dir, 'temp', 'binary_data', f);",
+    "  if (old(p)) { fs.rmSync(p, { force: true }); removed++; }",
+    "}",
+    "for (const e of ls(dir)) {",
+    "  if (e === 'temp') continue;",
+    "  const p = path.join(dir, e);",
+    "  if (old(p)) { fs.rmSync(p, { recursive: true, force: true }); removed++; }",
+    "}",
+    "return [{ json: { removed } }];",
+  ].join('\n') }),
+], [['Every 15 Minutes', 'Delete Old Uploads']], { saveDataSuccessExecution: 'none' });
+
 // ---------- write ----------
-const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays };
+const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

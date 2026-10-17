@@ -74,6 +74,8 @@
   .cover.fallback i { font-size: 5.5rem; color: var(--card-border); }
   .cover .score { position: absolute; top: 0.6rem; right: 0.6rem; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
   .cover .thin-flag { position: absolute; left: 0.6rem; top: 0.6rem; background: var(--accent); color: #fff; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.2rem 0.5rem; border-radius: 0.4rem; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+  .cover .exp-flag { position: absolute; left: 0.6rem; bottom: 0.6rem; display: inline-flex; align-items: center; gap: 0.3rem; background: var(--ink); color: #fff; font-family: var(--font-display); font-size: 0.85rem; font-weight: 600; padding: 0.3rem 0.65rem 0.3rem 0.5rem; border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .cover .exp-flag i { font-size: 1.05rem; color: var(--gold); }
   .card-body { padding: 0.85rem 1.1rem 0.85rem; display: flex; flex-direction: column; gap: 0.55rem; flex: 1; }
   .card-top { display: flex; align-items: center; gap: 0.8rem; }
   .game-icon { background: var(--gold); width: 3.4rem; height: 3.4rem; border-radius: 0.65rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -305,8 +307,8 @@
   <!-- Add by photo modal -->
   <div class="modal-overlay" id="addModal">
     <div class="modal">
-      <h2>Add a Game by Photo</h2>
-      <p style="color:var(--text-muted); font-size:0.85rem;">Snap or upload a photo of the box. An n8n workflow reads the title with a vision model, saves it to your collection, looks it up on BoardGameGeek, and picks an icon.</p>
+      <h2>Add Games by Photo</h2>
+      <p style="color:var(--text-muted); font-size:0.85rem;">Snap one box or a whole shelf section. Every title it can read is checked against your collection first: games you already own are skipped, expansions of games you own are added to that game, and only new games are created (then looked up on BoardGameGeek).</p>
       <label>Box photo</label>
       <input type="file" id="photoInput" accept="image/*" capture="environment" />
       <div id="identifyArea"></div>
@@ -660,7 +662,8 @@
         card.innerHTML =
           coverHtml(g, g.coverCard,
             (g.bggRating ? '<div class="score" title="BGG average rating">' + Number(g.bggRating).toFixed(1) + '<small>BGG</small></div>' : '') +
-            (g.thinningCandidate ? '<span class="thin-flag">Thinning</span>' : '')) +
+            (g.thinningCandidate ? '<span class="thin-flag">Thinning</span>' : '') +
+            (exp ? '<span class="exp-flag" title="' + esc(g.expansions.join(' · ')) + '"><i class="ti ti-puzzle-2"></i>+' + exp + ' expansion' + (exp > 1 ? 's' : '') + '</span>' : '')) +
           '<div class="card-body">' +
           '<div class="card-heading"><h2 class="game-title">' + esc(g.title) + '</h2>' +
             (byline ? '<div class="byline">' + esc(byline) + '</div>' : '') + '</div>' +
@@ -668,7 +671,6 @@
           '<div class="tags">' +
             (g.genre ? '<span class="tag tag-genre">' + esc(g.genre) + '</span>' : '') +
             (g.type ? '<span class="tag tag-type">' + esc(g.type) + '</span>' : '') +
-            (exp ? '<span class="tag tag-exp">+' + exp + ' expansion' + (exp > 1 ? 's' : '') + '</span>' : '') +
           '</div>' +
           (g.desc ? '<p class="desc">' + esc(g.desc) + '</p>' : '') +
           '<div class="card-foot">' +
@@ -882,6 +884,7 @@
     const identifyArea = document.getElementById('identifyArea');
     document.getElementById('addFab').addEventListener('click', () => {
       document.getElementById('photoInput').value = '';
+      document.getElementById('addCancel').textContent = 'Cancel';
       identifyArea.innerHTML = '';
       addModal.classList.add('open');
     });
@@ -891,23 +894,56 @@
       const fileInput = document.getElementById('photoInput');
       const file = fileInput.files[0];
       if (!file) { toast('Choose or take a photo first.', true); return; }
-      identifyArea.innerHTML = '<div class="spinner"></div><p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:0.5rem;">Reading the box and finding cover art…</p>';
+      const btn = document.getElementById('identifyBtn');
+      btn.disabled = true;
+      identifyArea.innerHTML = '<div class="spinner"></div><p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:0.5rem;">Reading the boxes, checking your collection and looking them up on BGG… this can take up to a minute for a shelf photo.</p>';
       try {
         const base = n8nBase();
         if (!base) throw new Error('Set your n8n webhook URL in Settings first.');
         const form = new FormData();
-        form.append('photo', file, file.name || 'box.jpg');
+        form.append('photo', await shrinkPhoto(file), 'boxes.jpg');
         const res = await fetch(base + '/identify', { method: 'POST', body: form });
-        if (!res.ok) throw new Error('Identify request failed (' + res.status + ')');
-        const saved = await res.json();
-        addModal.classList.remove('open');
-        toast('Added "' + (saved.title || 'game') + '" to your collection.');
+        let result = {};
+        try { result = await res.json(); } catch (e) {}
+        if (!res.ok) throw new Error(result.message || 'Identify request failed (' + res.status + ')');
+        identifyArea.innerHTML = identifySummaryHtml(result);
+        document.getElementById('addCancel').textContent = 'Done';
+        const n = (result.added || []).length + (result.expansions || []).length;
+        toast(n ? 'Collection updated.' : 'Nothing new in that photo.');
         await loadCollection();
       } catch (e) {
         identifyArea.innerHTML = '';
         toast(e.message, true);
+      } finally {
+        btn.disabled = false;
       }
     });
+
+    // Phone photos are often 4-8 MB; the vision model caps images at ~5 MB and smaller uploads are faster.
+    // 2000px on the long side still reads box spines fine.
+    async function shrinkPhoto(file, maxSide = 2000) {
+      try {
+        const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bmp.width * scale);
+        canvas.height = Math.round(bmp.height * scale);
+        canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+        return await new Promise((resolve) => canvas.toBlob((b) => resolve(b || file), 'image/jpeg', 0.85));
+      } catch (e) {
+        return file; // e.g. a format the browser can't decode; let the server try the original
+      }
+    }
+
+    function identifySummaryHtml(r) {
+      const section = (label, rows) => rows.length
+        ? '<div class="section-label" style="margin-top:1rem;">' + label + '</div><ul>' + rows.map(x => '<li class="exp-item"><span class="exp-dot"></span>' + x + '</li>').join('') + '</ul>'
+        : '';
+      return section('Added', (r.added || []).map(a => esc(a.title))) +
+        section('Added as expansions', (r.expansions || []).map(x => esc(x.title) + ' <span class="hint" style="margin:0;">→ ' + esc(x.base) + '</span>')) +
+        section('Already in your collection', (r.skipped || []).map(s => esc(s.title) + (s.existing && s.existing !== s.title ? ' <span class="hint" style="margin:0;">(as ' + esc(s.existing) + ')</span>' : ''))) +
+        section('Not processed — take another photo of these', (r.deferred || []).map(esc));
+    }
 
     loadCollection();
   </script>

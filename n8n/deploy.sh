@@ -18,9 +18,9 @@ $SSH "mkdir -p $STAGE"
 scp -q -i "$HOME/.ssh/claude_hostinger" "${files[@]}" claude-ops@148.230.83.130:$STAGE/
 $SSH "docker cp $STAGE $CONTAINER:$STAGE && docker exec $CONTAINER n8n import:workflow --separate --input=$STAGE 2>&1 | grep -i import; rm -rf $STAGE"
 
-# Publish everything that has a webhook (batch runners are manual-only)
+# Publish everything with a webhook or schedule (batch runners are manual-only)
 for f in "${files[@]}"; do
-  if grep -q '"n8n-nodes-base.webhook"' "$f"; then
+  if grep -qE '"n8n-nodes-base.(webhook|scheduleTrigger)"' "$f"; then
     id=$(grep -m1 -oE '"id": "BGVault[A-Za-z0-9]+"' "$f" | cut -d'"' -f4)
     $SSH "docker exec $CONTAINER n8n publish:workflow --id=$id >/dev/null 2>&1" && echo "published $id"
   fi
