@@ -60,14 +60,21 @@
   button.pill:hover { background: var(--teal); color: #fff; }
   button.pill.active { background: var(--accent); color: #fff; }
   .stats-badge { background: var(--gold); color: var(--ink); padding: 0.5rem 0.9rem; border-radius: 0.6rem; font-weight: 800; font-size: 0.85rem; white-space: nowrap; margin-left: auto; }
-  .grid { max-width: 1300px; margin: 0 auto; padding: 0 1.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); gap: 1.5rem; }
+  .grid { max-width: 1300px; margin: 0 auto; padding: 0 1.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 1.5rem; }
   .grid > * { min-width: 0; }
   .filters { display: contents; }
   .filters-toggle { display: none; }
-  .card { background: var(--card-bg); border-radius: 0.9rem; padding: 1.1rem 1.2rem 0.9rem; display: flex; flex-direction: column; gap: 0.6rem; transition: transform 0.15s; position: relative; box-shadow: var(--shadow); cursor: pointer; }
-  .card:hover, .card:focus-visible { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(34,51,59,0.2); outline: none; }
-  .card.thinning { box-shadow: var(--shadow), inset 4px 0 0 var(--accent); }
-  .card.thinning:hover { box-shadow: 6px 6px 0 rgba(34,51,59,0.2), inset 4px 0 0 var(--accent); }
+  .card { background: var(--card-bg); border-radius: 0.9rem; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.15s, box-shadow 0.15s; position: relative; box-shadow: 0 1px 3px rgba(24,49,83,0.08), 0 4px 14px rgba(24,49,83,0.06); cursor: pointer; }
+  .card:hover, .card:focus-visible { transform: translateY(-3px); box-shadow: 0 2px 6px rgba(24,49,83,0.1), 0 10px 24px rgba(24,49,83,0.12); outline: none; }
+  .card:focus-visible { box-shadow: 0 0 0 3px var(--teal), 0 10px 24px rgba(24,49,83,0.12); }
+  /* Full-bleed square cover; falls back to the icon tile when there is no image */
+  .cover { position: relative; aspect-ratio: 1 / 1; background: var(--exp-bg); overflow: hidden; flex-shrink: 0; }
+  .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cover.fallback { background: var(--gold); display: flex; align-items: center; justify-content: center; }
+  .cover.fallback i { font-size: 5.5rem; color: var(--card-border); }
+  .cover .score { position: absolute; top: 0.6rem; right: 0.6rem; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+  .cover .thin-flag { position: absolute; left: 0.6rem; top: 0.6rem; background: var(--accent); color: #fff; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.2rem 0.5rem; border-radius: 0.4rem; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+  .card-body { padding: 0.85rem 1.1rem 0.85rem; display: flex; flex-direction: column; gap: 0.55rem; flex: 1; }
   .card-top { display: flex; align-items: center; gap: 0.8rem; }
   .game-icon { background: var(--gold); width: 3.4rem; height: 3.4rem; border-radius: 0.65rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .game-icon i { font-size: 1.85rem; color: var(--card-border); }
@@ -114,7 +121,10 @@
   .modal.detail { max-width: 640px; padding: 0; position: relative; }
   .detail-head { display: flex; gap: 1rem; align-items: center; padding: 1.5rem 3.5rem 1rem 1.5rem; }
   .modal .detail-head h2 { margin: 0; text-transform: none; font-size: 1.45rem; line-height: 1.2; }
-  .detail-close { position: absolute; top: 0.9rem; right: 0.9rem; }
+  .detail-close { position: absolute; top: 0.9rem; right: 0.9rem; z-index: 2; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+  .detail-hero { background: var(--exp-bg); display: flex; justify-content: center; border-radius: 0.9rem 0.9rem 0 0; overflow: hidden; }
+  .detail-hero img { display: block; max-width: 100%; max-height: 340px; object-fit: contain; }
+  .detail-hero + .detail-head { padding-top: 1.1rem; }
   .detail-body { padding: 0 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 1.1rem; }
   .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); gap: 0.5rem; }
   .stat { background: var(--exp-bg); border-radius: 0.6rem; padding: 0.55rem 0.7rem; }
@@ -179,7 +189,7 @@
     .filters select, .filters button.pill { width: 100%; min-width: 0; }
     .stats-badge { margin-left: 0; width: 100%; text-align: center; padding: 0.35rem; }
     .grid { padding: 0 1rem; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
-    .card { padding: 1rem 1rem 0.8rem; }
+    .card-body { padding: 0.8rem 1rem; }
     .game-title { font-size: 1.05rem; }
     .modal { padding: 1.25rem; max-height: 90vh; }
     .modal.detail { padding: 0; }
@@ -511,10 +521,27 @@
       if (g.weight) out.push('<span class="fact ' + weightClass(g.weight) + '" title="Weight: ' + weightLabel(g.weight) + ' (BGG, 1–5)"><i class="ti ti-weight"></i>' + Number(g.weight).toFixed(1) + '</span>');
       return out.length ? '<div class="facts">' + out.join('') + '</div>' : '';
     }
+    // Box art from BGG when we have it; the AI-picked icon tile otherwise (and if the image fails to load)
+    function coverHtml(g, url, overlay) {
+      const icon = '<i class="ti ti-' + esc(g.icon || DEFAULT_ICON) + '"></i>';
+      return url
+        ? '<div class="cover" data-icon="' + esc(g.icon || DEFAULT_ICON) + '"><img src="' + esc(url) + '" alt="" loading="lazy" decoding="async">' + (overlay || '') + '</div>'
+        : '<div class="cover fallback">' + icon + (overlay || '') + '</div>';
+    }
+    // img error events don't bubble, so listen in the capture phase
+    document.addEventListener('error', (e) => {
+      const img = e.target;
+      if (!(img instanceof HTMLImageElement)) return;
+      const cover = img.closest('.cover[data-icon]');
+      if (!cover) return;
+      cover.classList.add('fallback');
+      img.replaceWith(Object.assign(document.createElement('i'), { className: 'ti ti-' + cover.dataset.icon }));
+    }, true);
+
     function favButton(g, cls) {
       const label = g.favorite ? 'Remove from favorites' : 'Add to favorites';
       return '<button class="' + cls + ' fav' + (g.favorite ? ' on' : '') + '" data-fav="' + esc(g.id) + '" title="' + label + '" aria-label="' + label + '" aria-pressed="' + !!g.favorite + '">' +
-        '<i class="fa-' + (g.favorite ? 'solid' : 'regular') + ' fa-heart"></i>' + (cls === 'btn' ? (g.favorite ? ' Favorite' : ' Favorite?') : '') + '</button>';
+        '<i class="fa-' + (g.favorite ? 'solid' : 'regular') + ' fa-heart"></i>' + (cls === 'btn' ? (g.favorite ? ' Favorited' : ' Favorite') : '') + '</button>';
     }
     function bylineText(g) {
       return [g.year, (g.designers || []).slice(0, 2).join(' & '), g.rank ? '#' + g.rank + ' on BGG' : ''].filter(Boolean).join(' · ');
@@ -631,18 +658,17 @@
         const plays = playsText(g);
         const byline = bylineText(g);
         card.innerHTML =
-          '<div class="card-top">' +
-            '<div class="game-icon"><i class="ti ti-' + esc(g.icon || DEFAULT_ICON) + '"></i></div>' +
-            '<div class="card-heading"><h2 class="game-title">' + esc(g.title) + '</h2>' +
-              (byline ? '<div class="byline">' + esc(byline) + '</div>' : '') + '</div>' +
+          coverHtml(g, g.coverCard,
             (g.bggRating ? '<div class="score" title="BGG average rating">' + Number(g.bggRating).toFixed(1) + '<small>BGG</small></div>' : '') +
-          '</div>' +
+            (g.thinningCandidate ? '<span class="thin-flag">Thinning</span>' : '')) +
+          '<div class="card-body">' +
+          '<div class="card-heading"><h2 class="game-title">' + esc(g.title) + '</h2>' +
+            (byline ? '<div class="byline">' + esc(byline) + '</div>' : '') + '</div>' +
           factsHtml(g) +
           '<div class="tags">' +
             (g.genre ? '<span class="tag tag-genre">' + esc(g.genre) + '</span>' : '') +
             (g.type ? '<span class="tag tag-type">' + esc(g.type) + '</span>' : '') +
             (exp ? '<span class="tag tag-exp">+' + exp + ' expansion' + (exp > 1 ? 's' : '') + '</span>' : '') +
-            (g.thinningCandidate ? '<span class="tag tag-thin">Thinning</span>' : '') +
           '</div>' +
           (g.desc ? '<p class="desc">' + esc(g.desc) + '</p>' : '') +
           '<div class="card-foot">' +
@@ -652,6 +678,7 @@
             favButton(g, 'mini-btn') +
             '<button class="mini-btn' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" title="' + (g.thinningCandidate ? 'Unmark thinning candidate' : 'Mark for thinning') + '"><i class="ti ti-scale"></i></button>' +
             '<button class="mini-btn danger" data-delete="' + esc(g.id) + '" title="Remove from collection"><i class="ti ti-trash"></i></button>' +
+          '</div>' +
           '</div>';
         grid.appendChild(card);
       });
@@ -683,8 +710,9 @@
       const chips = (list) => (list || []).map(x => '<span class="tag tag-plain">' + esc(x) + '</span>').join('');
       const c = g.playCount || 0;
       document.getElementById('detailContent').innerHTML =
+        (g.coverLarge || g.coverCard ? '<div class="detail-hero"><img src="' + esc(g.coverLarge || g.coverCard) + '" alt="' + esc(g.title) + ' box art"></div>' : '') +
         '<div class="detail-head">' +
-          '<div class="game-icon lg"><i class="ti ti-' + esc(g.icon || DEFAULT_ICON) + '"></i></div>' +
+          (g.coverLarge || g.coverCard ? '' : '<div class="game-icon lg"><i class="ti ti-' + esc(g.icon || DEFAULT_ICON) + '"></i></div>') +
           '<div><h2 id="detailTitle">' + esc(g.title) + '</h2>' +
             ((g.designers || []).length ? '<div class="byline" style="white-space:normal;">by ' + esc(g.designers.join(', ')) + '</div>' : '') + '</div>' +
         '</div>' +

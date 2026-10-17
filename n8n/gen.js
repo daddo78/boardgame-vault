@@ -43,6 +43,7 @@ function prelude() {
     year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',
     rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',
     playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu',
+    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',
   };
   const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
   const toGame = (r) => {
@@ -56,7 +57,7 @@ function prelude() {
       minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,
       year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),
       rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),
-      favorite: !!f[F.favorite], playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,
+      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,
     };
   };
   const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)
@@ -400,6 +401,7 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
         rank: rank ? Number(rank) : null, bestPlayers: bestWith(s),
         designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'),
         categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),
+        picId: (s.match(/<image>[^<]*\/pic(\d+)\.[a-z]+<\/image>/) || [])[1] || null,
       };
     });
     things.sort((a, b) => ((b.type === 'boardgame') - (a.type === 'boardgame')) || (b.usersRated - a.usersRated));
@@ -424,10 +426,24 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
     return [{ json: { ...c, apply, fields, bgg: { ...summary, rating: bggRating, designers },
       newTitle: retitle ? best.name : null, alternatives: things.slice(1, 4).map((t) => ({ id: t.id, title: t.name, year: t.year, usersRated: t.usersRated })) } }];
   }),
+  // The XML API only gives a 200x150 thumbnail and the full original (often >1 MB); BGG's image
+  // endpoint lists the in-between sizes its own site uses. A failure here just means no cover.
+  node('BGG Image Sizes', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: '=https://api.geekdo.com/api/images/{{ ($json.bgg && $json.bgg.picId) || 0 }}', options: { timeout: 20000 },
+  }, { ...retry, maxTries: 2, onError: 'continueRegularOutput' }),
+  code('Add Cover', function () {
+    const m = $('Choose Match').first().json;
+    const im = $input.first().json.images || {};
+    const card = im.medium?.url || im.itempage?.url || null;
+    const large = im.itempage?.url || im.medium?.url || null;
+    const fields = { ...(m.fields || {}) };
+    if (card) { fields[F.coverCard] = card; fields[F.coverLarge] = large; }
+    return [{ json: { ...m, fields, bgg: m.bgg ? { ...m.bgg, coverCard: card } : m.bgg } }];
+  }),
   ifTrue('Apply?', '={{ $json.apply }}'),
   airtablePatch('Save BGG Data'),
   code('Result', function () {
-    const src = $('Choose Match').isExecuted ? $('Choose Match').first().json : $('Find Candidates').first().json;
+    const src = $('Add Cover').isExecuted ? $('Add Cover').first().json : $('Find Candidates').first().json;
     const applied = $('Save BGG Data').isExecuted;
     return [{ json: { ok: true, id: src.game.id, title: src.game.title, matchType: src.matchType, applied,
       dryRun: src.dryRun, bgg: src.bgg || null, newTitle: src.newTitle || null, alternatives: src.alternatives || [] } }];
@@ -436,7 +452,7 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
 ], [
   ['When Called By Another Workflow', 'Normalize'], ['Webhook', 'Normalize'], ['Normalize', 'Find Record'],
   ['Find Record', 'Prep'], ['Prep', 'Need Search?'], ['Need Search?', 'BGG Search', 0], ['Need Search?', 'Find Candidates', 1], ['BGG Search', 'Find Candidates'], ['Find Candidates', 'Any Candidates?'],
-  ['Any Candidates?', 'BGG Thing', 0], ['Any Candidates?', 'Result', 1], ['BGG Thing', 'Choose Match'], ['Choose Match', 'Apply?'],
+  ['Any Candidates?', 'BGG Thing', 0], ['Any Candidates?', 'Result', 1], ['BGG Thing', 'Choose Match'], ['Choose Match', 'BGG Image Sizes'], ['BGG Image Sizes', 'Add Cover'], ['Add Cover', 'Apply?'],
   ['Apply?', 'Save BGG Data', 0], ['Apply?', 'Result', 1], ['Save BGG Data', 'Result'], ['Result', 'Throttle BGG'],
 ]);
 
