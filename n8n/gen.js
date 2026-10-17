@@ -23,6 +23,8 @@ const ID = {
   bggBatch: 'BGVaultBggBatch1',
   syncPlays: 'BGVaultSyncPlays',
   photoSweep: 'BGVaultPhotoSwp1',
+  bggSearch: 'BGVaultBggSrch01',
+  addByName: 'BGVaultAddName01',
 };
 
 const CRED = {
@@ -794,8 +796,189 @@ const photoSweep = wf(ID.photoSweep, 'Vault — Photo Sweep', [
   ].join('\n') }),
 ], [['Every 15 Minutes', 'Delete Old Uploads']], { saveDataSuccessExecution: 'none' });
 
+// =====================================================================
+// 9. Search BGG  GET /webhook/vault/bgg-search?q=<title>
+//    Candidates for "add by name": BGG search, then one thing call for primary names, type, thumbnail
+//    and popularity. Ownership is flagged by the page, which already has the collection.
+// =====================================================================
+const bggSearch = wf(ID.bggSearch, 'Vault — Search BGG', [
+  webhook('Webhook', 'GET', 'vault/bgg-search'),
+  code('Validate', function () {
+    const q = String(($input.first().json.query || {}).q || '').trim();
+    if (q.length < 2 || q.length > 100) return [{ json: { ok: false, status: 400, message: 'Type 2-100 characters to search' } }];
+    return [{ json: { ok: true, q } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  textGet('BGG Search', 'https://boardgamegeek.com/xmlapi2/search', qs({ query: '={{ $json.q }}', type: 'boardgame,boardgameexpansion' }), CRED.bgg),
+  code('Pick Ids', function () {
+    const xml = String($input.first().json.data || '');
+    const q = normTitle($('Validate').first().json.q);
+    const items = [...xml.matchAll(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/g)].map((m) => ({
+      id: m[2], name: (m[3].match(/<name type="[^"]+" value="([^"]*)"/) || [])[1] || '',
+    }));
+    // Exact and prefix matches first; BGG returns the rest in no useful order
+    const score = (i) => { const n = normTitle(i.name); return n === q ? 0 : n.startsWith(q) ? 1 : 2; };
+    const ids = [...new Set(items.sort((a, b) => score(a) - score(b)).map((i) => i.id))].slice(0, 20);
+    return [{ json: { ids: ids.join(','), found: ids.length > 0 } }];
+  }),
+  ifTrue('Any Results?', '={{ $json.found }}'),
+  textGet('BGG Thing', 'https://boardgamegeek.com/xmlapi2/thing', qs({ id: '={{ $json.ids }}', stats: '1' }), CRED.bgg),
+  code('Shape Results', function () {
+    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    const xml = String($input.first().json.data || '');
+    const q = normTitle($('Validate').first().json.q);
+    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
+    const results = [...xml.matchAll(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/g)].map((m) => {
+      const s = m[3];
+      const name = decode((s.match(/<name type="primary"[^>]*value="([^"]*)"/) || [])[1] || '');
+      const base = [...s.matchAll(/<link type="boardgameexpansion" id="(\d+)" value="([^"]*)" inbound="true"/g)].map((b) => ({ id: Number(b[1]), title: decode(b[2]) }));
+      const rank = (s.match(/<rank type="subtype"[^>]*name="boardgame"[^>]*value="(\d+)"/) || [])[1];
+      return {
+        bggId: Number(m[2]), title: name, year: Number(attr(s, 'yearpublished')) || null,
+        kind: m[1] === 'boardgameexpansion' ? 'expansion' : 'game', expands: base,
+        thumbnail: (s.match(/<thumbnail>([^<]+)<\/thumbnail>/) || [])[1] || null,
+        rating: Math.round(Number(attr(s, 'average') || 0) * 10) / 10 || null,
+        usersRated: Number(attr(s, 'usersrated') || 0), rank: rank ? Number(rank) : null,
+      };
+    });
+    const score = (r) => { const n = normTitle(r.title); return n === q ? 0 : n.startsWith(q) ? 1 : 2; };
+    results.sort((a, b) => score(a) - score(b) || b.usersRated - a.usersRated);
+    return [{ json: { results: results.slice(0, 12) } }];
+  }),
+  code('No Results', function () { return [{ json: { results: [] } }]; }),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [
+  ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'BGG Search', 0], ['Valid?', 'Respond Error', 1],
+  ['BGG Search', 'Pick Ids'], ['Pick Ids', 'Any Results?'], ['Any Results?', 'BGG Thing', 0], ['Any Results?', 'No Results', 1],
+  ['BGG Thing', 'Shape Results'], ['Shape Results', 'Respond OK'], ['No Results', 'Respond OK'],
+]);
+
+// =====================================================================
+// 10. Add Game By Name  POST /webhook/vault/add { bggId } | { title }   (title only = not on BGG)
+//     Same rules as the photo path: owned games are refused, an expansion of an owned game is appended
+//     to that game, anything else is created, then BGG-enriched (cover, details, plays) and given an icon.
+// =====================================================================
+const addByName = wf(ID.addByName, 'Vault — Add Game By Name', [
+  webhook('Webhook', 'POST', 'vault/add'),
+  code('Validate', function () {
+    const b = $input.first().json.body || {};
+    const bggId = Number(b.bggId) || null;
+    const title = String(b.title || '').trim().slice(0, 200);
+    if (!bggId && !title) return [{ json: { ok: false, status: 400, message: 'Send a bggId, or a title for a game that is not on BGG' } }];
+    return [{ json: { ok: true, bggId, title } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  airtableListAll('List All Games'),
+  { ...textGet('BGG Thing', 'https://boardgamegeek.com/xmlapi2/thing',
+    qs({ id: "={{ $('Validate').first().json.bggId || 0 }}", stats: '1' }), CRED.bgg), onError: 'continueRegularOutput' },
+  code('Plan', function () {
+    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&#10;/g, '\n');
+    const v = $('Validate').first().json;
+    const games = $('List All Games').all().flatMap((i) => i.json.records || []).map(toGame);
+    let thing = null;
+    if (v.bggId) {
+      const xml = String($input.first().json.data || '');
+      const m = xml.match(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/);
+      if (!m) return [{ json: { action: 'error', status: 404, message: 'BGG has no game #' + v.bggId } }];
+      const s = m[3];
+      thing = {
+        kind: m[1] === 'boardgameexpansion' ? 'expansion' : 'game',
+        title: decode((s.match(/<name type="primary"[^>]*value="([^"]*)"/) || [])[1] || ''),
+        base: [...s.matchAll(/<link type="boardgameexpansion" id="(\d+)" value="([^"]*)" inbound="true"/g)].map((b) => ({ id: Number(b[1]), title: decode(b[2]) })),
+        description: decode((s.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '').replace(/\s+/g, ' ').slice(0, 1500),
+        categories: [...s.matchAll(/<link type="boardgamecategory" id="\d+" value="([^"]*)"/g)].map((x) => decode(x[1])),
+        mechanics: [...s.matchAll(/<link type="boardgamemechanic" id="\d+" value="([^"]*)"/g)].map((x) => decode(x[1])),
+      };
+    }
+    const title = (thing && thing.title) || v.title;
+    const key = normTitle(title);
+    // Already owned: same BGG game, same title, or listed as an expansion
+    const owned = (v.bggId && games.find((g) => Number(g.bggId) === v.bggId)) || games.find((g) => normTitle(g.title) === key);
+    if (owned) return [{ json: { action: 'error', status: 409, message: `"${owned.title}" is already in your collection` } }];
+    const listedIn = games.find((g) => g.expansions.some((e) => normTitle(e) === key));
+    if (listedIn) return [{ json: { action: 'error', status: 409, message: `"${title}" is already listed as an expansion of ${listedIn.title}` } }];
+    if (thing && thing.kind === 'expansion') {
+      const baseIds = new Set(thing.base.map((b) => b.id));
+      const base = games.find((g) => g.bggId && baseIds.has(Number(g.bggId)))
+        || games.find((g) => thing.base.some((b) => normTitle(b.title) === normTitle(g.title)));
+      if (base) {
+        return [{ json: { action: 'expansion', title, base: base.title, record: { id: base.recordId,
+          fields: { [F.expansions]: JSON.stringify([...base.expansions, title]), [F.updatedAt]: new Date().toISOString() } } } }];
+      }
+    }
+    const num = Math.max(0, ...games.map((g) => Number(g.num) || 0)) + 1;
+    const gameId = `name-g${num}`;
+    const now = new Date().toISOString();
+    return [{ json: { action: 'create', gameId, title, bggId: v.bggId, thing,
+      fields: { [F.title]: title, [F.gameId]: gameId, [F.num]: num, [F.genre]: '', [F.type]: '', [F.desc]: '', [F.expansions]: '[]',
+        [F.desireToPlay]: 0, [F.thinningCandidate]: false, [F.icon]: 'meeple', [F.addedAt]: now, [F.updatedAt]: now } } }];
+  }),
+  ifTrue('Create?', "={{ $json.action === 'create' }}"),
+  ifTrue('Expansion?', "={{ $json.action === 'expansion' }}"),
+  airtable('Save Expansion', 'PATCH', '', jsonBody('={{ JSON.stringify({ records: [$json.record], typecast: true }) }}')),
+  code('Expansion Result', function () {
+    const p = $('Plan').first().json;
+    return [{ json: { ok: true, added: [], expansions: [{ title: p.title, base: p.base }], skipped: [] } }];
+  }),
+  // Genre / type / one-liner in the collection's style, from BGG's description (skipped for games not on BGG)
+  code('Build Blurb Request', function () {
+    const p = $input.first().json;
+    if (!p.thing) return [{ json: { ...p, requestBody: null } }];
+    const prompt = [
+      `Board game: ${p.title}`,
+      `BGG categories: ${p.thing.categories.join(', ')}`,
+      `BGG mechanics: ${p.thing.mechanics.join(', ')}`,
+      `BGG description: ${p.thing.description}`,
+      '',
+      'Write catalog fields in this collection\'s style. Reply with JSON only:',
+      '{"genre": "theme/setting, 1-2 short labels joined by \\" / \\"", "type": "core mechanics, 1-2 labels joined by \\" / \\"", "desc": "one vivid sentence (max ~22 words) about what players do"}',
+      'Style example: {"genre":"Nature / Ecology","type":"Engine Building / Tableau","desc":"Construct an interconnected 4x4 flora and fauna island ecosystem with zero downtime on rival turns."}',
+    ].join('\n');
+    return [{ json: { ...p, requestBody: { model: '__VISION_MODEL__', max_tokens: 2000, reasoning: { effort: 'low' }, provider: { data_collection: 'deny' },
+      messages: [{ role: 'user', content: prompt }] } } }];
+  }),
+  ifTrue('On BGG?', '={{ !!$json.requestBody }}'),
+  { ...openrouter('Ask AI For Blurb'), onError: 'continueRegularOutput' },
+  code('Add Blurb', function () {
+    const p = $('Build Blurb Request').first().json;
+    let r = {};
+    if ($('Ask AI For Blurb').isExecuted) {
+      const text = $input.first().json.choices?.[0]?.message?.content || '';
+      try { r = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
+    }
+    const fields = { ...p.fields, [F.genre]: String(r.genre || ''), [F.type]: String(r.type || ''), [F.desc]: String(r.desc || '') };
+    return [{ json: { ...p, fields } }];
+  }),
+  airtable('Create Record', 'POST', '', jsonBody('={{ JSON.stringify({ records: [{ fields: $json.fields }], typecast: true }) }}')),
+  code('Enrich Input', function () {
+    const p = $('Add Blurb').first().json;
+    return [{ json: { id: p.gameId, ...(p.bggId ? { bggId: p.bggId } : {}) } }];
+  }),
+  ifTrue('Enrich?', '={{ !!$json.bggId }}'),
+  execSub('BGG Enrich', ID.bggOne),
+  code('Icon Input', function () { return [{ json: { id: $('Add Blurb').first().json.gameId } }]; }),
+  execSub('Assign Icon', ID.iconOne),
+  code('Created Result', function () {
+    const p = $('Add Blurb').first().json;
+    return [{ json: { ok: true, added: [{ id: p.gameId, title: p.title }], expansions: [], skipped: [], title: p.title } }];
+  }),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [
+  ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'List All Games', 0], ['Valid?', 'Respond Error', 1],
+  ['List All Games', 'BGG Thing'], ['BGG Thing', 'Plan'], ['Plan', 'Create?'],
+  ['Create?', 'Build Blurb Request', 0], ['Create?', 'Expansion?', 1],
+  ['Expansion?', 'Save Expansion', 0], ['Expansion?', 'Respond Error', 1],
+  ['Save Expansion', 'Expansion Result'], ['Expansion Result', 'Respond OK'],
+  ['Build Blurb Request', 'On BGG?'], ['On BGG?', 'Ask AI For Blurb', 0], ['On BGG?', 'Add Blurb', 1], ['Ask AI For Blurb', 'Add Blurb'],
+  ['Add Blurb', 'Create Record'], ['Create Record', 'Enrich Input'], ['Enrich Input', 'Enrich?'],
+  ['Enrich?', 'BGG Enrich', 0], ['Enrich?', 'Icon Input', 1], ['BGG Enrich', 'Icon Input'],
+  ['Icon Input', 'Assign Icon'], ['Assign Icon', 'Created Result'], ['Created Result', 'Respond OK'],
+]);
+
 // ---------- write ----------
-const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep };
+const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

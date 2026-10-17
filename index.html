@@ -165,6 +165,16 @@
   .btn { flex: 1; padding: 0.65rem; border-radius: 0.6rem; border: none; background: var(--exp-bg); color: var(--ink); cursor: pointer; font-weight: 700; font-size: 0.9rem; }
   .btn.primary { background: var(--accent); color: #fff; }
   .btn.ghost { background: transparent; }
+  .add-tabs { display: flex; gap: 0.4rem; background: var(--exp-bg); padding: 0.3rem; border-radius: 0.7rem; margin-bottom: 0.9rem; }
+  .add-tab { flex: 1; border: none; background: transparent; padding: 0.5rem; border-radius: 0.5rem; font-family: var(--font-body); font-weight: 700; font-size: 0.88rem; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; }
+  .add-tab.active { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(24,49,83,0.12); }
+  .name-search { display: flex; gap: 0.5rem; }
+  .name-search input { flex: 1; min-width: 0; }
+  .name-search .btn { flex: 0 0 auto; padding: 0.6rem 0.9rem; }
+  .candidate .cmeta { flex: 1; min-width: 0; }
+  .candidate .btn { flex: 0 0 auto; padding: 0.4rem 0.8rem; font-size: 0.82rem; }
+  .candidate.owned { opacity: 0.6; cursor: default; }
+  .add-asis { background: none; border: none; color: var(--teal-dark); font-weight: 700; font-size: 0.85rem; cursor: pointer; margin-top: 0.8rem; padding: 0; font-family: var(--font-body); text-align: left; }
   .candidate { display: flex; gap: 0.75rem; align-items: center; background: var(--exp-bg); border-radius: 0.6rem; padding: 0.6rem; margin-top: 0.6rem; cursor: pointer; }
   .candidate:hover { background: var(--tag-bg); }
   .candidate img { width: 48px; height: 48px; object-fit: cover; border-radius: 0.4rem; background: var(--exp-bg); }
@@ -313,14 +323,28 @@
   <!-- Add by photo modal -->
   <div class="modal-overlay" id="addModal">
     <div class="modal">
-      <h2>Add Games by Photo</h2>
-      <p style="color:var(--text-muted); font-size:0.85rem;">Snap one box or a whole shelf section. Every title it can read is checked against your collection first: games you already own are skipped, expansions of games you own are added to that game, and only new games are created (then looked up on BoardGameGeek).</p>
-      <label>Box photo</label>
-      <input type="file" id="photoInput" accept="image/*" capture="environment" />
+      <h2>Add Games</h2>
+      <div class="add-tabs" role="tablist">
+        <button class="add-tab active" role="tab" aria-selected="true" data-tab="name"><i class="ti ti-search"></i> By name</button>
+        <button class="add-tab" role="tab" aria-selected="false" data-tab="photo"><i class="ti ti-camera"></i> By photo</button>
+      </div>
+      <div class="add-pane" id="paneName">
+        <p class="hint" style="margin-top:0;">Search BoardGameGeek and pick the right edition. Expansions of games you own are added to that game.</p>
+        <form id="nameSearchForm" class="name-search">
+          <input type="text" id="nameSearchInput" placeholder="Game title, e.g. Sky Team" autocomplete="off" />
+          <button class="btn primary" type="submit"><i class="ti ti-search"></i></button>
+        </form>
+        <div id="nameResults"></div>
+      </div>
+      <div class="add-pane" id="panePhoto" hidden>
+        <p class="hint" style="margin-top:0;">Snap one box or a whole shelf section. Every title it can read is checked against your collection first: games you already own are skipped, expansions of games you own are added to that game, and only new games are created (then looked up on BoardGameGeek).</p>
+        <label>Box photo</label>
+        <input type="file" id="photoInput" accept="image/*" capture="environment" />
+        <button class="btn primary" id="identifyBtn" style="width:100%; margin-top:0.75rem;">Identify Games</button>
+      </div>
       <div id="identifyArea"></div>
       <div class="modal-actions">
         <button class="btn ghost" id="addCancel">Cancel</button>
-        <button class="btn primary" id="identifyBtn">Identify Game</button>
       </div>
     </div>
   </div>
@@ -909,9 +933,79 @@
     // Add-by-photo modal
     const addModal = document.getElementById('addModal');
     const identifyArea = document.getElementById('identifyArea');
+    // ---------- add by name ----------
+    function setAddTab(tab) {
+      document.querySelectorAll('.add-tab').forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', String(on)); });
+      document.getElementById('paneName').hidden = tab !== 'name';
+      document.getElementById('panePhoto').hidden = tab !== 'photo';
+      identifyArea.innerHTML = '';
+      if (tab === 'name') setTimeout(() => document.getElementById('nameSearchInput').focus(), 0);
+    }
+    document.querySelectorAll('.add-tab').forEach(b => b.addEventListener('click', () => setAddTab(b.dataset.tab)));
+
+    // Mirrors the server's title normalization so "owned" badges agree with what /add will accept
+    const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+    function ownedNote(r) {
+      const g = collection.find(x => (x.bggId && Number(x.bggId) === r.bggId) || normTitle(x.title) === normTitle(r.title));
+      if (g) return 'In your collection' + (g.title !== r.title ? ' as ' + g.title : '');
+      const host = collection.find(x => (x.expansions || []).some(e => normTitle(e) === normTitle(r.title)));
+      return host ? 'Listed as an expansion of ' + host.title : '';
+    }
+    let lastSearch = '';
+    document.getElementById('nameSearchForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = document.getElementById('nameSearchInput').value.trim();
+      const box = document.getElementById('nameResults');
+      identifyArea.innerHTML = '';
+      if (q.length < 2) { box.innerHTML = '<p class="hint">Type at least 2 characters.</p>'; return; }
+      lastSearch = q;
+      box.innerHTML = '<div class="spinner"></div>';
+      try {
+        const { results } = await n8nFetch('/bgg-search?q=' + encodeURIComponent(q), { method: 'GET' });
+        if (q !== lastSearch) return; // a newer search is in flight
+        box.innerHTML = (results.length ? results.map(r => {
+          const owned = ownedNote(r);
+          const base = r.kind === 'expansion' && r.expands.length ? 'Expansion of ' + r.expands.map(b => b.title).join(', ') : (r.kind === 'expansion' ? 'Expansion' : '');
+          const meta = [r.year, base, r.rating ? 'BGG ' + r.rating.toFixed(1) : '', r.rank ? '#' + r.rank : ''].filter(Boolean).join(' · ');
+          return '<div class="candidate' + (owned ? ' owned' : '') + '">' +
+            (r.thumbnail ? '<img src="' + esc(r.thumbnail) + '" alt="" loading="lazy">' : '<div class="game-icon"><i class="ti ti-meeple"></i></div>') +
+            '<div class="cmeta"><div class="ctitle">' + esc(r.title) + '</div><div class="cyear">' + esc(owned || meta) + '</div></div>' +
+            (owned ? '' : '<button class="btn primary" data-add-bgg="' + r.bggId + '" data-add-title="' + esc(r.title) + '">Add</button>') +
+          '</div>';
+        }).join('') : '<p class="hint">No BGG matches for "' + esc(q) + '".</p>') +
+          '<button class="add-asis" data-add-asis="' + esc(q) + '">Not on BGG? Add "' + esc(q) + '" as is</button>';
+      } catch (err) {
+        box.innerHTML = '<p class="hint">Search failed: ' + esc(err.message) + '</p>';
+      }
+    });
+    document.getElementById('nameResults').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-add-bgg], [data-add-asis]');
+      if (!btn) return;
+      const payload = btn.dataset.addBgg ? { bggId: Number(btn.dataset.addBgg) } : { title: btn.dataset.addAsis };
+      const label = btn.dataset.addTitle || btn.dataset.addAsis;
+      document.querySelectorAll('#nameResults button').forEach(b => b.disabled = true); // one add at a time
+      identifyArea.innerHTML = '<div class="spinner"></div><p class="hint" style="text-align:center;">Adding "' + esc(label) + '" and looking it up on BGG…</p>';
+      try {
+        const r = await n8nFetch('/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        identifyArea.innerHTML = identifySummaryHtml(r);
+        document.getElementById('addCancel').textContent = 'Done';
+        toast((r.added || []).length ? 'Added "' + label + '".' : 'Added "' + label + '" as an expansion.');
+        await loadCollection();
+        document.getElementById('nameResults').innerHTML = '';
+        document.getElementById('nameSearchInput').value = '';
+      } catch (err) {
+        identifyArea.innerHTML = '';
+        toast(err.message, true);
+        document.querySelectorAll('#nameResults button').forEach(b => b.disabled = false);
+      }
+    });
+
     document.getElementById('addFab').addEventListener('click', () => {
       document.getElementById('photoInput').value = '';
+      document.getElementById('nameResults').innerHTML = '';
+      document.getElementById('nameSearchInput').value = '';
       document.getElementById('addCancel').textContent = 'Cancel';
+      setAddTab('name');
       identifyArea.innerHTML = '';
       addModal.classList.add('open');
     });

@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "8ecd28c6-ef64-46ef-bf7b-a39756f29d1c",
+      "id": "ebe732c7-f1f4-4029-9fda-c3eba9069c8d",
       "name": "When Called By Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -18,7 +18,7 @@
       }
     },
     {
-      "id": "4cd32da4-d4c9-4ed6-a3ab-d6e25152ca69",
+      "id": "7ca14d70-7615-4dd9-ab5b-612f509446d7",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -35,10 +35,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "8871f414-dccf-4909-a2d1-fb6f6d075919"
+      "webhookId": "c4c447b6-cf64-411c-b8bf-6f0878738ea2"
     },
     {
-      "id": "99f48d67-abd2-42a5-9bfc-50d28b874570",
+      "id": "b659775c-8630-422c-b5eb-fab2c5b1bc98",
       "name": "Normalize",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -51,7 +51,7 @@
       }
     },
     {
-      "id": "21b18a2b-f6c6-48da-afa0-4f96721864aa",
+      "id": "b9fa2dfc-0e32-4c87-93f0-d5516df4503b",
       "name": "Find Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -94,7 +94,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "4c67b463-ba81-496c-adc7-27c58c8bbd37",
+      "id": "5fd1a627-4a04-4ad2-a476-41a73a906c7c",
       "name": "Prep",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -107,7 +107,7 @@
       }
     },
     {
-      "id": "5332b309-0a3f-43be-86aa-6867be51e506",
+      "id": "3a97a499-bca3-4a78-b552-8886a91f2dde",
       "name": "Need Search?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -124,7 +124,7 @@
           },
           "conditions": [
             {
-              "id": "7ee29b5e-05fa-430e-8347-292d7a1e6cd1",
+              "id": "e15f8fe2-0f11-4261-8389-44fdccdbbc20",
               "leftValue": "={{ $json.needSearch }}",
               "rightValue": "",
               "operator": {
@@ -140,7 +140,7 @@
       }
     },
     {
-      "id": "33a439ca-08c6-4b70-bdb2-a96f2ba171c7",
+      "id": "2da0d36b-44ea-45ca-94fa-620ed04c9147",
       "name": "BGG Search",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -187,7 +187,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "ba924a25-4d7f-4812-87ac-bfc59df1576e",
+      "id": "35407c84-5afc-4c86-b030-176ed1167a61",
       "name": "Find Candidates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -200,7 +200,7 @@
       }
     },
     {
-      "id": "b31113d5-b1a1-4798-927a-756729d356e3",
+      "id": "80e67413-653f-4563-b519-74a83977f8cd",
       "name": "Any Candidates?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -217,7 +217,7 @@
           },
           "conditions": [
             {
-              "id": "eb74d719-afc6-41a1-8337-ff8d85136296",
+              "id": "06359d8a-cb92-4ab6-9e38-ca2213b4f260",
               "leftValue": "={{ $json.found }}",
               "rightValue": "",
               "operator": {
@@ -233,7 +233,7 @@
       }
     },
     {
-      "id": "22dae41a-2f39-47ad-90da-00b0c0cebc8e",
+      "id": "62f552c5-4db6-4bbc-ae7d-8055d1fc1ba5",
       "name": "BGG Thing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -280,7 +280,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "2ffd7ca1-aae1-4212-9f79-9908bc23f2db",
+      "id": "c1a088c2-0bc3-429a-9153-10a185b3a923",
       "name": "Choose Match",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -293,7 +293,7 @@
       }
     },
     {
-      "id": "000be57e-9b94-4543-9ad7-fefb347695c0",
+      "id": "5f2e52fd-7e5e-43bb-ae5e-d77cc087300c",
       "name": "BGG Image Sizes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -314,7 +314,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "c456eb62-42f5-4104-bd74-08699d921940",
+      "id": "b705baf4-3c9d-424d-b90c-4c31c463e70a",
       "name": "Add Cover",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -327,7 +327,7 @@
       }
     },
     {
-      "id": "e00d449f-a3b1-4580-8ef7-68be64f7782b",
+      "id": "a8f97881-3459-4764-938e-d343f6ded869",
       "name": "BGG Plays For Game",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -379,7 +379,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "0b8cc95b-a2a3-4cdb-a7e2-4a3539b0cd7f",
+      "id": "dd1f08d5-29ee-43ab-aa2d-6980308603e1",
       "name": "Add Plays",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -392,7 +392,7 @@
       }
     },
     {
-      "id": "63f2f71d-830a-4c9b-ac0e-f6872e357a40",
+      "id": "b9c5e32e-1fdb-4d6a-b983-3bf39b48fb6e",
       "name": "Apply?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -409,7 +409,7 @@
           },
           "conditions": [
             {
-              "id": "38b74148-712a-4685-99b6-a9d80db8c289",
+              "id": "f3911e7e-30d9-429c-8e87-4cf925a1f73a",
               "leftValue": "={{ $json.apply }}",
               "rightValue": "",
               "operator": {
@@ -425,7 +425,7 @@
       }
     },
     {
-      "id": "bc9205db-eba0-4c41-ab4b-c6f3fba343be",
+      "id": "034fb87c-2b71-44cc-81c5-20b52354d201",
       "name": "Save BGG Data",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -454,7 +454,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "1da66d9a-50b1-4dbb-abf4-251f06dee156",
+      "id": "ecc576ca-2e33-4fbd-b899-b67288753567",
       "name": "Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -467,7 +467,7 @@
       }
     },
     {
-      "id": "e91b687e-e5b4-4e12-ac28-ddf12f0256fc",
+      "id": "5bf51016-0379-496b-806e-f3575c9ffc98",
       "name": "Throttle BGG",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
@@ -478,7 +478,7 @@
       "parameters": {
         "amount": 1.5
       },
-      "webhookId": "27eea03e-ce7e-407e-8bf5-d62d748e703e"
+      "webhookId": "af5008f4-2c9e-4275-bee4-2b1e3a038d2a"
     }
   ],
   "connections": {
