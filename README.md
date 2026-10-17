@@ -17,7 +17,7 @@ Plays are logged in [BG Stats](https://www.bgstatsapp.com/), which auto-posts th
 
 1. **Log play** on a game opens BG Stats' import link (`app.bgstatsapp.com/createPlay.html?data=…`) with the game's name and BGG ID, the date, players (remembered on this device), winner and duration. You confirm in BG Stats. This only works on a phone or tablet with BG Stats installed.
 2. With Auto-post on, BG Stats sends the play to BGG.
-3. The **Sync Plays From BGG** workflow pulls your BGG plays daily (and on demand via `POST /vault/sync-plays`) and stores `PlayCount` / `LastPlayed` per game.
+3. The **Sync Plays From BGG** workflow pulls your BGG plays daily at 4am, or on demand from **Sync plays now** in the settings (cog) dialog, and stores `PlayCount` / `LastPlayed` per game. BGG enrichment also fetches plays for the game it is enriching, so a newly added game shows its plays immediately.
 
 ## Architecture
 

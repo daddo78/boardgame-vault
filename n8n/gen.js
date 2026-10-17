@@ -458,10 +458,29 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
     if (card) { fields[F.coverCard] = card; fields[F.coverLarge] = large; }
     return [{ json: { ...m, fields, bgg: m.bgg ? { ...m.bgg, coverCard: card } : m.bgg } }];
   }),
+  // Plays for just this game, so a newly added game shows its BG Stats/BGG plays right away
+  // instead of waiting for the daily sync. A failure here leaves the play fields untouched.
+  { ...textGet('BGG Plays For Game', 'https://boardgamegeek.com/xmlapi2/plays',
+    qs({ username: '__BGG_USERNAME__', id: '={{ ($json.bgg && $json.bgg.id) || 0 }}', type: 'thing' }), CRED.bgg), onError: 'continueRegularOutput' },
+  code('Add Plays', function () {
+    const m = $('Add Cover').first().json;
+    const res = $input.first().json;
+    const xml = String(res.data || '');
+    if (res.error || !m.bgg || !xml.includes('<plays')) return [{ json: m }];
+    let count = 0, last = null;
+    for (const p of xml.matchAll(/<play id="\d+" date="([^"]*)" quantity="(\d+)"/g)) {
+      count += Number(p[2]) || 1;
+      if (p[1] && p[1] !== '0000-00-00' && (!last || p[1] > last)) last = p[1];
+    }
+    // A page holds 100 plays; past that, fall back to BGG's total (the daily sync sums quantities exactly)
+    const total = Number((xml.match(/<plays [^>]*total="(\d+)"/) || [])[1] || 0);
+    if (total > 100) count = Math.max(count, total);
+    return [{ json: { ...m, fields: { ...m.fields, [F.playCount]: count, [F.lastPlayed]: last }, bgg: { ...m.bgg, playCount: count, lastPlayed: last } } }];
+  }),
   ifTrue('Apply?', '={{ $json.apply }}'),
   airtablePatch('Save BGG Data'),
   code('Result', function () {
-    const src = $('Add Cover').isExecuted ? $('Add Cover').first().json : $('Find Candidates').first().json;
+    const src = $('Add Plays').isExecuted ? $('Add Plays').first().json : $('Find Candidates').first().json;
     const applied = $('Save BGG Data').isExecuted;
     return [{ json: { ok: true, id: src.game.id, title: src.game.title, matchType: src.matchType, applied,
       dryRun: src.dryRun, bgg: src.bgg || null, newTitle: src.newTitle || null, alternatives: src.alternatives || [] } }];
@@ -470,7 +489,7 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
 ], [
   ['When Called By Another Workflow', 'Normalize'], ['Webhook', 'Normalize'], ['Normalize', 'Find Record'],
   ['Find Record', 'Prep'], ['Prep', 'Need Search?'], ['Need Search?', 'BGG Search', 0], ['Need Search?', 'Find Candidates', 1], ['BGG Search', 'Find Candidates'], ['Find Candidates', 'Any Candidates?'],
-  ['Any Candidates?', 'BGG Thing', 0], ['Any Candidates?', 'Result', 1], ['BGG Thing', 'Choose Match'], ['Choose Match', 'BGG Image Sizes'], ['BGG Image Sizes', 'Add Cover'], ['Add Cover', 'Apply?'],
+  ['Any Candidates?', 'BGG Thing', 0], ['Any Candidates?', 'Result', 1], ['BGG Thing', 'Choose Match'], ['Choose Match', 'BGG Image Sizes'], ['BGG Image Sizes', 'Add Cover'], ['Add Cover', 'BGG Plays For Game'], ['BGG Plays For Game', 'Add Plays'], ['Add Plays', 'Apply?'],
   ['Apply?', 'Save BGG Data', 0], ['Apply?', 'Result', 1], ['Save BGG Data', 'Result'], ['Result', 'Throttle BGG'],
 ]);
 

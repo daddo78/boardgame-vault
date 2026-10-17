@@ -299,6 +299,10 @@
       <h2>Garage Settings</h2>
       <label>n8n base webhook URL</label>
       <input type="text" id="n8nUrlInput" placeholder="https://your-n8n.example.com/webhook/vault" />
+      <label>Play counts</label>
+      <p class="hint" style="margin-top:0;">Pulled from your BGG plays (logged through BG Stats) every night at 4am, and for each game as you add it.</p>
+      <button class="btn" id="syncPlaysBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-refresh"></i> Sync plays now</button>
+      <p class="hint" id="syncPlaysStatus"></p>
       <div class="modal-actions">
         <button class="btn ghost" id="settingsCancel">Cancel</button>
         <button class="btn primary" id="settingsSave">Save</button>
@@ -875,6 +879,7 @@
     const settingsModal = document.getElementById('settingsModal');
     document.getElementById('settingsBtn').addEventListener('click', () => {
       document.getElementById('n8nUrlInput').value = n8nBase();
+      document.getElementById('syncPlaysStatus').textContent = '';
       settingsModal.classList.add('open');
     });
     document.getElementById('settingsCancel').addEventListener('click', () => settingsModal.classList.remove('open'));
@@ -882,6 +887,23 @@
       localStorage.setItem(LS_URL, document.getElementById('n8nUrlInput').value.trim());
       settingsModal.classList.remove('open');
       loadCollection();
+    });
+    document.getElementById('syncPlaysBtn').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const status = document.getElementById('syncPlaysStatus');
+      btn.disabled = true;
+      status.textContent = 'Reading your plays from BGG… this takes about 30 seconds.';
+      try {
+        const r = await n8nFetch('/sync-plays', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        status.textContent = r.updated
+          ? 'Updated play counts for ' + r.updated + ' game' + (r.updated === 1 ? '' : 's') + ' (' + r.totalPlays + ' plays on BGG).'
+          : 'Already up to date (' + r.totalPlays + ' plays on BGG).';
+        await loadCollection();
+      } catch (err) {
+        status.textContent = 'Sync failed: ' + err.message;
+      } finally {
+        btn.disabled = false;
+      }
     });
 
     // Add-by-photo modal

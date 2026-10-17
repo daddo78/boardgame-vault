@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "3ed585bb-ee0e-468b-b9f1-8c819f2c51d4",
+      "id": "8ecd28c6-ef64-46ef-bf7b-a39756f29d1c",
       "name": "When Called By Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -18,7 +18,7 @@
       }
     },
     {
-      "id": "c9f3454f-4dfd-4c74-9cb2-8bddaaade039",
+      "id": "4cd32da4-d4c9-4ed6-a3ab-d6e25152ca69",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -35,10 +35,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "081f7bbf-8f23-45cd-9d0c-660a2d35f0a7"
+      "webhookId": "8871f414-dccf-4909-a2d1-fb6f6d075919"
     },
     {
-      "id": "922f3adc-a6d2-45d1-bb52-50b2f85e8f5b",
+      "id": "99f48d67-abd2-42a5-9bfc-50d28b874570",
       "name": "Normalize",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -51,7 +51,7 @@
       }
     },
     {
-      "id": "75f8b5f2-0571-4bf3-bac3-067e4f47ef62",
+      "id": "21b18a2b-f6c6-48da-afa0-4f96721864aa",
       "name": "Find Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -94,7 +94,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "a3321b7c-bc60-4e76-903e-7efdb340310d",
+      "id": "4c67b463-ba81-496c-adc7-27c58c8bbd37",
       "name": "Prep",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -107,7 +107,7 @@
       }
     },
     {
-      "id": "235ef8c3-d6c6-4c8e-8e4a-38cba11592ca",
+      "id": "5332b309-0a3f-43be-86aa-6867be51e506",
       "name": "Need Search?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -124,7 +124,7 @@
           },
           "conditions": [
             {
-              "id": "b4629268-aa28-46e5-a79c-c4ca741dfb33",
+              "id": "7ee29b5e-05fa-430e-8347-292d7a1e6cd1",
               "leftValue": "={{ $json.needSearch }}",
               "rightValue": "",
               "operator": {
@@ -140,7 +140,7 @@
       }
     },
     {
-      "id": "2187bc1e-ee5f-4dc8-8321-974922cef60b",
+      "id": "33a439ca-08c6-4b70-bdb2-a96f2ba171c7",
       "name": "BGG Search",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -187,7 +187,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "5363c94f-7069-40a3-aeac-550933b2d27f",
+      "id": "ba924a25-4d7f-4812-87ac-bfc59df1576e",
       "name": "Find Candidates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -200,7 +200,7 @@
       }
     },
     {
-      "id": "6ce5d2dd-f831-4637-80c5-eb44fb4de5d6",
+      "id": "b31113d5-b1a1-4798-927a-756729d356e3",
       "name": "Any Candidates?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -217,7 +217,7 @@
           },
           "conditions": [
             {
-              "id": "ead6d814-ebaf-4014-81e1-f88cb0441eef",
+              "id": "eb74d719-afc6-41a1-8337-ff8d85136296",
               "leftValue": "={{ $json.found }}",
               "rightValue": "",
               "operator": {
@@ -233,7 +233,7 @@
       }
     },
     {
-      "id": "f73fd7df-4abf-4af8-b051-6144faa3329c",
+      "id": "22dae41a-2f39-47ad-90da-00b0c0cebc8e",
       "name": "BGG Thing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -280,7 +280,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "f5048dfa-5dca-48d5-a03d-ed8750b827f7",
+      "id": "2ffd7ca1-aae1-4212-9f79-9908bc23f2db",
       "name": "Choose Match",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -293,7 +293,7 @@
       }
     },
     {
-      "id": "fe83d950-8a3f-4fdf-9946-7ec9f6198c0e",
+      "id": "000be57e-9b94-4543-9ad7-fefb347695c0",
       "name": "BGG Image Sizes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -314,7 +314,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "b202a193-5f47-4d7e-b181-f299471707e1",
+      "id": "c456eb62-42f5-4104-bd74-08699d921940",
       "name": "Add Cover",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -327,12 +327,77 @@
       }
     },
     {
-      "id": "f1a83a90-8227-483b-a052-964cc56acc0f",
+      "id": "e00d449f-a3b1-4580-8ef7-68be64f7782b",
+      "name": "BGG Plays For Game",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://boardgamegeek.com/xmlapi2/plays",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "username",
+              "value": "daddo_78"
+            },
+            {
+              "name": "id",
+              "value": "={{ ($json.bgg && $json.bgg.id) || 0 }}"
+            },
+            {
+              "name": "type",
+              "value": "thing"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "rZyqHvE3jW7FFkmj",
+          "name": "BGG API Token"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "0b8cc95b-a2a3-4cdb-a7e2-4a3539b0cd7f",
+      "name": "Add Plays",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3080,
+        300
+      ],
+      "parameters": {
+        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    const m = $('Add Cover').first().json;\n    const res = $input.first().json;\n    const xml = String(res.data || '');\n    if (res.error || !m.bgg || !xml.includes('<plays')) return [{ json: m }];\n    let count = 0, last = null;\n    for (const p of xml.matchAll(/<play id=\"\\d+\" date=\"([^\"]*)\" quantity=\"(\\d+)\"/g)) {\n      count += Number(p[2]) || 1;\n      if (p[1] && p[1] !== '0000-00-00' && (!last || p[1] > last)) last = p[1];\n    }\n    // A page holds 100 plays; past that, fall back to BGG's total (the daily sync sums quantities exactly)\n    const total = Number((xml.match(/<plays [^>]*total=\"(\\d+)\"/) || [])[1] || 0);\n    if (total > 100) count = Math.max(count, total);\n    return [{ json: { ...m, fields: { ...m.fields, [F.playCount]: count, [F.lastPlayed]: last }, bgg: { ...m.bgg, playCount: count, lastPlayed: last } } }];\n  "
+      }
+    },
+    {
+      "id": "63f2f71d-830a-4c9b-ac0e-f6872e357a40",
       "name": "Apply?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        2860,
+        3300,
         300
       ],
       "parameters": {
@@ -344,7 +409,7 @@
           },
           "conditions": [
             {
-              "id": "62983dd6-9963-4f9e-8b62-1a70054cbdd3",
+              "id": "38b74148-712a-4685-99b6-a9d80db8c289",
               "leftValue": "={{ $json.apply }}",
               "rightValue": "",
               "operator": {
@@ -360,12 +425,12 @@
       }
     },
     {
-      "id": "fbf87994-734c-48c4-8e80-af6dd6d96019",
+      "id": "bc9205db-eba0-4c41-ab4b-c6f3fba343be",
       "name": "Save BGG Data",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3080,
+        3520,
         300
       ],
       "parameters": {
@@ -389,31 +454,31 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "a9f8a452-3ba5-4d1f-b7f8-5159eb93ab08",
+      "id": "1da66d9a-50b1-4dbb-abf4-251f06dee156",
       "name": "Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3300,
+        3740,
         300
       ],
       "parameters": {
-        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    const src = $('Add Cover').isExecuted ? $('Add Cover').first().json : $('Find Candidates').first().json;\n    const applied = $('Save BGG Data').isExecuted;\n    return [{ json: { ok: true, id: src.game.id, title: src.game.title, matchType: src.matchType, applied,\n      dryRun: src.dryRun, bgg: src.bgg || null, newTitle: src.newTitle || null, alternatives: src.alternatives || [] } }];\n  "
+        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    const src = $('Add Plays').isExecuted ? $('Add Plays').first().json : $('Find Candidates').first().json;\n    const applied = $('Save BGG Data').isExecuted;\n    return [{ json: { ok: true, id: src.game.id, title: src.game.title, matchType: src.matchType, applied,\n      dryRun: src.dryRun, bgg: src.bgg || null, newTitle: src.newTitle || null, alternatives: src.alternatives || [] } }];\n  "
       }
     },
     {
-      "id": "b51a2a91-d72d-4bab-9fea-3c0cd879f4ed",
+      "id": "e91b687e-e5b4-4e12-ac28-ddf12f0256fc",
       "name": "Throttle BGG",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        3520,
+        3960,
         300
       ],
       "parameters": {
         "amount": 1.5
       },
-      "webhookId": "decbd711-a0b7-46ed-9dfe-0809c4226788"
+      "webhookId": "27eea03e-ce7e-407e-8bf5-d62d748e703e"
     }
   ],
   "connections": {
@@ -564,6 +629,28 @@
       ]
     },
     "Add Cover": {
+      "main": [
+        [
+          {
+            "node": "BGG Plays For Game",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BGG Plays For Game": {
+      "main": [
+        [
+          {
+            "node": "Add Plays",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Plays": {
       "main": [
         [
           {
