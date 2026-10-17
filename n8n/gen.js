@@ -42,7 +42,7 @@ function prelude() {
     minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',
     year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',
     rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',
-    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d',
+    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu',
   };
   const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
   const toGame = (r) => {
@@ -56,7 +56,7 @@ function prelude() {
       minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,
       year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),
       rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),
-      playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,
+      favorite: !!f[F.favorite], playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,
     };
   };
   const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)
@@ -176,7 +176,7 @@ const update = wf(ID.update, 'Vault — Update Game', [
           if (!(n >= 0 && n <= 5)) return err('desireToPlay must be 0-5');
           out[F.desireToPlay] = n; break;
         }
-        case 'thinningCandidate': out[F.thinningCandidate] = v === true || v === 'true'; break;
+        case 'thinningCandidate': case 'favorite': out[F[k]] = v === true || v === 'true'; break;
         case 'title': case 'genre': case 'type': case 'desc': case 'icon': out[F[k]] = String(v ?? ''); break;
         case 'expansions':
           if (!Array.isArray(v)) return err('expansions must be an array');
@@ -328,9 +328,9 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
     if (!src.id) throw new Error('Missing id');
     const flag = (v) => v === true || v === 'true';
     // bggId: force a specific BGG game (fixes a bad match); rematch: ignore the stored BGGId and search again;
-    // keepTitle: never adopt BGG's title for this game
+    // adoptTitle: let BGG fix this game's title (case/punctuation only). The collection owns its titles by default.
     return [{ json: { id: String(src.id), formula: formulaFor(String(src.id)), dryRun: flag(src.dryRun), applyFuzzy: flag(src.applyFuzzy),
-      forceBggId: Number(src.bggId) || null, rematch: flag(src.rematch), keepTitle: flag(src.keepTitle) } }];
+      forceBggId: Number(src.bggId) || null, rematch: flag(src.rematch), adoptTitle: flag(src.adoptTitle) } }];
   }),
   airtableLookup('Find Record'),
   code('Prep', function () {
@@ -340,7 +340,7 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
     const game = toGame(rec);
     const fixedId = n.forceBggId || (!n.rematch && game.bggId) || null;
     return [{ json: { recordId: rec.id, game, query: game.title.replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim(),
-      dryRun: n.dryRun, applyFuzzy: n.applyFuzzy, keepTitle: n.keepTitle,
+      dryRun: n.dryRun, applyFuzzy: n.applyFuzzy, adoptTitle: n.adoptTitle,
       fixedId, fixedType: n.forceBggId ? 'manual' : 'stored', needSearch: !fixedId } }];
   }),
   ifTrue('Need Search?', '={{ $json.needSearch }}'),
@@ -414,10 +414,10 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
       [F.designers]: JSON.stringify(best.designers), [F.categories]: JSON.stringify(best.categories), [F.mechanics]: JSON.stringify(best.mechanics),
       [F.updatedAt]: new Date().toISOString(),
     };
-    // Adopt BGG's title only as a cosmetic fix (case/punctuation); a match on an alternate name
+    // The collection is the source of truth: titles change only with adoptTitle, and only cosmetically; a match on an alternate name
     // ("Steam: Rails to Riches" -> "Steam") keeps the collection's own, more specific title
     const trusted = c.matchType === 'exact' || c.matchType === 'manual';
-    const retitle = !c.keepTitle && best.name && best.name !== c.game.title && normTitle(best.name) === normTitle(c.game.title);
+    const retitle = c.adoptTitle && best.name && best.name !== c.game.title && normTitle(best.name) === normTitle(c.game.title);
     if (retitle) fields[F.title] = best.name;
     const apply = !c.dryRun && (trusted || c.matchType === 'stored' || c.applyFuzzy);
     const { designers, categories, mechanics, ...summary } = best;

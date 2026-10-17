@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 
 AIRTABLE_CRED=DjPIwMJ1Lmar6CuJ
 BGG_CRED=rZyqHvE3jW7FFkmj
-BGG_USERNAME=""   # your BGG username, for play sync
+BGG_USERNAME="daddo_78"   # BGG account whose plays (posted by BG Stats) are synced
 SSH="ssh -i $HOME/.ssh/claude_hostinger claude-ops@148.230.83.130"
 CONTAINER=n8n-ckq4-n8n-1
 

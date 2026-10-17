@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "644ae122-fed2-4634-8eb0-aebe7632f9ae",
+      "id": "43e53023-3dc1-4191-b68e-a453ff6d5e41",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "a5974a03-b26c-4da0-a500-acb026239483"
+      "webhookId": "640ebf8a-b82d-40ca-9fb0-1080de227999"
     },
     {
-      "id": "fbf02f16-a075-4851-a01e-4a19ced8a908",
+      "id": "a875cc03-309b-4027-aea5-3a50e6722c71",
       "name": "Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -33,11 +33,11 @@
         300
       ],
       "parameters": {
-        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    const b = $input.first().json.body || {};\n    const err = (message) => [{ json: { ok: false, status: 400, message } }];\n    if (!b.id) return err('Missing id');\n    const out = {};\n    for (const [k, v] of Object.entries(b.fields || {})) {\n      switch (k) {\n        case 'desireToPlay': {\n          const n = Math.round(Number(v));\n          if (!(n >= 0 && n <= 5)) return err('desireToPlay must be 0-5');\n          out[F.desireToPlay] = n; break;\n        }\n        case 'thinningCandidate': out[F.thinningCandidate] = v === true || v === 'true'; break;\n        case 'title': case 'genre': case 'type': case 'desc': case 'icon': out[F[k]] = String(v ?? ''); break;\n        case 'expansions':\n          if (!Array.isArray(v)) return err('expansions must be an array');\n          out[F.expansions] = JSON.stringify(v.map(String)); break;\n        case 'bggId': case 'bggRating': out[F[k]] = v === null || v === '' ? null : Number(v); break;\n        default: return err('Field not editable: ' + k);\n      }\n    }\n    if (!Object.keys(out).length) return err('No fields to update');\n    out[F.updatedAt] = new Date().toISOString();\n    return [{ json: { ok: true, id: String(b.id), formula: formulaFor(String(b.id)), fields: out } }];\n  "
+        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    const b = $input.first().json.body || {};\n    const err = (message) => [{ json: { ok: false, status: 400, message } }];\n    if (!b.id) return err('Missing id');\n    const out = {};\n    for (const [k, v] of Object.entries(b.fields || {})) {\n      switch (k) {\n        case 'desireToPlay': {\n          const n = Math.round(Number(v));\n          if (!(n >= 0 && n <= 5)) return err('desireToPlay must be 0-5');\n          out[F.desireToPlay] = n; break;\n        }\n        case 'thinningCandidate': case 'favorite': out[F[k]] = v === true || v === 'true'; break;\n        case 'title': case 'genre': case 'type': case 'desc': case 'icon': out[F[k]] = String(v ?? ''); break;\n        case 'expansions':\n          if (!Array.isArray(v)) return err('expansions must be an array');\n          out[F.expansions] = JSON.stringify(v.map(String)); break;\n        case 'bggId': case 'bggRating': out[F[k]] = v === null || v === '' ? null : Number(v); break;\n        default: return err('Field not editable: ' + k);\n      }\n    }\n    if (!Object.keys(out).length) return err('No fields to update');\n    out[F.updatedAt] = new Date().toISOString();\n    return [{ json: { ok: true, id: String(b.id), formula: formulaFor(String(b.id)), fields: out } }];\n  "
       }
     },
     {
-      "id": "b1d1ca16-6c7b-4a4e-9977-e02bf83edeec",
+      "id": "475a0dcb-4b16-49ea-b5a5-923a3a6c4689",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "6ce67c0f-0271-4e5e-9fd8-e4933a0119b3",
+              "id": "7d78eba9-3cec-4c6b-98c2-879843c1b7ae",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,7 +70,7 @@
       }
     },
     {
-      "id": "152e3b9b-5974-422e-8212-84547ad4125a",
+      "id": "243cbbb7-ffe4-470a-8093-37f37968db72",
       "name": "Find Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -113,7 +113,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "5de8db12-874e-41c1-b2f9-65fbbd9c4cd5",
+      "id": "47750d6b-cf2b-4e56-b8ac-37b189301432",
       "name": "Check Found",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -122,11 +122,11 @@
         300
       ],
       "parameters": {
-        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    const rec = ($input.first().json.records || [])[0];\n    const v = $('Validate').first().json;\n    if (!rec) return [{ json: { ok: false, status: 404, message: 'Game not found: ' + v.id } }];\n    return [{ json: { ok: true, id: v.id, recordId: rec.id, fields: v.fields } }];\n  "
+        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    const rec = ($input.first().json.records || [])[0];\n    const v = $('Validate').first().json;\n    if (!rec) return [{ json: { ok: false, status: 404, message: 'Game not found: ' + v.id } }];\n    return [{ json: { ok: true, id: v.id, recordId: rec.id, fields: v.fields } }];\n  "
       }
     },
     {
-      "id": "402650d5-a4ec-402f-a141-243145b16975",
+      "id": "af9f3452-f314-41d1-9017-10de188517e8",
       "name": "Found?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -143,7 +143,7 @@
           },
           "conditions": [
             {
-              "id": "d304245a-f9ce-4bb8-9239-b1e8b765982f",
+              "id": "8fe67e54-8046-4c1a-a413-6314a9cc78d1",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -159,7 +159,7 @@
       }
     },
     {
-      "id": "33d8f94d-2fc5-4d76-a353-2533380dd26e",
+      "id": "3e1ad7d8-2129-4145-8a9b-8d819ec85dbb",
       "name": "Update Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -188,7 +188,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "b00744e7-88dc-4b3a-9c51-0e306b836495",
+      "id": "d83a9885-11b2-4b27-a931-bd8a2cae0ca5",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -205,7 +205,7 @@
       }
     },
     {
-      "id": "8d10dd8b-93bb-4a03-865b-a6724a8f4014",
+      "id": "f0ee6acd-2481-414c-8a19-e273b94f0e39",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
