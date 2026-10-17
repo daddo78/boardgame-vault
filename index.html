@@ -73,7 +73,8 @@
   .cover.fallback { background: var(--gold); display: flex; align-items: center; justify-content: center; }
   .cover.fallback i { font-size: 5.5rem; color: var(--card-border); }
   .cover .score { position: absolute; top: 0.6rem; right: 0.6rem; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
-  .cover .thin-flag { position: absolute; left: 0.6rem; top: 0.6rem; background: var(--accent); color: #fff; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.2rem 0.5rem; border-radius: 0.4rem; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+  .cover .score.rank { right: auto; left: 0.6rem; background: var(--ink); }
+  .cover .thin-flag { position: absolute; right: 0.6rem; bottom: 0.6rem; background: var(--accent); color: #fff; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.2rem 0.5rem; border-radius: 0.4rem; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
   .cover .exp-flag { position: absolute; left: 0.6rem; bottom: 0.6rem; display: inline-flex; align-items: center; gap: 0.3rem; background: var(--ink); color: #fff; font-family: var(--font-display); font-size: 0.85rem; font-weight: 600; padding: 0.3rem 0.65rem 0.3rem 0.5rem; border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
   .cover .exp-flag i { font-size: 1.05rem; color: var(--gold); }
   .card-body { padding: 0.85rem 1.1rem 0.85rem; display: flex; flex-direction: column; gap: 0.55rem; flex: 1; }
@@ -547,7 +548,7 @@
         '<i class="fa-' + (g.favorite ? 'solid' : 'regular') + ' fa-heart"></i>' + (cls === 'btn' ? (g.favorite ? ' Favorited' : ' Favorite') : '') + '</button>';
     }
     function bylineText(g) {
-      return [g.year, (g.designers || []).slice(0, 2).join(' & '), g.rank ? '#' + g.rank + ' on BGG' : ''].filter(Boolean).join(' · ');
+      return [g.year, (g.designers || []).slice(0, 2).join(' & ')].filter(Boolean).join(' · ');
     }
 
     let pendingDeleteId = null;
@@ -665,6 +666,7 @@
         card.innerHTML =
           coverHtml(g, g.coverCard,
             (g.bggRating ? '<div class="score" title="BGG average rating">' + Number(g.bggRating).toFixed(1) + '<small>BGG</small></div>' : '') +
+            (g.rank ? '<div class="score rank" title="BGG overall rank">#' + g.rank + '<small>BGG</small></div>' : '') +
             (g.thinningCandidate ? '<span class="thin-flag">Thinning</span>' : '') +
             (exp ? '<span class="exp-flag" title="' + esc(g.expansions.join(' · ')) + '"><i class="ti ti-puzzle-2"></i>+' + exp + ' expansion' + (exp > 1 ? 's' : '') + '</span>' : '')) +
           '<div class="card-body">' +
