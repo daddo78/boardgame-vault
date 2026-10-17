@@ -1,10 +1,10 @@
 // Generates the Board Game Garage n8n workflows (Airtable-backed) into ./workflows/*.json
-// Usage: node gen.js <airtableCredId> <bggCredId>
+// Usage: node gen.js <airtableCredId> <bggCredId> [bggUsername]
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const [AIRTABLE_CRED = 'AIRTABLE_CRED_ID', BGG_CRED = 'BGG_CRED_ID'] = process.argv.slice(2);
+const [AIRTABLE_CRED = 'AIRTABLE_CRED_ID', BGG_CRED = 'BGG_CRED_ID', BGG_USERNAME = ''] = process.argv.slice(2);
 const BASE = 'appb5FKsyLareQzG4';
 const TABLE = 'tblbGc0UuDxIPP2a8';
 const AT_URL = `https://api.airtable.com/v0/${BASE}/${TABLE}`;
@@ -21,6 +21,7 @@ const ID = {
   iconBatch: 'BGVaultIconBatch',
   bggOne: 'BGVaultBggOne001',
   bggBatch: 'BGVaultBggBatch1',
+  syncPlays: 'BGVaultSyncPlays',
 };
 
 const CRED = {
@@ -37,16 +38,25 @@ function prelude() {
     expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',
     icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',
     addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',
+    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',
+    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',
+    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',
+    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',
+    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d',
   };
+  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
   const toGame = (r) => {
     const f = r.fields || {};
-    let expansions = [];
-    try { const v = JSON.parse(f[F.expansions] || '[]'); if (Array.isArray(v)) expansions = v.map(String); } catch (e) {}
     return {
       id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,
       title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',
-      expansions, desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],
+      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],
       bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',
+      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),
+      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,
+      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),
+      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),
+      playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,
     };
   };
   const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)
@@ -235,21 +245,23 @@ const iconOne = wf(ID.iconOne, 'Vault — Assign Icon (single)', [
   webhook('Webhook', 'POST', 'vault/assign-icon', 'lastNode'),
   code('Normalize', function () {
     const j = $input.first().json;
-    const id = (j.body && j.body.id) || j.id;
-    if (!id) throw new Error('Missing id');
-    return [{ json: { id: String(id), formula: formulaFor(String(id)) } }];
+    const src = j.body || j;
+    if (!src.id) throw new Error('Missing id');
+    // avoid: icons already used by many other games; picked only if nothing else fits
+    const avoid = Array.isArray(src.avoid) ? src.avoid.map(String) : [];
+    return [{ json: { id: String(src.id), formula: formulaFor(String(src.id)), avoid } }];
   }),
   airtableLookup('Find Record'),
   code('Prep', function () {
     const rec = ($input.first().json.records || [])[0];
     if (!rec) throw new Error('Game not found: ' + $('Normalize').first().json.id);
-    return [{ json: { recordId: rec.id, game: toGame(rec) } }];
+    return [{ json: { recordId: rec.id, game: toGame(rec), avoid: $('Normalize').first().json.avoid } }];
   }),
   textGet('Fetch Tabler Catalog', TABLER_CSS),
   code('Build Icon Prompt', function () {
     const names = [...String($input.first().json.data || '').matchAll(/\.ti-([a-z0-9-]+):before/g)].map((m) => m[1]);
     if (names.length < 1000) throw new Error('Tabler catalog looks wrong: only ' + names.length + ' icons');
-    const g = $('Prep').first().json.game;
+    const { game: g, avoid } = $('Prep').first().json;
     const prompt = [
       `Board game: ${g.title}`,
       `Theme/genre: ${g.genre}`,
@@ -257,10 +269,11 @@ const iconOne = wf(ID.iconOne, 'Vault — Assign Icon (single)', [
       `Description: ${g.desc}`,
       '',
       'Suggest 8 Tabler Icons (v3) names for a small pictogram on this game\'s collection card, best first.',
-      '- Use exact Tabler names: kebab-case, no "ti-" prefix (e.g. "rocket", "tree", "pyramid", "skull", "planet", "train", "fish", "crown", "building-castle").',
-      '- Depict the game\'s theme, setting or central object, not its mechanics.',
+      '- Use exact Tabler names: kebab-case, as in class "ti ti-<name>", without the "ti-" prefix.',
+      '- Depict what is most distinctive about this particular game (a signature object, creature, place or action), not its broad genre or its mechanics.',
       '- Avoid generic gaming icons (meeple, dice, cards, chess, puzzle, device-gamepad) unless the game is literally about them.',
       '- Never use "-off" variants.',
+      ...(avoid.length ? [`- These icons are already used by many other games in the collection; do not suggest them: ${avoid.join(', ')}.`] : []),
       'Reply with JSON only: {"candidates":["name1","name2",...]}',
     ].join('\n');
     return [{ json: { requestBody: {
@@ -279,8 +292,10 @@ const iconOne = wf(ID.iconOne, 'Vault — Assign Icon (single)', [
     let candidates = [];
     try { candidates = JSON.parse(text.match(/\{[\s\S]*\}/)[0]).candidates || []; } catch (e) {}
     candidates = candidates.map((c) => String(c).toLowerCase().trim().replace(/^ti-/, '').replace(/\s+/g, '-'));
+    const avoid = new Set($('Prep').first().json.avoid);
     let icon = null, match = 'fallback';
-    for (const c of candidates) if (catalog.has(c) && !c.endsWith('-off')) { icon = c; match = 'exact'; break; }
+    for (const c of candidates) if (catalog.has(c) && !c.endsWith('-off') && !avoid.has(c)) { icon = c; match = 'exact'; break; }
+    if (!icon) for (const c of candidates) if (catalog.has(c) && !c.endsWith('-off')) { icon = c; match = 'exact-avoided'; break; }
     if (!icon) for (const c of candidates) {
       const n = names.find((x) => x.startsWith(c + '-') && !x.endsWith('-off') && !x.endsWith('-filled'));
       if (n) { icon = n; match = 'prefix'; break; }
@@ -312,7 +327,10 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
     const src = j.body || j;
     if (!src.id) throw new Error('Missing id');
     const flag = (v) => v === true || v === 'true';
-    return [{ json: { id: String(src.id), formula: formulaFor(String(src.id)), dryRun: flag(src.dryRun), applyFuzzy: flag(src.applyFuzzy) } }];
+    // bggId: force a specific BGG game (fixes a bad match); rematch: ignore the stored BGGId and search again;
+    // keepTitle: never adopt BGG's title for this game
+    return [{ json: { id: String(src.id), formula: formulaFor(String(src.id)), dryRun: flag(src.dryRun), applyFuzzy: flag(src.applyFuzzy),
+      forceBggId: Number(src.bggId) || null, rematch: flag(src.rematch), keepTitle: flag(src.keepTitle) } }];
   }),
   airtableLookup('Find Record'),
   code('Prep', function () {
@@ -320,14 +338,19 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
     const n = $('Normalize').first().json;
     if (!rec) throw new Error('Game not found: ' + n.id);
     const game = toGame(rec);
-    return [{ json: { recordId: rec.id, game, query: game.title.replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim(), dryRun: n.dryRun, applyFuzzy: n.applyFuzzy } }];
+    const fixedId = n.forceBggId || (!n.rematch && game.bggId) || null;
+    return [{ json: { recordId: rec.id, game, query: game.title.replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim(),
+      dryRun: n.dryRun, applyFuzzy: n.applyFuzzy, keepTitle: n.keepTitle,
+      fixedId, fixedType: n.forceBggId ? 'manual' : 'stored', needSearch: !fixedId } }];
   }),
+  ifTrue('Need Search?', '={{ $json.needSearch }}'),
   textGet('BGG Search', 'https://boardgamegeek.com/xmlapi2/search',
     qs({ query: '={{ $json.query }}', type: 'boardgame' }), CRED.bgg),
   code('Find Candidates', function () {
     const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    const xml = String($input.first().json.data || '');
     const p = $('Prep').first().json;
+    if (p.fixedId) return [{ json: { ...p, matchType: p.fixedType, ids: String(p.fixedId), found: true, searchHits: 0 } }];
+    const xml = String($input.first().json.data || '');
     const items = [...xml.matchAll(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/g)].map((m) => ({
       id: m[2], name: decode((m[3].match(/<name type="[^"]+" value="([^"]*)"/) || [])[1] || ''),
     }));
@@ -347,23 +370,58 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
     const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const xml = String($input.first().json.data || '');
     const c = $('Find Candidates').first().json;
-    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '[^>]*value="([^"]*)"')); return m ? m[1] : null; };
-    const things = [...xml.matchAll(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/g)].map((m) => ({
-      type: m[1], id: Number(m[2]),
-      name: decode((m[3].match(/<name type="primary"[^>]*value="([^"]*)"/) || [])[1] || ''),
-      year: attr(m[3], 'yearpublished'),
-      usersRated: Number(attr(m[3], 'usersrated') || 0),
-      average: Number(attr(m[3], 'average') || 0),
-    }));
+    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
+    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
+    const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
+    // "Best with": player counts where Best is the top vote in BGG's suggested_numplayers poll
+    const bestWith = (s) => {
+      const poll = (s.match(/<poll name="suggested_numplayers"[\s\S]*?<\/poll>/) || [''])[0];
+      const rows = [...poll.matchAll(/<results numplayers="(\d+)">([\s\S]*?)<\/results>/g)].map((m) => {
+        const votes = (label) => Number((m[2].match(new RegExp('value="' + label + '" numvotes="(\\d+)"')) || [])[1] || 0);
+        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };
+      });
+      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);
+      if (winners.length) return winners;
+      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];
+      return top ? [top.n] : [];
+    };
+    const things = [...xml.matchAll(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/g)].map((m) => {
+      const s = m[3];
+      const rank = (s.match(/<rank type="subtype"[^>]*name="boardgame"[^>]*value="(\d+)"/) || [])[1];
+      return {
+        type: m[1], id: Number(m[2]),
+        name: decode((s.match(/<name type="primary"[^>]*value="([^"]*)"/) || [])[1] || ''),
+        year: num(attr(s, 'yearpublished')),
+        usersRated: Number(attr(s, 'usersrated') || 0),
+        average: Number(attr(s, 'average') || 0),
+        weight: num(attr(s, 'averageweight')),
+        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')),
+        minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')), minAge: num(attr(s, 'minage')),
+        rank: rank ? Number(rank) : null, bestPlayers: bestWith(s),
+        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'),
+        categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),
+      };
+    });
     things.sort((a, b) => ((b.type === 'boardgame') - (a.type === 'boardgame')) || (b.usersRated - a.usersRated));
     const best = things[0];
     if (!best) return [{ json: { ...c, matchType: 'none', apply: false } }];
     const bggRating = best.average > 0 ? Math.round(best.average * 10) / 10 : null;
-    const fields = { [F.bggId]: best.id, [F.bggRating]: bggRating, [F.updatedAt]: new Date().toISOString() };
-    const retitle = c.matchType === 'exact' && best.name && best.name !== c.game.title;
+    const fields = {
+      [F.bggId]: best.id, [F.bggRating]: bggRating,
+      [F.minPlayers]: best.minPlayers, [F.maxPlayers]: best.maxPlayers, [F.bestPlayers]: JSON.stringify(best.bestPlayers),
+      [F.minTime]: best.minTime, [F.maxTime]: best.maxTime, [F.minAge]: best.minAge,
+      [F.weight]: best.weight ? Math.round(best.weight * 100) / 100 : null, [F.year]: best.year, [F.rank]: best.rank,
+      [F.designers]: JSON.stringify(best.designers), [F.categories]: JSON.stringify(best.categories), [F.mechanics]: JSON.stringify(best.mechanics),
+      [F.updatedAt]: new Date().toISOString(),
+    };
+    // Adopt BGG's title only as a cosmetic fix (case/punctuation); a match on an alternate name
+    // ("Steam: Rails to Riches" -> "Steam") keeps the collection's own, more specific title
+    const trusted = c.matchType === 'exact' || c.matchType === 'manual';
+    const retitle = !c.keepTitle && best.name && best.name !== c.game.title && normTitle(best.name) === normTitle(c.game.title);
     if (retitle) fields[F.title] = best.name;
-    const apply = !c.dryRun && (c.matchType === 'exact' || c.applyFuzzy);
-    return [{ json: { ...c, apply, fields, bgg: { id: best.id, title: best.name, year: best.year, rating: bggRating, usersRated: best.usersRated, type: best.type },
+    const apply = !c.dryRun && (trusted || c.matchType === 'stored' || c.applyFuzzy);
+    const { designers, categories, mechanics, ...summary } = best;
+    return [{ json: { ...c, apply, fields, bgg: { ...summary, rating: bggRating, designers },
       newTitle: retitle ? best.name : null, alternatives: things.slice(1, 4).map((t) => ({ id: t.id, title: t.name, year: t.year, usersRated: t.usersRated })) } }];
   }),
   ifTrue('Apply?', '={{ $json.apply }}'),
@@ -377,7 +435,7 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
   wait('Throttle BGG', 1.5),
 ], [
   ['When Called By Another Workflow', 'Normalize'], ['Webhook', 'Normalize'], ['Normalize', 'Find Record'],
-  ['Find Record', 'Prep'], ['Prep', 'BGG Search'], ['BGG Search', 'Find Candidates'], ['Find Candidates', 'Any Candidates?'],
+  ['Find Record', 'Prep'], ['Prep', 'Need Search?'], ['Need Search?', 'BGG Search', 0], ['Need Search?', 'Find Candidates', 1], ['BGG Search', 'Find Candidates'], ['Find Candidates', 'Any Candidates?'],
   ['Any Candidates?', 'BGG Thing', 0], ['Any Candidates?', 'Result', 1], ['BGG Thing', 'Choose Match'], ['Choose Match', 'Apply?'],
   ['Apply?', 'Save BGG Data', 0], ['Apply?', 'Result', 1], ['Save BGG Data', 'Result'], ['Result', 'Throttle BGG'],
 ]);
@@ -508,12 +566,84 @@ const identify = wf(ID.identify, 'Vault — Identify Game From Photo', [
   ['Assign Icon', 'Reload Record'], ['Reload Record', 'Shape Game'], ['Shape Game', 'Respond OK'],
 ]);
 
+// =====================================================================
+// 7. Sync Plays  daily + POST /webhook/vault/sync-plays
+//    Plays are logged in BG Stats, which posts them to BGG; this pulls them back per bggId.
+// =====================================================================
+const syncPlays = wf(ID.syncPlays, 'Vault — Sync Plays From BGG', [
+  node('Daily', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ triggerAtHour: 4 }] } }),
+  webhook('Webhook', 'POST', 'vault/sync-plays', 'lastNode'),
+  code('Options', function () {
+    const username = '__BGG_USERNAME__';
+    if (!username) throw new Error('BGG username not configured (BGG_USERNAME in n8n/deploy.sh)');
+    return [{ json: { username } }];
+  }),
+  node('BGG Plays', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/plays',
+    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    ...qs({ username: '={{ $json.username }}', type: 'thing', subtype: 'boardgame' }),
+    options: {
+      timeout: 30000,
+      response: { response: { responseFormat: 'text', outputPropertyName: 'data' } },
+      pagination: { pagination: {
+        paginationMode: 'updateAParameterInEachRequest',
+        parameters: { parameters: [{ type: 'qs', name: 'page', value: '={{ $pageCount + 1 }}' }] },
+        paginationCompleteWhen: 'other', completeExpression: '={{ !String($response.body).includes("<play ") }}',
+        limitPagesFetched: true, maxRequests: 100, requestInterval: 2000,
+      } },
+    },
+  }, { credentials: CRED.bgg, ...retry }),
+  code('Tally Plays', function () {
+    const byGame = {};
+    let total = 0;
+    for (const page of $input.all()) {
+      const xml = String(page.json.data || '');
+      for (const m of xml.matchAll(/<play id="\d+" date="([^"]*)" quantity="(\d+)"[^>]*>[\s\S]*?<item [^>]*objectid="(\d+)"/g)) {
+        const [, date, qty, objectId] = m;
+        const g = (byGame[objectId] ??= { count: 0, last: null });
+        g.count += Number(qty) || 1;
+        total += Number(qty) || 1;
+        if (date && date !== '0000-00-00' && (!g.last || date > g.last)) g.last = date;
+      }
+    }
+    return [{ json: { byGame, total, gamesPlayed: Object.keys(byGame).length } }];
+  }),
+  airtableListAll('List All Games'),
+  code('Build Updates', function () {
+    const { byGame, total, gamesPlayed } = $('Tally Plays').first().json;
+    const games = $input.all().flatMap((i) => i.json.records || []).map(toGame);
+    const changes = [];
+    for (const g of games) {
+      if (!g.bggId) continue;
+      const p = byGame[String(g.bggId)] || { count: 0, last: null };
+      if ((g.playCount || 0) !== p.count || (g.lastPlayed || null) !== p.last) {
+        changes.push({ id: g.recordId, fields: { [F.playCount]: p.count, [F.lastPlayed]: p.last } });
+      }
+    }
+    const batches = [];
+    for (let i = 0; i < changes.length; i += 10) batches.push({ json: { records: changes.slice(i, i + 10) } });
+    const matched = games.filter((g) => g.bggId && byGame[String(g.bggId)]).length;
+    const summary = { totalPlays: total, gamesPlayedOnBgg: gamesPlayed, matchedInCollection: matched, updated: changes.length };
+    return batches.length ? batches.map((b) => ({ json: { ...b.json, summary } })) : [{ json: { records: [], summary } }];
+  }),
+  ifTrue('Anything To Save?', '={{ $json.records.length > 0 }}'),
+  airtable('Save Play Counts', 'PATCH', '', jsonBody('={{ JSON.stringify({ records: $json.records, typecast: true }) }}')),
+  code('Result', function () {
+    return [{ json: { ok: true, ...$('Build Updates').first().json.summary } }];
+  }),
+], [
+  ['Daily', 'Options'], ['Webhook', 'Options'], ['Options', 'BGG Plays'], ['BGG Plays', 'Tally Plays'],
+  ['Tally Plays', 'List All Games'], ['List All Games', 'Build Updates'], ['Build Updates', 'Anything To Save?'],
+  ['Anything To Save?', 'Save Play Counts', 0], ['Anything To Save?', 'Result', 1], ['Save Play Counts', 'Result'],
+]);
+
 // ---------- write ----------
-const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch };
+const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
-  let s = JSON.stringify(w, null, 2).replace(/__ICON_MODEL__/g, ICON_MODEL).replace(/__VISION_MODEL__/g, VISION_MODEL);
+  let s = JSON.stringify(w, null, 2).replace(/__ICON_MODEL__/g, ICON_MODEL).replace(/__VISION_MODEL__/g, VISION_MODEL)
+    .replace(/__BGG_USERNAME__/g, BGG_USERNAME);
   fs.writeFileSync(path.join(outDir, `${k}.json`), s);
   console.log(k, w.id, w.nodes.length, 'nodes');
 }

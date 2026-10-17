@@ -60,38 +60,80 @@
   button.pill:hover { background: var(--teal); color: #fff; }
   button.pill.active { background: var(--accent); color: #fff; }
   .stats-badge { background: var(--gold); color: var(--ink); padding: 0.5rem 0.9rem; border-radius: 0.6rem; font-weight: 800; font-size: 0.85rem; white-space: nowrap; margin-left: auto; }
-  .grid { max-width: 1300px; margin: 0 auto; padding: 0 1.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 1.5rem; }
-  .card { background: var(--card-bg); border-radius: 0.9rem; padding: 1.35rem; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s; position: relative; box-shadow: var(--shadow); }
-  .card:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(34,51,59,0.2); }
+  .grid { max-width: 1300px; margin: 0 auto; padding: 0 1.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); gap: 1.5rem; }
+  .grid > * { min-width: 0; }
+  .filters { display: contents; }
+  .filters-toggle { display: none; }
+  .card { background: var(--card-bg); border-radius: 0.9rem; padding: 1.1rem 1.2rem 0.9rem; display: flex; flex-direction: column; gap: 0.6rem; transition: transform 0.15s; position: relative; box-shadow: var(--shadow); cursor: pointer; }
+  .card:hover, .card:focus-visible { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(34,51,59,0.2); outline: none; }
   .card.thinning { box-shadow: var(--shadow), inset 4px 0 0 var(--accent); }
   .card.thinning:hover { box-shadow: 6px 6px 0 rgba(34,51,59,0.2), inset 4px 0 0 var(--accent); }
-  .card-header { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 0.75rem; padding-right: 1.6rem; }
-  .game-num { background: var(--gold); color: var(--ink); font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; width: 4.6rem; height: 4.6rem; border-radius: 0.7rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
-  .game-num i { font-size: 2.3rem; color: var(--card-border); }
-  .card-delete-btn { position: absolute; top: 0.9rem; right: 0.9rem; width: 2rem; height: 2rem; border-radius: 0.5rem; background: var(--exp-bg); border: none; color: var(--text-muted); cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; z-index: 1; }
-  .card-delete-btn:hover { background: var(--accent); color: #fff; }
-  .game-title { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--ink); line-height: 1.3; }
-  .bgg-rating { font-size: 0.75rem; color: var(--teal-dark); font-weight: 700; }
-  .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0 0.85rem; }
-  .tag { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 0.4rem; text-transform: uppercase; }
+  .card-top { display: flex; align-items: center; gap: 0.8rem; }
+  .game-icon { background: var(--gold); width: 3.4rem; height: 3.4rem; border-radius: 0.65rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .game-icon i { font-size: 1.85rem; color: var(--card-border); }
+  .game-icon.lg { width: 4.6rem; height: 4.6rem; border-radius: 0.8rem; }
+  .game-icon.lg i { font-size: 2.6rem; }
+  .card-heading { flex: 1; min-width: 0; }
+  .game-title { font-family: var(--font-display); font-size: 1.12rem; font-weight: 700; color: var(--ink); line-height: 1.25; }
+  .byline { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.1rem; }
+  .score { flex-shrink: 0; align-self: flex-start; background: var(--teal); color: #fff; font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; min-width: 2.5rem; text-align: center; padding: 0.2rem 0.45rem; border-radius: 0.5rem; line-height: 1.3; }
+  .score small { display: block; font-family: var(--font-body); font-size: 0.55rem; font-weight: 700; letter-spacing: 0.04em; opacity: 0.85; text-transform: uppercase; }
+  .facts { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .fact { display: inline-flex; align-items: center; gap: 0.25rem; background: var(--exp-bg); color: var(--ink); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 0.45rem; white-space: nowrap; }
+  .fact i { font-size: 0.95rem; opacity: 0.75; }
+  .fact em { font-style: normal; font-weight: 600; color: var(--text-muted); }
+  .fact.w-light { background: #e4f4e8; color: #23683a; }
+  .fact.w-medium { background: #fbf0db; color: #8a6d1f; }
+  .fact.w-heavy { background: #fde7e2; color: var(--accent-dark); }
+  .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .tag { font-size: 0.66rem; font-weight: 700; padding: 0.18rem 0.5rem; border-radius: 0.4rem; text-transform: uppercase; letter-spacing: 0.02em; }
   .tag-genre { background: var(--tag-bg); color: var(--teal-dark); }
   .tag-type { background: #fbf0db; color: #8a6d1f; }
   .tag-thin { background: #fde7e2; color: var(--accent-dark); }
-  .desc { font-size: 0.92rem; color: var(--text-muted); margin-bottom: 1rem; }
-  .expansions-toggle { background: var(--exp-bg); border: none; color: var(--ink); border-radius: 0.6rem; padding: 0.45rem 0.8rem; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 1rem; }
-  .expansions-toggle:hover { background: var(--gold); }
-  .exp-list { display: none; background: var(--exp-bg); border-radius: 0.6rem; padding: 0.7rem; margin: -0.6rem 0 1rem; list-style: none; }
-  .exp-list.open { display: block; }
-  .exp-item { font-size: 0.8rem; color: var(--text); display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; }
-  .exp-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; flex-shrink: 0; }
-  .ranker-box { background: var(--exp-bg); border-radius: 0.7rem; padding: 0.7rem 1rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
-  .ranker-label { font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: var(--ink); }
-  .stars { display: flex; gap: 0.2rem; }
-  .star-btn { background: none; border: none; font-size: 1.3rem; color: #cbbd9a; cursor: pointer; transition: transform 0.15s, color 0.15s; }
+  .tag-exp { background: var(--exp-bg); color: var(--ink); }
+  .tag-plain { background: var(--exp-bg); color: var(--ink); text-transform: none; font-size: 0.75rem; font-weight: 600; }
+  .desc { font-size: 0.88rem; color: var(--text-muted); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-foot { display: flex; align-items: center; gap: 0.5rem; margin-top: auto; padding-top: 0.55rem; border-top: 1px solid var(--exp-bg); }
+  .plays { flex: 1; font-size: 0.78rem; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plays.never { color: var(--text-muted); font-weight: 600; }
+  .plays i { font-size: 0.95rem; color: var(--accent); }
+  .stars { display: flex; gap: 0.1rem; }
+  .star-btn { background: none; border: none; font-size: 1.05rem; color: #cbbd9a; cursor: pointer; transition: transform 0.15s, color 0.15s; padding: 0.1rem; }
   .star-btn:hover { transform: scale(1.2); }
   .star-btn.active { color: var(--accent); }
-  .thin-toggle { width: 100%; background: var(--exp-bg); border: none; color: var(--ink); padding: 0.5rem; border-radius: 0.6rem; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
-  .thin-toggle.on { background: var(--accent); color: #fff; }
+  .mini-btn { width: 2.1rem; height: 2.1rem; border-radius: 0.55rem; background: var(--exp-bg); border: none; color: var(--ink); cursor: pointer; font-size: 1.1rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .mini-btn:hover { background: var(--gold); }
+  .mini-btn.on { background: var(--accent); color: #fff; }
+  /* Detail modal */
+  .modal.detail { max-width: 640px; padding: 0; position: relative; }
+  .detail-head { display: flex; gap: 1rem; align-items: center; padding: 1.5rem 3.5rem 1rem 1.5rem; }
+  .modal .detail-head h2 { margin: 0; text-transform: none; font-size: 1.45rem; line-height: 1.2; }
+  .detail-close { position: absolute; top: 0.9rem; right: 0.9rem; }
+  .detail-body { padding: 0 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 1.1rem; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); gap: 0.5rem; }
+  .stat { background: var(--exp-bg); border-radius: 0.6rem; padding: 0.55rem 0.7rem; }
+  .stat b { display: block; font-family: var(--font-display); font-size: 1.1rem; color: var(--ink); line-height: 1.25; }
+  .stat span { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .section-label { font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: var(--ink); margin-bottom: 0.4rem; letter-spacing: 0.03em; }
+  .play-panel { background: var(--tag-bg); border-radius: 0.8rem; padding: 0.9rem 1rem; display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; }
+  .play-panel .big { font-family: var(--font-display); font-size: 2rem; font-weight: 700; color: var(--teal-dark); line-height: 1; }
+  .play-panel .sub { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+  .play-panel .btn { flex: 0 0 auto; padding: 0.55rem 0.9rem; }
+  .detail-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+  .detail-row .stars .star-btn { font-size: 1.4rem; }
+  .detail-desc { font-size: 0.95rem; color: var(--text); }
+  .exp-item { font-size: 0.85rem; color: var(--text); display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0; list-style: none; }
+  .exp-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; flex-shrink: 0; }
+  .detail-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .detail-actions .btn { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; text-decoration: none; }
+  .btn.danger:hover { background: var(--accent); color: #fff; }
+  .btn.on { background: var(--accent); color: #fff; }
+  .modal input[type=date], .modal input[type=number] { width: 100%; background: var(--exp-bg); border: none; padding: 0.6rem 0.8rem; border-radius: 0.5rem; color: var(--ink); font-size: 0.9rem; font-family: var(--font-body); }
+  .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.5rem; }
+  .player-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
+  .player-chip { background: var(--exp-bg); border: none; border-radius: 0.5rem; padding: 0.35rem 0.65rem; font-family: var(--font-body); font-weight: 700; font-size: 0.82rem; color: var(--ink); cursor: pointer; }
+  .player-chip.sel { background: var(--teal); color: #fff; }
+  .player-chip.win { background: var(--gold); color: var(--ink); }
   .fab { position: fixed; bottom: 1.75rem; right: 1.75rem; width: 3.6rem; height: 3.6rem; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.8rem; font-weight: 700; cursor: pointer; box-shadow: var(--shadow); z-index: 60; }
   .fab:hover { background: var(--accent-dark); }
   .modal-overlay { position: fixed; inset: 0; background: rgba(34,51,59,0.55); display: none; align-items: center; justify-content: center; z-index: 100; padding: 1.5rem; }
@@ -124,18 +166,23 @@
     .toolbar-container { margin: -1rem auto 1.25rem; padding: 0 1rem; top: 0.5rem; }
     .toolbar { padding: 0.65rem 0.85rem; gap: 0.6rem; }
     .toolbar select, .toolbar button.pill { flex: 1 1 auto; font-size: 0.85rem; padding: 0.55rem 0.7rem; }
-    .stats-badge { margin-left: 0; width: 100%; text-align: center; }
-    .grid { padding: 0 1rem; gap: 1rem; grid-template-columns: 1fr; }
-    .card { padding: 1.1rem; }
-    .card-header { padding-right: 2.2rem; gap: 0.7rem; }
-    .game-num { width: 3.6rem; height: 3.6rem; font-size: 1.1rem; }
-    .game-num i { font-size: 1.8rem; }
-    .game-title { font-size: 1.1rem; }
-    .card-delete-btn { width: 2.2rem; height: 2.2rem; }
+    .search-box { flex: 1 1 60%; }
+    .filters-toggle { display: inline-flex; align-items: center; gap: 0.3rem; flex: 0 0 auto !important; }
+    .filters { display: none; width: 100%; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .filters.open { display: grid; }
+    .filters select, .filters button.pill { width: 100%; min-width: 0; }
+    .stats-badge { margin-left: 0; width: 100%; text-align: center; padding: 0.35rem; }
+    .grid { padding: 0 1rem; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+    .card { padding: 1rem 1rem 0.8rem; }
+    .game-title { font-size: 1.05rem; }
     .modal { padding: 1.25rem; max-height: 90vh; }
+    .modal.detail { padding: 0; }
+    .detail-head { padding: 1.25rem 3.25rem 0.75rem 1.25rem; }
+    .detail-head h2 { font-size: 1.25rem; }
+    .detail-body { padding: 0 1.25rem 1.25rem; }
     .fab { bottom: 1.25rem; right: 1.25rem; width: 3.4rem; height: 3.4rem; font-size: 1.6rem; }
-    .star-btn { font-size: 1.5rem; padding: 0.1rem; }
-    .ranker-box { flex-wrap: wrap; gap: 0.5rem; }
+    .star-btn { font-size: 1.3rem; }
+    .mini-btn { width: 2.4rem; height: 2.4rem; }
   }
 </style>
 </head>
@@ -164,6 +211,8 @@
       <div class="search-box">
         <input type="text" id="searchInput" placeholder="Search title, genre, expansion name..." />
       </div>
+      <button class="pill filters-toggle" id="filtersToggle" aria-expanded="false" aria-controls="filtersPanel"><i class="ti ti-adjustments-horizontal"></i> Filters</button>
+      <div class="filters" id="filtersPanel">
       <select id="genreFilter"><option value="ALL">All Genres</option></select>
       <select id="ratingFilter">
         <option value="ALL">All Ratings</option>
@@ -174,13 +223,45 @@
         <option value="1">★ Only</option>
         <option value="0">Unrated</option>
       </select>
+      <select id="playersFilter" title="Player count">
+        <option value="ALL">Any # Players</option>
+        <option value="1">1 player</option>
+        <option value="2">2 players</option>
+        <option value="3">3 players</option>
+        <option value="4">4 players</option>
+        <option value="5">5 players</option>
+        <option value="6">6 players</option>
+        <option value="7">7+ players</option>
+      </select>
+      <select id="timeFilter" title="Play time">
+        <option value="ALL">Any Length</option>
+        <option value="30">≤ 30 min</option>
+        <option value="60">≤ 1 hour</option>
+        <option value="90">≤ 90 min</option>
+        <option value="120">≤ 2 hours</option>
+        <option value="long">2+ hours</option>
+      </select>
+      <select id="weightFilter" title="Complexity (BGG weight)">
+        <option value="ALL">Any Weight</option>
+        <option value="light">Light (&lt; 2)</option>
+        <option value="medium">Medium (2–3)</option>
+        <option value="heavy">Heavy (3+)</option>
+      </select>
       <select id="sortSelect">
         <option value="num-asc">Number (# Ascending)</option>
         <option value="rank-desc">Desire to Play (High to Low)</option>
         <option value="rank-asc">Desire to Play (Low to High)</option>
         <option value="title-asc">Title (A-Z)</option>
+        <option value="plays-desc">Most Played</option>
+        <option value="plays-asc">Least Played</option>
+        <option value="recent-desc">Recently Played</option>
+        <option value="stale-desc">Longest Since Played</option>
+        <option value="bgg-desc">BGG Rating</option>
+        <option value="weight-desc">Heaviest First</option>
+        <option value="weight-asc">Lightest First</option>
       </select>
       <button class="pill" id="thinFilterBtn">Thinning only</button>
+      </div>
       <div class="stats-badge" id="statsCount">0 Games Cataloged</div>
     </div>
   </div>
@@ -207,7 +288,7 @@
   <div class="modal-overlay" id="addModal">
     <div class="modal">
       <h2>Add a Game by Photo</h2>
-      <p style="color:var(--text-muted); font-size:0.85rem;">Snap or upload a photo of the box. An n8n workflow reads the title with your vision model, saves it straight to your collection, and tries to find cover art.</p>
+      <p style="color:var(--text-muted); font-size:0.85rem;">Snap or upload a photo of the box. An n8n workflow reads the title with a vision model, saves it to your collection, looks it up on BoardGameGeek, and picks an icon.</p>
       <label>Box photo</label>
       <input type="file" id="photoInput" accept="image/*" capture="environment" />
       <div id="identifyArea"></div>
@@ -226,6 +307,34 @@
       <div class="modal-actions">
         <button class="btn ghost" id="deleteCancel">Cancel</button>
         <button class="btn primary" id="deleteConfirm" style="background:var(--accent); border-color:var(--accent-dark);">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game detail modal (filled by openDetail) -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal detail" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+      <button class="mini-btn detail-close" id="detailClose" title="Close"><i class="ti ti-x"></i></button>
+      <div id="detailContent"></div>
+    </div>
+  </div>
+
+  <!-- Log play modal: hands the play to BG Stats, which posts it to BGG -->
+  <div class="modal-overlay" id="logPlayModal">
+    <div class="modal">
+      <h2>Log a Play</h2>
+      <p style="color:var(--text-muted); font-size:0.9rem;" id="logPlayGame"></p>
+      <label for="playDate">Date</label>
+      <input type="date" id="playDate" />
+      <label>Who played? <span style="font-weight:600;">(tap to add · tap again to mark the winner)</span></label>
+      <div class="player-chips" id="playerChips"></div>
+      <input type="text" id="newPlayerInput" placeholder="Add a player name and press Enter" style="margin-top:0.5rem;" />
+      <label for="playDuration">Duration (minutes, optional)</label>
+      <input type="number" id="playDuration" min="1" inputmode="numeric" />
+      <p class="hint">Opens BG Stats to confirm the play. With Auto-post on, BG Stats sends it to BGG, and your play count here updates on the next sync.</p>
+      <div class="modal-actions">
+        <button class="btn ghost" id="logPlayCancel">Cancel</button>
+        <button class="btn primary" id="logPlaySend">Open in BG Stats</button>
       </div>
     </div>
   </div>
@@ -335,9 +444,61 @@
       updateGame(id, { thinningCandidate: !g.thinningCandidate });
     }
 
-    function toggleExp(id) {
-      const el = document.getElementById(id);
-      if (el) el.classList.toggle('open');
+    // ---------- formatting helpers ----------
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const range = (a, b) => (a && b && a !== b) ? a + '–' + b : String(a || b || '');
+    function playersText(g) {
+      if (!g.minPlayers && !g.maxPlayers) return '';
+      return range(g.minPlayers, g.maxPlayers);
+    }
+    function bestText(g) {
+      const b = (g.bestPlayers || []).slice().sort((x, y) => x - y);
+      if (!b.length) return '';
+      const consecutive = b.every((n, i) => i === 0 || n === b[i - 1] + 1);
+      return consecutive ? range(b[0], b[b.length - 1]) : b.join(', ');
+    }
+    function timeText(g) {
+      const a = g.minTime || g.maxTime, b = g.maxTime || g.minTime;
+      if (!a) return '';
+      if (b < 120) return range(a, b) + ' min';
+      const h = (m) => +(m / 60).toFixed(1);
+      return range(h(a), h(b)) + ' h';
+    }
+    function weightClass(w) { return !w ? '' : w < 2 ? 'w-light' : w < 3 ? 'w-medium' : 'w-heavy'; }
+    function weightLabel(w) { return !w ? '' : w < 1.8 ? 'Light' : w < 2.6 ? 'Medium-light' : w < 3.4 ? 'Medium' : w < 4.2 ? 'Medium-heavy' : 'Heavy'; }
+    function daysSince(d) { return d ? Math.floor((Date.now() - new Date(d + 'T12:00:00').getTime()) / 86400000) : null; }
+    function agoText(d) {
+      const n = daysSince(d);
+      if (n === null) return '';
+      if (n <= 0) return 'today';
+      if (n === 1) return 'yesterday';
+      if (n < 14) return n + 'd ago';
+      if (n < 60) return Math.round(n / 7) + 'w ago';
+      if (n < 365) return Math.round(n / 30) + 'mo ago';
+      return (n / 365).toFixed(n < 730 ? 1 : 0).replace(/\.0$/, '') + 'y ago';
+    }
+    function playsText(g) {
+      const c = g.playCount || 0;
+      if (!c) return '';
+      return c + (c === 1 ? ' play' : ' plays') + (g.lastPlayed ? ' · ' + agoText(g.lastPlayed) : '');
+    }
+    function starsHtml(g) {
+      let s = '';
+      for (let i = 1; i <= 5; i++) {
+        s += '<button class="star-btn ' + (i <= (g.desireToPlay || 0) ? 'active' : '') + '" data-id="' + esc(g.id) + '" data-rank="' + i + '" title="Desire to play: ' + i + '"><i class="fa-solid fa-star"></i></button>';
+      }
+      return '<div class="stars">' + s + '</div>';
+    }
+    function factsHtml(g) {
+      const out = [];
+      const p = playersText(g), best = bestText(g), t = timeText(g);
+      if (p) out.push('<span class="fact" title="Players' + (best ? ' (best with ' + best + ')' : '') + '"><i class="ti ti-users"></i>' + p + (best && best !== p ? ' <em>best ' + best + '</em>' : '') + '</span>');
+      if (t) out.push('<span class="fact" title="Play time"><i class="ti ti-clock"></i>' + t + '</span>');
+      if (g.weight) out.push('<span class="fact ' + weightClass(g.weight) + '" title="Weight: ' + weightLabel(g.weight) + ' (BGG, 1–5)"><i class="ti ti-weight"></i>' + Number(g.weight).toFixed(1) + '</span>');
+      return out.length ? '<div class="facts">' + out.join('') + '</div>' : '';
+    }
+    function bylineText(g) {
+      return [g.year, (g.designers || []).slice(0, 2).join(' & '), g.rank ? '#' + g.rank + ' on BGG' : ''].filter(Boolean).join(' · ');
     }
 
     let pendingDeleteId = null;
@@ -385,24 +546,52 @@
       const ratingFilter = document.getElementById('ratingFilter').value;
       const sortBy = document.getElementById('sortSelect').value;
 
+      const players = document.getElementById('playersFilter').value;
+      const time = document.getElementById('timeFilter').value;
+      const weight = document.getElementById('weightFilter').value;
+
       let filtered = collection.filter(g => {
-        const expansions = g.expansions || [];
-        const expMatch = expansions.some(e => e.toLowerCase().includes(search));
-        const matchSearch = (g.title || '').toLowerCase().includes(search) || (g.genre || '').toLowerCase().includes(search) || (g.type || '').toLowerCase().includes(search) || (g.desc || '').toLowerCase().includes(search) || expMatch;
-        const matchGenre = (genre === 'ALL') || (g.genre || '').includes(genre);
-        const matchRating = (ratingFilter === 'ALL') || ((g.desireToPlay || 0) === Number(ratingFilter));
-        const matchThin = !thinOnly || g.thinningCandidate;
-        return matchSearch && matchGenre && matchRating && matchThin;
+        const haystack = [g.title, g.genre, g.type, g.desc, ...(g.expansions || []), ...(g.designers || []), ...(g.mechanics || []), ...(g.categories || [])].join(' ').toLowerCase();
+        if (search && !haystack.includes(search)) return false;
+        if (genre !== 'ALL' && !(g.genre || '').includes(genre)) return false;
+        if (ratingFilter !== 'ALL' && (g.desireToPlay || 0) !== Number(ratingFilter)) return false;
+        if (thinOnly && !g.thinningCandidate) return false;
+        if (players !== 'ALL') {
+          const n = Number(players);
+          if (!g.minPlayers || !g.maxPlayers) return false;
+          if (n === 7 ? g.maxPlayers < 7 : (n < g.minPlayers || n > g.maxPlayers)) return false;
+        }
+        if (time !== 'ALL') {
+          const t = g.maxTime || g.minTime;
+          if (!t) return false;
+          if (time === 'long' ? t <= 120 : t > Number(time)) return false;
+        }
+        if (weight !== 'ALL') {
+          if (!g.weight) return false;
+          if ((weight === 'light' && g.weight >= 2) || (weight === 'medium' && (g.weight < 2 || g.weight >= 3)) || (weight === 'heavy' && g.weight < 3)) return false;
+        }
+        return true;
       });
 
+      const lastTs = (g) => g.lastPlayed ? new Date(g.lastPlayed).getTime() : 0;
       filtered.sort((a, b) => {
         const rA = a.desireToPlay || 0, rB = b.desireToPlay || 0;
         const nA = a.num || 0, nB = b.num || 0;
-        if (sortBy === 'num-asc') return nA - nB;
-        if (sortBy === 'title-asc') return (a.title || '').localeCompare(b.title || '');
-        if (sortBy === 'rank-desc') return rB - rA || nA - nB;
-        if (sortBy === 'rank-asc') return rA - rB || nA - nB;
-        return 0;
+        const pA = a.playCount || 0, pB = b.playCount || 0;
+        switch (sortBy) {
+          case 'title-asc': return (a.title || '').localeCompare(b.title || '');
+          case 'rank-desc': return rB - rA || nA - nB;
+          case 'rank-asc': return rA - rB || nA - nB;
+          case 'plays-desc': return pB - pA || nA - nB;
+          case 'plays-asc': return pA - pB || nA - nB;
+          case 'recent-desc': return lastTs(b) - lastTs(a) || nA - nB;
+          // Never-played games first, then the ones gathering the most dust
+          case 'stale-desc': return (lastTs(a) || -Infinity) - (lastTs(b) || -Infinity) || nA - nB;
+          case 'bgg-desc': return (b.bggRating || 0) - (a.bggRating || 0) || nA - nB;
+          case 'weight-desc': return (b.weight || 0) - (a.weight || 0) || nA - nB;
+          case 'weight-asc': return (a.weight || 9) - (b.weight || 9) || nA - nB;
+          default: return nA - nB;
+        }
       });
 
       document.getElementById('statsCount').textContent = filtered.length + ' Playable Titles';
@@ -413,72 +602,203 @@
       }
 
       filtered.forEach(g => {
-        const rank = g.desireToPlay || 0;
-        const card = document.createElement('div');
+        const card = document.createElement('article');
         card.className = 'card' + (g.thinningCandidate ? ' thinning' : '');
-
-        let starsHtml = '';
-        for (let i = 1; i <= 5; i++) {
-          starsHtml += '<button class="star-btn ' + (i <= rank ? 'active' : '') + '" data-id="' + g.id + '" data-rank="' + i + '"><i class="fa-solid fa-star"></i></button>';
-        }
-
-        let expHtml = '';
-        const expansions = g.expansions || [];
-        if (expansions.length > 0) {
-          const expId = 'exp_' + g.id;
-          expHtml = '<button class="expansions-toggle" data-exp="' + expId + '">' +
-            '<span>Includes ' + expansions.length + ' Expansion' + (expansions.length > 1 ? 's' : '') + '</span><span>&#9662;</span></button>' +
-            '<ul class="exp-list" id="' + expId + '">' +
-            expansions.map(e => '<li class="exp-item"><span class="exp-dot"></span> ' + e + '</li>').join('') +
-            '</ul>';
-        }
-
-        const numCell = '<div class="game-num"><i class="ti ti-' + (g.icon || DEFAULT_ICON) + '"></i></div>';
-
-        const bggBadge = g.bggRating ? '<div class="bgg-rating">BGG ' + Number(g.bggRating).toFixed(1) + '★</div>' : '';
-
+        card.dataset.open = g.id;
+        card.tabIndex = 0;
+        const exp = (g.expansions || []).length;
+        const plays = playsText(g);
+        const byline = bylineText(g);
         card.innerHTML =
-          '<button class="card-delete-btn" data-delete="' + g.id + '" title="Delete game"><i class="fa-solid fa-trash"></i></button>' +
-          '<div>' +
-            '<div class="card-header">' + numCell +
-              '<div><h2 class="game-title">' + g.title + '</h2>' + bggBadge + '</div>' +
-            '</div>' +
-            '<div class="tags">' +
-              (g.genre ? '<span class="tag tag-genre">' + g.genre + '</span>' : '') +
-              (g.type ? '<span class="tag tag-type">' + g.type + '</span>' : '') +
-              (g.thinningCandidate ? '<span class="tag tag-thin">Thinning Candidate</span>' : '') +
-            '</div>' +
-            '<p class="desc">' + (g.desc || '') + '</p>' +
-            expHtml +
+          '<div class="card-top">' +
+            '<div class="game-icon"><i class="ti ti-' + esc(g.icon || DEFAULT_ICON) + '"></i></div>' +
+            '<div class="card-heading"><h2 class="game-title">' + esc(g.title) + '</h2>' +
+              (byline ? '<div class="byline">' + esc(byline) + '</div>' : '') + '</div>' +
+            (g.bggRating ? '<div class="score" title="BGG average rating">' + Number(g.bggRating).toFixed(1) + '<small>BGG</small></div>' : '') +
           '</div>' +
-          '<div>' +
-            '<div class="ranker-box">' +
-              '<span class="ranker-label">Desire to Play</span>' +
-              '<div class="stars">' + starsHtml + '</div>' +
-            '</div>' +
-            '<button class="thin-toggle ' + (g.thinningCandidate ? 'on' : '') + '" data-thin="' + g.id + '">' +
-              (g.thinningCandidate ? 'Unmark thinning candidate' : 'Mark for thinning') +
-            '</button>' +
+          factsHtml(g) +
+          '<div class="tags">' +
+            (g.genre ? '<span class="tag tag-genre">' + esc(g.genre) + '</span>' : '') +
+            (g.type ? '<span class="tag tag-type">' + esc(g.type) + '</span>' : '') +
+            (exp ? '<span class="tag tag-exp">+' + exp + ' expansion' + (exp > 1 ? 's' : '') + '</span>' : '') +
+            (g.thinningCandidate ? '<span class="tag tag-thin">Thinning</span>' : '') +
+          '</div>' +
+          (g.desc ? '<p class="desc">' + esc(g.desc) + '</p>' : '') +
+          '<div class="card-foot">' +
+            starsHtml(g) +
+            '<div class="plays' + (plays ? '' : ' never') + '" title="Plays logged on BGG">' +
+              (plays ? '<i class="ti ti-player-play"></i>' + esc(plays) : 'Not played yet') + '</div>' +
+            '<button class="mini-btn' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" title="' + (g.thinningCandidate ? 'Unmark thinning candidate' : 'Mark for thinning') + '"><i class="ti ti-scale"></i></button>' +
           '</div>';
         grid.appendChild(card);
       });
+      if (detailId) renderDetail();
     }
 
-    document.getElementById('gamesGrid').addEventListener('click', (e) => {
-      const star = e.target.closest('.star-btn');
-      if (star) { saveRating(star.dataset.id, Number(star.dataset.rank)); return; }
-      const thin = e.target.closest('[data-thin]');
-      if (thin) { toggleThinning(thin.dataset.thin); return; }
-      const exp = e.target.closest('[data-exp]');
-      if (exp) { toggleExp(exp.dataset.exp); return; }
-      const del = e.target.closest('[data-delete]');
-      if (del) { openDeleteModal(del.dataset.delete); return; }
+    // ---------- detail modal ----------
+    const detailModal = document.getElementById('detailModal');
+    let detailId = null;
+    function openDetail(id) {
+      detailId = id;
+      renderDetail();
+      detailModal.classList.add('open');
+    }
+    function closeDetail() { detailModal.classList.remove('open'); detailId = null; }
+    function renderDetail() {
+      const g = collection.find(x => x.id === detailId);
+      if (!g) { closeDetail(); return; }
+      const stats = [];
+      const stat = (value, label) => { if (value) stats.push('<div class="stat"><b>' + esc(value) + '</b><span>' + label + '</span></div>'); };
+      stat(playersText(g), 'Players');
+      stat(bestText(g), 'Best with');
+      stat(timeText(g), 'Play time');
+      stat(g.weight ? Number(g.weight).toFixed(2) + ' · ' + weightLabel(g.weight) : '', 'Weight');
+      stat(g.minAge ? g.minAge + '+' : '', 'Age');
+      stat(g.bggRating ? Number(g.bggRating).toFixed(1) : '', 'BGG rating');
+      stat(g.rank ? '#' + g.rank : '', 'BGG rank');
+      stat(g.year, 'Published');
+      const chips = (list) => (list || []).map(x => '<span class="tag tag-plain">' + esc(x) + '</span>').join('');
+      const c = g.playCount || 0;
+      document.getElementById('detailContent').innerHTML =
+        '<div class="detail-head">' +
+          '<div class="game-icon lg"><i class="ti ti-' + esc(g.icon || DEFAULT_ICON) + '"></i></div>' +
+          '<div><h2 id="detailTitle">' + esc(g.title) + '</h2>' +
+            ((g.designers || []).length ? '<div class="byline" style="white-space:normal;">by ' + esc(g.designers.join(', ')) + '</div>' : '') + '</div>' +
+        '</div>' +
+        '<div class="detail-body">' +
+          '<div class="play-panel">' +
+            '<div class="big">' + c + '</div>' +
+            '<div style="flex:1; min-width:9rem;"><div class="section-label" style="margin:0;">' + (c === 1 ? 'Play' : 'Plays') + '</div>' +
+              '<div class="sub">' + (g.lastPlayed ? 'Last played ' + esc(g.lastPlayed) + ' (' + agoText(g.lastPlayed) + ')' : 'No plays logged on BGG yet') + '</div></div>' +
+            '<button class="btn primary" data-logplay="' + esc(g.id) + '"><i class="ti ti-player-play"></i> Log play</button>' +
+          '</div>' +
+          '<div class="detail-row">' + starsHtml(g) +
+            '<span class="sub" style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Desire to play</span>' +
+            '<button class="btn' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" style="flex:0 0 auto; margin-left:auto;"><i class="ti ti-scale"></i> ' + (g.thinningCandidate ? 'Thinning candidate' : 'Mark for thinning') + '</button>' +
+          '</div>' +
+          (stats.length ? '<div class="stat-grid">' + stats.join('') + '</div>' : '') +
+          '<div class="tags">' +
+            (g.genre ? '<span class="tag tag-genre">' + esc(g.genre) + '</span>' : '') +
+            (g.type ? '<span class="tag tag-type">' + esc(g.type) + '</span>' : '') +
+          '</div>' +
+          (g.desc ? '<p class="detail-desc">' + esc(g.desc) + '</p>' : '') +
+          ((g.expansions || []).length ? '<div><div class="section-label">Expansions owned</div><ul>' + g.expansions.map(e => '<li class="exp-item"><span class="exp-dot"></span>' + esc(e) + '</li>').join('') + '</ul></div>' : '') +
+          ((g.mechanics || []).length ? '<div><div class="section-label">Mechanics</div><div class="tags">' + chips(g.mechanics) + '</div></div>' : '') +
+          ((g.categories || []).length ? '<div><div class="section-label">Categories</div><div class="tags">' + chips(g.categories) + '</div></div>' : '') +
+          '<div class="detail-actions">' +
+            (g.bggId ? '<a class="btn" href="https://boardgamegeek.com/boardgame/' + Number(g.bggId) + '" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> BoardGameGeek</a>' : '') +
+            '<button class="btn danger" data-delete="' + esc(g.id) + '"><i class="ti ti-trash"></i> Delete</button>' +
+          '</div>' +
+        '</div>';
+    }
+    document.getElementById('detailClose').addEventListener('click', closeDetail);
+    detailModal.addEventListener('click', (e) => {
+      if (e.target === detailModal) { closeDetail(); return; }
+      handleGameAction(e);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (logPlayModal.classList.contains('open')) logPlayModal.classList.remove('open');
+      else if (detailModal.classList.contains('open')) closeDetail();
     });
 
-    document.getElementById('searchInput').addEventListener('input', render);
-    document.getElementById('genreFilter').addEventListener('change', render);
-    document.getElementById('ratingFilter').addEventListener('change', render);
-    document.getElementById('sortSelect').addEventListener('change', render);
+    // Shared by cards and the detail modal; returns true if the click hit a control
+    function handleGameAction(e) {
+      const star = e.target.closest('.star-btn');
+      if (star) { saveRating(star.dataset.id, Number(star.dataset.rank)); return true; }
+      const thin = e.target.closest('[data-thin]');
+      if (thin) { toggleThinning(thin.dataset.thin); return true; }
+      const del = e.target.closest('[data-delete]');
+      if (del) { closeDetail(); openDeleteModal(del.dataset.delete); return true; }
+      const log = e.target.closest('[data-logplay]');
+      if (log) { openLogPlay(log.dataset.logplay); return true; }
+      return false;
+    }
+
+    const grid = document.getElementById('gamesGrid');
+    grid.addEventListener('click', (e) => {
+      if (handleGameAction(e)) return;
+      const card = e.target.closest('[data-open]');
+      if (card) openDetail(card.dataset.open);
+    });
+    grid.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-open]')) { e.preventDefault(); openDetail(e.target.dataset.open); }
+    });
+
+    // ---------- log a play via BG Stats ----------
+    const LS_PLAYERS = 'vault_players_v1';
+    const logPlayModal = document.getElementById('logPlayModal');
+    let logPlayId = null;
+    let playerState = {}; // name -> 'sel' | 'win'
+    function knownPlayers() { try { return JSON.parse(localStorage.getItem(LS_PLAYERS) || '[]'); } catch (e) { return []; } }
+    function renderPlayerChips() {
+      const names = knownPlayers();
+      document.getElementById('playerChips').innerHTML = names.length
+        ? names.map(n => '<button class="player-chip ' + (playerState[n] || '') + '" data-player="' + esc(n) + '">' + (playerState[n] === 'win' ? '🏆 ' : '') + esc(n) + '</button>').join('')
+        : '<span class="hint" style="margin:0;">No saved players yet — add names below.</span>';
+    }
+    function openLogPlay(id) {
+      const g = collection.find(x => x.id === id);
+      if (!g) return;
+      logPlayId = id;
+      playerState = {};
+      document.getElementById('logPlayGame').textContent = g.title + (g.bggId ? '' : ' — not linked to BGG yet, so BG Stats will ask you to pick the game.');
+      document.getElementById('playDate').value = new Date().toLocaleDateString('en-CA');
+      document.getElementById('playDuration').value = '';
+      document.getElementById('newPlayerInput').value = '';
+      renderPlayerChips();
+      logPlayModal.classList.add('open');
+    }
+    document.getElementById('playerChips').addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-player]');
+      if (!chip) return;
+      const n = chip.dataset.player;
+      playerState[n] = !playerState[n] ? 'sel' : playerState[n] === 'sel' ? 'win' : undefined;
+      if (!playerState[n]) delete playerState[n];
+      renderPlayerChips();
+    });
+    document.getElementById('newPlayerInput').addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const n = e.target.value.trim();
+      if (!n) return;
+      const names = knownPlayers();
+      if (!names.includes(n)) { names.push(n); try { localStorage.setItem(LS_PLAYERS, JSON.stringify(names)); } catch (err) {} }
+      playerState[n] = 'sel';
+      e.target.value = '';
+      renderPlayerChips();
+    });
+    document.getElementById('logPlayCancel').addEventListener('click', () => logPlayModal.classList.remove('open'));
+    document.getElementById('logPlaySend').addEventListener('click', () => {
+      const g = collection.find(x => x.id === logPlayId);
+      if (!g) return;
+      const names = Object.keys(playerState);
+      if (!names.length) { toast('Pick at least one player.', true); return; }
+      const day = document.getElementById('playDate').value || new Date().toLocaleDateString('en-CA');
+      // BG Stats wants the UTC end time as "yyyy-MM-dd HH:mm:ss"; use local noon (or now, for today) of the chosen day
+      const local = day === new Date().toLocaleDateString('en-CA') ? new Date() : new Date(day + 'T12:00:00');
+      const playDate = local.toISOString().slice(0, 19).replace('T', ' ');
+      const duration = Number(document.getElementById('playDuration').value) || undefined;
+      const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const data = {
+        sourceName: 'Board Game Garage',
+        sourcePlayId: 'bgg-garage-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        playDate,
+        ...(duration ? { durationMin: duration } : {}),
+        game: { name: g.title, sourceGameId: g.id, ...(g.bggId ? { bggId: Number(g.bggId) } : {}), highestWins: true },
+        players: names.map(n => ({ name: n, sourcePlayerId: 'p-' + slug(n), winner: playerState[n] === 'win' })),
+      };
+      window.location.href = 'https://app.bgstatsapp.com/createPlay.html?data=' + encodeURIComponent(JSON.stringify(data));
+      logPlayModal.classList.remove('open');
+      toast('Sent to BG Stats — your count updates after the next BGG sync.');
+    });
+
+    ['searchInput'].forEach(id => document.getElementById(id).addEventListener('input', render));
+    ['genreFilter', 'ratingFilter', 'sortSelect', 'playersFilter', 'timeFilter', 'weightFilter'].forEach(id => document.getElementById(id).addEventListener('change', render));
+    document.getElementById('filtersToggle').addEventListener('click', (e) => {
+      const open = document.getElementById('filtersPanel').classList.toggle('open');
+      e.currentTarget.setAttribute('aria-expanded', String(open));
+    });
     document.getElementById('thinFilterBtn').addEventListener('click', (e) => {
       thinOnly = !thinOnly;
       e.target.classList.toggle('active', thinOnly);
