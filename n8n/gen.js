@@ -10,6 +10,9 @@ const TABLE = 'tblbGc0UuDxIPP2a8';
 const AT_URL = `https://api.airtable.com/v0/${BASE}/${TABLE}`;
 const TABLER_CSS = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css';
 const VISION_MODEL = 'google/gemini-2.5-flash-lite';
+// Google sign-in: only these accounts may change the collection (reading stays public)
+const GOOGLE_CLIENT_ID = '91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com';
+const OWNER_EMAILS = ['dandehaan@gmail.com'];
 const ICON_MODEL = 'anthropic/claude-haiku-5.5';
 
 const ID = {
@@ -976,6 +979,62 @@ const addByName = wf(ID.addByName, 'Vault — Add Game By Name', [
   ['Enrich?', 'BGG Enrich', 0], ['Enrich?', 'Icon Input', 1], ['BGG Enrich', 'Icon Input'],
   ['Icon Input', 'Assign Icon'], ['Assign Icon', 'Created Result'], ['Created Result', 'Respond OK'],
 ]);
+
+// =====================================================================
+// Sign-in gate: every webhook that changes something checks the caller's Google ID token first.
+// The page sends it as "Authorization: Bearer <id token>"; Google's tokeninfo endpoint verifies the
+// signature and expiry, then we require our client ID and an owner email. Sub-workflow calls
+// (executeWorkflowTrigger) are internal and skip the gate.
+//   mode 'respond': failure is routed to failTo (a Respond node path) with status 401
+//   mode 'throw':   for lastNode webhooks, failure throws so nothing runs
+// =====================================================================
+function addAuth(w, { mode, failTo }) {
+  const conns = w.connections;
+  const targets = conns.Webhook.main[0];
+  const at = (dx) => { const p = w.nodes.find((n) => n.name === 'Webhook').position; return [p[0] + dx, p[1] + 200]; };
+  const readToken = node('Auth: Read Token', 'n8n-nodes-base.code', 2, { jsCode: [
+    "const h = $input.first().json.headers || {};",
+    "const a = String(h.authorization || '');",
+    "return [{ json: { token: a.startsWith('Bearer ') ? a.slice(7).trim() : '' } }];",
+  ].join('\n') });
+  const tokeninfo = node('Auth: Verify With Google', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://oauth2.googleapis.com/tokeninfo',
+    ...qs({ id_token: "={{ $json.token || 'missing' }}" }), options: { timeout: 10000 },
+  }, { onError: 'continueRegularOutput' });
+  const check = node('Auth: Check Owner', 'n8n-nodes-base.code', 2, { jsCode: [
+    "const info = $input.first().json || {};",
+    "const owners = '" + OWNER_EMAILS.join(',') + "'.split(',');",
+    "const ok = info.aud === '" + GOOGLE_CLIENT_ID + "'",
+    "  && owners.includes(String(info.email || '').toLowerCase())",
+    "  && (info.email_verified === true || info.email_verified === 'true')",
+    "  && Number(info.exp) * 1000 > Date.now();",
+    mode === 'throw'
+      ? "if (!ok) throw new Error('Sign in as the collection owner to make changes');"
+      : "if (!ok) return [{ json: { ok: false, status: 401, message: 'Sign in as the collection owner to make changes' } }];",
+    "// Hand the original webhook items (body, query, uploaded files) to the rest of the workflow",
+    "return $('Webhook').all().map((i) => ({ ...i, json: { ...i.json, _authOk: true } }));",
+  ].join('\n') });
+  [readToken, tokeninfo, check].forEach((n, i) => { n.position = at(220 * (i + 1)); });
+  w.nodes.push(readToken, tokeninfo, check);
+  conns.Webhook = { main: [[{ node: readToken.name, type: 'main', index: 0 }]] };
+  conns[readToken.name] = { main: [[{ node: tokeninfo.name, type: 'main', index: 0 }]] };
+  conns[tokeninfo.name] = { main: [[{ node: check.name, type: 'main', index: 0 }]] };
+  if (mode === 'throw') { conns[check.name] = { main: [targets] }; return w; }
+  const gate = ifTrue('Signed In?', '={{ $json._authOk === true }}');
+  gate.position = at(220 * 4);
+  w.nodes.push(gate);
+  conns[check.name] = { main: [[{ node: gate.name, type: 'main', index: 0 }]] };
+  conns[gate.name] = { main: [targets, [{ node: failTo, type: 'main', index: 0 }]] };
+  return w;
+}
+addAuth(update, { mode: 'respond', failTo: 'Respond Error' });
+addAuth(del, { mode: 'respond', failTo: 'Respond Error' });
+addAuth(identify, { mode: 'respond', failTo: 'Delete Photo (no match)' }); // drop the upload, then 401
+addAuth(bggSearch, { mode: 'respond', failTo: 'Respond Error' });
+addAuth(addByName, { mode: 'respond', failTo: 'Respond Error' });
+addAuth(iconOne, { mode: 'throw' });
+addAuth(bggOne, { mode: 'throw' });
+addAuth(syncPlays, { mode: 'throw' });
 
 // ---------- write ----------
 const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName };

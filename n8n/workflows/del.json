@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "dadca9f5-496f-451c-b3f5-78e92d8c88ff",
+      "id": "f5aa89e5-fcda-4703-babe-0a58e888598f",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "276e98a6-07a0-4b28-9db7-97f5dbddc738"
+      "webhookId": "aeb5f4eb-a852-4e7a-9f5e-e86d0124cae4"
     },
     {
-      "id": "d1b14baf-923e-4a44-a500-700102798f2a",
+      "id": "a737c223-9947-434a-93b5-d2c2e76265f0",
       "name": "Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -37,7 +37,7 @@
       }
     },
     {
-      "id": "a5c37682-9edb-4d4e-adda-e03148b46ad5",
+      "id": "8bde3f23-2b33-4bab-a4c9-5785942d4913",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "17f8d492-bb8f-4a15-8b73-7a15e335abbc",
+              "id": "206528b8-0d72-47d1-bd5a-7aef4b528830",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,7 +70,7 @@
       }
     },
     {
-      "id": "394b13f9-5d0e-4f06-b164-25f1dd13d420",
+      "id": "6b323013-cc68-4d3d-bb1b-a698f5e14ac8",
       "name": "Find Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -113,7 +113,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "2910ef5b-b28c-4125-983b-1ac43587e7e5",
+      "id": "1f1075aa-dc5a-4b76-97fa-cf238f0f804d",
       "name": "Check Found",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -126,7 +126,7 @@
       }
     },
     {
-      "id": "564f039d-a3cc-47ca-8d8d-3fa2cc1684ad",
+      "id": "6a3eefdd-d1e2-4118-883d-c8bf296643d7",
       "name": "Found?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -143,7 +143,7 @@
           },
           "conditions": [
             {
-              "id": "8eb7c52c-9263-4e55-97ac-59804dcb8481",
+              "id": "b89f6c31-5785-4198-9762-42ab2f40ca49",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -159,7 +159,7 @@
       }
     },
     {
-      "id": "167f1d56-579f-4e7f-8e09-ff8180cde5e1",
+      "id": "02b8c823-61e0-4b56-8cc4-a1f582508ecd",
       "name": "Delete Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -185,7 +185,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "3e6ce6fd-6b21-4fd5-88d8-c0c0bed00131",
+      "id": "3c4b3d4c-e34f-4166-b7c5-45ed2d47a5d2",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -202,7 +202,7 @@
       }
     },
     {
-      "id": "b15ddda5-7c07-468a-a507-4843bf7faab4",
+      "id": "d6545083-2109-4a2f-8962-eaebeeb52982",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -217,6 +217,92 @@
           "responseCode": "={{ $json.status || 400 }}"
         }
       }
+    },
+    {
+      "id": "af7c60e9-c0b1-474b-bfa7-6ccd800fb341",
+      "name": "Auth: Read Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const h = $input.first().json.headers || {};\nconst a = String(h.authorization || '');\nreturn [{ json: { token: a.startsWith('Bearer ') ? a.slice(7).trim() : '' } }];"
+      }
+    },
+    {
+      "id": "d321e41f-f8ee-4775-abf2-d062ea9f13ba",
+      "name": "Auth: Verify With Google",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        500
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://oauth2.googleapis.com/tokeninfo",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id_token",
+              "value": "={{ $json.token || 'missing' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "65b64504-2c6c-493d-8f57-3294d208787f",
+      "name": "Auth: Check Owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const info = $input.first().json || {};\nconst owners = 'dandehaan@gmail.com'.split(',');\nconst ok = info.aud === '91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com'\n  && owners.includes(String(info.email || '').toLowerCase())\n  && (info.email_verified === true || info.email_verified === 'true')\n  && Number(info.exp) * 1000 > Date.now();\nif (!ok) return [{ json: { ok: false, status: 401, message: 'Sign in as the collection owner to make changes' } }];\n// Hand the original webhook items (body, query, uploaded files) to the rest of the workflow\nreturn $('Webhook').all().map((i) => ({ ...i, json: { ...i.json, _authOk: true } }));"
+      }
+    },
+    {
+      "id": "2e80c290-2428-4fd5-b9d5-f426899bf7a6",
+      "name": "Signed In?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        500
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cad69d37-aede-4838-b166-9f955cc9be0f",
+              "leftValue": "={{ $json._authOk === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
     }
   ],
   "connections": {
@@ -224,7 +310,7 @@
       "main": [
         [
           {
-            "node": "Validate",
+            "node": "Auth: Read Token",
             "type": "main",
             "index": 0
           }
@@ -305,6 +391,57 @@
         [
           {
             "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth: Read Token": {
+      "main": [
+        [
+          {
+            "node": "Auth: Verify With Google",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth: Verify With Google": {
+      "main": [
+        [
+          {
+            "node": "Auth: Check Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth: Check Owner": {
+      "main": [
+        [
+          {
+            "node": "Signed In?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signed In?": {
+      "main": [
+        [
+          {
+            "node": "Validate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
             "type": "main",
             "index": 0
           }

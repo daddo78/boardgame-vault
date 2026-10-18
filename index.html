@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css">
+<script src="https://accounts.google.com/gsi/client" async></script>
 <style>
   :root {
     /* Brand sheet: Royal Blue, Garage Amber, Soft Gray, Player Green, Time Yellow (+ flat pastels) */
@@ -65,6 +66,13 @@
   .sync-status.err { color: #fff; background: var(--red); display: inline-block; padding: 0.2rem 0.7rem; border-radius: 999px; font-weight: 700; }
   .icon-btn { position: absolute; top: 1.25rem; right: 1.25rem; background: rgba(255,255,255,0.7); border: none; color: #262626; width: 2.5rem; height: 2.5rem; border-radius: 50%; cursor: pointer; font-size: 1.1rem; z-index: 2; }
   .icon-btn:hover { background: #fff; }
+  .auth-btn { position: absolute; top: 1.25rem; left: 1.25rem; z-index: 2; display: inline-flex; align-items: center; gap: 0.35rem; height: 2.5rem; padding: 0 0.95rem 0 0.75rem; border: none; border-radius: 999px; background: rgba(255,255,255,0.7); color: #262626; font-family: var(--font-body); font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+  .auth-btn:hover { background: #fff; }
+  .auth-btn img { width: 1.6rem; height: 1.6rem; border-radius: 50%; margin-left: -0.35rem; }
+  /* Visitors browse read-only: editing controls only appear for a signed-in owner */
+  body:not(.owner) .owner-only { display: none !important; }
+  body:not(.owner) .star-btn { pointer-events: none; }
+  #googleSignIn { display: flex; justify-content: center; margin: 1.1rem 0 0.4rem; min-height: 44px; }
   .toolbar-container { max-width: 1300px; margin: -1.9rem auto 2rem; padding: 0 1.5rem; position: sticky; top: 1rem; z-index: 50; }
   .toolbar { background: #fff; border-radius: 1.25rem; padding: 0.8rem 1.1rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; box-shadow: 0 10px 30px rgba(31,63,143,0.14); }
   .search-box { flex: 1 1 240px; position: relative; }
@@ -250,6 +258,7 @@
 </head>
 <body>
   <header>
+    <button class="auth-btn" id="authBtn" type="button"><i class="ti ti-login"></i> <span>Sign in</span></button>
     <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
     <div class="brand">
       <img class="brand-mark" src="assets/garage-384.png" width="172" height="172" alt="" />
@@ -337,7 +346,18 @@
     <div class="fine">Game data and box art <a href="https://boardgamegeek.com" target="_blank" rel="noopener">powered by BoardGameGeek</a> · plays logged with <a href="https://www.bgstatsapp.com/" target="_blank" rel="noopener">BG Stats</a></div>
   </footer>
 
-  <button class="fab" id="addFab" title="Add a game by photo"><i class="fa-solid fa-plus"></i></button>
+  <button class="fab owner-only" id="addFab" title="Add games"><i class="fa-solid fa-plus"></i></button>
+
+  <!-- Sign-in dialog (the Google button is rendered into #googleSignIn) -->
+  <div class="modal-overlay" id="signInModal">
+    <div class="modal" style="text-align:center;">
+      <h2>Sign in to make changes</h2>
+      <p class="hint" style="margin-top:0;">Anyone can browse this collection. Only the owner can rate, favorite, add or remove games.</p>
+      <div id="googleSignIn"></div>
+      <p class="hint" id="signInNote"></p>
+      <div class="modal-actions"><button class="btn ghost" id="signInCancel">Not now</button></div>
+    </div>
+  </div>
 
   <!-- Settings modal -->
   <div class="modal-overlay" id="settingsModal">
@@ -345,10 +365,12 @@
       <h2>Garage Settings</h2>
       <label>n8n base webhook URL</label>
       <input type="text" id="n8nUrlInput" placeholder="https://your-n8n.example.com/webhook/vault" />
-      <label>Play counts</label>
-      <p class="hint" style="margin-top:0;">Pulled from your BGG plays (logged through BG Stats) every night at 4am, and for each game as you add it.</p>
-      <button class="btn" id="syncPlaysBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-refresh"></i> Sync plays now</button>
-      <p class="hint" id="syncPlaysStatus"></p>
+      <div class="owner-only">
+        <label>Play counts</label>
+        <p class="hint" style="margin-top:0;">Pulled from your BGG plays (logged through BG Stats) every night at 4am, and for each game as you add it.</p>
+        <button class="btn" id="syncPlaysBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-refresh"></i> Sync plays now</button>
+        <p class="hint" id="syncPlaysStatus"></p>
+      </div>
       <div class="modal-actions">
         <button class="btn ghost" id="settingsCancel">Cancel</button>
         <button class="btn primary" id="settingsSave">Save</button>
@@ -446,10 +468,87 @@
       setTimeout(() => t.classList.remove('show'), 3200);
     }
 
-    async function n8nFetch(path, opts) {
+    // ---------- Google sign-in ----------
+    // The ID token (a signed JWT, valid ~1 hour) is sent with every change; n8n verifies it with Google and
+    // only accepts the owner's account. Reading the collection needs no sign-in.
+    const GOOGLE_CLIENT_ID = '91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com';
+    const LS_TOKEN = 'vault_id_token';
+    let idToken = null, profile = null;
+    const credentialWaiters = [];
+    const decodeJwt = (t) => {
+      const b = atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'));
+      return JSON.parse(decodeURIComponent([...b].map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')));
+    };
+    const tokenFresh = () => !!(profile && profile.exp * 1000 > Date.now() + 60 * 1000);
+    const signedIn = () => !!profile; // an expired token is renewed on the next change
+    function setToken(t) {
+      try { profile = t ? decodeJwt(t) : null; idToken = t || null; } catch (e) { profile = null; idToken = null; }
+      try { idToken ? localStorage.setItem(LS_TOKEN, idToken) : localStorage.removeItem(LS_TOKEN); } catch (e) {}
+      updateAuthUi();
+    }
+    function updateAuthUi() {
+      document.body.classList.toggle('owner', signedIn());
+      const btn = document.getElementById('authBtn');
+      btn.innerHTML = signedIn()
+        ? (profile.picture ? '<img src="' + esc(profile.picture) + '" alt="" referrerpolicy="no-referrer">' : '<i class="ti ti-logout"></i>') + ' <span>Sign out</span>'
+        : '<i class="ti ti-login"></i> <span>Sign in</span>';
+      btn.title = signedIn() ? 'Signed in as ' + (profile.name || profile.email) : 'Sign in to make changes';
+      if (collection.length) render();
+    }
+    function onCredential(resp) {
+      setToken(resp.credential);
+      document.getElementById('signInModal').classList.remove('open');
+      credentialWaiters.splice(0).forEach(w => w(idToken));
+    }
+    let gisReady = false;
+    function initGoogle() {
+      if (gisReady || !window.google || !google.accounts) return;
+      gisReady = true;
+      google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: onCredential, auto_select: true, cancel_on_tap_outside: true, use_fedcm_for_prompt: true, itp_support: true });
+      // Returning owner with an expired token: renew quietly (One Tap auto sign-in)
+      if (profile && !tokenFresh()) google.accounts.id.prompt();
+    }
+    function openSignIn(note) {
+      document.getElementById('signInNote').textContent = note || '';
+      document.getElementById('signInModal').classList.add('open');
+      initGoogle();
+      const box = document.getElementById('googleSignIn');
+      if (gisReady) {
+        box.innerHTML = '';
+        google.accounts.id.renderButton(box, { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with', logo_alignment: 'left' });
+      } else {
+        box.innerHTML = '<p class="hint">Google sign-in didn’t load. Check your connection and try again.</p>';
+      }
+    }
+    // A fresh token, renewed silently when possible; otherwise asks the owner to sign in
+    async function ensureToken() {
+      if (tokenFresh()) return idToken;
+      initGoogle();
+      if (gisReady) {
+        const renewed = await new Promise((resolve) => {
+          credentialWaiters.push(resolve);
+          google.accounts.id.prompt();
+          setTimeout(() => resolve(null), 6000);
+        });
+        if (renewed && tokenFresh()) return idToken;
+      }
+      openSignIn('Your sign-in expired. Sign in again, then repeat that change.');
+      throw new Error('Sign in to make changes.');
+    }
+    function handleUnauthorized() {
+      setToken(null);
+      openSignIn('That account can’t change this collection, or the sign-in expired.');
+      return new Error('Sign in as the collection owner to make changes.');
+    }
+
+    // auth: send the owner's Google token (true for everything except reading the collection)
+    async function n8nFetch(path, opts, auth = true) {
       const base = n8nBase();
       if (!base) throw new Error('Set your n8n webhook URL in Settings first.');
-      const res = await fetch(base + path, opts);
+      const o = { ...(opts || {}) };
+      if (auth) o.headers = { ...(o.headers || {}), Authorization: 'Bearer ' + await ensureToken() };
+      const res = await fetch(base + path, o);
+      if (res.status === 401) throw handleUnauthorized();
       if (!res.ok) {
         let detail = '';
         try { detail = (await res.json()).message || ''; } catch (e) {}
@@ -474,7 +573,7 @@
       }
       setSyncStatus('Loading collection from n8n…');
       try {
-        const data = await n8nFetch('/collection', { method: 'GET' });
+        const data = await n8nFetch('/collection', { method: 'GET' }, false);
         collection = Array.isArray(data) ? data : (data.items || []);
         localStorage.setItem(LS_CACHE, JSON.stringify(collection));
         setSyncStatus('Synced ' + collection.length + ' games · ' + new Date().toLocaleTimeString());
@@ -609,7 +708,7 @@
     function favButton(g, cls) {
       const label = g.favorite ? 'Remove from favorites' : 'Add to favorites';
       return '<button class="' + cls + ' fav' + (g.favorite ? ' on' : '') + '" data-fav="' + esc(g.id) + '" title="' + label + '" aria-label="' + label + '" aria-pressed="' + !!g.favorite + '">' +
-        '<i class="fa-' + (g.favorite ? 'solid' : 'regular') + ' fa-heart"></i>' + (cls === 'btn' ? (g.favorite ? ' Favorited' : ' Favorite') : '') + '</button>';
+        '<i class="fa-' + (g.favorite ? 'solid' : 'regular') + ' fa-heart"></i>' + (cls.split(' ')[0] === 'btn' ? (g.favorite ? ' Favorited' : ' Favorite') : '') + '</button>';
     }
     function bylineText(g) {
       return [g.year, (g.designers || []).slice(0, 2).join(' & ')].filter(Boolean).join(' · ');
@@ -756,9 +855,9 @@
             starsHtml(g) +
             '<div class="plays' + (plays ? '' : ' never') + '" title="Plays logged on BGG">' +
               (plays ? '<i class="ti ti-player-play"></i>' + esc(plays) : 'Not played yet') + '</div>' +
-            favButton(g, 'mini-btn') +
-            '<button class="mini-btn' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" title="' + (g.thinningCandidate ? 'Unmark thinning candidate' : 'Mark for thinning') + '"><i class="ti ti-scale"></i></button>' +
-            '<button class="mini-btn danger" data-delete="' + esc(g.id) + '" title="Remove from collection"><i class="ti ti-trash"></i></button>' +
+            favButton(g, 'mini-btn owner-only') +
+            '<button class="mini-btn owner-only' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" title="' + (g.thinningCandidate ? 'Unmark thinning candidate' : 'Mark for thinning') + '"><i class="ti ti-scale"></i></button>' +
+            '<button class="mini-btn danger owner-only" data-delete="' + esc(g.id) + '" title="Remove from collection"><i class="ti ti-trash"></i></button>' +
           '</div>' +
           '</div>';
         grid.appendChild(card);
@@ -802,11 +901,11 @@
             '<div class="big">' + c + '</div>' +
             '<div style="flex:1; min-width:9rem;"><div class="section-label" style="margin:0;">' + (c === 1 ? 'Play' : 'Plays') + '</div>' +
               '<div class="sub">' + (g.lastPlayed ? 'Last played ' + esc(g.lastPlayed) + ' (' + agoText(g.lastPlayed) + ')' : 'No plays logged on BGG yet') + '</div></div>' +
-            '<button class="btn primary" data-logplay="' + esc(g.id) + '"><i class="ti ti-player-play"></i> Log play</button>' +
+            '<button class="btn primary owner-only" data-logplay="' + esc(g.id) + '"><i class="ti ti-player-play"></i> Log play</button>' +
           '</div>' +
           '<div class="detail-row">' + starsHtml(g) +
             '<span class="sub" style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Desire to play</span>' +
-            '<span style="display:flex; gap:0.5rem; margin-left:auto;">' + favButton(g, 'btn') +
+            '<span class="owner-only" style="display:flex; gap:0.5rem; margin-left:auto;">' + favButton(g, 'btn') +
             '<button class="btn' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" style="flex:0 0 auto;"><i class="ti ti-scale"></i> ' + (g.thinningCandidate ? 'Thinning candidate' : 'Mark for thinning') + '</button></span>' +
           '</div>' +
           (stats.length ? '<div class="stat-grid">' + stats.join('') + '</div>' : '') +
@@ -820,7 +919,7 @@
           ((g.categories || []).length ? '<div><div class="section-label">Categories</div><div class="tags">' + chips(g.categories) + '</div></div>' : '') +
           '<div class="detail-actions">' +
             (g.bggId ? '<a class="btn" href="https://boardgamegeek.com/boardgame/' + Number(g.bggId) + '" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> BoardGameGeek</a>' : '') +
-            '<button class="btn danger" data-delete="' + esc(g.id) + '"><i class="ti ti-trash"></i> Delete</button>' +
+            '<button class="btn danger owner-only" data-delete="' + esc(g.id) + '"><i class="ti ti-trash"></i> Delete</button>' +
           '</div>' +
         '</div>';
     }
@@ -837,6 +936,8 @@
 
     // Shared by cards and the detail modal; returns true if the click hit a control
     function handleGameAction(e) {
+      // Edit controls are hidden for visitors; ignore them anyway if one is reached
+      if (!signedIn() && e.target.closest('.star-btn, [data-thin], [data-fav], [data-delete], [data-logplay]')) return false;
       const star = e.target.closest('.star-btn');
       if (star) { saveRating(star.dataset.id, Number(star.dataset.rank)); return true; }
       const thin = e.target.closest('[data-thin]');
@@ -1084,7 +1185,8 @@
         if (!base) throw new Error('Set your n8n webhook URL in Settings first.');
         const form = new FormData();
         form.append('photo', await shrinkPhoto(file), 'boxes.jpg');
-        const res = await fetch(base + '/identify', { method: 'POST', body: form });
+        const res = await fetch(base + '/identify', { method: 'POST', body: form, headers: { Authorization: 'Bearer ' + await ensureToken() } });
+        if (res.status === 401) throw handleUnauthorized();
         let result = {};
         try { result = await res.json(); } catch (e) {}
         if (!res.ok) throw new Error(result.message || 'Identify request failed (' + res.status + ')');
@@ -1127,6 +1229,17 @@
         section('Not processed — take another photo of these', (r.deferred || []).map(esc));
     }
 
+    document.getElementById('authBtn').addEventListener('click', () => {
+      if (!signedIn()) { openSignIn(); return; }
+      if (!confirm('Sign out of Board Game Garage?')) return;
+      if (gisReady) google.accounts.id.disableAutoSelect();
+      setToken(null);
+      toast('Signed out.');
+    });
+    document.getElementById('signInCancel').addEventListener('click', () => document.getElementById('signInModal').classList.remove('open'));
+    window.addEventListener('load', initGoogle); // the Google script loads async
+
+    try { setToken(localStorage.getItem(LS_TOKEN)); } catch (e) { setToken(null); }
     loadCollection();
   </script>
 </body>

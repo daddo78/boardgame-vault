@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "16431b1f-a075-4e66-be54-4c1adb9efffd",
+      "id": "e0905d6f-b438-44f3-a3c2-66cd9170b84f",
       "name": "Daily",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -24,7 +24,7 @@
       }
     },
     {
-      "id": "a8ecb1de-82ab-4f35-9521-774db715181f",
+      "id": "3e8333d1-f84a-4813-b0c3-833a34aeec64",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -41,10 +41,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "3607c135-6060-4496-af2a-8fa923e599eb"
+      "webhookId": "52019d20-9b9f-48f6-9eca-2db423be2dab"
     },
     {
-      "id": "86c5779c-57a0-45ff-86ac-0c8b570da580",
+      "id": "84088bfb-e819-47a0-9c3f-0a4a7fbab928",
       "name": "Options",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -57,7 +57,7 @@
       }
     },
     {
-      "id": "53471f84-1f31-415d-b541-cac85ac44d27",
+      "id": "535d5b5e-11c2-4f69-ad28-56fa3c6050d0",
       "name": "BGG Plays",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -127,7 +127,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "69a94651-b1e3-4fde-8b0b-7236cfd5eba0",
+      "id": "c7b53b91-036a-4150-818d-110d83aedfb3",
       "name": "Tally Plays",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -140,7 +140,7 @@
       }
     },
     {
-      "id": "f44301b9-8396-4cf8-8ac9-13b975cfc0ed",
+      "id": "b6b1fc2b-8a81-4e86-b442-564cc077d687",
       "name": "List All Games",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -199,7 +199,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "c2b00ddf-1fef-4c6c-8e8f-ee834e732085",
+      "id": "2d8ceefd-6538-4cc0-ae34-983f47878dae",
       "name": "Build Updates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -212,7 +212,7 @@
       }
     },
     {
-      "id": "f3c98cb3-d1b2-49d1-8e23-c636e98b0bf1",
+      "id": "7f687126-ac92-4579-bc8e-734c6698a136",
       "name": "Anything To Save?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -229,7 +229,7 @@
           },
           "conditions": [
             {
-              "id": "de2f44f0-12f3-4504-869b-cf3b45bf7238",
+              "id": "8e2c3a5d-7c5f-4c53-baf9-7e739c2310ed",
               "leftValue": "={{ $json.records.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -245,7 +245,7 @@
       }
     },
     {
-      "id": "c57a0d1d-6fd6-43f2-a74d-97bea59e876f",
+      "id": "2238cf7e-efc5-4872-aeac-c1d49f328740",
       "name": "Save Play Counts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -274,7 +274,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "c96bf294-f8fd-47dc-88e9-06cd7c9d0fd6",
+      "id": "bb8dad77-43cb-453c-8022-20763ab26741",
       "name": "Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -284,6 +284,59 @@
       ],
       "parameters": {
         "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n\n    return [{ json: { ok: true, ...$('Build Updates').first().json.summary } }];\n  "
+      }
+    },
+    {
+      "id": "93365dfd-6948-43c4-9717-c20d6f4b9d8d",
+      "name": "Auth: Read Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const h = $input.first().json.headers || {};\nconst a = String(h.authorization || '');\nreturn [{ json: { token: a.startsWith('Bearer ') ? a.slice(7).trim() : '' } }];"
+      }
+    },
+    {
+      "id": "fbe37b4d-2ad6-49e7-a28c-e32cf4105ecb",
+      "name": "Auth: Verify With Google",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        500
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://oauth2.googleapis.com/tokeninfo",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id_token",
+              "value": "={{ $json.token || 'missing' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "d12d8367-924c-48d9-a812-e14a4318dc97",
+      "name": "Auth: Check Owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const info = $input.first().json || {};\nconst owners = 'dandehaan@gmail.com'.split(',');\nconst ok = info.aud === '91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com'\n  && owners.includes(String(info.email || '').toLowerCase())\n  && (info.email_verified === true || info.email_verified === 'true')\n  && Number(info.exp) * 1000 > Date.now();\nif (!ok) throw new Error('Sign in as the collection owner to make changes');\n// Hand the original webhook items (body, query, uploaded files) to the rest of the workflow\nreturn $('Webhook').all().map((i) => ({ ...i, json: { ...i.json, _authOk: true } }));"
       }
     }
   ],
@@ -303,7 +356,7 @@
       "main": [
         [
           {
-            "node": "Options",
+            "node": "Auth: Read Token",
             "type": "main",
             "index": 0
           }
@@ -388,6 +441,39 @@
         [
           {
             "node": "Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth: Read Token": {
+      "main": [
+        [
+          {
+            "node": "Auth: Verify With Google",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth: Verify With Google": {
+      "main": [
+        [
+          {
+            "node": "Auth: Check Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth: Check Owner": {
+      "main": [
+        [
+          {
+            "node": "Options",
             "type": "main",
             "index": 0
           }
