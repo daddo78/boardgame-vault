@@ -1528,7 +1528,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'Extract what they want. Reply with JSON only:',
       '{',
       '  "onTopic": true if this is about choosing or playing board games, or about the games on this shelf, else false,',
-      '  "intent": "browse" if they ask what games they have, or to list, show, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops"); "recommend" if they want something to play,',
+      '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play,',
+      '  "sort": for a ranked list only: "plays" (most played), "leastPlays", "recent" (most recently played), "stale" (longest since played), "rating" (BGG rating), "rank" (BGG rank), "want" (wants-to-play stars), "weight" (heaviest), "newest" (latest added); else null,',
+      '  "limit": how many games they asked for ("top ten" = 10, "my 5 heaviest" = 5), else null,',
       '  "reply": "only if onTopic is false: one friendly, lightly punny sentence from Nathan, the collection curator, steering back to board games",',
       '  "playerIds": [ids from ROSTER for people named or clearly meant, e.g. first names or nicknames],',
       '  "unknownPeople": number of other people mentioned who are not on the roster (e.g. "and 2 friends" = 2),',
@@ -1537,7 +1539,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '  "youngestAge": age of the youngest player if stated, else null,',
       '  "weight": {"min": 1-5, "max": 1-5} complexity if they hint at it ("light" max 2.2, "brain burner" min 3.2), else null,',
       '  "coop": true for cooperative only, false for competitive only, null if either,',
-      '  "themes": ["genres, themes or mechanisms they want, as BoardGameGeek category or mechanic words plus common synonyms, e.g. sci-fi: science fiction, space exploration; dice: dice rolling; worker placement"],',
+      '  "themes": ["genres, themes or mechanisms they want, as BoardGameGeek category or mechanic words plus common synonyms, e.g. sci-fi: science fiction, space exploration; dice: dice rolling; worker placement. Also any game titles or designer names they name, as written. Leave empty for a plain ranking like most played"],',
       '  "avoid": ["themes, mechanisms or titles to avoid"],',
       '  "freshness": "unplayed" | "stale" (not played in a long time) | "favorite" | null,',
       '  "mood": "a few words on the vibe",',
@@ -1629,12 +1631,30 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     }
     scored.sort((a, b) => b.s - a.s);
     // The full set that fits: hard limits, plus at least one asked-for theme in the game's BGG tags (not the blurb, which is too loose)
-    const tags = (g) => [g.title, g.genre, g.type, ...g.categories, ...g.mechanics].join(' ').toLowerCase();
+    const tags = (g) => [g.title, g.genre, g.type, ...g.categories, ...g.mechanics, ...(g.designers || [])].join(' ').toLowerCase();
     const themed = want.length ? scored.filter((x) => want.some((w) => tags(x.g).includes(w))) : scored;
     const browse = c.intent === 'browse';
-    const gap = browse ? themed.length === 0 : scored.length === 0;
+    const gap0 = browse ? themed.length === 0 : scored.length === 0;
     // Themes filter only a browse ("what sci-fi games do I have"); for a recommendation they are moods that steer the score ("cozy")
-    const fits = browse ? themed : scored;
+    let fits = browse ? themed : scored;
+    // A ranked browse ("my top ten most played"): order the set, keep only games that have the number, then cut to the limit
+    const by = (key, dir) => (a, b) => ((b.g[key] ?? -Infinity) > (a.g[key] ?? -Infinity) ? 1 : (b.g[key] ?? -Infinity) < (a.g[key] ?? -Infinity) ? -1 : 0) * dir;
+    const SORTS = {
+      plays: { cmp: by('playCount', 1), keep: (g) => g.playCount > 0, label: 'most played first' },
+      leastPlays: { cmp: by('playCount', -1), keep: () => true, label: 'fewest plays first' },
+      recent: { cmp: by('lastPlayed', 1), keep: (g) => !!g.lastPlayed, label: 'most recently played first' },
+      stale: { cmp: by('lastPlayed', -1), keep: (g) => !!g.lastPlayed, label: 'longest since played first' },
+      rating: { cmp: by('bggRating', 1), keep: (g) => !!g.bggRating, label: 'highest BGG rating first' },
+      rank: { cmp: by('rank', -1), keep: (g) => !!g.rank, label: 'best BGG rank first' },
+      want: { cmp: by('desireToPlay', 1), keep: (g) => !!g.desireToPlay, label: 'most wanted to play first' },
+      weight: { cmp: by('weight', 1), keep: (g) => !!g.weight, label: 'heaviest first' },
+      newest: { cmp: by('addedAt', 1), keep: () => true, label: 'latest added first' },
+    };
+    const sorter = browse ? SORTS[c.sort] : null;
+    if (sorter) fits = fits.filter((x) => sorter.keep(x.g)).sort(sorter.cmp);
+    const limit = browse ? Math.max(0, Math.min(50, Math.round(Number(c.limit) || 0))) : 0;
+    if (limit) fits = fits.slice(0, limit);
+    const gap = gap0 || fits.length === 0;
     const short = (gap ? loose.sort((a, b) => b.s - a.s).slice(0, 12) : fits.slice(0, 30)).map((x) => x.g);
     const matchIds = gap ? [] : fits.map((x) => x.g.id);
     // A few facts about the matching set, so a browse summary can be specific without guessing
@@ -1647,6 +1667,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'played: ' + set.filter((g) => g.playCount).length + ', never played: ' + set.filter((g) => !g.playCount).length + ', favorites: ' + set.filter((g) => g.favorite).length,
       'top categories: ' + tally(set.flatMap((g) => g.categories)),
       'top mechanics: ' + tally(set.flatMap((g) => g.mechanics)),
+      sorter ? 'ORDER: the CANDIDATES are ranked, ' + sorter.label + (limit ? ', top ' + limit : '') : '',
     ].filter(Boolean).join('\n');
     const line = (g) => {
       const facts = [
@@ -1711,6 +1732,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '',
       ...(s.browse ? [
       'FORMAT: this is a question about what is on the shelf, not a request for one game. Sum up the matching games in "summary" (2-4 sentences): use the exact COUNT from SET FACTS, then what kinds they are (weights, lengths, mechanics, sub-themes) and any pattern in plays or favorites. Then pick 3 to 5 varied highlights from CANDIDATES that show the range (for example a favorite, a light one, a heavy one, one that is never played), each with one sentence of "why".',
+      'If SET FACTS has an ORDER, it is a ranked list: in the summary name the top three in order with their numbers (e.g. "The Crew leads with 21 plays"), and make the highlights the top 3 to 5 in that same order.',
       ] : [
       'FORMAT: one headline pick and one contrasting alternative (for example lighter, faster, or a different feel). For each, a short vivid table-feel picture (1-3 sentences) of what playing it actually feels like.',
       'Keep each entry scannable: "why" is 2-4 sentences, data and people fit first.',

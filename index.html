@@ -222,7 +222,9 @@
   .filter-bar select:hover, .filter-bar button.pill:hover { background-color: rgba(255,255,255,0.45); color: var(--ink); }
   .filter-bar select:focus-visible, .filter-bar button.pill:focus-visible { border-color: var(--brand); }
   .filter-bar button.pill.active { background: var(--brand); border-color: var(--brand); color: #fff; }
-  .filter-bar .clear-pill { background: transparent; border-color: #e7a58f; color: var(--brand-dark); }
+  /* Solid red, so it is obvious a filter is on */
+  .filter-bar button.pill.clear-pill { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 700; }
+  .filter-bar button.pill.clear-pill:hover { background: var(--brand-dark); border-color: var(--brand-dark); color: #fff; }
   .filter-bar .filters-toggle .count { margin-left: 0.15rem; }
   /* Overview first, like an AI search answer: clamped with a fade, "Chat more" opens the conversation */
   .nathan-panel.collapsed .np-thread.clamped { max-height: 25rem; overflow: hidden; position: relative; }
@@ -503,8 +505,8 @@
     <div class="nathan-box">
       <div class="search-box ask-bar">
         <span class="ask-bar-avatar" aria-hidden="true"></span>
-        <input type="text" id="searchInput" placeholder="Search the shelf, or ask Nathan… (@ to add people)" enterkeyhint="send" maxlength="500" autocomplete="off"
-          aria-label="Search the shelf, or ask Nathan" role="combobox" aria-autocomplete="list" aria-controls="mentionList" aria-expanded="false" />
+        <input type="text" id="searchInput" placeholder="Ask Nathan about your shelf… (@ to add people)" enterkeyhint="send" maxlength="500" autocomplete="off"
+          aria-label="Ask Nathan about your shelf" role="combobox" aria-autocomplete="list" aria-controls="mentionList" aria-expanded="false" />
         <button type="button" class="search-clear" id="searchClear" aria-label="Clear" hidden><i class="ti ti-x"></i></button>
         <button type="button" class="ask-send" id="askSend" aria-label="Ask Nathan" title="Ask Nathan (Enter)"><i class="ti ti-arrow-up"></i></button>
         <div class="mention-list" id="mentionList" role="listbox" hidden></div>
@@ -598,7 +600,7 @@
       <button class="pill" id="favFilterBtn"><i class="fa-solid fa-heart"></i> Favorites</button>
       <button class="pill" id="thinFilterBtn">Thinning only</button>
       </div>
-      <button type="button" class="pill clear-pill" id="clearAll" hidden><i class="ti ti-x"></i> <span>Clear filters</span></button>
+      <button type="button" class="pill clear-pill" id="clearAll" hidden><i class="ti ti-x"></i> <span>Remove filter</span></button>
     </div>
   </div>
 
@@ -1069,7 +1071,6 @@
       const grid = document.getElementById('gamesGrid');
       const empty = document.getElementById('emptyState');
       const typed = document.getElementById('searchInput').value.toLowerCase();
-      const search = typed.includes('@') ? '' : typed; // an @mention means it's a message for Nathan, not a search
       const genre = document.getElementById('genreFilter').value;
       const ratingFilter = document.getElementById('ratingFilter').value;
       const sortBy = document.getElementById('sortSelect').value;
@@ -1079,8 +1080,6 @@
       const weight = document.getElementById('weightFilter').value;
 
       let filtered = askIds ? askIds.map(id => collection.find(g => g.id === id)).filter(Boolean) : collection.filter(g => {
-        const haystack = [g.title, g.genre, g.type, g.desc, ...(g.expansions || []), ...(g.designers || []), ...(g.mechanics || []), ...(g.categories || [])].join(' ').toLowerCase();
-        if (search && !haystack.includes(search)) return false;
         if (genre !== 'ALL' && !(g.genre || '').includes(genre)) return false;
         if (ratingFilter !== 'ALL' && (g.desireToPlay || 0) !== Number(ratingFilter)) return false;
         if (thinOnly && !g.thinningCandidate) return false;
@@ -1133,7 +1132,7 @@
       document.getElementById('totalBadge').hidden = !collection.length;
       const clearBtn = document.getElementById('clearAll');
       clearBtn.hidden = !(nFilters > 0 || askIds);
-      clearBtn.querySelector('span').textContent = askIds && !nFilters ? 'Show all games' : 'Clear filters';
+      clearBtn.querySelector('span').textContent = nFilters + (askIds ? 1 : 0) > 1 ? 'Remove filters' : 'Remove filter';
       document.getElementById('searchClear').hidden = !typed;
       document.getElementById('filtersToggle').innerHTML = '<i class="ti ti-adjustments-horizontal"></i> Filters' + (nFilters ? ' <span class="count">' + nFilters + '</span>' : '');
       grid.innerHTML = '';
@@ -1341,7 +1340,7 @@
       toast('Sent to BG Stats — your count updates after the next BGG sync.');
     });
 
-    ['searchInput'].forEach(id => document.getElementById(id).addEventListener('input', () => { askIds = null; render(); }));
+    document.getElementById('searchInput').addEventListener('input', (e) => { document.getElementById('searchClear').hidden = !e.target.value; });
     ['genreFilter', 'ratingFilter', 'sortSelect', 'playersFilter', 'timeFilter', 'weightFilter'].forEach(id => document.getElementById(id).addEventListener('change', render));
     document.getElementById('filtersToggle').addEventListener('click', (e) => {
       const open = document.getElementById('filtersPanel').classList.toggle('open');
@@ -1742,6 +1741,7 @@
       thread.innerHTML = '';
       askLast = null;
       askSelected.clear();
+      nathanSets.length = 0;
       setPanel('collapsed');
       bar.focus();
     });
@@ -1871,7 +1871,11 @@
       const gap = r.gap ? '<div class="n-gap">' + esc(r.gap.missing) +
         (r.gap.consider ? ' Not on your shelf, but worth a look: <a href="https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=' + encodeURIComponent(r.gap.consider) + '" target="_blank" rel="noopener">' + esc(r.gap.consider) + '</a>.' : '') + '</div>' : '';
       const n = (r.matchIds || []).length;
-      const seeAll = n > 1 && n < collection.length ? '<button type="button" class="n-seeall" data-see-all><i class="ti ti-layout-grid"></i> See all ' + n + ' in the grid below</button>' : '';
+      let seeAll = '';
+      if (n && n < collection.length && (n > 1 || r.intent === 'browse')) {
+        nathanSets.push(orderedIds(r));
+        seeAll = '<button type="button" class="n-seeall" data-see-all="' + (nathanSets.length - 1) + '"><i class="ti ti-layout-grid"></i> ' + (n === 1 ? 'See it in the library' : 'See all ' + n + ' games') + '</button>';
+      }
       const body = r.intent === 'browse'
         ? '<p class="n-summary">' + esc(r.summary || '') + '</p>' + gap + seeAll + r.highlights.map(h => nathanCard(h, 'highlight')).join('')
         : understoodHtml(r.understood) + gap + nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid') + seeAll;
@@ -1884,13 +1888,13 @@
       for (const n of names) out = out.split('@' + esc(n)).join('<span class="mention">@' + esc(n) + '</span>');
       return out;
     }
-    // Nathan's answer filters the grid to everything that fits (his picks first), so you can scroll through all of it
-    function applyNathanFilter(r) {
+    // The full set behind each answer: a browse keeps Nathan's order (e.g. most played first), a recommendation puts his picks first
+    const nathanSets = [];
+    function orderedIds(r) {
       const ids = r.matchIds || [];
-      if (!ids.length || ids.length >= collection.length) { askIds = null; render(); return; }
+      if (r.intent === 'browse') return ids;
       const first = (r.pickIds || []).filter(id => ids.includes(id));
-      askIds = [...first, ...ids.filter(id => !first.includes(id))];
-      render();
+      return [...first, ...ids.filter(id => !first.includes(id))];
     }
     async function askNathan(text, followUp) {
       const question = String(text || '').trim();
@@ -1908,8 +1912,6 @@
         askLast = null;
         bar.blur();
       }
-      askIds = null;
-      render(); // the typed words were a question, not a search: show the whole shelf again
       setPanel(followUp ? 'expanded' : 'collapsed');
       thread.insertAdjacentHTML('beforeend', '<div class="np-turn me"><div class="np-bubble">' + bubbleHtml(question) + '</div></div>');
       const names = people.players.filter(p => askSelected.has(p.id)).map(p => firstName(p.name));
@@ -1927,7 +1929,6 @@
           rememberJoked(r.pickIds || []);
         }
         turn.querySelector('.np-body').innerHTML = nathanAnswerHtml(r);
-        applyNathanFilter(r);
       } catch (err) {
         turn.querySelector('.np-body').innerHTML = '<p class="ask-note" style="margin:0;">' + esc(err.message) + '</p>';
       } finally {
@@ -1938,7 +1939,12 @@
     thread.addEventListener('click', (e) => {
       const open = e.target.closest('[data-ask-open]');
       if (open) { openDetail(open.dataset.askOpen); return; }
-      if (e.target.closest('[data-see-all]')) document.getElementById('gamesGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const see = e.target.closest('[data-see-all]');
+      if (see) {
+        askIds = nathanSets[+see.dataset.seeAll] || null;
+        render();
+        document.querySelector('.filters-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
     thread.addEventListener('keydown', (e) => {
       const b = e.target.closest('[data-ask-open]');
