@@ -26,6 +26,9 @@ Ask is public, board games only, and capped at 200 questions a day overall (abou
 
 ### People and ratings
 
+- **In the app:** each game's detail view shows everyone's ratings and the average. A signed-in friend gets **Your rating** stars; tap the current rating again to clear it. The owner can also **Rate for** any player. The owner edits profiles under **Settings → Players**: name, other names (as logged in BG Stats), active, the five dials, likes, dislikes, age, notes, BGG username and Google email.
+- **Friends signing in:** put their Google email on their player card. While the Google OAuth consent screen is in *Testing* mode, also add them as a test user in Google Cloud (APIs & Services → OAuth consent screen → Test users), or publish the app. Basic sign-in scopes need no Google review.
+
 - **Players** (Airtable): a card per person with five 1-5 dials (complexity, conflict, luck, table talk, theme), likes, dislikes, age and notes. Optional: a Google email, which lets that friend sign in and rate games for themselves, and a BGG username.
 - **Sync People** (nightly, 4:20am): reads who played and who won from the BGG plays logged in BG Stats. It builds each person's history per owned game, creates a card for anyone with 3+ plays, and pulls BG Stats per-play ratings and friends' BGG ratings.
 - **Ratings** come from four sources on a 1-5 scale: the friend on the site, the owner on their behalf, their BGG account, and BG Stats. When a person has several ratings for a game, the first one in that order wins.

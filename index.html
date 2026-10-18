@@ -119,6 +119,39 @@
   .ask-actions .btn { flex: 1 1 auto; }
   .ask-thinking { display: flex; align-items: center; gap: 0.7rem; margin-top: 1.2rem; color: var(--text-muted); font-size: 0.9rem; }
   .ask-thinking .spinner { margin: 0; }
+  .ratings-block { display: flex; flex-direction: column; gap: 0.5rem; }
+  .rate-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; background: var(--bg); border-radius: 0.9rem; padding: 0.45rem 0.7rem; }
+  .rate-row .who { font-weight: 700; font-size: 0.88rem; min-width: 5.5rem; }
+  .rate-row select { padding: 0.35rem 0.8rem; font-size: 0.85rem; }
+  .rate-stars { display: flex; gap: 0.1rem; }
+  .rate-stars button { background: none; border: none; font-size: 1.25rem; color: #d5dbe5; cursor: pointer; padding: 0.1rem; }
+  .rate-stars button.on { color: var(--orange); }
+  .rate-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .rate-chip { background: var(--exp-bg); border-radius: 999px; padding: 0.2rem 0.65rem; font-size: 0.8rem; font-weight: 600; }
+  .rate-chip i { color: var(--orange); font-size: 0.75rem; }
+  .rate-chip small { color: var(--text-muted); font-weight: 600; margin-left: 0.2rem; }
+  .modal.players-modal { max-width: 640px; position: relative; }
+  .players-modal h2 { padding-right: 2.5rem; }
+  .pl-list { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.6rem; }
+  .pl-row { display: flex; align-items: center; gap: 0.6rem; background: var(--bg); border: none; border-radius: 0.9rem; padding: 0.55rem 0.8rem; cursor: pointer; text-align: left; font-family: var(--font-body); color: var(--ink); width: 100%; }
+  .pl-row:hover { background: var(--tag-bg); }
+  .pl-row .n { flex: 1; font-weight: 700; }
+  .pl-row .m { font-size: 0.78rem; color: var(--text-muted); }
+  .pl-row .dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: #cfd7e3; flex-shrink: 0; }
+  .pl-row .dot.on { background: var(--green); }
+  .pl-badge { font-size: 0.7rem; background: var(--tag-bg); color: var(--brand-dark); border-radius: 999px; padding: 0.1rem 0.45rem; font-weight: 700; }
+  .pl-form label { margin-top: 0.8rem; }
+  .pl-form textarea { width: 100%; background: var(--exp-bg); border: none; border-radius: 0.8rem; padding: 0.6rem 0.8rem; font-family: var(--font-body); font-size: 0.9rem; color: var(--ink); resize: vertical; }
+  .pl-form input[type=email] { width: 100%; background: var(--exp-bg); border: none; padding: 0.6rem 0.8rem; border-radius: 0.5rem; color: var(--ink); font-size: 0.9rem; font-family: var(--font-body); }
+  .pl-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 0.8rem; }
+  .dial { margin-top: 0.7rem; }
+  .dial .dl { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.25rem; }
+  .dial .dl b { color: var(--ink); font-size: 0.82rem; }
+  .dial .db { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.3rem; }
+  .dial .db button { border: none; background: var(--exp-bg); border-radius: 0.6rem; padding: 0.45rem 0; font-weight: 800; font-family: var(--font-body); color: var(--ink); cursor: pointer; }
+  .dial .db button.on { background: var(--brand); color: #fff; }
+  .pl-check { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.9rem; font-weight: 700; font-size: 0.9rem; }
+  @media (max-width: 640px) { .pl-two { grid-template-columns: 1fr; } }
   #googleSignIn { display: flex; justify-content: center; margin: 1.1rem 0 0.4rem; min-height: 44px; }
   .toolbar-container { max-width: 1300px; margin: -1.9rem auto 2rem; padding: 0 1.5rem; position: sticky; top: 1rem; z-index: 50; }
   .toolbar { background: #fff; border-radius: 1.25rem; padding: 0.8rem 1.1rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; box-shadow: 0 10px 30px rgba(31,63,143,0.14); }
@@ -421,6 +454,15 @@
     </div>
   </div>
 
+  <!-- Players (owner only) -->
+  <div class="modal-overlay" id="playersModal">
+    <div class="modal players-modal" role="dialog" aria-modal="true" aria-labelledby="playersTitle">
+      <button class="mini-btn detail-close" id="playersClose" title="Close"><i class="ti ti-x"></i></button>
+      <h2 id="playersTitle">Players</h2>
+      <div id="playersBody"></div>
+    </div>
+  </div>
+
   <!-- Sign-in dialog (the Google button is rendered into #googleSignIn) -->
   <div class="modal-overlay" id="signInModal">
     <div class="modal" style="text-align:center;">
@@ -441,6 +483,9 @@
         <p class="hint" style="margin-top:0;">Pulled from your BGG plays (logged through BG Stats) every night at 4am, and for each game as you add it.</p>
         <button class="btn" id="syncPlaysBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-refresh"></i> Sync plays now</button>
         <p class="hint" id="syncPlaysStatus"></p>
+        <label>People</label>
+        <p class="hint" style="margin-top:0;">Profiles help Nathan pick for the people at the table. A Google email lets that friend sign in and rate games.</p>
+        <button class="btn" id="openPlayersBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-users"></i> Players</button>
       </div>
       <div class="modal-actions">
         <button class="btn ghost" id="settingsCancel">Close</button>
@@ -542,7 +587,8 @@
     // only accepts the owner's account. Reading the collection needs no sign-in.
     const GOOGLE_CLIENT_ID = '91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com';
     const LS_TOKEN = 'vault_id_token';
-    const LS_OWNER = 'vault_owner_sub'; // Google account id that n8n confirmed as the owner
+    const LS_OWNER = 'vault_owner_sub'; // (old) Google account id n8n confirmed as owner; migrated to LS_ROLE
+    const LS_ROLE = 'vault_role';       // { sub, role: 'owner' | 'friend', playerId, playerName } as confirmed by n8n
     let idToken = null, profile = null;
     const credentialWaiters = [];
     const decodeJwt = (t) => {
@@ -551,9 +597,19 @@
     };
     const tokenFresh = () => !!(profile && profile.exp * 1000 > Date.now() + 60 * 1000);
     const signedIn = () => !!profile; // an expired token is renewed on the next change
-    const ownerSub = () => { try { return localStorage.getItem(LS_OWNER); } catch (e) { return null; } };
-    // Editing controls only for the account n8n confirmed as the owner; everyone else browses read-only
-    const isOwner = () => signedIn() && profile.sub === ownerSub();
+    const savedRole = () => {
+      try {
+        const r = JSON.parse(localStorage.getItem(LS_ROLE) || 'null');
+        if (r) return r;
+        const old = localStorage.getItem(LS_OWNER); // signed in before roles existed
+        return old ? { sub: old, role: 'owner' } : null;
+      } catch (e) { return null; }
+    };
+    const myRole = () => { const r = savedRole(); return signedIn() && r && r.sub === profile.sub ? r : null; };
+    // Owner: everything. Friend (Google email on a player card): can rate games for themselves. Others: view-only.
+    const isOwner = () => (myRole() || {}).role === 'owner';
+    const isMember = () => !!myRole();
+    const myPlayerId = () => (myRole() || {}).playerId || null;
     function setToken(t) {
       try { profile = t ? decodeJwt(t) : null; idToken = t || null; } catch (e) { profile = null; idToken = null; }
       try { idToken ? localStorage.setItem(LS_TOKEN, idToken) : localStorage.removeItem(LS_TOKEN); } catch (e) {}
@@ -561,6 +617,7 @@
     }
     function updateAuthUi() {
       document.body.classList.toggle('owner', isOwner());
+      document.body.classList.toggle('member', isMember());
       const btn = document.getElementById('authBtn');
       btn.innerHTML = signedIn()
         ? (profile.picture ? '<img src="' + esc(profile.picture) + '" alt="" referrerpolicy="no-referrer">' : '<i class="ti ti-logout"></i>') + ' <span>Sign out</span>'
@@ -569,29 +626,34 @@
       if (collection.length) render();
     }
     function onCredential(resp) {
-      const wasOwner = isOwner();
+      const wasMember = isMember();
       setToken(resp.credential);
       document.getElementById('signInModal').classList.remove('open');
-      verifyOwner(wasOwner).then(() => credentialWaiters.splice(0).forEach(w => w(isOwner() ? idToken : null)));
+      verifyMember(wasMember).then(() => credentialWaiters.splice(0).forEach(w => w(isMember() ? idToken : null)));
     }
     // Ask n8n whether this Google account owns the collection (the owner's email never appears in this page)
-    async function verifyOwner(wasOwner) {
+    // Ask n8n who this Google account is here: the owner, a friend with a player card, or nobody (view-only).
+    // The owner's email never appears in this page.
+    async function verifyMember(wasMember) {
       const who = profile && (profile.email || profile.name);
-      let ok = false;
+      let res;
       try {
-        const res = await fetch(n8nBase() + '/whoami', { headers: { Authorization: 'Bearer ' + idToken } });
-        ok = res.ok;
+        res = await fetch(n8nBase() + '/whoami', { headers: { Authorization: 'Bearer ' + idToken } });
       } catch (e) {
         toast('Couldn’t confirm your sign-in. Check your connection and try again.', true);
         setToken(null);
         return;
       }
-      if (ok) {
-        try { localStorage.setItem(LS_OWNER, profile.sub); } catch (e) {}
+      if (res.ok) {
+        const w = await res.json().catch(() => ({}));
+        try {
+          localStorage.setItem(LS_ROLE, JSON.stringify({ sub: profile.sub, role: w.role === 'owner' ? 'owner' : 'friend', playerId: w.playerId || null, playerName: w.playerName || null }));
+          localStorage.removeItem(LS_OWNER);
+        } catch (e) {}
         updateAuthUi();
-        if (!wasOwner) toast('Signed in. You can edit your collection.');
+        if (!wasMember) toast(w.role === 'owner' ? 'Signed in. You can edit your collection.' : 'Signed in as ' + (w.playerName || who) + '. You can rate games for yourself.');
       } else {
-        try { localStorage.removeItem(LS_OWNER); } catch (e) {}
+        try { localStorage.removeItem(LS_ROLE); localStorage.removeItem(LS_OWNER); } catch (e) {}
         if (gisReady) google.accounts.id.disableAutoSelect();
         setToken(null);
         toast('Signed in as ' + who + '. This collection is view-only for that account.');
@@ -633,7 +695,7 @@
       throw new Error('Sign in to make changes.');
     }
     function handleUnauthorized() {
-      try { localStorage.removeItem(LS_OWNER); } catch (e) {}
+      try { localStorage.removeItem(LS_OWNER); localStorage.removeItem(LS_ROLE); } catch (e) {}
       setToken(null);
       openSignIn('That account can’t change this collection, or the sign-in expired.');
       return new Error('Sign in as the collection owner to make changes.');
@@ -1000,6 +1062,7 @@
             '<button class="btn' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" style="flex:0 0 auto;"><i class="ti ti-scale"></i> ' + (g.thinningCandidate ? 'Thinning candidate' : 'Mark for thinning') + '</button></span>' +
           '</div>' +
           (stats.length ? '<div class="stat-grid">' + stats.join('') + '</div>' : '') +
+          ratingsHtml(g) +
           '<div class="tags">' +
             (g.genre ? '<span class="tag tag-genre">' + esc(g.genre) + '</span>' : '') +
             (g.type ? '<span class="tag tag-type">' + esc(g.type) + '</span>' : '') +
@@ -1314,11 +1377,161 @@
         section('Not processed — take another photo of these', (r.deferred || []).map(esc));
     }
 
+    // ---------- Ratings (per person, 1-5) ----------
+    const SOURCE_LABEL = { site: '', owner: '', bgg: 'BGG', bgstats: 'BG Stats' };
+    function starsPicker(attr, gameId, current, extra) {
+      let h = '';
+      for (let i = 1; i <= 5; i++) h += '<button type="button" class="' + (current >= i - 0.25 ? 'on' : '') + '" ' + attr + '="' + esc(gameId) + '" data-stars="' + i + '"' + (extra || '') + ' title="' + i + ' star' + (i > 1 ? 's' : '') + '"><i class="fa-solid fa-star"></i></button>';
+      return '<div class="rate-stars">' + h + '</div>';
+    }
+    function ratingsHtml(g) {
+      const byPlayer = (people.ratings || {})[g.id] || {};
+      const name = (id) => (people.players.find(p => p.id === id) || {}).name || 'Someone';
+      const entries = Object.entries(byPlayer).sort((a, b) => b[1].stars - a[1].stars);
+      const me = myPlayerId();
+      const rows = [];
+      if (isMember() && me) rows.push('<div class="rate-row"><span class="who">Your rating</span>' + starsPicker('data-rate-self', g.id, (byPlayer[me] || {}).stars || 0) + '</div>');
+      if (isMember() && !me) rows.push('<p class="hint" style="margin:0;">Link your Google email to your player card to rate games.</p>');
+      if (isOwner()) {
+        const opts = people.players.filter(p => p.id !== me).map(p => '<option value="' + esc(p.id) + '"' + (p.id === rateForId ? ' selected' : '') + '>' + esc(p.name) + (p.active ? '' : ' (inactive)') + '</option>').join('');
+        const cur = rateForId ? ((byPlayer[rateForId] || {}).stars || 0) : 0;
+        rows.push('<div class="rate-row"><select id="rateFor"><option value="">Rate for…</option>' + opts + '</select>' + (rateForId ? starsPicker('data-rate-for', g.id, cur) : '') + '</div>');
+      }
+      const others = entries.filter(([pid]) => pid !== me);
+      const avg = entries.length ? entries.reduce((n, [, r]) => n + r.stars, 0) / entries.length : 0;
+      return '<div class="ratings-block"><div class="section-label" style="margin:0;">Ratings' + (entries.length ? ' · ' + avg.toFixed(1) + '★ from ' + entries.length + (entries.length === 1 ? ' person' : ' people') : '') + '</div>' +
+        rows.join('') +
+        (others.length ? '<div class="rate-list">' + others.map(([pid, r]) => '<span class="rate-chip">' + esc(firstName(name(pid))) + ' ' + r.stars + ' <i class="fa-solid fa-star"></i>' + (SOURCE_LABEL[r.source] ? '<small>' + SOURCE_LABEL[r.source] + '</small>' : '') + '</span>').join('') + '</div>'
+          : (!rows.length ? '<p class="hint" style="margin:0;">No ratings yet.</p>' : '')) +
+      '</div>';
+    }
+    let rateForId = '';
+    async function savePlayerRating(gameId, stars, playerId) {
+      const pid = playerId || myPlayerId();
+      const byPlayer = ((people.ratings ||= {})[gameId] ||= {});
+      const prev = byPlayer[pid] ? { ...byPlayer[pid] } : null;
+      const clear = prev && Math.round(prev.stars) === stars; // tapping your current rating clears it
+      const next = clear ? 0 : stars;
+      if (next) byPlayer[pid] = { stars: next, source: playerId && playerId !== myPlayerId() ? 'owner' : 'site' }; else delete byPlayer[pid];
+      renderDetail();
+      try {
+        await n8nFetch('/rate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId, stars: next, ...(playerId ? { playerId } : {}) }) });
+      } catch (e) {
+        if (prev) byPlayer[pid] = prev; else delete byPlayer[pid];
+        renderDetail();
+        toast('Couldn’t save that rating: ' + e.message, true);
+      }
+    }
+    document.getElementById('detailModal').addEventListener('click', (e) => {
+      const self = e.target.closest('[data-rate-self]');
+      if (self) { savePlayerRating(self.dataset.rateSelf, Number(self.dataset.stars)); return; }
+      const other = e.target.closest('[data-rate-for]');
+      if (other && rateForId) savePlayerRating(other.dataset.rateFor, Number(other.dataset.stars), rateForId);
+    });
+    document.getElementById('detailModal').addEventListener('change', (e) => {
+      if (e.target.id === 'rateFor') { rateForId = e.target.value; renderDetail(); }
+    });
+
+    // ---------- Players (owner) ----------
+    const DIALS = [
+      { key: 'complexity', label: 'Complexity', lo: 'Light', hi: 'Heavy' },
+      { key: 'conflict', label: 'Conflict', lo: 'Co-op only', hi: 'Cutthroat' },
+      { key: 'luck', label: 'Luck', lo: 'Hates dice', hi: 'Loves chaos' },
+      { key: 'tableTalk', label: 'Table talk', lo: 'Quiet thinker', hi: 'Party energy' },
+      { key: 'theme', label: 'Theme vs. puzzle', lo: 'Puzzle first', hi: 'Story first' },
+    ];
+    const playersModal = document.getElementById('playersModal');
+    let adminPlayers = [];
+    let editing = null; // the player object being edited (a copy)
+    async function openPlayers() {
+      settingsModal.classList.remove('open');
+      playersModal.classList.add('open');
+      editing = null;
+      document.getElementById('playersBody').innerHTML = '<div class="spinner"></div>';
+      try {
+        adminPlayers = (await n8nFetch('/players-admin', { method: 'GET' })).players || [];
+        renderPlayers();
+      } catch (e) {
+        document.getElementById('playersBody').innerHTML = '<p class="hint">' + esc(e.message) + '</p>';
+      }
+    }
+    function renderPlayers() {
+      const body = document.getElementById('playersBody');
+      if (editing) { body.innerHTML = playerFormHtml(editing); return; }
+      body.innerHTML = '<p class="hint" style="margin-top:0;">People who’ve played 3+ logged games are added automatically each night. Active players show first when asking Nathan.</p>' +
+        '<button class="btn primary" type="button" id="addPlayerBtn" style="margin-top:0.4rem;"><i class="ti ti-plus"></i> Add player</button>' +
+        '<div class="pl-list">' + adminPlayers.map(p => '<button type="button" class="pl-row" data-edit-player="' + esc(p.id) + '">' +
+          '<span class="dot' + (p.active ? ' on' : '') + '" title="' + (p.active ? 'Active' : 'Inactive') + '"></span>' +
+          '<span class="n">' + esc(p.name) + '</span>' +
+          (p.googleEmail ? '<span class="pl-badge" title="Can sign in and rate">Google</span>' : '') +
+          (p.bggUsername ? '<span class="pl-badge" title="BGG ratings sync">BGG</span>' : '') +
+          '<span class="m">' + (p.plays ? p.plays + ' plays' : 'no plays') + '</span></button>').join('') + '</div>';
+    }
+    function playerFormHtml(p) {
+      const dial = (d) => '<div class="dial"><div class="dl"><span>' + d.lo + '</span><b>' + d.label + '</b><span>' + d.hi + '</span></div><div class="db">' +
+        [1, 2, 3, 4, 5].map(v => '<button type="button" class="' + (p[d.key] === v ? 'on' : '') + '" data-dial="' + d.key + '" data-v="' + v + '">' + v + '</button>').join('') + '</div></div>';
+      return '<form class="pl-form" id="playerForm">' +
+        '<div class="pl-two"><div><label for="pfName">Name</label><input type="text" id="pfName" value="' + esc(p.name || '') + '" required></div>' +
+        '<div><label for="pfAliases">Other names <span style="font-weight:600;">(as logged in BG Stats)</span></label><input type="text" id="pfAliases" value="' + esc((p.aliases || []).join(', ')) + '"></div></div>' +
+        '<label class="pl-check"><input type="checkbox" id="pfActive"' + (p.active ? ' checked' : '') + '> Active (shows first when asking Nathan)</label>' +
+        '<div class="section-label" style="margin-top:1rem;">How they like to play</div>' +
+        '<p class="hint" style="margin-top:0;">Tap a number; tap it again to leave it unset.</p>' +
+        DIALS.map(dial).join('') +
+        '<div class="pl-two"><div><label for="pfLikes">Likes</label><textarea id="pfLikes" rows="2" placeholder="animals, engine building, co-ops">' + esc(p.likes || '') + '</textarea></div>' +
+        '<div><label for="pfDislikes">Dislikes</label><textarea id="pfDislikes" rows="2" placeholder="trivia, take-that, long rules">' + esc(p.dislikes || '') + '</textarea></div></div>' +
+        '<div class="pl-two"><div><label for="pfAge">Age <span style="font-weight:600;">(for kids)</span></label><input type="number" id="pfAge" min="1" max="120" value="' + (p.age || '') + '"></div>' +
+        '<div><label for="pfBgg">BGG username <span style="font-weight:600;">(syncs their ratings)</span></label><input type="text" id="pfBgg" value="' + esc(p.bggUsername || '') + '"></div></div>' +
+        '<label for="pfNotes">Notes <span style="font-weight:600;">(Nathan can mention these; keep them friendly)</span></label><textarea id="pfNotes" rows="2">' + esc(p.notes || '') + '</textarea>' +
+        '<label for="pfEmail">Google email <span style="font-weight:600;">(lets them sign in and rate games for themselves)</span></label><input type="email" id="pfEmail" value="' + esc(p.googleEmail || '') + '" placeholder="name@gmail.com">' +
+        '<div class="modal-actions"><button type="button" class="btn ghost" id="playerBack">Back</button><button type="submit" class="btn primary" id="playerSave">Save</button></div>' +
+      '</form>';
+    }
+    document.getElementById('openPlayersBtn').addEventListener('click', openPlayers);
+    document.getElementById('playersClose').addEventListener('click', () => playersModal.classList.remove('open'));
+    document.getElementById('playersBody').addEventListener('click', (e) => {
+      if (e.target.closest('#addPlayerBtn')) { editing = { name: '', aliases: [], active: true }; renderPlayers(); return; }
+      const row = e.target.closest('[data-edit-player]');
+      if (row) { editing = { ...adminPlayers.find(p => p.id === row.dataset.editPlayer) }; renderPlayers(); playersModal.querySelector('.modal').scrollTop = 0; return; }
+      if (e.target.closest('#playerBack')) { editing = null; renderPlayers(); return; }
+      const d = e.target.closest('[data-dial]');
+      if (d) {
+        const v = Number(d.dataset.v);
+        editing[d.dataset.dial] = editing[d.dataset.dial] === v ? null : v;
+        d.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', Number(b.dataset.v) === editing[d.dataset.dial]));
+      }
+    });
+    document.getElementById('playersBody').addEventListener('submit', async (e) => {
+      if (e.target.id !== 'playerForm') return;
+      e.preventDefault();
+      const val = (id) => document.getElementById(id).value;
+      const payload = { ...(editing.id ? { id: editing.id } : {}), name: val('pfName').trim(), aliases: val('pfAliases'),
+        active: document.getElementById('pfActive').checked, googleEmail: val('pfEmail').trim(), bggUsername: val('pfBgg').trim(),
+        likes: val('pfLikes'), dislikes: val('pfDislikes'), notes: val('pfNotes'), age: val('pfAge'),
+        ...Object.fromEntries(DIALS.map(d => [d.key, editing[d.key] ?? null])) };
+      const btn = document.getElementById('playerSave');
+      btn.disabled = true;
+      try {
+        const r = await n8nFetch('/player-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const saved = r.player;
+        const i = adminPlayers.findIndex(p => p.id === saved.id);
+        const merged = { ...(i >= 0 ? adminPlayers[i] : { plays: 0, games: 0 }), ...saved };
+        if (i >= 0) adminPlayers[i] = merged; else adminPlayers.unshift(merged);
+        editing = null;
+        renderPlayers();
+        toast('Saved ' + saved.name + '.');
+        loadPeople();
+      } catch (err) {
+        toast(err.message, true);
+        btn.disabled = false;
+      }
+    });
+
     // ---------- Ask ----------
     let people = { players: [], ratings: {} };
     async function loadPeople() {
       try { people = await n8nFetch('/people', { method: 'GET' }, false); } catch (e) { /* Ask still works without the roster */ }
       renderAskPlayers();
+      if (detailId) renderDetail();
     }
     const askModal = document.getElementById('askModal');
     const askSelected = new Set();
@@ -1459,7 +1672,7 @@
       if (!signedIn()) { openSignIn(); return; }
       if (!confirm('Sign out of Board Game Garage?')) return;
       if (gisReady) google.accounts.id.disableAutoSelect();
-      try { localStorage.removeItem(LS_OWNER); } catch (e) {}
+      try { localStorage.removeItem(LS_OWNER); localStorage.removeItem(LS_ROLE); } catch (e) {}
       setToken(null);
       toast('Signed out.');
     });
@@ -1469,7 +1682,8 @@
     try { localStorage.removeItem('vault_n8n_base_url'); } catch (e) {}
     try { setToken(localStorage.getItem(LS_TOKEN)); } catch (e) { setToken(null); }
     // Signed in before the owner check existed: confirm once instead of asking to sign in again
-    if (signedIn() && !isOwner() && tokenFresh()) verifyOwner(false);
+    if (signedIn() && !isMember() && tokenFresh()) verifyMember(false);
+    else if (isMember() && !myPlayerId() && tokenFresh()) verifyMember(true);
     loadCollection();
     loadPeople();
   </script>
