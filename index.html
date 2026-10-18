@@ -56,8 +56,6 @@
   body { background-color: var(--bg); color: var(--text); font-family: var(--font-body); line-height: 1.5; padding-bottom: 5rem; }
   /* Slim top bar above the hero */
   .topbar { background: #f7f1e6; height: 3.6rem; display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; border-bottom: 1px solid #eadfcb; position: relative; z-index: 3; }
-  .topbar .logo { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: var(--ink); font-family: 'Luckiest Guy', var(--font-display); font-size: 1.05rem; letter-spacing: 0.03em; }
-  .topbar .logo img { width: 2.3rem; height: 2.3rem; }
   .topbar .actions { display: flex; align-items: center; gap: 0.5rem; }
   /* Hero: illustrated game room, Nathan bottom-left, cartoon title in the calm middle */
   header.hero { position: relative; background: #efe3cc url(assets/hero.jpg) center / cover no-repeat; min-height: clamp(250px, 23vw, 360px);
@@ -76,6 +74,8 @@
   .auth-btn { display: inline-flex; align-items: center; gap: 0.35rem; height: 2.5rem; padding: 0 0.95rem 0 0.75rem; border: 1px solid #eadfcb; border-radius: 999px; background: #fff; color: #262626; font-family: var(--font-body); font-weight: 700; font-size: 0.88rem; cursor: pointer; }
   .auth-btn:hover { background: #fff8ec; }
   .auth-btn img { width: 1.6rem; height: 1.6rem; border-radius: 50%; margin-left: -0.35rem; }
+  .auth-btn .who { font-weight: 800; }
+  .auth-btn .out { color: var(--text-muted); font-weight: 600; font-size: 0.8rem; border-left: 1px solid #eadfcb; padding-left: 0.5rem; margin-left: 0.15rem; }
   /* Visitors browse read-only: editing controls only appear for a signed-in owner */
   body:not(.owner) .owner-only { display: none !important; }
   body:not(.owner) .star-btn { pointer-events: none; }
@@ -319,7 +319,6 @@
 
   @media (max-width: 640px) {
     .topbar { padding: 0 0.85rem; }
-    .topbar .logo span { display: none; }
     /* Phones: title on top, Nathan peeks up from the bottom-left */
     header.hero { min-height: 0; justify-content: flex-start; padding: 1.4rem 1rem 11rem; background-position: 50% 50%; }
     .hero-nathan { height: 168px; left: 4%; }
@@ -351,9 +350,8 @@
 </head>
 <body>
   <div class="topbar">
-    <a class="logo" href="./" aria-label="Board Game Curator home"><img src="assets/favicon-64.png" width="37" height="37" alt=""><span>Board Game Curator</span></a>
+    <button class="auth-btn" id="authBtn" type="button"><i class="ti ti-login"></i> <span>Sign in</span></button>
     <div class="actions">
-      <button class="auth-btn" id="authBtn" type="button"><i class="ti ti-login"></i> <span>Sign in</span></button>
       <button class="icon-btn owner-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
     </div>
   </div>
@@ -634,7 +632,8 @@
       document.body.classList.toggle('member', isMember());
       const btn = document.getElementById('authBtn');
       btn.innerHTML = signedIn()
-        ? (profile.picture ? '<img src="' + esc(profile.picture) + '" alt="" referrerpolicy="no-referrer">' : '<i class="ti ti-logout"></i>') + ' <span>Sign out</span>'
+        ? (profile.picture ? '<img src="' + esc(profile.picture) + '" alt="" referrerpolicy="no-referrer">' : '<i class="ti ti-user-circle"></i>') +
+          '<span class="who">' + esc(((myRole() || {}).playerName || profile.given_name || profile.name || profile.email || '').split(' ')[0]) + '</span><span class="out">Sign out</span>'
         : '<i class="ti ti-login"></i> <span>Sign in</span>';
       btn.title = signedIn() ? 'Signed in as ' + (profile.name || profile.email) : 'Sign in to make changes';
       if (collection.length) render();
