@@ -77,7 +77,7 @@ Anyone can browse the collection. Changing it (ratings, favorites, thinning, add
 - The page uses Google Identity Services ("Sign in with Google", client ID in `index.html` and `n8n/gen.js`). The Google ID token is kept in the browser and sent as `Authorization: Bearer <token>` with every change. When it expires (about hourly) the page renews it silently.
 - Every change webhook starts with a sign-in gate (`addAuth` in `gen.js`): Google's tokeninfo endpoint verifies the token, then n8n requires this client ID, a verified email, and an address in `OWNER_EMAILS`. Anything else gets a 401 before any work is done. A photo upload is deleted first.
 - Reading the collection (`GET /vault/collection`) stays public. Workflows calling each other internally skip the gate.
-- The owner's email lives only in the n8n workflows, not in the public page.
+- Right after Google sign-in the page calls `GET /vault/whoami` (behind the same gate). Only if n8n confirms the owner does the page show editing controls; any other account is signed straight back out as view-only. The owner's email lives only in the n8n workflows, not in the public page.
 
 ## Hosting
 

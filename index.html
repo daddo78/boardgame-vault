@@ -473,6 +473,7 @@
     // only accepts the owner's account. Reading the collection needs no sign-in.
     const GOOGLE_CLIENT_ID = '91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com';
     const LS_TOKEN = 'vault_id_token';
+    const LS_OWNER = 'vault_owner_sub'; // Google account id that n8n confirmed as the owner
     let idToken = null, profile = null;
     const credentialWaiters = [];
     const decodeJwt = (t) => {
@@ -481,13 +482,16 @@
     };
     const tokenFresh = () => !!(profile && profile.exp * 1000 > Date.now() + 60 * 1000);
     const signedIn = () => !!profile; // an expired token is renewed on the next change
+    const ownerSub = () => { try { return localStorage.getItem(LS_OWNER); } catch (e) { return null; } };
+    // Editing controls only for the account n8n confirmed as the owner; everyone else browses read-only
+    const isOwner = () => signedIn() && profile.sub === ownerSub();
     function setToken(t) {
       try { profile = t ? decodeJwt(t) : null; idToken = t || null; } catch (e) { profile = null; idToken = null; }
       try { idToken ? localStorage.setItem(LS_TOKEN, idToken) : localStorage.removeItem(LS_TOKEN); } catch (e) {}
       updateAuthUi();
     }
     function updateAuthUi() {
-      document.body.classList.toggle('owner', signedIn());
+      document.body.classList.toggle('owner', isOwner());
       const btn = document.getElementById('authBtn');
       btn.innerHTML = signedIn()
         ? (profile.picture ? '<img src="' + esc(profile.picture) + '" alt="" referrerpolicy="no-referrer">' : '<i class="ti ti-logout"></i>') + ' <span>Sign out</span>'
@@ -496,9 +500,33 @@
       if (collection.length) render();
     }
     function onCredential(resp) {
+      const wasOwner = isOwner();
       setToken(resp.credential);
       document.getElementById('signInModal').classList.remove('open');
-      credentialWaiters.splice(0).forEach(w => w(idToken));
+      verifyOwner(wasOwner).then(() => credentialWaiters.splice(0).forEach(w => w(isOwner() ? idToken : null)));
+    }
+    // Ask n8n whether this Google account owns the collection (the owner's email never appears in this page)
+    async function verifyOwner(wasOwner) {
+      const who = profile && (profile.email || profile.name);
+      let ok = false;
+      try {
+        const res = await fetch(n8nBase() + '/whoami', { headers: { Authorization: 'Bearer ' + idToken } });
+        ok = res.ok;
+      } catch (e) {
+        toast('Couldn’t confirm your sign-in. Check your connection and try again.', true);
+        setToken(null);
+        return;
+      }
+      if (ok) {
+        try { localStorage.setItem(LS_OWNER, profile.sub); } catch (e) {}
+        updateAuthUi();
+        if (!wasOwner) toast('Signed in. You can edit your collection.');
+      } else {
+        try { localStorage.removeItem(LS_OWNER); } catch (e) {}
+        if (gisReady) google.accounts.id.disableAutoSelect();
+        setToken(null);
+        toast('Signed in as ' + who + '. This collection is view-only for that account.');
+      }
     }
     let gisReady = false;
     function initGoogle() {
@@ -536,6 +564,7 @@
       throw new Error('Sign in to make changes.');
     }
     function handleUnauthorized() {
+      try { localStorage.removeItem(LS_OWNER); } catch (e) {}
       setToken(null);
       openSignIn('That account can’t change this collection, or the sign-in expired.');
       return new Error('Sign in as the collection owner to make changes.');
@@ -937,7 +966,7 @@
     // Shared by cards and the detail modal; returns true if the click hit a control
     function handleGameAction(e) {
       // Edit controls are hidden for visitors; ignore them anyway if one is reached
-      if (!signedIn() && e.target.closest('.star-btn, [data-thin], [data-fav], [data-delete], [data-logplay]')) return false;
+      if (!isOwner() && e.target.closest('.star-btn, [data-thin], [data-fav], [data-delete], [data-logplay]')) return false;
       const star = e.target.closest('.star-btn');
       if (star) { saveRating(star.dataset.id, Number(star.dataset.rank)); return true; }
       const thin = e.target.closest('[data-thin]');
@@ -1233,6 +1262,7 @@
       if (!signedIn()) { openSignIn(); return; }
       if (!confirm('Sign out of Board Game Garage?')) return;
       if (gisReady) google.accounts.id.disableAutoSelect();
+      try { localStorage.removeItem(LS_OWNER); } catch (e) {}
       setToken(null);
       toast('Signed out.');
     });
@@ -1240,6 +1270,8 @@
     window.addEventListener('load', initGoogle); // the Google script loads async
 
     try { setToken(localStorage.getItem(LS_TOKEN)); } catch (e) { setToken(null); }
+    // Signed in before the owner check existed: confirm once instead of asking to sign in again
+    if (signedIn() && !isOwner() && tokenFresh()) verifyOwner(false);
     loadCollection();
   </script>
 </body>

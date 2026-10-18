@@ -1,0 +1,217 @@
+{
+  "id": "BGVaultWhoAmI001",
+  "name": "Vault — Who Am I",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "5ddb49e7-5797-4bd6-ab1c-da4fc9cf72f9",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "vault/whoami",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "webhookId": "622aadab-ceae-458c-936f-6b7023c98faf"
+    },
+    {
+      "id": "1a883382-f59e-486b-8fa2-6ea8fca11840",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, owner: true }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "fbca908a-e9db-43d7-8e80-835533126be3",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, message: $json.message }) }}",
+        "options": {
+          "responseCode": "={{ $json.status || 400 }}"
+        }
+      }
+    },
+    {
+      "id": "9f0fc138-ebf3-44e7-b0c1-fc718c2f28b1",
+      "name": "Auth: Read Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const h = $input.first().json.headers || {};\nconst a = String(h.authorization || '');\nreturn [{ json: { token: a.startsWith('Bearer ') ? a.slice(7).trim() : '' } }];"
+      }
+    },
+    {
+      "id": "9758d5e2-d9a1-4dbc-8424-fdfa3a630f60",
+      "name": "Auth: Verify With Google",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        500
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://oauth2.googleapis.com/tokeninfo",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id_token",
+              "value": "={{ $json.token || 'missing' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "85aff10d-169f-4546-97e3-65775302ae20",
+      "name": "Auth: Check Owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const info = $input.first().json || {};\nconst owners = 'dandehaan@gmail.com'.split(',');\nconst ok = info.aud === '91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com'\n  && owners.includes(String(info.email || '').toLowerCase())\n  && (info.email_verified === true || info.email_verified === 'true')\n  && Number(info.exp) * 1000 > Date.now();\nif (!ok) return [{ json: { ok: false, status: 401, message: 'Sign in as the collection owner to make changes' } }];\n// Hand the original webhook items (body, query, uploaded files) to the rest of the workflow\nreturn $('Webhook').all().map((i) => ({ ...i, json: { ...i.json, _authOk: true } }));"
+      }
+    },
+    {
+      "id": "f89be18d-b397-46c4-bd3a-a36593acec42",
+      "name": "Signed In?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        500
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "f97ed68a-4331-4bc2-99ba-8c793077fdbf",
+              "leftValue": "={{ $json._authOk === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Auth: Read Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth: Read Token": {
+      "main": [
+        [
+          {
+            "node": "Auth: Verify With Google",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth: Verify With Google": {
+      "main": [
+        [
+          {
+            "node": "Auth: Check Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth: Check Owner": {
+      "main": [
+        [
+          {
+            "node": "Signed In?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signed In?": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": []
+}

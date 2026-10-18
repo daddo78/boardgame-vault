@@ -28,6 +28,7 @@ const ID = {
   photoSweep: 'BGVaultPhotoSwp1',
   bggSearch: 'BGVaultBggSrch01',
   addByName: 'BGVaultAddName01',
+  whoAmI: 'BGVaultWhoAmI001',
 };
 
 const CRED = {
@@ -1027,6 +1028,17 @@ function addAuth(w, { mode, failTo }) {
   conns[gate.name] = { main: [targets, [{ node: failTo, type: 'main', index: 0 }]] };
   return w;
 }
+// =====================================================================
+// 11. Who Am I  GET /webhook/vault/whoami  (behind the sign-in gate)
+//     The page calls this right after Google sign-in: 200 means the owner (show editing controls),
+//     401 means view-only. Keeps the owner's email out of the public page.
+// =====================================================================
+const whoAmI = wf(ID.whoAmI, 'Vault — Who Am I', [
+  webhook('Webhook', 'GET', 'vault/whoami'),
+  respond('Respond OK', '={{ JSON.stringify({ ok: true, owner: true }) }}'),
+  respondError(),
+], [['Webhook', 'Respond OK']]);
+addAuth(whoAmI, { mode: 'respond', failTo: 'Respond Error' });
 addAuth(update, { mode: 'respond', failTo: 'Respond Error' });
 addAuth(del, { mode: 'respond', failTo: 'Respond Error' });
 addAuth(identify, { mode: 'respond', failTo: 'Delete Photo (no match)' }); // drop the upload, then 401
@@ -1037,7 +1049,7 @@ addAuth(bggOne, { mode: 'throw' });
 addAuth(syncPlays, { mode: 'throw' });
 
 // ---------- write ----------
-const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName };
+const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
