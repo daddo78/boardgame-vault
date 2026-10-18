@@ -465,6 +465,12 @@
     .hero-tag { font-size: clamp(0.82rem, 3.7vw, 1.15rem); margin-top: 0.55rem; line-height: 1.15; text-wrap: balance; }
     .sync-status { font-size: 0.72rem; margin-top: 0.5rem; }
   }
+  /* Wider screens: Nathan and the title sit side by side as one group, a letter's width apart */
+  @media (min-width: 901px) {
+    header.hero { flex-direction: row; align-items: center; justify-content: center; gap: 2.2rem; padding: 1.6rem 1.5rem 3.4rem; }
+    .hero-nathan { position: relative; left: auto; bottom: auto; flex: none; align-self: flex-end; height: calc(clamp(250px, 23vw, 360px) - 1.6rem); max-height: none; margin-bottom: -3.4rem; }
+    .hero-copy { flex: 0 1 auto; min-width: 0; }
+  }
 </style>
 </head>
 <body>
