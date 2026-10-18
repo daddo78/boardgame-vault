@@ -259,7 +259,7 @@
 <body>
   <header>
     <button class="auth-btn" id="authBtn" type="button"><i class="ti ti-login"></i> <span>Sign in</span></button>
-    <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
+    <button class="icon-btn owner-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
     <div class="brand">
       <img class="brand-mark" src="assets/garage-384.png" width="172" height="172" alt="" />
       <div class="brand-copy">
@@ -362,18 +362,15 @@
   <!-- Settings modal -->
   <div class="modal-overlay" id="settingsModal">
     <div class="modal">
-      <h2>Garage Settings</h2>
-      <label>n8n base webhook URL</label>
-      <input type="text" id="n8nUrlInput" placeholder="https://your-n8n.example.com/webhook/vault" />
+      <h2>Settings</h2>
       <div class="owner-only">
-        <label>Play counts</label>
+        <label style="margin-top:0;">Play counts</label>
         <p class="hint" style="margin-top:0;">Pulled from your BGG plays (logged through BG Stats) every night at 4am, and for each game as you add it.</p>
         <button class="btn" id="syncPlaysBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-refresh"></i> Sync plays now</button>
         <p class="hint" id="syncPlaysStatus"></p>
       </div>
       <div class="modal-actions">
-        <button class="btn ghost" id="settingsCancel">Cancel</button>
-        <button class="btn primary" id="settingsSave">Save</button>
+        <button class="btn ghost" id="settingsCancel">Close</button>
       </div>
     </div>
   </div>
@@ -450,16 +447,15 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    const LS_URL = 'vault_n8n_base_url';
     const LS_CACHE = 'vault_collection_cache_v1';
-    const DEFAULT_N8N_BASE = 'https://n8n.ondorilabo.com/webhook/vault';
+    const N8N_BASE = 'https://n8n.ondorilabo.com/webhook/vault';
     const DEFAULT_ICON = 'meeple';
 
     let collection = [];
     let thinOnly = false;
     let favOnly = false;
 
-    function n8nBase() { return (localStorage.getItem(LS_URL) || DEFAULT_N8N_BASE).replace(/\/+$/, ''); }
+    const n8nBase = () => N8N_BASE;
 
     function toast(msg, isErr) {
       const t = document.getElementById('toast');
@@ -573,7 +569,6 @@
     // auth: send the owner's Google token (true for everything except reading the collection)
     async function n8nFetch(path, opts, auth = true) {
       const base = n8nBase();
-      if (!base) throw new Error('Set your n8n webhook URL in Settings first.');
       const o = { ...(opts || {}) };
       if (auth) o.headers = { ...(o.headers || {}), Authorization: 'Bearer ' + await ensureToken() };
       const res = await fetch(base + path, o);
@@ -594,12 +589,6 @@
     }
 
     async function loadCollection() {
-      if (!n8nBase()) {
-        setSyncStatus('Not configured yet — click ⚙ to set your n8n webhook URL.', true);
-        const cached = localStorage.getItem(LS_CACHE);
-        if (cached) { collection = JSON.parse(cached); render(); }
-        return;
-      }
       setSyncStatus('Loading collection from n8n…');
       try {
         const data = await n8nFetch('/collection', { method: 'GET' }, false);
@@ -852,7 +841,7 @@
       grid.innerHTML = '';
       empty.style.display = (collection.length === 0 || filtered.length === 0) ? 'block' : 'none';
       if (collection.length === 0) {
-        empty.textContent = n8nBase() ? 'No games yet — tap the + button to add one.' : 'Set your n8n webhook URL in Settings to load your collection.';
+        empty.textContent = 'No games yet — tap the + button to add one.';
       } else if (filtered.length === 0) {
         empty.innerHTML = 'No games match that search and these filters.<br><button type="button" class="btn primary" style="flex:0 0 auto; margin-top:0.9rem;" onclick="document.getElementById(\'clearAll\').click()">Clear search and filters</button>';
       }
@@ -1093,16 +1082,10 @@
     // Settings modal
     const settingsModal = document.getElementById('settingsModal');
     document.getElementById('settingsBtn').addEventListener('click', () => {
-      document.getElementById('n8nUrlInput').value = n8nBase();
       document.getElementById('syncPlaysStatus').textContent = '';
       settingsModal.classList.add('open');
     });
     document.getElementById('settingsCancel').addEventListener('click', () => settingsModal.classList.remove('open'));
-    document.getElementById('settingsSave').addEventListener('click', () => {
-      localStorage.setItem(LS_URL, document.getElementById('n8nUrlInput').value.trim());
-      settingsModal.classList.remove('open');
-      loadCollection();
-    });
     document.getElementById('syncPlaysBtn').addEventListener('click', async (e) => {
       const btn = e.currentTarget;
       const status = document.getElementById('syncPlaysStatus');
@@ -1211,7 +1194,6 @@
       identifyArea.innerHTML = '<div class="spinner"></div><p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:0.5rem;">Reading the boxes, checking your collection and looking them up on BGG… this can take up to a minute for a shelf photo.</p>';
       try {
         const base = n8nBase();
-        if (!base) throw new Error('Set your n8n webhook URL in Settings first.');
         const form = new FormData();
         form.append('photo', await shrinkPhoto(file), 'boxes.jpg');
         const res = await fetch(base + '/identify', { method: 'POST', body: form, headers: { Authorization: 'Bearer ' + await ensureToken() } });
@@ -1269,6 +1251,7 @@
     document.getElementById('signInCancel').addEventListener('click', () => document.getElementById('signInModal').classList.remove('open'));
     window.addEventListener('load', initGoogle); // the Google script loads async
 
+    try { localStorage.removeItem('vault_n8n_base_url'); } catch (e) {}
     try { setToken(localStorage.getItem(LS_TOKEN)); } catch (e) { setToken(null); }
     // Signed in before the owner check existed: confirm once instead of asking to sign in again
     if (signedIn() && !isOwner() && tokenFresh()) verifyOwner(false);
