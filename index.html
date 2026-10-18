@@ -183,6 +183,9 @@
   .mention-opt { display: flex; align-items: center; gap: 0.55rem; width: 100%; border: none; background: none; text-align: left; padding: 0.5rem 0.65rem; border-radius: 0.6rem; font-family: var(--font-body); font-size: 0.92rem; font-weight: 600; color: var(--ink); cursor: pointer; }
   .mention-opt .at { width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--exp-bg); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--brand); flex-shrink: 0; }
   .mention-opt.active, .mention-opt:hover { background: #fbf3e6; }
+  .suggest-list { left: 0; right: 0; max-width: none; }
+  .suggest-head { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); padding: 0.45rem 0.65rem 0.25rem; }
+  .suggest-list .at { color: var(--brand); }
   /* Conversation with Nathan, on the page */
   .nathan-panel { max-width: 1300px; margin: -0.6rem auto 1.6rem; padding: 0 1.5rem; }
   .nathan-panel[hidden] { display: none; }
@@ -449,6 +452,14 @@
         <button type="button" class="search-clear" id="searchClear" aria-label="Clear" hidden><i class="ti ti-x"></i></button>
         <button type="button" class="ask-send" id="askSend" aria-label="Ask Nathan" title="Ask Nathan (Enter)"><i class="ti ti-arrow-up"></i></button>
         <div class="mention-list" id="mentionList" role="listbox" hidden></div>
+        <div class="mention-list suggest-list" id="askExamples" role="listbox" aria-label="Ideas to ask Nathan" hidden>
+          <div class="suggest-head">Ask Nathan</div>
+          <button type="button" class="mention-opt" role="option" data-example="Something quick, under 30 minutes"><span class="at"><i class="ti ti-sparkles"></i></span>Quick, under 30 min</button>
+          <button type="button" class="mention-opt" role="option" data-example="Something we haven't played in a long time"><span class="at"><i class="ti ti-sparkles"></i></span>Haven't played in ages</button>
+          <button type="button" class="mention-opt" role="option" data-example="A cozy, relaxing game for tonight"><span class="at"><i class="ti ti-sparkles"></i></span>Cozy</button>
+          <button type="button" class="mention-opt" role="option" data-example="A big strategic game, we have all evening"><span class="at"><i class="ti ti-sparkles"></i></span>Big strategy night</button>
+          <button type="button" class="mention-opt" role="option" data-example="A party game with lots of laughing"><span class="at"><i class="ti ti-sparkles"></i></span>Party</button>
+        </div>
       </div>
       <button class="pill filters-toggle" id="filtersToggle" aria-expanded="false" aria-controls="filtersPanel"><i class="ti ti-adjustments-horizontal"></i> Filters</button>
       <div class="filters" id="filtersPanel">
@@ -519,13 +530,6 @@
         </div>
       </div>
       <div class="np-who"><span class="np-who-label">At the table</span><div class="player-chips" id="askPlayers"></div></div>
-      <div class="ask-examples" id="askExamples">
-        <button type="button" class="tag tag-plain" data-example="Something quick, under 30 minutes">Quick, under 30 min</button>
-        <button type="button" class="tag tag-plain" data-example="Something we haven't played in a long time">Haven't played in ages</button>
-        <button type="button" class="tag tag-plain" data-example="A cozy, relaxing game for tonight">Cozy</button>
-        <button type="button" class="tag tag-plain" data-example="A big strategic game, we have all evening">Big strategy night</button>
-        <button type="button" class="tag tag-plain" data-example="A party game with lots of laughing">Party</button>
-      </div>
       <div class="np-thread" id="askThread" aria-live="polite"></div>
       <button type="button" class="np-more" id="npMore" hidden>Chat more <i class="ti ti-chevron-down"></i></button>
       <div class="np-compose" id="npCompose">
@@ -1664,7 +1668,6 @@
       hide.innerHTML = mode === 'expanded' ? '<i class="ti ti-chevron-up"></i>' : '<i class="ti ti-x"></i>';
       hide.title = hide.ariaLabel = mode === 'expanded' ? 'Back to the overview' : 'Close';
       renderAskPlayers();
-      document.getElementById('askExamples').hidden = thread.children.length > 0;
       refreshClamp();
     }
     function refreshClamp() {
@@ -1720,7 +1723,7 @@
         input.setSelectionRange(pos, pos);
         askSelected.add(p.id);
         close();
-        if (panel.hidden) setPanel('collapsed'); else renderAskPlayers();
+        renderAskPlayers();
         input.focus();
       };
       box.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the input
@@ -1747,13 +1750,19 @@
     const closeBarMentions = attachMentions(bar, document.getElementById('mentionList'), () => askNathan(bar.value, false));
     const closeNpMentions = attachMentions(npInput, document.getElementById('npMentionList'), () => askNathan(npInput.value, true));
     bar.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden && document.getElementById('mentionList').hidden) setPanel('hidden'); });
-    // Focusing an empty bar shows the table and some ideas, like an AI search box
-    bar.addEventListener('focus', () => { if (!bar.value.trim() && panel.hidden) setPanel('collapsed'); });
+    // An empty, focused bar offers a few ideas in a dropdown, like search suggestions
+    const ideas = document.getElementById('askExamples');
+    const showIdeas = () => { ideas.hidden = !!bar.value.trim() || !document.getElementById('mentionList').hidden || document.activeElement !== bar; };
+    bar.addEventListener('focus', showIdeas);
+    bar.addEventListener('input', showIdeas);
+    bar.addEventListener('blur', () => setTimeout(() => { ideas.hidden = true; }, 120));
+    bar.addEventListener('keydown', (e) => { if (e.key === 'Escape') ideas.hidden = true; });
+    ideas.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus until the click lands
     document.getElementById('askSend').addEventListener('click', () => askNathan(bar.value, false));
     document.getElementById('npSend').addEventListener('click', () => askNathan(npInput.value, true));
     document.getElementById('askExamples').addEventListener('click', (e) => {
       const ex = e.target.closest('[data-example]');
-      if (ex) askNathan(ex.dataset.example, false);
+      if (ex) { ideas.hidden = true; askNathan(ex.dataset.example, false); }
     });
 
     // Titles Nathan already joked about this session (he quips on a game's first mention only)
@@ -1846,7 +1855,6 @@
       askIds = null;
       render(); // the typed words were a question, not a search: show the whole shelf again
       setPanel(followUp ? 'expanded' : 'collapsed');
-      document.getElementById('askExamples').hidden = true;
       thread.insertAdjacentHTML('beforeend', '<div class="np-turn me"><div class="np-bubble">' + bubbleHtml(question) + '</div></div>');
       const names = people.players.filter(p => askSelected.has(p.id)).map(p => firstName(p.name));
       const turn = document.createElement('div');
