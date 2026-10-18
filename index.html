@@ -47,6 +47,9 @@
     --font-display: 'Outfit', sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  /* Nothing should ever scroll the page sideways (clip, unlike hidden, keeps the sticky toolbar working) */
+  html, body { overflow-x: clip; }
   body { background-color: var(--bg); color: var(--text); font-family: var(--font-body); line-height: 1.5; padding-bottom: 5rem; }
   /* Flat color band, like an app landing page */
   header { background: var(--soft-gray); color: var(--ink); padding: 2.25rem 1.5rem 3.6rem; position: relative; }
@@ -64,15 +67,25 @@
   .icon-btn:hover { background: #fff; }
   .toolbar-container { max-width: 1300px; margin: -1.9rem auto 2rem; padding: 0 1.5rem; position: sticky; top: 1rem; z-index: 50; }
   .toolbar { background: #fff; border-radius: 1.25rem; padding: 0.8rem 1.1rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; box-shadow: 0 10px 30px rgba(31,63,143,0.14); }
-  .search-box { flex: 1 1 240px; }
+  .search-box { flex: 1 1 240px; position: relative; }
+  .search-box input { padding-right: 2.6rem !important; }
+  .search-clear { position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%); width: 1.8rem; height: 1.8rem; border-radius: 50%; border: none; background: #d5dbe5; color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; }
+  .search-clear[hidden] { display: none; }
+  .search-clear:hover { background: #c3cbd8; }
   .search-box input { width: 100%; background: var(--exp-bg); border: none; padding: 0.65rem 1.1rem; border-radius: 999px; color: var(--ink); font-size: 0.95rem; outline: none; font-family: var(--font-body); }
   .search-box input:focus { box-shadow: 0 0 0 2px var(--teal) inset; }
   select, button.pill { background: var(--exp-bg); color: var(--ink); border: none; padding: 0.6rem 1.05rem; border-radius: 999px; cursor: pointer; outline: none; font-family: var(--font-body); font-weight: 600; font-size: 0.9rem; }
   button.pill:hover { background: var(--tag-bg); color: var(--brand-dark); }
   button.pill.active { background: var(--brand); color: #fff; }
-  .stats-badge { background: var(--orange); color: #fff; padding: 0.5rem 1rem; border-radius: 999px; font-weight: 800; font-size: 0.85rem; white-space: nowrap; margin-left: auto; }
+  .stats-badge { display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: var(--orange); color: #fff; padding: 0.4rem 0.5rem 0.4rem 1rem; min-height: 2.3rem; border-radius: 999px; font-weight: 800; font-size: 0.85rem; white-space: nowrap; margin-left: auto; }
   .grid { max-width: 1300px; margin: 0 auto; padding: 0 1.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 1.5rem; }
   .grid > * { min-width: 0; }
+  .stats-clear { display: inline-flex; align-items: center; gap: 0.2rem; background: rgba(255,255,255,0.28); border: none; color: #fff; border-radius: 999px; padding: 0.2rem 0.65rem; font: inherit; font-weight: 700; cursor: pointer; }
+  .stats-clear:hover { background: rgba(255,255,255,0.45); }
+  .stats-clear[hidden] { display: none; }
+  .filters-toggle .count { background: var(--brand); color: #fff; border-radius: 999px; font-size: 0.75rem; min-width: 1.3rem; height: 1.3rem; display: inline-flex; align-items: center; justify-content: center; padding: 0 0.35rem; }
+  /* iPhone/iPad Safari zooms into any text field under 16px when it is focused, then leaves the page shifted */
+  @media (pointer: coarse) { input, select, textarea { font-size: 16px !important; } }
   .filters { display: contents; }
   .filters-toggle { display: none; }
   .card { background: var(--card-bg); border-radius: 0.9rem; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.15s, box-shadow 0.15s; position: relative; box-shadow: 0 1px 3px rgba(24,49,83,0.08), 0 4px 14px rgba(24,49,83,0.06); cursor: pointer; }
@@ -107,7 +120,7 @@
   .fact.w-medium { background: #fbf0db; color: #8a6d1f; }
   .fact.w-heavy { background: #fde7e2; color: var(--accent-dark); }
   .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-  .tag { font-size: 0.66rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.02em; }
+  .tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.66rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.02em; }
   .tag-genre { background: var(--soft-gray); color: #2b3445; }
   .tag-type { background: #cfd7e3; color: #2b3445; }
   .tag-thin { background: #fde8e6; color: #c4524a; }
@@ -254,7 +267,8 @@
   <div class="toolbar-container">
     <div class="toolbar">
       <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Search games, designers, mechanics…" />
+        <input type="text" id="searchInput" placeholder="Search games, designers, mechanics…" enterkeyhint="search" />
+        <button type="button" class="search-clear" id="searchClear" aria-label="Clear search" hidden><i class="ti ti-x"></i></button>
       </div>
       <button class="pill filters-toggle" id="filtersToggle" aria-expanded="false" aria-controls="filtersPanel"><i class="ti ti-adjustments-horizontal"></i> Filters</button>
       <div class="filters" id="filtersPanel">
@@ -310,7 +324,7 @@
       <button class="pill" id="favFilterBtn"><i class="fa-solid fa-heart"></i> Favorites</button>
       <button class="pill" id="thinFilterBtn">Thinning only</button>
       </div>
-      <div class="stats-badge" id="statsCount">0 Games Cataloged</div>
+      <div class="stats-badge"><span id="statsCount">Loading…</span><button type="button" class="stats-clear" id="clearAll" hidden><i class="ti ti-x"></i> Clear</button></div>
     </div>
   </div>
 
@@ -698,11 +712,21 @@
         }
       });
 
-      document.getElementById('statsCount').textContent = filtered.length + ' Playable Titles';
+      // Count and the clear controls reflect anything that narrows the list
+      const nFilters = [genre, ratingFilter, players, time, weight].filter(v => v !== 'ALL').length + (favOnly ? 1 : 0) + (thinOnly ? 1 : 0);
+      const narrowed = !!search || nFilters > 0;
+      document.getElementById('statsCount').textContent = narrowed
+        ? filtered.length + ' of ' + collection.length + ' games'
+        : collection.length + ' Playable Titles';
+      document.getElementById('clearAll').hidden = !narrowed;
+      document.getElementById('searchClear').hidden = !search;
+      document.getElementById('filtersToggle').innerHTML = '<i class="ti ti-adjustments-horizontal"></i> Filters' + (nFilters ? ' <span class="count">' + nFilters + '</span>' : '');
       grid.innerHTML = '';
-      empty.style.display = (collection.length === 0) ? 'block' : 'none';
+      empty.style.display = (collection.length === 0 || filtered.length === 0) ? 'block' : 'none';
       if (collection.length === 0) {
         empty.textContent = n8nBase() ? 'No games yet — tap the + button to add one.' : 'Set your n8n webhook URL in Settings to load your collection.';
+      } else if (filtered.length === 0) {
+        empty.innerHTML = 'No games match that search and these filters.<br><button type="button" class="btn primary" style="flex:0 0 auto; margin-top:0.9rem;" onclick="document.getElementById(\'clearAll\').click()">Clear search and filters</button>';
       }
 
       filtered.forEach(g => {
@@ -917,7 +941,22 @@
     });
     document.getElementById('thinFilterBtn').addEventListener('click', (e) => {
       thinOnly = !thinOnly;
-      e.target.classList.toggle('active', thinOnly);
+      e.currentTarget.classList.toggle('active', thinOnly);
+      render();
+    });
+    document.getElementById('searchClear').addEventListener('click', () => {
+      const input = document.getElementById('searchInput');
+      input.value = '';
+      render();
+      input.focus();
+    });
+    // Resets search and every filter; the sort order is a preference, so it stays
+    document.getElementById('clearAll').addEventListener('click', () => {
+      document.getElementById('searchInput').value = '';
+      ['genreFilter', 'ratingFilter', 'playersFilter', 'timeFilter', 'weightFilter'].forEach(id => { document.getElementById(id).value = 'ALL'; });
+      favOnly = thinOnly = false;
+      document.getElementById('favFilterBtn').classList.remove('active');
+      document.getElementById('thinFilterBtn').classList.remove('active');
       render();
     });
 
