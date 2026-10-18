@@ -17,6 +17,8 @@ const VISION_MODEL = 'google/gemini-2.5-flash-lite';
 const GOOGLE_CLIENT_ID = '91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com';
 const OWNER_EMAILS = ['dandehaan@gmail.com'];
 const ICON_MODEL = 'anthropic/claude-haiku-5.5';
+// Ask: picks games for the people at the table (override with ASK_MODEL=... ./deploy.sh ask to compare models)
+const ASK_MODEL = process.env.ASK_MODEL || 'anthropic/claude-haiku-5.5';
 
 const ID = {
   collection: 'BGVaultCollect01',
@@ -38,6 +40,7 @@ const ID = {
   playersAdmin: 'BGVaultPlyrAdmn1',
   bggUserRatings: 'BGVaultBggUser01',
   syncPeople: 'BGVaultSyncPpl01',
+  ask: 'BGVaultAsk000001',
 };
 
 const CRED = {
@@ -1463,13 +1466,259 @@ addAuth(iconOne, { mode: 'throw' });
 addAuth(bggOne, { mode: 'throw' });
 addAuth(syncPlays, { mode: 'throw' });
 
+// =====================================================================
+// 18. Ask  POST /webhook/vault/ask { question, playerIds?: [], previous?: { question, constraints, pickIds } }  (public)
+//     "What should we play?" for this shelf and these people:
+//       1. a small model turns the question into constraints + who is playing
+//       2. code applies the hard limits (players, time, age, weight, exclusions) and scores a shortlist
+//       3. a stronger model picks from the shortlist using profiles, play history and ratings
+//       4. code drops anything that isn't on the shortlist
+//     Public but capped per day; board games only.
+// =====================================================================
+const ASK_DAILY_CAP = 200;
+const OWNER_NAME = 'Dan';
+const ask = wf(ID.ask, 'Vault — Ask', [
+  webhook('Webhook', 'POST', 'vault/ask'),
+  code('Validate', function () {
+    const b = $input.first().json.body || {};
+    const err = (status, message) => [{ json: { ok: false, status, message } }];
+    const question = String(b.question || '').trim();
+    if (question.length < 3) return err(400, 'Ask a question, like "a co-op for 3 under an hour".');
+    if (question.length > 500) return err(400, 'Keep the question under 500 characters.');
+    // Daily cap shared by everyone (persists across production runs)
+    const st = $getWorkflowStaticData('global');
+    const today = new Date().toISOString().slice(0, 10);
+    if (st.day !== today) { st.day = today; st.count = 0; }
+    if (st.count >= __ASK_DAILY_CAP__) return err(429, 'Ask has answered a lot of questions today. Try again tomorrow.');
+    st.count += 1;
+    const playerIds = Array.isArray(b.playerIds) ? b.playerIds.map(String).filter((x) => /^rec[A-Za-z0-9]{14}$/.test(x)).slice(0, 12) : [];
+    const prev = b.previous && typeof b.previous === 'object' ? {
+      question: String(b.previous.question || '').slice(0, 500),
+      constraints: b.previous.constraints && typeof b.previous.constraints === 'object' ? b.previous.constraints : null,
+      pickIds: Array.isArray(b.previous.pickIds) ? b.previous.pickIds.map(String).slice(0, 6) : [],
+    } : null;
+    return [{ json: { ok: true, question, playerIds, previous: prev } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  airtableListAll('List Games'),
+  code('One Item', function () { return [{ json: {} }]; }),
+  airtableListAll('List Players', PLAYERS_TABLE),
+  code('One More Item', function () { return [{ json: {} }]; }),
+  airtableListAll('List Ratings', RATINGS_TABLE),
+  code('Build Understand Request', function () {
+    const v = $('Validate').first().json;
+    const players = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer);
+    const roster = players.filter((p) => p.active || v.playerIds.includes(p.id))
+      .map((p) => `${p.id} | ${p.name}${p.aliases.length ? ' (also: ' + p.aliases.join(', ') + ')' : ''}`).join('\n');
+    const selected = players.filter((p) => v.playerIds.includes(p.id)).map((p) => p.name);
+    const prompt = [
+      'You read requests for a board game night recommender that only knows one family\'s board game shelf.',
+      'Extract what they want. Reply with JSON only:',
+      '{',
+      '  "onTopic": true if this is about choosing or playing board games, else false,',
+      '  "reply": "only if onTopic is false: one friendly sentence steering back to board games",',
+      '  "playerIds": [ids from ROSTER for people named or clearly meant, e.g. first names or nicknames],',
+      '  "unknownPeople": number of other people mentioned who are not on the roster (e.g. "and 2 friends" = 2),',
+      '  "playerCount": total players if stated or implied, else null,',
+      '  "maxMinutes": longest acceptable play time in minutes, else null ("quick" ~ 30, "an hour" = 60, "all evening" ~ 240),',
+      '  "youngestAge": age of the youngest player if stated, else null,',
+      '  "weight": {"min": 1-5, "max": 1-5} complexity if they hint at it ("light" max 2.2, "brain burner" min 3.2), else null,',
+      '  "coop": true for cooperative only, false for competitive only, null if either,',
+      '  "themes": ["themes, mechanisms or vibes they want, short words"],',
+      '  "avoid": ["themes, mechanisms or titles to avoid"],',
+      '  "freshness": "unplayed" | "stale" (not played in a long time) | "favorite" | null,',
+      '  "mood": "a few words on the vibe",',
+      '  "excludeIds": []',
+      '}',
+      'If PREVIOUS is given, this is a follow-up ("shorter", "something else"): start from its constraints and change only what the new message changes. To get different games, put the previous picks in excludeIds.',
+      '',
+      'ROSTER (id | name):', roster || '(none)',
+      selected.length ? `Already selected as playing: ${selected.join(', ')}` : '',
+      v.previous ? 'PREVIOUS: ' + JSON.stringify(v.previous) : '',
+      '',
+      'REQUEST: ' + v.question,
+    ].filter((l) => l !== '').join('\n');
+    return [{ json: { requestBody: {
+      model: '__VISION_MODEL__', max_tokens: 1500, reasoning: { effort: 'low' }, provider: { data_collection: 'deny' },
+      messages: [{ role: 'user', content: prompt }],
+    } } }];
+  }),
+  openrouter('Understand Request'),
+  code('Shortlist', function () {
+    const v = $('Validate').first().json;
+    const text = $input.first().json.choices?.[0]?.message?.content || '';
+    let c = {};
+    try { c = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
+    if (c.onTopic === false) return [{ json: { offTopic: true, reply: String(c.reply || 'I can only help pick board games from this shelf.') } }];
+    const games = $('List Games').all().flatMap((i) => i.json.records || []).map(toGame);
+    const players = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer);
+    const ratings = $('List Ratings').all().flatMap((i) => i.json.records || []).map(toRating);
+    const byId = Object.fromEntries(players.map((p) => [p.id, p]));
+    const group = [...new Set([...(v.playerIds || []), ...(Array.isArray(c.playerIds) ? c.playerIds : [])])].map((id) => byId[id]).filter(Boolean);
+    const count = Math.max(Number(c.playerCount) || 0, group.length + (Number(c.unknownPeople) || 0)) || null;
+    const ages = [Number(c.youngestAge) || null, ...group.map((p) => p.age)].filter((a) => a > 0);
+    const youngest = ages.length ? Math.min(...ages) : null;
+    const maxMin = Number(c.maxMinutes) || null;
+    const wMin = c.weight && Number(c.weight.min) || null, wMax = c.weight && Number(c.weight.max) || null;
+    const words = (list) => (Array.isArray(list) ? list : []).map((s) => String(s).toLowerCase().trim()).filter((s) => s.length > 2);
+    const want = words(c.themes), avoid = words(c.avoid);
+    const exclude = new Set([...(Array.isArray(c.excludeIds) ? c.excludeIds : []), ...((v.previous && v.previous.pickIds) || [])]);
+    // best rating per player per game
+    const rate = {};
+    for (const r of ratings) {
+      if (!r.stars) continue;
+      const k = r.playerId + '|' + r.gameId;
+      if (!rate[k] || (RATING_PRIORITY[r.source] || 0) > (RATING_PRIORITY[rate[k].source] || 0)) rate[k] = r;
+    }
+    const hay = (g) => [g.title, g.genre, g.type, g.desc, ...g.categories, ...g.mechanics].join(' ').toLowerCase();
+    const isCoop = (g) => g.mechanics.some((m) => /cooperative/i.test(m)) || /co-?op/i.test(g.type);
+    const daysSince = (d) => d ? (Date.now() - new Date(d).getTime()) / 86400000 : Infinity;
+    const scored = [];
+    for (const g of games) {
+      if (exclude.has(g.id)) continue;
+      if (count && g.minPlayers && g.maxPlayers && (count < g.minPlayers || count > g.maxPlayers)) continue;
+      if (maxMin && (g.minTime || g.maxTime) && (g.minTime || g.maxTime) > maxMin * 1.1) continue;
+      if (youngest && g.minAge && g.minAge > youngest + 1) continue;
+      if (wMax && g.weight && g.weight > wMax + 0.3) continue;
+      if (wMin && g.weight && g.weight < wMin - 0.3) continue;
+      if (c.freshness === 'stale' && daysSince(g.lastPlayed) < 183) continue; // "haven't played in a while": not in the last ~6 months
+      if (c.coop === true && !isCoop(g)) continue;
+      if (c.coop === false && isCoop(g) && !/semi/i.test(g.type)) continue;
+      const h = hay(g);
+      if (avoid.some((w) => h.includes(w))) continue;
+      let s = 0;
+      if (count && g.bestPlayers.includes(count)) s += 2;
+      s += want.filter((w) => h.includes(w)).length * 2.5;
+      s += (g.desireToPlay || 0) * 0.4 + (g.favorite ? 1 : 0) - (g.thinningCandidate ? 0.5 : 0);
+      s += ((g.bggRating || 6.5) - 6.5) * 0.5;
+      const groupStars = group.map((p) => rate[p.id + '|' + g.id]?.stars).filter(Boolean);
+      if (groupStars.length) s += (groupStars.reduce((a, b) => a + b, 0) / groupStars.length - 3) * 1.2;
+      if (c.freshness === 'unplayed' && !g.playCount) s += 3;
+      if (c.freshness === 'stale' && daysSince(g.lastPlayed) > 365) s += 3;
+      if (c.freshness === 'favorite') s += (g.favorite ? 3 : 0) + (g.desireToPlay || 0) * 0.5;
+      scored.push({ g, s });
+    }
+    scored.sort((a, b) => b.s - a.s);
+    const short = scored.slice(0, 30).map((x) => x.g);
+    const line = (g) => {
+      const facts = [
+        g.minPlayers ? `${g.minPlayers}-${g.maxPlayers}p` + (g.bestPlayers.length ? ` best ${g.bestPlayers.join('/')}` : '') : '',
+        g.minTime ? `${g.minTime === g.maxTime ? g.minTime : g.minTime + '-' + g.maxTime}min` : '',
+        g.weight ? `weight ${Number(g.weight).toFixed(1)}` : '', g.minAge ? `age ${g.minAge}+` : '',
+        g.bggRating ? `BGG ${g.bggRating}` : '', g.genre, g.type,
+        g.mechanics.slice(0, 4).join(', '),
+        `__OWNER_NAME__ wants to play ${g.desireToPlay || 0}/5`, g.favorite ? "__OWNER_NAME__'s favorite" : '', g.thinningCandidate ? '__OWNER_NAME__ may give it away' : '',
+        g.playCount ? `${g.playCount} plays, last ${g.lastPlayed}` : 'never played',
+        (g.expansions || []).length ? `+${g.expansions.length} expansions` : '',
+      ].filter(Boolean).join('; ');
+      const people = group.map((p) => {
+        const hst = p.history[String(g.bggId)] || null;
+        const r = rate[p.id + '|' + g.id];
+        const bits = [hst ? `${hst.plays} plays/${hst.wins} wins` : 'never played', r ? `rates ${r.stars}/5` : ''].filter(Boolean).join(', ');
+        return `${p.name.split(' ')[0]}: ${bits}`;
+      }).join('; ');
+      return `${g.id} | ${g.title} | ${facts}${people ? ' | ' + people : ''}`;
+    };
+    const profile = (p) => {
+      const dial = (label, v, lo, hi) => v ? `${label} ${v}/5 (${lo}..${hi})` : '';
+      const top = Object.entries(p.history).map(([bgg, h]) => ({ g: games.find((x) => String(x.bggId) === bgg), h })).filter((x) => x.g)
+        .sort((a, b) => b.h.plays - a.h.plays).slice(0, 6).map((x) => `${x.g.title} (${x.h.plays}x, ${x.h.wins} wins)`);
+      const loved = ratings.filter((r) => r.playerId === p.id && r.stars >= 4).map((r) => games.find((g) => g.id === r.gameId)?.title).filter(Boolean).slice(0, 6);
+      const totals = Object.values(p.history).reduce((a, h) => ({ plays: a.plays + h.plays, wins: a.wins + h.wins }), { plays: 0, wins: 0 });
+      return [
+        `- ${p.name}` + (p.age ? `, age ${p.age}` : ''),
+        [dial('complexity', p.complexity, 'light', 'heavy'), dial('conflict', p.conflict, 'co-op only', 'cutthroat'), dial('luck', p.luck, 'hates dice', 'loves chaos'),
+          dial('table talk', p.tableTalk, 'quiet', 'party'), dial('theme', p.theme, 'puzzle first', 'story first')].filter(Boolean).join('; '),
+        p.likes ? `likes: ${p.likes}` : '', p.dislikes ? `dislikes: ${p.dislikes}` : '', p.notes ? `notes: ${p.notes}` : '',
+        totals.plays ? `logged ${totals.plays} plays, won ${totals.wins}` : 'no logged plays',
+        top.length ? `most played: ${top.join(', ')}` : '', loved.length ? `rated 4+: ${loved.join(', ')}` : '',
+      ].filter(Boolean).join('\n  ');
+    };
+    const understood = { players: group.map((p) => p.name), playerCount: count, maxMinutes: maxMin, youngestAge: youngest,
+      weight: c.weight || null, coop: c.coop ?? null, themes: want, avoid, freshness: c.freshness || null, mood: c.mood || '' };
+    return [{ json: { offTopic: false, understood, constraints: c, shortIds: short.map((g) => g.id),
+      titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
+      gameLines: short.map(line).join('\n'), profiles: group.map(profile).join('\n') } }];
+  }),
+  ifTrue('On Topic?', '={{ !$json.offTopic }}'),
+  ifTrue('Any Candidates?', '={{ $json.shortIds.length > 0 }}'),
+  code('Build Recommend Request', function () {
+    const v = $('Validate').first().json;
+    const s = $input.first().json;
+    const system = [
+      'You are the host of Board Game Garage: a warm, sharp game-night advisor who knows this exact shelf and these people. The shelf belongs to __OWNER_NAME__; never say "owner", say __OWNER_NAME__.',
+      'You only recommend board games from the CANDIDATES list, by their id. Never mention a game that is not a candidate, and never invent facts.',
+      'Every candidate already fits the hard limits (player count, time, age). Choose by how well it fits these people and this moment:',
+      '- each person\'s dials, likes, dislikes and notes;',
+      '- their history: games they love or play a lot, games nobody has tried, games where one person always wins (fine for competitive groups, worth flagging otherwise);',
+      '- their ratings, and __OWNER_NAME__\'s signals (wants-to-play stars, favorites; a game __OWNER_NAME__ may give away makes a good last-chance pick);',
+      '- the mood and the request.',
+      'Write reasons like a friend at the table: name people by first name and point to concrete facts (time, best player count, plays, ratings). Max 30 words each. Be kind about people.',
+      'Reply with JSON only: {"picks":[{"id":"...","reason":"..."}] (exactly 3, best first), "wildcard":{"id":"...","reason":"..."} or null (a surprising but good fit),',
+      ' "avoid":{"id":"...","reason":"..."} or null (only if a candidate would clearly flop tonight), "note":"one short friendly line, or empty"}',
+    ].join('\n');
+    const user = [
+      'REQUEST: ' + v.question,
+      v.previous ? 'This follows up on: ' + v.previous.question : '',
+      'UNDERSTOOD: ' + JSON.stringify(s.understood),
+      '', 'PEOPLE PLAYING:', s.profiles || '(not specified; recommend for the group described in the request)',
+      '', 'CANDIDATES (id | title | facts | how each person relates to it):', s.gameLines,
+    ].filter((l) => l !== '').join('\n');
+    return [{ json: { ...s, requestBody: {
+      model: '__ASK_MODEL__', max_tokens: 2500, reasoning: { effort: 'low' }, provider: { data_collection: 'deny' },
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+    } } }];
+  }),
+  openrouter('Recommend'),
+  code('Check Answer', function () {
+    const s = $('Build Recommend Request').first().json;
+    const text = $input.first().json.choices?.[0]?.message?.content || '';
+    let a = {};
+    try { a = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
+    const allowed = new Set(s.shortIds);
+    const seen = new Set();
+    const clean = (x) => {
+      if (!x || !allowed.has(String(x.id)) || seen.has(String(x.id))) return null;
+      seen.add(String(x.id));
+      return { id: String(x.id), title: s.titles[x.id], reason: String(x.reason || '').slice(0, 300) };
+    };
+    const picks = (Array.isArray(a.picks) ? a.picks : []).map(clean).filter(Boolean).slice(0, 3);
+    if (!picks.length) {
+      // Model failed or went off-list: fall back to the top of the scored shortlist
+      for (const id of s.shortIds.slice(0, 3)) picks.push({ id, title: s.titles[id], reason: 'A strong fit for what you described.' });
+    }
+    return [{ json: { ok: true, understood: s.understood, constraints: s.constraints, picks,
+      wildcard: clean(a.wildcard), avoid: a.avoid && allowed.has(String(a.avoid.id)) ? { id: String(a.avoid.id), title: s.titles[a.avoid.id], reason: String(a.avoid.reason || '').slice(0, 300) } : null,
+      note: String(a.note || '').slice(0, 300), model: $input.first().json.model || null } }];
+  }),
+  code('No Candidates', function () {
+    const s = $input.first().json;
+    return [{ json: { ok: true, understood: s.understood, constraints: s.constraints, picks: [], wildcard: null, avoid: null,
+      note: 'Nothing on the shelf fits all of that. Try a longer time, a different player count, or fewer exclusions.' } }];
+  }),
+  code('Off Topic', function () {
+    return [{ json: { ok: true, offTopic: true, picks: [], note: $input.first().json.reply } }];
+  }),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [
+  ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'List Games', 0], ['Valid?', 'Respond Error', 1],
+  ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'One More Item'], ['One More Item', 'List Ratings'],
+  ['List Ratings', 'Build Understand Request'], ['Build Understand Request', 'Understand Request'], ['Understand Request', 'Shortlist'],
+  ['Shortlist', 'On Topic?'], ['On Topic?', 'Any Candidates?', 0], ['On Topic?', 'Off Topic', 1],
+  ['Any Candidates?', 'Build Recommend Request', 0], ['Any Candidates?', 'No Candidates', 1],
+  ['Build Recommend Request', 'Recommend'], ['Recommend', 'Check Answer'],
+  ['Check Answer', 'Respond OK'], ['No Candidates', 'Respond OK'], ['Off Topic', 'Respond OK'],
+]);
+
 // ---------- write ----------
-const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople };
+const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
   let s = JSON.stringify(w, null, 2).replace(/__ICON_MODEL__/g, ICON_MODEL).replace(/__VISION_MODEL__/g, VISION_MODEL)
-    .replace(/__BGG_USERNAME__/g, BGG_USERNAME);
+    .replace(/__BGG_USERNAME__/g, BGG_USERNAME)
+    .replace(/__ASK_MODEL__/g, ASK_MODEL).replace(/__ASK_DAILY_CAP__/g, String(ASK_DAILY_CAP)).replace(/__OWNER_NAME__/g, OWNER_NAME);
   fs.writeFileSync(path.join(outDir, `${k}.json`), s);
   console.log(k, w.id, w.nodes.length, 'nodes');
 }

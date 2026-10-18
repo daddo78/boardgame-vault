@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "a1be2944-f401-49a4-a4f7-0d5a8c6c1a74",
+      "id": "210c1d6b-c622-4a97-a4d7-2fd97dc22d3e",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "1fb8b1ff-cc4b-4a04-853a-51116cc3e87a"
+      "webhookId": "d24285a9-a300-4c04-b1e0-2ae6ffa087bc"
     },
     {
-      "id": "b64a6902-68b7-40b4-8b35-9331a6dcac16",
+      "id": "8dc8b033-2cfb-4982-9a4d-aafece9a732c",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -41,7 +41,7 @@
       }
     },
     {
-      "id": "555cd11c-6d2a-4e85-95a1-805893dfc65d",
+      "id": "b95bc005-854b-4833-95e3-b5d63c8f2c1c",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -58,7 +58,7 @@
       }
     },
     {
-      "id": "2e306757-ddc6-4311-94e4-64de964a4402",
+      "id": "8ffa0735-f135-4c3e-b5d3-5fa77a19dcc5",
       "name": "Auth: Read Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -71,7 +71,7 @@
       }
     },
     {
-      "id": "f1760a55-caaa-4ef6-8588-f7c12e931c42",
+      "id": "af4b378f-3072-45f9-992f-db97b1e126ee",
       "name": "Auth: Verify With Google",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -98,7 +98,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "8fe40600-7945-4548-bd14-295260a30951",
+      "id": "c739eb72-9f84-4a52-8b01-93820b7ea280",
       "name": "Auth: Check Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -111,7 +111,7 @@
       }
     },
     {
-      "id": "9852537e-1701-4b8b-8b63-470c3331f35e",
+      "id": "8781f208-9198-4556-b986-97dd360eca26",
       "name": "Token Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -128,7 +128,7 @@
           },
           "conditions": [
             {
-              "id": "61dbf658-5c2e-48f7-8444-8a5eab67ce38",
+              "id": "223c5cf0-a042-44f6-bf80-ce7563a0f2ac",
               "leftValue": "={{ $json.ok === true }}",
               "rightValue": "",
               "operator": {
@@ -144,7 +144,7 @@
       }
     },
     {
-      "id": "217530a6-3cc1-4fe8-bbe2-3bc722f97f3d",
+      "id": "f292161e-c304-4e2e-b1fc-c679d746f21f",
       "name": "Auth: Find Player",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -187,7 +187,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "e567a185-a489-4691-b583-ec1d3d438fb4",
+      "id": "5f974947-2dc3-49b3-b308-abf5470b7539",
       "name": "Auth: Role",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -200,7 +200,7 @@
       }
     },
     {
-      "id": "c8698d0c-82f6-4f4e-b34f-989baf3f6002",
+      "id": "faaff622-f01b-4c63-98ff-3e250d013a7f",
       "name": "Member?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -217,7 +217,7 @@
           },
           "conditions": [
             {
-              "id": "aadaa13b-34ca-49b7-b172-e3fd0f078ed9",
+              "id": "53f41876-7955-4f81-81e3-9f3d32dab52e",
               "leftValue": "={{ $json._authOk === true }}",
               "rightValue": "",
               "operator": {
