@@ -72,6 +72,32 @@
   /* Visitors browse read-only: editing controls only appear for a signed-in owner */
   body:not(.owner) .owner-only { display: none !important; }
   body:not(.owner) .star-btn { pointer-events: none; }
+  .ask-btn { background: var(--brand) !important; color: #fff !important; display: inline-flex; align-items: center; gap: 0.3rem; }
+  .ask-btn:hover { background: var(--brand-dark) !important; }
+  .modal.ask-modal { max-width: 620px; position: relative; }
+  .ask-modal h2 { padding-right: 2.5rem; }
+  .ask-form { display: flex; gap: 0.5rem; align-items: flex-end; margin-top: 0.9rem; }
+  .ask-form textarea { flex: 1; min-width: 0; resize: vertical; background: var(--exp-bg); border: none; border-radius: 1rem; padding: 0.7rem 1rem; font-family: var(--font-body); font-size: 0.95rem; color: var(--ink); outline: none; }
+  .ask-form textarea:focus { box-shadow: 0 0 0 2px var(--brand) inset; }
+  .ask-form .btn { flex: 0 0 auto; }
+  .ask-examples { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+  .ask-examples .tag { border: none; cursor: pointer; font-family: var(--font-body); }
+  .ask-examples .tag:hover { background: var(--tag-bg); }
+  .ask-understood { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 1.1rem 0 0.6rem; }
+  .ask-understood .fact { background: var(--tag-bg); color: var(--brand-dark); }
+  .ask-pick { display: flex; gap: 0.8rem; align-items: flex-start; background: var(--bg); border-radius: 1rem; padding: 0.7rem; margin-top: 0.6rem; cursor: pointer; border: none; width: 100%; text-align: left; font-family: var(--font-body); color: var(--ink); }
+  .ask-pick:hover { background: var(--tag-bg); }
+  .ask-pick img, .ask-pick .game-icon { width: 4.2rem; height: 4.2rem; border-radius: 0.7rem; object-fit: cover; flex-shrink: 0; }
+  .ask-pick .t { font-weight: 800; font-size: 1rem; }
+  .ask-pick .r { font-size: 0.9rem; color: var(--text); margin-top: 0.15rem; line-height: 1.4; }
+  .ask-pick .k { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+  .ask-pick.avoid { opacity: 0.85; }
+  .ask-pick.avoid .k { color: #c4524a; }
+  .ask-note { margin-top: 0.8rem; font-size: 0.92rem; color: var(--text-muted); font-style: italic; }
+  .ask-actions { display: flex; gap: 0.5rem; margin-top: 0.9rem; flex-wrap: wrap; }
+  .ask-actions .btn { flex: 1 1 auto; }
+  .ask-thinking { display: flex; align-items: center; gap: 0.7rem; margin-top: 1.2rem; color: var(--text-muted); font-size: 0.9rem; }
+  .ask-thinking .spinner { margin: 0; }
   #googleSignIn { display: flex; justify-content: center; margin: 1.1rem 0 0.4rem; min-height: 44px; }
   .toolbar-container { max-width: 1300px; margin: -1.9rem auto 2rem; padding: 0 1.5rem; position: sticky; top: 1rem; z-index: 50; }
   .toolbar { background: #fff; border-radius: 1.25rem; padding: 0.8rem 1.1rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; box-shadow: 0 10px 30px rgba(31,63,143,0.14); }
@@ -279,6 +305,7 @@
         <input type="text" id="searchInput" placeholder="Search games, designers, mechanics…" enterkeyhint="search" />
         <button type="button" class="search-clear" id="searchClear" aria-label="Clear search" hidden><i class="ti ti-x"></i></button>
       </div>
+      <button class="pill ask-btn" id="askBtn" type="button"><i class="ti ti-sparkles"></i> Ask</button>
       <button class="pill filters-toggle" id="filtersToggle" aria-expanded="false" aria-controls="filtersPanel"><i class="ti ti-adjustments-horizontal"></i> Filters</button>
       <div class="filters" id="filtersPanel">
       <select id="genreFilter"><option value="ALL">All Genres</option></select>
@@ -347,6 +374,28 @@
   </footer>
 
   <button class="fab owner-only" id="addFab" title="Add games"><i class="fa-solid fa-plus"></i></button>
+
+  <!-- Ask: AI recommendations for this shelf and these people -->
+  <div class="modal-overlay" id="askModal">
+    <div class="modal ask-modal" role="dialog" aria-modal="true" aria-labelledby="askTitle">
+      <button class="mini-btn detail-close" id="askClose" title="Close"><i class="ti ti-x"></i></button>
+      <h2 id="askTitle">What should we play?</h2>
+      <div class="section-label">Who's playing?</div>
+      <div class="player-chips" id="askPlayers"></div>
+      <form id="askForm" class="ask-form">
+        <textarea id="askInput" rows="2" maxlength="500" placeholder="e.g. about an hour, something cozy, nothing with dice"></textarea>
+        <button class="btn primary" type="submit" id="askSubmit"><i class="ti ti-sparkles"></i> Ask</button>
+      </form>
+      <div class="ask-examples" id="askExamples">
+        <button type="button" class="tag tag-plain" data-example="Something quick, under 30 minutes">Quick, under 30 min</button>
+        <button type="button" class="tag tag-plain" data-example="Something we haven't played in a long time">Haven't played in ages</button>
+        <button type="button" class="tag tag-plain" data-example="A cozy, relaxing game for tonight">Cozy</button>
+        <button type="button" class="tag tag-plain" data-example="A big strategic game, we have all evening">Big strategy night</button>
+        <button type="button" class="tag tag-plain" data-example="A party game with lots of laughing">Party</button>
+      </div>
+      <div id="askResult" aria-live="polite"></div>
+    </div>
+  </div>
 
   <!-- Sign-in dialog (the Google button is rendered into #googleSignIn) -->
   <div class="modal-overlay" id="signInModal">
@@ -781,7 +830,7 @@
       const time = document.getElementById('timeFilter').value;
       const weight = document.getElementById('weightFilter').value;
 
-      let filtered = collection.filter(g => {
+      let filtered = askIds ? askIds.map(id => collection.find(g => g.id === id)).filter(Boolean) : collection.filter(g => {
         const haystack = [g.title, g.genre, g.type, g.desc, ...(g.expansions || []), ...(g.designers || []), ...(g.mechanics || []), ...(g.categories || [])].join(' ').toLowerCase();
         if (search && !haystack.includes(search)) return false;
         if (genre !== 'ALL' && !(g.genre || '').includes(genre)) return false;
@@ -806,7 +855,7 @@
       });
 
       const lastTs = (g) => g.lastPlayed ? new Date(g.lastPlayed).getTime() : 0;
-      filtered.sort((a, b) => {
+      if (!askIds) filtered.sort((a, b) => {
         const rA = a.desireToPlay || 0, rB = b.desireToPlay || 0;
         const nA = a.num || 0, nB = b.num || 0;
         const pA = a.playCount || 0, pB = b.playCount || 0;
@@ -831,10 +880,10 @@
 
       // Count and the clear controls reflect anything that narrows the list
       const nFilters = [genre, ratingFilter, players, time, weight].filter(v => v !== 'ALL').length + (favOnly ? 1 : 0) + (thinOnly ? 1 : 0);
-      const narrowed = !!search || nFilters > 0;
-      document.getElementById('statsCount').textContent = narrowed
-        ? filtered.length + ' of ' + collection.length + ' games'
-        : collection.length + ' Playable Titles';
+      const narrowed = !!search || nFilters > 0 || !!askIds;
+      document.getElementById('statsCount').textContent = askIds
+        ? filtered.length + ' Ask picks'
+        : narrowed ? filtered.length + ' of ' + collection.length + ' games' : collection.length + ' Playable Titles';
       document.getElementById('clearAll').hidden = !narrowed;
       document.getElementById('searchClear').hidden = !search;
       document.getElementById('filtersToggle').innerHTML = '<i class="ti ti-adjustments-horizontal"></i> Filters' + (nFilters ? ' <span class="count">' + nFilters + '</span>' : '');
@@ -1047,7 +1096,7 @@
       toast('Sent to BG Stats — your count updates after the next BGG sync.');
     });
 
-    ['searchInput'].forEach(id => document.getElementById(id).addEventListener('input', render));
+    ['searchInput'].forEach(id => document.getElementById(id).addEventListener('input', () => { askIds = null; render(); }));
     ['genreFilter', 'ratingFilter', 'sortSelect', 'playersFilter', 'timeFilter', 'weightFilter'].forEach(id => document.getElementById(id).addEventListener('change', render));
     document.getElementById('filtersToggle').addEventListener('click', (e) => {
       const open = document.getElementById('filtersPanel').classList.toggle('open');
@@ -1071,6 +1120,7 @@
     });
     // Resets search and every filter; the sort order is a preference, so it stays
     document.getElementById('clearAll').addEventListener('click', () => {
+      askIds = null;
       document.getElementById('searchInput').value = '';
       ['genreFilter', 'ratingFilter', 'playersFilter', 'timeFilter', 'weightFilter'].forEach(id => { document.getElementById(id).value = 'ALL'; });
       favOnly = thinOnly = false;
@@ -1240,6 +1290,118 @@
         section('Not processed — take another photo of these', (r.deferred || []).map(esc));
     }
 
+    // ---------- Ask ----------
+    let people = { players: [], ratings: {} };
+    async function loadPeople() {
+      try { people = await n8nFetch('/people', { method: 'GET' }, false); } catch (e) { /* Ask still works without the roster */ }
+      renderAskPlayers();
+    }
+    const askModal = document.getElementById('askModal');
+    const askSelected = new Set();
+    let askShowAll = false;
+    let askLast = null;   // { question, constraints, pickIds } for follow-ups
+    let askIds = null;    // when set, the grid shows only these games (in this order)
+    const firstName = (n) => String(n || '').split(' ')[0];
+    function renderAskPlayers() {
+      const box = document.getElementById('askPlayers');
+      const list = people.players.filter(p => askShowAll || p.active || askSelected.has(p.id));
+      // Two people with the same first name get their last initial too
+      const counts = {};
+      for (const p of people.players) counts[firstName(p.name)] = (counts[firstName(p.name)] || 0) + 1;
+      const label = (p) => counts[firstName(p.name)] > 1 ? firstName(p.name) + ' ' + (p.name.split(' ')[1] || '').charAt(0) + '.' : firstName(p.name);
+      box.innerHTML = list.map(p => '<button type="button" class="player-chip' + (askSelected.has(p.id) ? ' sel' : '') + '" data-ask-player="' + esc(p.id) + '" title="' + esc(p.name) + '">' + esc(label(p)) + '</button>').join('') +
+        (people.players.length > list.length || askShowAll ? '<button type="button" class="player-chip" data-ask-more>' + (askShowAll ? 'Fewer' : 'More…') + '</button>' : '') +
+        (!people.players.length ? '<span class="hint" style="margin:0;">Name people in your question, like "Sam and Alex".</span>' : '');
+    }
+    document.getElementById('askPlayers').addEventListener('click', (e) => {
+      if (e.target.closest('[data-ask-more]')) { askShowAll = !askShowAll; renderAskPlayers(); return; }
+      const chip = e.target.closest('[data-ask-player]');
+      if (!chip) return;
+      const id = chip.dataset.askPlayer;
+      askSelected.has(id) ? askSelected.delete(id) : askSelected.add(id);
+      renderAskPlayers();
+    });
+    document.getElementById('askExamples').addEventListener('click', (e) => {
+      const ex = e.target.closest('[data-example]');
+      if (!ex) return;
+      document.getElementById('askInput').value = ex.dataset.example;
+      document.getElementById('askForm').requestSubmit();
+    });
+    function openAsk() {
+      askModal.classList.add('open');
+      renderAskPlayers();
+      setTimeout(() => document.getElementById('askInput').focus(), 0);
+    }
+    document.getElementById('askBtn').addEventListener('click', openAsk);
+    document.getElementById('askClose').addEventListener('click', () => askModal.classList.remove('open'));
+    askModal.addEventListener('click', (e) => { if (e.target === askModal) askModal.classList.remove('open'); });
+    document.getElementById('askInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('askForm').requestSubmit(); }
+    });
+
+    function askPickHtml(p, kind) {
+      const g = collection.find(x => x.id === p.id) || {};
+      const img = g.coverCard ? '<img src="' + esc(g.coverCard) + '" alt="" loading="lazy">' : '<div class="game-icon"><i class="ti ti-' + esc(g.icon || DEFAULT_ICON) + '"></i></div>';
+      const label = { pick: '', wildcard: 'Wildcard', avoid: 'Maybe not tonight' }[kind];
+      return '<button type="button" class="ask-pick' + (kind === 'avoid' ? ' avoid' : '') + '" data-ask-open="' + esc(p.id) + '">' + img +
+        '<div>' + (label ? '<div class="k">' + label + '</div>' : '') + '<div class="t">' + esc(p.title || g.title || '') + '</div><div class="r">' + esc(p.reason || '') + '</div></div></button>';
+    }
+    function understoodHtml(u) {
+      if (!u) return '';
+      const bits = [];
+      if (u.players && u.players.length) bits.push('<i class="ti ti-users"></i>' + esc(u.players.map(firstName).join(', ')));
+      if (u.playerCount) bits.push(u.playerCount + ' players');
+      if (u.maxMinutes) bits.push('≤ ' + u.maxMinutes + ' min');
+      if (u.youngestAge) bits.push('ages ' + u.youngestAge + '+');
+      if (u.coop === true) bits.push('co-op');
+      if (u.coop === false) bits.push('competitive');
+      if (u.freshness === 'stale') bits.push('not played lately');
+      if (u.freshness === 'unplayed') bits.push('never played');
+      if (u.mood) bits.push(esc(u.mood));
+      return bits.length ? '<div class="ask-understood">' + bits.map(b => '<span class="fact">' + b + '</span>').join('') + '</div>' : '';
+    }
+    document.getElementById('askForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('askInput');
+      const question = input.value.trim();
+      if (question.length < 3) { input.focus(); return; }
+      const out = document.getElementById('askResult');
+      const names = people.players.filter(p => askSelected.has(p.id)).map(p => firstName(p.name));
+      out.innerHTML = '<div class="ask-thinking"><div class="spinner"></div>Thinking about ' + (names.length ? esc(names.join(', ')) : 'your shelf') + '…</div>';
+      document.getElementById('askSubmit').disabled = true;
+      try {
+        const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast }) }, false);
+        if (r.offTopic || !(r.picks || []).length) {
+          out.innerHTML = '<p class="ask-note">' + esc(r.note || 'No suggestions for that one.') + '</p>';
+          return;
+        }
+        askLast = { question, constraints: r.constraints, pickIds: r.picks.map(p => p.id) };
+        out.innerHTML = understoodHtml(r.understood) +
+          r.picks.map(p => askPickHtml(p, 'pick')).join('') +
+          (r.wildcard ? askPickHtml(r.wildcard, 'wildcard') : '') +
+          (r.avoid ? askPickHtml(r.avoid, 'avoid') : '') +
+          (r.note ? '<p class="ask-note">' + esc(r.note) + '</p>' : '') +
+          '<div class="ask-actions"><button type="button" class="btn" id="askShowGrid"><i class="ti ti-layout-grid"></i> Show in grid</button>' +
+          '<button type="button" class="btn ghost" id="askRefine"><i class="ti ti-adjustments"></i> Refine</button></div>';
+        const ids = [...r.picks.map(p => p.id), ...(r.wildcard ? [r.wildcard.id] : [])];
+        document.getElementById('askShowGrid').onclick = () => { askIds = ids; askModal.classList.remove('open'); render(); window.scrollTo({ top: document.querySelector('.toolbar-container').offsetTop, behavior: 'smooth' }); };
+        document.getElementById('askRefine').onclick = () => { input.value = ''; input.placeholder = 'e.g. shorter, no dice, something we haven’t played'; input.focus(); };
+        input.value = '';
+        input.placeholder = 'Refine: shorter, something different, no dice…';
+      } catch (err) {
+        out.innerHTML = '<p class="ask-note">' + esc(err.message) + '</p>';
+      } finally {
+        document.getElementById('askSubmit').disabled = false;
+      }
+    });
+    document.getElementById('askResult').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-ask-open]');
+      if (!b) return;
+      askModal.classList.remove('open');
+      openDetail(b.dataset.askOpen);
+    });
+
     document.getElementById('authBtn').addEventListener('click', () => {
       if (!signedIn()) { openSignIn(); return; }
       if (!confirm('Sign out of Board Game Garage?')) return;
@@ -1256,6 +1418,7 @@
     // Signed in before the owner check existed: confirm once instead of asking to sign in again
     if (signedIn() && !isOwner() && tokenFresh()) verifyOwner(false);
     loadCollection();
+    loadPeople();
   </script>
 </body>
 </html>

@@ -11,6 +11,23 @@ Live at **https://bg.ondorilabo.com** (GitHub Pages, custom domain via Cloudflar
 - **Filters**: search (title, genre, mechanics, designers, expansions), genre, desire-to-play rating, player count, length, weight, favorites-only, thinning-only. **Sorts** include favorites first, most/least played, recently played, longest since played, BGG rating and weight. On phones the filters fold behind a "Filters" button.
 - **Add games** (+ button): **by name** (search BGG, pick the edition, or add a game that isn't on BGG as is) or **by photo** (one box or a shelf section). Owned games are refused, expansions of owned games are attached to them, and new games are looked up on BGG and given an icon.
 
+## Ask: what should we play?
+
+The **Ask** button opens a recommender for this shelf and these people. Pick who is playing, then ask in plain words ("about an hour, something cozy", "a heavy game for Aaron and me, all evening"). Follow-ups refine the last answer ("shorter", "something different").
+
+- **Step 1, understand** (Gemini 2.5 Flash Lite): turns the request into constraints: who is playing, player count, time, youngest age, complexity, co-op or competitive, themes to include or avoid, and fresh or familiar.
+- **Step 2, shortlist** (code): applies the hard limits (players, time, age, weight, co-op, exclusions, and no plays in about 6 months when asked) and scores the rest by the group's ratings, best player count, theme matches and Dan's stars and favorites. The top 30 go to the next step.
+- **Step 3, recommend** (Claude Haiku 5.5): reads each person's profile dials, likes and dislikes, plus their plays, wins and ratings on the shortlisted games. It picks 3 games, a wildcard and an avoid-tonight, with reasons that name people.
+- **Step 4, check** (code): drops anything that is not on the shortlist, so it can't invent games.
+
+Ask is public, board games only, and capped at 200 questions a day overall (about 0.3c each).
+
+### People and ratings
+
+- **Players** (Airtable): a card per person with five 1-5 dials (complexity, conflict, luck, table talk, theme), likes, dislikes, age and notes. Optional: a Google email, which lets that friend sign in and rate games for themselves, and a BGG username.
+- **Sync People** (nightly, 4:20am): reads who played and who won from the BGG plays logged in BG Stats. It builds each person's history per owned game, creates a card for anyone with 3+ plays, and pulls BG Stats per-play ratings and friends' BGG ratings.
+- **Ratings** come from four sources on a 1-5 scale: the friend on the site, the owner on their behalf, their BGG account, and BG Stats. When a person has several ratings for a game, the first one in that order wins.
+
 ## Play tracking
 
 Plays are logged in [BG Stats](https://www.bgstatsapp.com/), which auto-posts them to BGG. BGG is the single source of truth for play counts:
