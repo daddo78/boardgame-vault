@@ -206,6 +206,23 @@
   .np-body { flex: 1; min-width: 0; }
   .np-body .ask-understood { margin-top: 0; }
   .ask-examples[hidden] { display: none; }
+  /* Overview first, like an AI search answer: clamped with a fade, "Chat more" opens the conversation */
+  .nathan-panel.collapsed .np-thread.clamped { max-height: 25rem; overflow: hidden; position: relative; }
+  .nathan-panel.collapsed .np-thread.clamped::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 6rem; background: linear-gradient(rgba(255,255,255,0), #fff); pointer-events: none; }
+  .nathan-panel.collapsed .np-compose, .nathan-panel.collapsed #npNew { display: none; }
+  .nathan-panel.collapsed .np-who.empty { display: none; }
+  .np-more { display: flex; align-items: center; justify-content: center; gap: 0.4rem; width: 100%; margin-top: 0.9rem; padding: 0.7rem 1rem; border: 1.5px solid #e6d8c3; border-radius: 999px; background: #fff; color: var(--ink); font-family: var(--font-body); font-weight: 700; font-size: 0.95rem; cursor: pointer; }
+  .np-more:hover { background: #fbf3e6; }
+  .np-more[hidden] { display: none; }
+  .np-compose { position: sticky; bottom: 0.75rem; margin-top: 1rem; z-index: 5; }
+  .np-compose input { width: 100%; background: var(--exp-bg); border: none; border-radius: 999px; padding: 0.75rem 3.2rem 0.75rem 1.1rem; font-family: var(--font-body); font-size: 0.95rem; color: var(--ink); outline: none; box-shadow: 0 6px 18px rgba(40,25,10,0.12); }
+  .np-compose input:focus { box-shadow: 0 0 0 2px var(--teal) inset, 0 6px 18px rgba(40,25,10,0.12); }
+  .np-compose .mention-list { left: 0.5rem; top: auto; bottom: calc(100% + 0.35rem); }
+  .np-turn + .np-turn.me { margin-top: 0.6rem; padding-top: 1rem; border-top: 1px solid #f1e6d6; }
+  .n-summary { font-size: 1rem; line-height: 1.55; color: var(--ink); margin: 0.2rem 0 0.4rem; }
+  .n-card.highlight .n-kind { color: var(--navy); }
+  .n-seeall { display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.8rem; border: none; background: var(--tag-bg); color: var(--brand-dark); border-radius: 999px; padding: 0.5rem 0.95rem; font-family: var(--font-body); font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+  .n-seeall:hover { filter: brightness(0.97); }
   .search-box input { padding-right: 2.6rem !important; }
   .search-clear { position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%); width: 1.8rem; height: 1.8rem; border-radius: 50%; border: none; background: #d5dbe5; color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; }
   .search-clear[hidden] { display: none; }
@@ -482,14 +499,14 @@
     </div>
   </div>
 
-  <section class="nathan-panel" id="nathanPanel" hidden aria-label="Conversation with Nathan">
+  <section class="nathan-panel collapsed" id="nathanPanel" hidden aria-label="Conversation with Nathan">
     <div class="np-card">
       <div class="np-head">
         <div class="nathan-avatar" aria-hidden="true"></div>
         <div class="np-title"><b>Nathan</b><span>Your board game curator</span></div>
         <div class="np-actions">
           <button type="button" class="btn ghost" id="npNew" title="Start a new conversation"><i class="ti ti-refresh"></i> <span>New chat</span></button>
-          <button type="button" class="mini-btn" id="npHide" title="Hide (your conversation is kept)" aria-label="Hide conversation"><i class="ti ti-chevron-up"></i></button>
+          <button type="button" class="mini-btn" id="npHide" title="Close" aria-label="Close"><i class="ti ti-x"></i></button>
         </div>
       </div>
       <div class="np-who"><span class="np-who-label">At the table</span><div class="player-chips" id="askPlayers"></div></div>
@@ -501,6 +518,13 @@
         <button type="button" class="tag tag-plain" data-example="A party game with lots of laughing">Party</button>
       </div>
       <div class="np-thread" id="askThread" aria-live="polite"></div>
+      <button type="button" class="np-more" id="npMore" hidden>Chat more <i class="ti ti-chevron-down"></i></button>
+      <div class="np-compose" id="npCompose">
+        <input type="text" id="npInput" placeholder="Reply to Nathan… (@ to add people)" enterkeyhint="send" maxlength="500" autocomplete="off"
+          aria-label="Reply to Nathan" role="combobox" aria-autocomplete="list" aria-controls="npMentionList" aria-expanded="false" />
+        <button type="button" class="ask-send" id="npSend" aria-label="Send to Nathan"><i class="ti ti-arrow-up"></i></button>
+        <div class="mention-list" id="npMentionList" role="listbox" hidden></div>
+      </div>
     </div>
   </section>
 
@@ -1032,10 +1056,10 @@
       const nFilters = [genre, ratingFilter, players, time, weight].filter(v => v !== 'ALL').length + (favOnly ? 1 : 0) + (thinOnly ? 1 : 0);
       const narrowed = !!search || nFilters > 0 || !!askIds;
       document.getElementById('statsCount').textContent = askIds
-        ? filtered.length + ' Ask picks'
+        ? filtered.length + ' from Nathan'
         : narrowed ? filtered.length + ' of ' + collection.length + ' games' : collection.length + ' Playable Titles';
       document.getElementById('clearAll').hidden = !narrowed;
-      document.getElementById('searchClear').hidden = !search;
+      document.getElementById('searchClear').hidden = !typed;
       document.getElementById('filtersToggle').innerHTML = '<i class="ti ti-adjustments-horizontal"></i> Filters' + (nFilters ? ' <span class="count">' + nFilters + '</span>' : '');
       grid.innerHTML = '';
       empty.style.display = (collection.length === 0 || filtered.length === 0) ? 'block' : 'none';
@@ -1604,15 +1628,15 @@
     const panel = document.getElementById('nathanPanel');
     const thread = document.getElementById('askThread');
     const bar = document.getElementById('searchInput');
-    const mentionBox = document.getElementById('mentionList');
-    const DEFAULT_PLACEHOLDER = bar.placeholder;
+    const npInput = document.getElementById('npInput');
     let askBusy = false;
     function renderAskPlayers() {
       const box = document.getElementById('askPlayers');
       const seated = people.players.filter(p => askSelected.has(p.id));
+      box.parentElement.classList.toggle('empty', !seated.length);
       box.innerHTML = seated.length
         ? seated.map(p => '<button type="button" class="player-chip sel" data-ask-player="' + esc(p.id) + '" title="Remove ' + esc(p.name) + '">' + esc(p.name) + '<i class="ti ti-x x"></i></button>').join('')
-        : '<span class="hint">Type @ in the bar to add the people you’re playing with.</span>';
+        : '<span class="hint">Type @ to add the people you’re playing with.</span>';
     }
     document.getElementById('askPlayers').addEventListener('click', (e) => {
       const chip = e.target.closest('[data-ask-player]');
@@ -1620,83 +1644,106 @@
       askSelected.delete(chip.dataset.askPlayer);
       renderAskPlayers();
     });
-    function openPanel() {
-      panel.hidden = false;
+    // collapsed: the latest answer as an overview with "Chat more"; expanded: the whole conversation with a reply box
+    function setPanel(mode) {
+      panel.hidden = mode === 'hidden';
+      if (mode === 'hidden') return;
+      panel.classList.toggle('collapsed', mode === 'collapsed');
+      panel.classList.toggle('expanded', mode === 'expanded');
+      const hide = document.getElementById('npHide');
+      hide.innerHTML = mode === 'expanded' ? '<i class="ti ti-chevron-up"></i>' : '<i class="ti ti-x"></i>';
+      hide.title = hide.ariaLabel = mode === 'expanded' ? 'Back to the overview' : 'Close';
       renderAskPlayers();
       document.getElementById('askExamples').hidden = thread.children.length > 0;
+      refreshClamp();
     }
-
-    // @mentions: "@" then part of a name opens a list of players; picking one writes their full name
-    let mentionAt = -1, mentionOpts = [], mentionActive = 0;
-    function closeMentions() { mentionBox.hidden = true; mentionAt = -1; bar.setAttribute('aria-expanded', 'false'); }
-    function updateMentions() {
-      const caret = bar.selectionStart ?? bar.value.length;
-      const before = bar.value.slice(0, caret);
-      const at = before.lastIndexOf('@');
-      if (at < 0 || (at > 0 && !/\s/.test(before[at - 1])) || !people.players.length) { closeMentions(); return; }
-      const q = before.slice(at + 1).toLowerCase();
-      if (q.length > 30 || /^\s/.test(q)) { closeMentions(); return; }
-      const words = q.split(/\s+/).filter(Boolean);
-      const matches = (p) => {
-        const names = [p.name, ...(p.aliases || [])].map(n => String(n).toLowerCase());
-        return names.some(n => n.startsWith(q) || words.every(w => n.split(/\s+/).some(part => part.startsWith(w))));
-      };
-      mentionOpts = people.players.filter(p => !askSelected.has(p.id) && matches(p))
-        .sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0) || a.name.localeCompare(b.name)).slice(0, 8);
-      if (!mentionOpts.length) { closeMentions(); return; }
-      mentionAt = at;
-      mentionActive = Math.min(mentionActive, mentionOpts.length - 1);
-      mentionBox.innerHTML = mentionOpts.map((p, i) => '<button type="button" class="mention-opt' + (i === mentionActive ? ' active' : '') + '" role="option" aria-selected="' + (i === mentionActive) + '" data-mention="' + i + '"><span class="at">@</span>' + esc(p.name) + '</button>').join('');
-      mentionBox.hidden = false;
-      bar.setAttribute('aria-expanded', 'true');
+    function refreshClamp() {
+      const collapsed = panel.classList.contains('collapsed');
+      thread.classList.remove('clamped');
+      const tall = collapsed && thread.scrollHeight > 25 * 16 + 40;
+      thread.classList.toggle('clamped', tall);
+      document.getElementById('npMore').hidden = !collapsed || !thread.children.length || askBusy;
     }
-    function pickMention(i) {
-      const p = mentionOpts[i];
-      if (!p || mentionAt < 0) return;
-      const caret = bar.selectionStart ?? bar.value.length;
-      const tag = '@' + p.name + ' ';
-      bar.value = bar.value.slice(0, mentionAt) + tag + bar.value.slice(caret).replace(/^\s+/, '');
-      const pos = mentionAt + tag.length;
-      bar.setSelectionRange(pos, pos);
-      askSelected.add(p.id);
-      closeMentions();
-      openPanel();
-      bar.focus();
-    }
-    mentionBox.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the bar
-    mentionBox.addEventListener('click', (e) => { const o = e.target.closest('[data-mention]'); if (o) pickMention(+o.dataset.mention); });
-    bar.addEventListener('input', () => { mentionActive = 0; updateMentions(); });
-    bar.addEventListener('click', updateMentions);
-    bar.addEventListener('blur', () => setTimeout(closeMentions, 120));
-    // Focusing an empty bar shows the table and some ideas, like an AI search box
-    bar.addEventListener('focus', () => { if (!bar.value.trim()) openPanel(); });
-    bar.addEventListener('keydown', (e) => {
-      if (!mentionBox.hidden) {
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-          e.preventDefault();
-          mentionActive = (mentionActive + (e.key === 'ArrowDown' ? 1 : -1) + mentionOpts.length) % mentionOpts.length;
-          updateMentions();
-          return;
-        }
-        if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickMention(mentionActive); return; }
-        if (e.key === 'Escape') { e.preventDefault(); closeMentions(); return; }
-      }
-      if (e.key === 'Enter') { e.preventDefault(); askNathan(); return; }
-      if (e.key === 'Escape' && !panel.hidden) panel.hidden = true;
+    document.getElementById('npMore').addEventListener('click', () => { setPanel('expanded'); npInput.focus({ preventScroll: true }); });
+    document.getElementById('npHide').addEventListener('click', () => {
+      if (panel.classList.contains('expanded')) { setPanel('collapsed'); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+      else setPanel('hidden');
     });
-    document.getElementById('askSend').addEventListener('click', () => askNathan());
-    document.getElementById('askExamples').addEventListener('click', (e) => {
-      const ex = e.target.closest('[data-example]');
-      if (ex) askNathan(ex.dataset.example);
-    });
-    document.getElementById('npHide').addEventListener('click', () => { panel.hidden = true; });
     document.getElementById('npNew').addEventListener('click', () => {
       thread.innerHTML = '';
       askLast = null;
       askSelected.clear();
-      bar.placeholder = DEFAULT_PLACEHOLDER;
-      openPanel();
+      setPanel('collapsed');
       bar.focus();
+    });
+
+    // @mentions on any input: "@" then part of a name opens a list of players; picking one writes their full name
+    function attachMentions(input, box, onSend) {
+      let at = -1, opts = [], active = 0;
+      const close = () => { box.hidden = true; at = -1; input.setAttribute('aria-expanded', 'false'); };
+      const update = () => {
+        const caret = input.selectionStart ?? input.value.length;
+        const before = input.value.slice(0, caret);
+        const i = before.lastIndexOf('@');
+        if (i < 0 || (i > 0 && !/\s/.test(before[i - 1])) || !people.players.length) { close(); return; }
+        const q = before.slice(i + 1).toLowerCase();
+        if (q.length > 30 || /^\s/.test(q)) { close(); return; }
+        const words = q.split(/\s+/).filter(Boolean);
+        const matches = (p) => [p.name, ...(p.aliases || [])].map(n => String(n).toLowerCase())
+          .some(n => n.startsWith(q) || words.every(w => n.split(/\s+/).some(part => part.startsWith(w))));
+        opts = people.players.filter(p => !askSelected.has(p.id) && matches(p))
+          .sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0) || a.name.localeCompare(b.name)).slice(0, 8);
+        if (!opts.length) { close(); return; }
+        at = i;
+        active = Math.min(active, opts.length - 1);
+        box.innerHTML = opts.map((p, k) => '<button type="button" class="mention-opt' + (k === active ? ' active' : '') + '" role="option" aria-selected="' + (k === active) + '" data-mention="' + k + '"><span class="at">@</span>' + esc(p.name) + '</button>').join('');
+        box.hidden = false;
+        input.setAttribute('aria-expanded', 'true');
+      };
+      const pick = (k) => {
+        const p = opts[k];
+        if (!p || at < 0) return;
+        const caret = input.selectionStart ?? input.value.length;
+        const tag = '@' + p.name + ' ';
+        input.value = input.value.slice(0, at) + tag + input.value.slice(caret).replace(/^\s+/, '');
+        const pos = at + tag.length;
+        input.setSelectionRange(pos, pos);
+        askSelected.add(p.id);
+        close();
+        if (panel.hidden) setPanel('collapsed'); else renderAskPlayers();
+        input.focus();
+      };
+      box.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the input
+      box.addEventListener('click', (e) => { const o = e.target.closest('[data-mention]'); if (o) pick(+o.dataset.mention); });
+      input.addEventListener('input', () => { active = 0; update(); });
+      input.addEventListener('click', update);
+      input.addEventListener('blur', () => setTimeout(close, 120));
+      input.addEventListener('keydown', (e) => {
+        if (!box.hidden) {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            active = (active + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length;
+            update();
+            return;
+          }
+          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pick(active); return; }
+          if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+        }
+        if (e.key === 'Enter') { e.preventDefault(); onSend(); }
+      });
+      return close;
+    }
+    // The top bar starts a fresh question (like a new search); the reply box continues the conversation
+    const closeBarMentions = attachMentions(bar, document.getElementById('mentionList'), () => askNathan(bar.value, false));
+    const closeNpMentions = attachMentions(npInput, document.getElementById('npMentionList'), () => askNathan(npInput.value, true));
+    bar.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden && document.getElementById('mentionList').hidden) setPanel('hidden'); });
+    // Focusing an empty bar shows the table and some ideas, like an AI search box
+    bar.addEventListener('focus', () => { if (!bar.value.trim() && panel.hidden) setPanel('collapsed'); });
+    document.getElementById('askSend').addEventListener('click', () => askNathan(bar.value, false));
+    document.getElementById('npSend').addEventListener('click', () => askNathan(npInput.value, true));
+    document.getElementById('askExamples').addEventListener('click', (e) => {
+      const ex = e.target.closest('[data-example]');
+      if (ex) askNathan(ex.dataset.example, false);
     });
 
     // Titles Nathan already joked about this session (he quips on a game's first mention only)
@@ -1719,12 +1766,12 @@
       if (!x) return '';
       const g = collection.find(y => y.id === x.id) || {};
       const img = g.coverCard ? '<img src="' + esc(g.coverCard) + '" alt="" loading="lazy">' : '<div class="game-icon"><i class="ti ti-' + esc(g.icon || DEFAULT_ICON) + '"></i></div>';
-      const label = { headline: 'Tonight’s pick', alternative: 'Or, for something different', avoid: 'Maybe not tonight' }[kind];
+      const label = { headline: 'Tonight’s pick', alternative: 'Or, for something different', avoid: 'Maybe not tonight', highlight: 'On your shelf' }[kind];
       return '<div class="n-card ' + kind + '">' +
         '<div class="n-top" data-ask-open="' + esc(x.id) + '" role="button" tabindex="0">' + img +
           '<div><div class="n-kind">' + label + '</div><div class="n-title">' + esc(x.title || g.title || '') + '</div>' +
           (x.quip ? '<div class="n-quip">' + esc(x.quip) + '</div>' : '') + '</div></div>' +
-        (kind !== 'avoid' ? specChips(g) : '') +
+        (kind !== 'avoid' && kind !== 'highlight' ? specChips(g) : '') +
         (x.why ? '<div class="n-why">' + esc(x.why) + '</div>' : '') +
         (x.tableFeel ? '<div class="n-feel"><b>At the table</b>' + esc(x.tableFeel) + '</div>' : '') +
         (x.swapJoke ? '<div class="n-swap">' + esc(x.swapJoke) + '</div>' : '') +
@@ -1745,13 +1792,15 @@
       return bits.length ? '<div class="ask-understood">' + bits.map(b => '<span class="fact">' + b + '</span>').join('') + '</div>' : '';
     }
     function nathanAnswerHtml(r) {
-      if (r.offTopic || !r.pick) return '<p class="ask-note" style="margin:0;">' + esc(r.note || (r.gap && r.gap.missing) || 'Nathan came up empty on that one.') + '</p>';
+      if (r.offTopic || (!r.pick && !(r.highlights || []).length)) return '<p class="ask-note" style="margin:0;">' + esc(r.note || (r.gap && r.gap.missing) || 'Nathan came up empty on that one.') + '</p>';
       const gap = r.gap ? '<div class="n-gap">' + esc(r.gap.missing) +
         (r.gap.consider ? ' Not on your shelf, but worth a look: <a href="https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=' + encodeURIComponent(r.gap.consider) + '" target="_blank" rel="noopener">' + esc(r.gap.consider) + '</a>.' : '') + '</div>' : '';
-      return understoodHtml(r.understood) + gap +
-        nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid') +
-        '<div class="n-sign">And that’s what’s hitting the table!' + (r.signoff ? '<span>' + esc(r.signoff) + '</span>' : '') + '</div>' +
-        '<div class="ask-actions"><button type="button" class="btn" data-show-ids="' + esc((r.pickIds || []).join(',')) + '"><i class="ti ti-layout-grid"></i> Show in grid</button></div>';
+      const n = (r.matchIds || []).length;
+      const seeAll = n > 1 && n < collection.length ? '<button type="button" class="n-seeall" data-see-all><i class="ti ti-layout-grid"></i> See all ' + n + ' in the grid below</button>' : '';
+      const body = r.intent === 'browse'
+        ? '<p class="n-summary">' + esc(r.summary || '') + '</p>' + gap + seeAll + r.highlights.map(h => nathanCard(h, 'highlight')).join('')
+        : understoodHtml(r.understood) + gap + nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid') + seeAll;
+      return body + (r.signoff ? '<div class="n-sign">' + (r.intent === 'browse' ? '' : 'And that’s what’s hitting the table!') + '<span>' + esc(r.signoff) + '</span></div>' : '');
     }
     // The question as a bubble, with each @Full Name highlighted
     function bubbleHtml(q) {
@@ -1760,21 +1809,33 @@
       for (const n of names) out = out.split('@' + esc(n)).join('<span class="mention">@' + esc(n) + '</span>');
       return out;
     }
-    // Enter in the bar (or the arrow) turns what you typed into a message to Nathan
-    async function askNathan(text) {
-      const question = String(text ?? bar.value).trim();
-      if (question.length < 3) { bar.focus(); return; }
+    // Nathan's answer filters the grid to everything that fits (his picks first), so you can scroll through all of it
+    function applyNathanFilter(r) {
+      const ids = r.matchIds || [];
+      if (!ids.length || ids.length >= collection.length) { askIds = null; render(); return; }
+      const first = (r.pickIds || []).filter(id => ids.includes(id));
+      askIds = [...first, ...ids.filter(id => !first.includes(id))];
+      render();
+    }
+    async function askNathan(text, followUp) {
+      const question = String(text || '').trim();
+      const input = followUp ? npInput : bar;
+      if (question.length < 3) { input.focus(); return; }
       if (askBusy) return;
       // Anyone written out in full as @Name counts, even if they weren't picked from the list
       for (const p of people.players) if (question.toLowerCase().includes('@' + p.name.toLowerCase())) askSelected.add(p.id);
       askBusy = true;
-      document.getElementById('askSend').disabled = true;
-      closeMentions();
-      bar.value = '';
-      document.getElementById('searchClear').hidden = true;
+      closeBarMentions(); closeNpMentions();
+      input.value = '';
+      if (!followUp) {
+        // A new question from the top bar is a fresh overview, like a new search
+        thread.innerHTML = '';
+        askLast = null;
+        bar.blur();
+      }
       askIds = null;
       render(); // the typed words were a question, not a search: show the whole shelf again
-      openPanel();
+      setPanel(followUp ? 'expanded' : 'collapsed');
       document.getElementById('askExamples').hidden = true;
       thread.insertAdjacentHTML('beforeend', '<div class="np-turn me"><div class="np-bubble">' + bubbleHtml(question) + '</div></div>');
       const names = people.players.filter(p => askSelected.has(p.id)).map(p => firstName(p.name));
@@ -1782,32 +1843,28 @@
       turn.className = 'np-turn nathan';
       turn.innerHTML = '<div class="nathan-avatar sm" aria-hidden="true"></div><div class="np-body"><div class="ask-thinking" style="margin:0.4rem 0 0;"><div class="spinner"></div>Nathan is checking the shelves' + (names.length ? ' for ' + esc(names.join(', ')) : '') + '…</div></div>';
       thread.appendChild(turn);
-      turn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      refreshClamp();
+      (followUp ? turn : panel).scrollIntoView({ behavior: 'smooth', block: followUp ? 'nearest' : 'start' });
       try {
         const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked] }) }, false);
-        if (r.pick) {
+        if (r.pick || (r.highlights || []).length) {
           askLast = { question, constraints: r.constraints, pickIds: r.pickIds };
           rememberJoked(r.pickIds || []);
         }
         turn.querySelector('.np-body').innerHTML = nathanAnswerHtml(r);
-        bar.placeholder = 'Reply to Nathan: shorter, something different, no dice…';
+        applyNathanFilter(r);
       } catch (err) {
         turn.querySelector('.np-body').innerHTML = '<p class="ask-note" style="margin:0;">' + esc(err.message) + '</p>';
       } finally {
         askBusy = false;
-        document.getElementById('askSend').disabled = false;
+        refreshClamp();
       }
     }
     thread.addEventListener('click', (e) => {
       const open = e.target.closest('[data-ask-open]');
       if (open) { openDetail(open.dataset.askOpen); return; }
-      const show = e.target.closest('[data-show-ids]');
-      if (show) {
-        askIds = show.dataset.showIds.split(',').filter(Boolean);
-        render();
-        document.getElementById('gamesGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      if (e.target.closest('[data-see-all]')) document.getElementById('gamesGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     thread.addEventListener('keydown', (e) => {
       const b = e.target.closest('[data-ask-open]');

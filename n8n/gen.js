@@ -1479,7 +1479,7 @@ addAuth(syncPlays, { mode: 'throw' });
 
 // =====================================================================
 // 18. Ask  POST /webhook/vault/ask { question, playerIds?: [], previous?: { question, constraints, pickIds } }  (public)
-//     "What should we play?" for this shelf and these people:
+//     "What should we play?" (or "what sci-fi games do I have?") for this shelf and these people:
 //       1. a small model turns the question into constraints + who is playing
 //       2. code applies the hard limits (players, time, age, weight, exclusions) and scores a shortlist
 //       3. a stronger model picks from the shortlist using profiles, play history and ratings
@@ -1527,7 +1527,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'You read requests for a board game night recommender that only knows one family\'s board game shelf.',
       'Extract what they want. Reply with JSON only:',
       '{',
-      '  "onTopic": true if this is about choosing or playing board games, else false,',
+      '  "onTopic": true if this is about choosing or playing board games, or about the games on this shelf, else false,',
+      '  "intent": "browse" if they ask what games they have, or to list, show, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops"); "recommend" if they want something to play,',
       '  "reply": "only if onTopic is false: one friendly, lightly punny sentence from Nathan, the collection curator, steering back to board games",',
       '  "playerIds": [ids from ROSTER for people named or clearly meant, e.g. first names or nicknames],',
       '  "unknownPeople": number of other people mentioned who are not on the roster (e.g. "and 2 friends" = 2),',
@@ -1536,13 +1537,13 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '  "youngestAge": age of the youngest player if stated, else null,',
       '  "weight": {"min": 1-5, "max": 1-5} complexity if they hint at it ("light" max 2.2, "brain burner" min 3.2), else null,',
       '  "coop": true for cooperative only, false for competitive only, null if either,',
-      '  "themes": ["themes, mechanisms or vibes they want, short words"],',
+      '  "themes": ["genres, themes or mechanisms they want, as BoardGameGeek category or mechanic words plus common synonyms, e.g. sci-fi: science fiction, space exploration; dice: dice rolling; worker placement"],',
       '  "avoid": ["themes, mechanisms or titles to avoid"],',
       '  "freshness": "unplayed" | "stale" (not played in a long time) | "favorite" | null,',
       '  "mood": "a few words on the vibe",',
       '  "excludeIds": []',
       '}',
-      'If PREVIOUS is given, this is a follow-up ("shorter", "something else"): start from its constraints and change only what the new message changes. To get different games, put the previous picks in excludeIds.',
+      'If PREVIOUS is given, this is a follow-up ("shorter", "something else"): start from its constraints and change only what the new message changes. Only when they want different games ("something else", "another one") put the previous picks in excludeIds; when they narrow it down ("which of those are quick") keep excludeIds empty.',
       '',
       'ROSTER (id | name):', roster || '(none)',
       selected.length ? `Already selected as playing: ${selected.join(', ')}` : '',
@@ -1573,8 +1574,18 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const maxMin = Number(c.maxMinutes) || null;
     const wMin = c.weight && Number(c.weight.min) || null, wMax = c.weight && Number(c.weight.max) || null;
     const words = (list) => (Array.isArray(list) ? list : []).map((s) => String(s).toLowerCase().trim()).filter((s) => s.length > 2);
-    const want = words(c.themes), avoid = words(c.avoid);
-    const exclude = new Set([...(Array.isArray(c.excludeIds) ? c.excludeIds : []), ...((v.previous && v.previous.pickIds) || [])]);
+    // Common words map onto BGG's category and mechanic names, so the matching set doesn't depend on the model's wording
+    const SYN = {
+      'sci-fi': ['science fiction', 'space exploration'], 'scifi': ['science fiction', 'space exploration'], 'science fiction': ['space exploration'],
+      'space': ['space exploration', 'science fiction'], 'aliens': ['science fiction'], 'robots': ['science fiction'],
+      'co-op': ['cooperative game'], 'coop': ['cooperative game'], 'cooperative': ['cooperative game'],
+      'dice': ['dice rolling'], 'war': ['wargame'], 'wargames': ['wargame'], 'deckbuilding': ['deck, bag, and pool building'], 'deck building': ['deck, bag, and pool building'], 'deck-building': ['deck, bag, and pool building'],
+      'party': ['party game'], 'zombie': ['zombies'], 'trick taking': ['trick-taking'], 'pirate': ['pirates'], 'dragons': ['fantasy'], 'animal': ['animals'],
+      'economic': ['economic'], 'train': ['trains'], 'railroad': ['trains'], 'mystery': ['deduction', 'murder/mystery'], 'detective': ['deduction', 'murder/mystery'],
+    };
+    const expand = (list) => [...new Set(list.flatMap((w) => [w, ...(SYN[w] || [])]))];
+    const want = expand(words(c.themes)), avoid = words(c.avoid);
+    const exclude = new Set(c.intent !== 'browse' && Array.isArray(c.excludeIds) ? c.excludeIds : []); // previous picks, when they want different games (a browse lists everything)
     // best rating per player per game
     const rate = {};
     for (const r of ratings) {
@@ -1595,7 +1606,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       }
       // A game with no BGG data for an asked-for limit is not a confirmed fit (it can still be a gap-mode closest match)
       if (count && (!g.minPlayers || !g.maxPlayers || count < g.minPlayers || count > g.maxPlayers)) continue;
-      if (maxMin && (!(g.minTime || g.maxTime) || (g.minTime || g.maxTime) > maxMin * 1.1)) continue;
+      if (maxMin && (!(g.maxTime || g.minTime) || (g.maxTime || g.minTime) > maxMin * 1.1)) continue; // "under an hour" means the whole game fits
       if (youngest && g.minAge && g.minAge > youngest + 1) continue;
       if (wMax && (!g.weight || g.weight > wMax + 0.3)) continue;
       if (wMin && (!g.weight || g.weight < wMin - 0.3)) continue;
@@ -1617,8 +1628,24 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       scored.push({ g, s });
     }
     scored.sort((a, b) => b.s - a.s);
-    const gap = scored.length === 0;
-    const short = (gap ? loose.sort((a, b) => b.s - a.s).slice(0, 12) : scored.slice(0, 30)).map((x) => x.g);
+    // The full set that fits: hard limits, plus at least one asked-for theme in the game's BGG tags (not the blurb, which is too loose)
+    const tags = (g) => [g.title, g.genre, g.type, ...g.categories, ...g.mechanics].join(' ').toLowerCase();
+    const themed = want.length ? scored.filter((x) => want.some((w) => tags(x.g).includes(w))) : scored;
+    const browse = c.intent === 'browse';
+    const gap = browse ? themed.length === 0 : scored.length === 0;
+    const short = (gap ? loose.sort((a, b) => b.s - a.s).slice(0, 12) : (browse || themed.length ? themed : scored).slice(0, 30)).map((x) => x.g);
+    const matchIds = gap ? [] : themed.map((x) => x.g.id);
+    // A few facts about the matching set, so a browse summary can be specific without guessing
+    const tally = (list) => Object.entries(list.reduce((a, k) => (a[k] = (a[k] || 0) + 1, a), {})).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, n]) => k + ' ' + n).join(', ');
+    const set = themed.map((x) => x.g);
+    const weights = set.map((g) => g.weight).filter(Boolean);
+    const setFacts = gap ? '' : [
+      'COUNT: ' + set.length + ' of ' + games.length + ' games on the shelf match everything asked, including any limits like time or players (say it naturally, never mention matching, e.g. "17 sci-fi games under an hour")',
+      weights.length ? 'weights: ' + weights.filter((w) => w < 2).length + ' light (<2), ' + weights.filter((w) => w >= 2 && w < 3).length + ' medium, ' + weights.filter((w) => w >= 3).length + ' heavy (3+)' : '',
+      'played: ' + set.filter((g) => g.playCount).length + ', never played: ' + set.filter((g) => !g.playCount).length + ', favorites: ' + set.filter((g) => g.favorite).length,
+      'top categories: ' + tally(set.flatMap((g) => g.categories)),
+      'top mechanics: ' + tally(set.flatMap((g) => g.mechanics)),
+    ].filter(Boolean).join('\n');
     const line = (g) => {
       const facts = [
         g.minPlayers ? `${g.minPlayers}-${g.maxPlayers}p` + (g.bestPlayers.length ? ` best ${g.bestPlayers.join('/')}` : '') : '',
@@ -1655,7 +1682,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     };
     const understood = { players: group.map((p) => p.name), playerCount: count, maxMinutes: maxMin, youngestAge: youngest,
       weight: c.weight || null, coop: c.coop ?? null, themes: want, avoid, freshness: c.freshness || null, mood: c.mood || '' };
-    return [{ json: { offTopic: false, gap, understood, constraints: c, shortIds: short.map((g) => g.id),
+    return [{ json: { offTopic: false, gap, browse, matchIds, setFacts, understood, constraints: c, shortIds: short.map((g) => g.id),
       titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
       gameLines: short.map(line).join('\n'), profiles: group.map(profile).join('\n') } }];
   }),
@@ -1680,15 +1707,23 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '- First mention: for a title NOT in ALREADY_JOKED, open its entry with a one-line dad-joke quip about that game. For titles in ALREADY_JOKED, leave quip empty.',
       '- Only if you are confident the game has an unlimited or substitutable component pool, or it supports an expanded player count, add exactly this joke in swapJoke: "The [component] can be substituted as needed, so if you ever run short, feel free to use a suitable replacement… like [funny, semi-related household item]." Otherwise null.',
       '',
+      ...(s.browse ? [
+      'FORMAT: this is a question about what is on the shelf, not a request for one game. Sum up the matching games in "summary" (2-4 sentences): use the exact COUNT from SET FACTS, then what kinds they are (weights, lengths, mechanics, sub-themes) and any pattern in plays or favorites. Then pick 3 to 5 varied highlights from CANDIDATES that show the range (for example a favorite, a light one, a heavy one, one that is never played), each with one sentence of "why".',
+      ] : [
       'FORMAT: one headline pick and one contrasting alternative (for example lighter, faster, or a different feel). For each, a short vivid table-feel picture (1-3 sentences) of what playing it actually feels like.',
       'Keep each entry scannable: "why" is 2-4 sentences, data and people fit first.',
+      ]),
       '',
       'HONEST GAPS: if GAP is true (nothing meets the hard limits), or the kind of game asked for (a genre, theme or mechanic) is not really on the shelf, say so plainly in gap.missing (one sentence, no guessing), make your pick the closest match, and you may name ONE real, well-known game not on this shelf that fills the gap in gap.consider (only if you are sure it exists). Never present it as owned. If the shelf has a true match, gap is null.',
       '',
       'Reply with JSON only:',
+      ...(s.browse ? [
+      '{"summary": "...", "highlights": [{"id": "...", "quip": "..." or "", "why": "..."}],',
+      ] : [
       '{"pick": {"id": "...", "quip": "..." or "", "why": "...", "tableFeel": "...", "swapJoke": "..." or null},',
       ' "alternative": {"id": "...", "quip": "..." or "", "why": "...", "tableFeel": "..."} or null,',
       ' "avoid": {"id": "...", "why": "..."} or null (only if a candidate would clearly flop tonight),',
+      ]),
       ' "gap": {"missing": "...", "consider": "Game title" or null} or null,',
       ' "signoff": "an optional short corny sign-off, or empty"}',
     ].join('\n');
@@ -1697,6 +1732,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       v.previous ? 'This follows up on: ' + v.previous.question : '',
       'UNDERSTOOD: ' + JSON.stringify(s.understood),
       'GAP: ' + (s.gap ? 'true' : 'false'),
+      s.setFacts ? 'SET FACTS (all games that match):\n' + s.setFacts : '',
       'ALREADY_JOKED: ' + (s.shortIds.filter((id) => mentioned.has(id)).join(', ') || '(none)'),
       '', 'PEOPLE PLAYING:', s.profiles || '(not specified; recommend for the group described in the request)',
       '', 'CANDIDATES (id | title | facts | how each person relates to it):', s.gameLines,
@@ -1721,18 +1757,26 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       return { id: String(x.id), title: s.titles[x.id], quip: str(x.quip, 200), why: str(x.why, 700),
         ...(withFeel ? { tableFeel: str(x.tableFeel, 400) } : {}), ...(x.swapJoke ? { swapJoke: str(x.swapJoke, 300) } : {}) };
     };
+    const gapOf = () => (s.gap || (a.gap && a.gap.missing)) ? { missing: str(a.gap && a.gap.missing, 300) || 'Nothing on the shelf matches every part of that.', consider: str(a.gap && a.gap.consider, 80) || null } : null;
+    if (s.browse) {
+      const highlights = (Array.isArray(a.highlights) ? a.highlights : []).map((x) => entry(x, false)).filter(Boolean).slice(0, 5);
+      if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });
+      const summary = str(a.summary, 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');
+      return [{ json: { ok: true, intent: 'browse', understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
+        matchIds: s.matchIds, signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];
+    }
     let pick = entry(a.pick, true);
     // Model failed or went off-list: fall back to the top of the scored shortlist
     if (!pick && s.shortIds.length) { const id = s.shortIds[0]; seen.add(id); pick = { id, title: s.titles[id], quip: '', why: 'The best fit on the shelf for what you described.', tableFeel: '' }; }
     const alternative = entry(a.alternative, true);
     const avoid = entry(a.avoid, false);
-    const gap = (s.gap || (a.gap && a.gap.missing)) ? { missing: str(a.gap && a.gap.missing, 300) || 'Nothing on the shelf matches every part of that.', consider: str(a.gap && a.gap.consider, 80) || null } : null;
-    return [{ json: { ok: true, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap,
+    const gap = gapOf();
+    return [{ json: { ok: true, intent: 'recommend', matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap,
       signoff: str(a.signoff, 200), pickIds: [pick, alternative].filter(Boolean).map((x) => x.id), model: $input.first().json.model || null } }];
   }),
   code('No Candidates', function () {
     const s = $input.first().json;
-    return [{ json: { ok: true, understood: s.understood, constraints: s.constraints, pick: null, alternative: null, avoid: null,
+    return [{ json: { ok: true, matchIds: [], understood: s.understood, constraints: s.constraints, pick: null, alternative: null, avoid: null,
       gap: { missing: 'The shelf is empty, so there is nothing to pick from yet.', consider: null }, signoff: '', pickIds: [] } }];
   }),
   code('Off Topic', function () {
