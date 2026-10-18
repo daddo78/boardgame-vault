@@ -74,7 +74,28 @@
   body:not(.owner) .star-btn { pointer-events: none; }
   .ask-btn { background: var(--brand) !important; color: #fff !important; display: inline-flex; align-items: center; gap: 0.3rem; }
   .ask-btn:hover { background: var(--brand-dark) !important; }
-  .modal.ask-modal { max-width: 620px; position: relative; }
+  .modal.ask-modal { max-width: 640px; position: relative; }
+  .nathan-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; padding-right: 2.5rem; }
+  .nathan-head h2 { margin: 0; }
+  .nathan-avatar { width: 3.2rem; height: 3.2rem; border-radius: 50%; background: var(--orange); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; flex-shrink: 0; box-shadow: 0 4px 10px rgba(255,167,38,0.35); }
+  .n-card { background: var(--bg); border-radius: 1.1rem; padding: 0.9rem; margin-top: 0.7rem; }
+  .n-card.headline { background: #fff; border: 2px solid var(--tag-bg); }
+  .n-top { display: flex; gap: 0.85rem; align-items: flex-start; cursor: pointer; }
+  .n-top img, .n-top .game-icon { width: 5rem; height: 5rem; border-radius: 0.8rem; object-fit: cover; flex-shrink: 0; }
+  .n-card:not(.headline) .n-top img, .n-card:not(.headline) .n-top .game-icon { width: 3.6rem; height: 3.6rem; }
+  .n-kind { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--brand); }
+  .n-card.avoid .n-kind { color: #c4524a; }
+  .n-title { font-weight: 800; font-size: 1.08rem; line-height: 1.25; }
+  .n-quip { font-style: italic; color: var(--text-muted); font-size: 0.9rem; margin-top: 0.2rem; }
+  .n-specs { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.6rem 0 0.2rem; }
+  .n-why { font-size: 0.92rem; line-height: 1.5; margin-top: 0.5rem; }
+  .n-feel { font-size: 0.9rem; line-height: 1.5; margin-top: 0.5rem; background: var(--exp-bg); border-radius: 0.8rem; padding: 0.55rem 0.75rem; }
+  .n-feel b { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--brand-dark); display: block; margin-bottom: 0.1rem; }
+  .n-swap { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.45rem; }
+  .n-gap { margin-top: 0.8rem; background: #fff4d6; color: #6b4a00; border-radius: 0.9rem; padding: 0.7rem 0.9rem; font-size: 0.9rem; }
+  .n-gap a { color: var(--brand); font-weight: 700; }
+  .n-sign { margin-top: 0.9rem; font-weight: 800; color: var(--ink); }
+  .n-sign span { display: block; font-weight: 500; color: var(--text-muted); font-style: italic; margin-top: 0.15rem; }
   .ask-modal h2 { padding-right: 2.5rem; }
   .ask-form { display: flex; gap: 0.5rem; align-items: flex-end; margin-top: 0.9rem; }
   .ask-form textarea { flex: 1; min-width: 0; resize: vertical; background: var(--exp-bg); border: none; border-radius: 1rem; padding: 0.7rem 1rem; font-family: var(--font-body); font-size: 0.95rem; color: var(--ink); outline: none; }
@@ -305,7 +326,7 @@
         <input type="text" id="searchInput" placeholder="Search games, designers, mechanics…" enterkeyhint="search" />
         <button type="button" class="search-clear" id="searchClear" aria-label="Clear search" hidden><i class="ti ti-x"></i></button>
       </div>
-      <button class="pill ask-btn" id="askBtn" type="button"><i class="ti ti-sparkles"></i> Ask</button>
+      <button class="pill ask-btn" id="askBtn" type="button"><i class="ti ti-meeple"></i> Ask Nathan</button>
       <button class="pill filters-toggle" id="filtersToggle" aria-expanded="false" aria-controls="filtersPanel"><i class="ti ti-adjustments-horizontal"></i> Filters</button>
       <div class="filters" id="filtersPanel">
       <select id="genreFilter"><option value="ALL">All Genres</option></select>
@@ -379,12 +400,15 @@
   <div class="modal-overlay" id="askModal">
     <div class="modal ask-modal" role="dialog" aria-modal="true" aria-labelledby="askTitle">
       <button class="mini-btn detail-close" id="askClose" title="Close"><i class="ti ti-x"></i></button>
-      <h2 id="askTitle">What should we play?</h2>
+      <div class="nathan-head">
+        <div class="nathan-avatar" aria-hidden="true"><i class="ti ti-meeple"></i></div>
+        <div><h2 id="askTitle">Ask Nathan</h2><div class="hint" style="margin:0;">Your board game curator. Tell him who's playing and what you're in the mood for.</div></div>
+      </div>
       <div class="section-label">Who's playing?</div>
       <div class="player-chips" id="askPlayers"></div>
       <form id="askForm" class="ask-form">
         <textarea id="askInput" rows="2" maxlength="500" placeholder="e.g. about an hour, something cozy, nothing with dice"></textarea>
-        <button class="btn primary" type="submit" id="askSubmit"><i class="ti ti-sparkles"></i> Ask</button>
+        <button class="btn primary" type="submit" id="askSubmit">Ask</button>
       </form>
       <div class="ask-examples" id="askExamples">
         <button type="button" class="tag tag-plain" data-example="Something quick, under 30 minutes">Quick, under 30 min</button>
@@ -1339,12 +1363,36 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('askForm').requestSubmit(); }
     });
 
-    function askPickHtml(p, kind) {
-      const g = collection.find(x => x.id === p.id) || {};
+    // Titles Nathan already joked about this session (he quips on a game's first mention only)
+    const SS_JOKED = 'vault_nathan_joked';
+    const joked = new Set((() => { try { return JSON.parse(sessionStorage.getItem(SS_JOKED) || '[]'); } catch (e) { return []; } })());
+    const rememberJoked = (ids) => { ids.forEach(id => joked.add(id)); try { sessionStorage.setItem(SS_JOKED, JSON.stringify([...joked])); } catch (e) {} };
+
+    // Spec chips come from our own (BGG-sourced) data, never from the model
+    function specChips(g) {
+      const chips = [];
+      const best = bestText(g);
+      if (best) chips.push('<span class="fact" title="BGG community player-count poll"><i class="ti ti-users"></i>best at ' + best + '</span>');
+      else if (playersText(g)) chips.push('<span class="fact"><i class="ti ti-users"></i>' + playersText(g) + '</span>');
+      if (timeText(g)) chips.push('<span class="fact"><i class="ti ti-clock"></i>' + timeText(g) + '</span>');
+      if (g.weight) chips.push('<span class="fact ' + weightClass(g.weight) + '" title="BGG weight (1 light to 5 heavy)"><i class="ti ti-weight"></i>' + Number(g.weight).toFixed(1) + '</span>');
+      (g.mechanics || []).slice(0, 2).forEach(m => chips.push('<span class="tag tag-plain">' + esc(m) + '</span>'));
+      return chips.length ? '<div class="n-specs">' + chips.join('') + '</div>' : '';
+    }
+    function nathanCard(x, kind) {
+      if (!x) return '';
+      const g = collection.find(y => y.id === x.id) || {};
       const img = g.coverCard ? '<img src="' + esc(g.coverCard) + '" alt="" loading="lazy">' : '<div class="game-icon"><i class="ti ti-' + esc(g.icon || DEFAULT_ICON) + '"></i></div>';
-      const label = { pick: '', wildcard: 'Wildcard', avoid: 'Maybe not tonight' }[kind];
-      return '<button type="button" class="ask-pick' + (kind === 'avoid' ? ' avoid' : '') + '" data-ask-open="' + esc(p.id) + '">' + img +
-        '<div>' + (label ? '<div class="k">' + label + '</div>' : '') + '<div class="t">' + esc(p.title || g.title || '') + '</div><div class="r">' + esc(p.reason || '') + '</div></div></button>';
+      const label = { headline: 'Tonight’s pick', alternative: 'Or, for something different', avoid: 'Maybe not tonight' }[kind];
+      return '<div class="n-card ' + kind + '">' +
+        '<div class="n-top" data-ask-open="' + esc(x.id) + '" role="button" tabindex="0">' + img +
+          '<div><div class="n-kind">' + label + '</div><div class="n-title">' + esc(x.title || g.title || '') + '</div>' +
+          (x.quip ? '<div class="n-quip">' + esc(x.quip) + '</div>' : '') + '</div></div>' +
+        (kind !== 'avoid' ? specChips(g) : '') +
+        (x.why ? '<div class="n-why">' + esc(x.why) + '</div>' : '') +
+        (x.tableFeel ? '<div class="n-feel"><b>At the table</b>' + esc(x.tableFeel) + '</div>' : '') +
+        (x.swapJoke ? '<div class="n-swap">' + esc(x.swapJoke) + '</div>' : '') +
+      '</div>';
     }
     function understoodHtml(u) {
       if (!u) return '';
@@ -1367,24 +1415,25 @@
       if (question.length < 3) { input.focus(); return; }
       const out = document.getElementById('askResult');
       const names = people.players.filter(p => askSelected.has(p.id)).map(p => firstName(p.name));
-      out.innerHTML = '<div class="ask-thinking"><div class="spinner"></div>Thinking about ' + (names.length ? esc(names.join(', ')) : 'your shelf') + '…</div>';
+      out.innerHTML = '<div class="ask-thinking"><div class="spinner"></div>Nathan is checking the shelves' + (names.length ? ' for ' + esc(names.join(', ')) : '') + '…</div>';
       document.getElementById('askSubmit').disabled = true;
       try {
         const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast }) }, false);
-        if (r.offTopic || !(r.picks || []).length) {
-          out.innerHTML = '<p class="ask-note">' + esc(r.note || 'No suggestions for that one.') + '</p>';
+          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked] }) }, false);
+        if (r.offTopic || !r.pick) {
+          out.innerHTML = '<p class="ask-note">' + esc(r.note || (r.gap && r.gap.missing) || 'Nathan came up empty on that one.') + '</p>';
           return;
         }
-        askLast = { question, constraints: r.constraints, pickIds: r.picks.map(p => p.id) };
-        out.innerHTML = understoodHtml(r.understood) +
-          r.picks.map(p => askPickHtml(p, 'pick')).join('') +
-          (r.wildcard ? askPickHtml(r.wildcard, 'wildcard') : '') +
-          (r.avoid ? askPickHtml(r.avoid, 'avoid') : '') +
-          (r.note ? '<p class="ask-note">' + esc(r.note) + '</p>' : '') +
+        askLast = { question, constraints: r.constraints, pickIds: r.pickIds };
+        rememberJoked(r.pickIds || []);
+        const gap = r.gap ? '<div class="n-gap">' + esc(r.gap.missing) +
+          (r.gap.consider ? ' Not on your shelf, but worth a look: <a href="https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=' + encodeURIComponent(r.gap.consider) + '" target="_blank" rel="noopener">' + esc(r.gap.consider) + '</a>.' : '') + '</div>' : '';
+        out.innerHTML = understoodHtml(r.understood) + gap +
+          nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid') +
+          '<div class="n-sign">And that’s what’s hitting the table!' + (r.signoff ? '<span>' + esc(r.signoff) + '</span>' : '') + '</div>' +
           '<div class="ask-actions"><button type="button" class="btn" id="askShowGrid"><i class="ti ti-layout-grid"></i> Show in grid</button>' +
           '<button type="button" class="btn ghost" id="askRefine"><i class="ti ti-adjustments"></i> Refine</button></div>';
-        const ids = [...r.picks.map(p => p.id), ...(r.wildcard ? [r.wildcard.id] : [])];
+        const ids = r.pickIds || [];
         document.getElementById('askShowGrid').onclick = () => { askIds = ids; askModal.classList.remove('open'); render(); window.scrollTo({ top: document.querySelector('.toolbar-container').offsetTop, behavior: 'smooth' }); };
         document.getElementById('askRefine').onclick = () => { input.value = ''; input.placeholder = 'e.g. shorter, no dice, something we haven’t played'; input.focus(); };
         input.value = '';
@@ -1394,6 +1443,10 @@
       } finally {
         document.getElementById('askSubmit').disabled = false;
       }
+    });
+    document.getElementById('askResult').addEventListener('keydown', (e) => {
+      const b = e.target.closest('[data-ask-open]');
+      if (b && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); b.click(); }
     });
     document.getElementById('askResult').addEventListener('click', (e) => {
       const b = e.target.closest('[data-ask-open]');

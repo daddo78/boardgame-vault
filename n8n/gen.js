@@ -1477,7 +1477,7 @@ addAuth(syncPlays, { mode: 'throw' });
 // =====================================================================
 const ASK_DAILY_CAP = 200;
 const OWNER_NAME = 'Dan';
-const ask = wf(ID.ask, 'Vault — Ask', [
+const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   webhook('Webhook', 'POST', 'vault/ask'),
   code('Validate', function () {
     const b = $input.first().json.body || {};
@@ -1497,7 +1497,8 @@ const ask = wf(ID.ask, 'Vault — Ask', [
       constraints: b.previous.constraints && typeof b.previous.constraints === 'object' ? b.previous.constraints : null,
       pickIds: Array.isArray(b.previous.pickIds) ? b.previous.pickIds.map(String).slice(0, 6) : [],
     } : null;
-    return [{ json: { ok: true, question, playerIds, previous: prev } }];
+    const mentioned = Array.isArray(b.mentioned) ? b.mentioned.map(String).filter((x) => x.length < 40).slice(0, 100) : [];
+    return [{ json: { ok: true, question, playerIds, previous: prev, mentioned } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
   airtableListAll('List Games'),
@@ -1516,7 +1517,7 @@ const ask = wf(ID.ask, 'Vault — Ask', [
       'Extract what they want. Reply with JSON only:',
       '{',
       '  "onTopic": true if this is about choosing or playing board games, else false,',
-      '  "reply": "only if onTopic is false: one friendly sentence steering back to board games",',
+      '  "reply": "only if onTopic is false: one friendly, lightly punny sentence from Nathan, the collection curator, steering back to board games",',
       '  "playerIds": [ids from ROSTER for people named or clearly meant, e.g. first names or nicknames],',
       '  "unknownPeople": number of other people mentioned who are not on the roster (e.g. "and 2 friends" = 2),',
       '  "playerCount": total players if stated or implied, else null,',
@@ -1573,14 +1574,20 @@ const ask = wf(ID.ask, 'Vault — Ask', [
     const hay = (g) => [g.title, g.genre, g.type, g.desc, ...g.categories, ...g.mechanics].join(' ').toLowerCase();
     const isCoop = (g) => g.mechanics.some((m) => /cooperative/i.test(m)) || /co-?op/i.test(g.type);
     const daysSince = (d) => d ? (Date.now() - new Date(d).getTime()) / 86400000 : Infinity;
-    const scored = [];
+    const scored = [], loose = [];
     for (const g of games) {
       if (exclude.has(g.id)) continue;
-      if (count && g.minPlayers && g.maxPlayers && (count < g.minPlayers || count > g.maxPlayers)) continue;
-      if (maxMin && (g.minTime || g.maxTime) && (g.minTime || g.maxTime) > maxMin * 1.1) continue;
+      // Loose score for gap mode: same preferences, only the player count enforced
+      if (!count || !g.minPlayers || (count >= g.minPlayers && count <= g.maxPlayers)) {
+        const h0 = hay(g);
+        loose.push({ g, s: want.filter((w) => h0.includes(w)).length * 2.5 + (count && g.bestPlayers.includes(count) ? 2 : 0) + (g.desireToPlay || 0) * 0.4 + ((g.bggRating || 6.5) - 6.5) * 0.5 - (g.minPlayers ? 0 : 3) });
+      }
+      // A game with no BGG data for an asked-for limit is not a confirmed fit (it can still be a gap-mode closest match)
+      if (count && (!g.minPlayers || !g.maxPlayers || count < g.minPlayers || count > g.maxPlayers)) continue;
+      if (maxMin && (!(g.minTime || g.maxTime) || (g.minTime || g.maxTime) > maxMin * 1.1)) continue;
       if (youngest && g.minAge && g.minAge > youngest + 1) continue;
-      if (wMax && g.weight && g.weight > wMax + 0.3) continue;
-      if (wMin && g.weight && g.weight < wMin - 0.3) continue;
+      if (wMax && (!g.weight || g.weight > wMax + 0.3)) continue;
+      if (wMin && (!g.weight || g.weight < wMin - 0.3)) continue;
       if (c.freshness === 'stale' && daysSince(g.lastPlayed) < 183) continue; // "haven't played in a while": not in the last ~6 months
       if (c.coop === true && !isCoop(g)) continue;
       if (c.coop === false && isCoop(g) && !/semi/i.test(g.type)) continue;
@@ -1599,7 +1606,8 @@ const ask = wf(ID.ask, 'Vault — Ask', [
       scored.push({ g, s });
     }
     scored.sort((a, b) => b.s - a.s);
-    const short = scored.slice(0, 30).map((x) => x.g);
+    const gap = scored.length === 0;
+    const short = (gap ? loose.sort((a, b) => b.s - a.s).slice(0, 12) : scored.slice(0, 30)).map((x) => x.g);
     const line = (g) => {
       const facts = [
         g.minPlayers ? `${g.minPlayers}-${g.maxPlayers}p` + (g.bestPlayers.length ? ` best ${g.bestPlayers.join('/')}` : '') : '',
@@ -1636,7 +1644,7 @@ const ask = wf(ID.ask, 'Vault — Ask', [
     };
     const understood = { players: group.map((p) => p.name), playerCount: count, maxMinutes: maxMin, youngestAge: youngest,
       weight: c.weight || null, coop: c.coop ?? null, themes: want, avoid, freshness: c.freshness || null, mood: c.mood || '' };
-    return [{ json: { offTopic: false, understood, constraints: c, shortIds: short.map((g) => g.id),
+    return [{ json: { offTopic: false, gap, understood, constraints: c, shortIds: short.map((g) => g.id),
       titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
       gameLines: short.map(line).join('\n'), profiles: group.map(profile).join('\n') } }];
   }),
@@ -1645,22 +1653,40 @@ const ask = wf(ID.ask, 'Vault — Ask', [
   code('Build Recommend Request', function () {
     const v = $('Validate').first().json;
     const s = $input.first().json;
+    const mentioned = new Set(v.mentioned || []);
     const system = [
-      'You are the host of Board Game Garage: a warm, sharp game-night advisor who knows this exact shelf and these people. The shelf belongs to __OWNER_NAME__; never say "owner", say __OWNER_NAME__.',
-      'You only recommend board games from the CANDIDATES list, by their id. Never mention a game that is not a candidate, and never invent facts.',
-      'Every candidate already fits the hard limits (player count, time, age). Choose by how well it fits these people and this moment:',
-      '- each person\'s dials, likes, dislikes and notes;',
-      '- their history: games they love or play a lot, games nobody has tried, games where one person always wins (fine for competitive groups, worth flagging otherwise);',
-      '- their ratings, and __OWNER_NAME__\'s signals (wants-to-play stars, favorites; a game __OWNER_NAME__ may give away makes a good last-chance pick);',
-      '- the mood and the request.',
-      'Write reasons like a friend at the table: name people by first name and point to concrete facts (time, best player count, plays, ratings). Max 30 words each. Be kind about people.',
-      'Reply with JSON only: {"picks":[{"id":"...","reason":"..."}] (exactly 3, best first), "wildcard":{"id":"...","reason":"..."} or null (a surprising but good fit),',
-      ' "avoid":{"id":"...","reason":"..."} or null (only if a candidate would clearly flop tonight), "note":"one short friendly line, or empty"}',
+      'You are Nathan Schmidt, the warm, welcoming and meticulous curator of Board Game Garage, the board game collection of __OWNER_NAME__ (never say "owner", say __OWNER_NAME__).',
+      'Your job: get the right game from THIS shelf to the table for the right people, mood and occasion. You speak like an enthusiastic, articulate host walking a friend through the game room shelves.',
+      '',
+      'GROUNDING (most important):',
+      '- Recommend only games from CANDIDATES, by id. Never invent games, numbers or rules.',
+      '- Cite the key metrics from the candidate facts: the best player count ("the BGG community poll says it is best at 4"), play time, BGG weight, and primary mechanics. These facts come from BoardGameGeek, so you may attribute them to BGG.',
+      '- Do not quote forums, Reddit or reviews: you have no access to them.',
+      '- Fit to the people comes first: each person\'s dials, likes, dislikes and notes; their plays, wins and ratings on each candidate; __OWNER_NAME__\'s wants-to-play stars and favorites; a game __OWNER_NAME__ may give away is a good last-chance pick. Name people by first name. Be kind about people and never judge anyone\'s taste: party games and heavy economic games deserve equal respect.',
+      '',
+      'VOICE:',
+      '- Warm and enthusiastically corny: wholesome dad jokes and puns about cardboard and meeples, gentle self-deprecating humor about shelf space and the shelf of shame. Humor is a light flourish and never crowds out the recommendation.',
+      '- First mention: for a title NOT in ALREADY_JOKED, open its entry with a one-line dad-joke quip about that game. For titles in ALREADY_JOKED, leave quip empty.',
+      '- Only if you are confident the game has an unlimited or substitutable component pool, or it supports an expanded player count, add exactly this joke in swapJoke: "The [component] can be substituted as needed, so if you ever run short, feel free to use a suitable replacement… like [funny, semi-related household item]." Otherwise null.',
+      '',
+      'FORMAT: one headline pick and one contrasting alternative (for example lighter, faster, or a different feel). For each, a short vivid table-feel picture (1-3 sentences) of what playing it actually feels like.',
+      'Keep each entry scannable: "why" is 2-4 sentences, data and people fit first.',
+      '',
+      'HONEST GAPS: if GAP is true (nothing meets the hard limits), or the kind of game asked for (a genre, theme or mechanic) is not really on the shelf, say so plainly in gap.missing (one sentence, no guessing), make your pick the closest match, and you may name ONE real, well-known game not on this shelf that fills the gap in gap.consider (only if you are sure it exists). Never present it as owned. If the shelf has a true match, gap is null.',
+      '',
+      'Reply with JSON only:',
+      '{"pick": {"id": "...", "quip": "..." or "", "why": "...", "tableFeel": "...", "swapJoke": "..." or null},',
+      ' "alternative": {"id": "...", "quip": "..." or "", "why": "...", "tableFeel": "..."} or null,',
+      ' "avoid": {"id": "...", "why": "..."} or null (only if a candidate would clearly flop tonight),',
+      ' "gap": {"missing": "...", "consider": "Game title" or null} or null,',
+      ' "signoff": "an optional short corny sign-off, or empty"}',
     ].join('\n');
     const user = [
       'REQUEST: ' + v.question,
       v.previous ? 'This follows up on: ' + v.previous.question : '',
       'UNDERSTOOD: ' + JSON.stringify(s.understood),
+      'GAP: ' + (s.gap ? 'true' : 'false'),
+      'ALREADY_JOKED: ' + (s.shortIds.filter((id) => mentioned.has(id)).join(', ') || '(none)'),
       '', 'PEOPLE PLAYING:', s.profiles || '(not specified; recommend for the group described in the request)',
       '', 'CANDIDATES (id | title | facts | how each person relates to it):', s.gameLines,
     ].filter((l) => l !== '').join('\n');
@@ -1677,27 +1703,29 @@ const ask = wf(ID.ask, 'Vault — Ask', [
     try { a = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
     const allowed = new Set(s.shortIds);
     const seen = new Set();
-    const clean = (x) => {
+    const str = (v, n) => String(v || '').trim().slice(0, n);
+    const entry = (x, withFeel) => {
       if (!x || !allowed.has(String(x.id)) || seen.has(String(x.id))) return null;
       seen.add(String(x.id));
-      return { id: String(x.id), title: s.titles[x.id], reason: String(x.reason || '').slice(0, 300) };
+      return { id: String(x.id), title: s.titles[x.id], quip: str(x.quip, 200), why: str(x.why, 700),
+        ...(withFeel ? { tableFeel: str(x.tableFeel, 400) } : {}), ...(x.swapJoke ? { swapJoke: str(x.swapJoke, 300) } : {}) };
     };
-    const picks = (Array.isArray(a.picks) ? a.picks : []).map(clean).filter(Boolean).slice(0, 3);
-    if (!picks.length) {
-      // Model failed or went off-list: fall back to the top of the scored shortlist
-      for (const id of s.shortIds.slice(0, 3)) picks.push({ id, title: s.titles[id], reason: 'A strong fit for what you described.' });
-    }
-    return [{ json: { ok: true, understood: s.understood, constraints: s.constraints, picks,
-      wildcard: clean(a.wildcard), avoid: a.avoid && allowed.has(String(a.avoid.id)) ? { id: String(a.avoid.id), title: s.titles[a.avoid.id], reason: String(a.avoid.reason || '').slice(0, 300) } : null,
-      note: String(a.note || '').slice(0, 300), model: $input.first().json.model || null } }];
+    let pick = entry(a.pick, true);
+    // Model failed or went off-list: fall back to the top of the scored shortlist
+    if (!pick && s.shortIds.length) { const id = s.shortIds[0]; seen.add(id); pick = { id, title: s.titles[id], quip: '', why: 'The best fit on the shelf for what you described.', tableFeel: '' }; }
+    const alternative = entry(a.alternative, true);
+    const avoid = entry(a.avoid, false);
+    const gap = (s.gap || (a.gap && a.gap.missing)) ? { missing: str(a.gap && a.gap.missing, 300) || 'Nothing on the shelf matches every part of that.', consider: str(a.gap && a.gap.consider, 80) || null } : null;
+    return [{ json: { ok: true, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap,
+      signoff: str(a.signoff, 200), pickIds: [pick, alternative].filter(Boolean).map((x) => x.id), model: $input.first().json.model || null } }];
   }),
   code('No Candidates', function () {
     const s = $input.first().json;
-    return [{ json: { ok: true, understood: s.understood, constraints: s.constraints, picks: [], wildcard: null, avoid: null,
-      note: 'Nothing on the shelf fits all of that. Try a longer time, a different player count, or fewer exclusions.' } }];
+    return [{ json: { ok: true, understood: s.understood, constraints: s.constraints, pick: null, alternative: null, avoid: null,
+      gap: { missing: 'The shelf is empty, so there is nothing to pick from yet.', consider: null }, signoff: '', pickIds: [] } }];
   }),
   code('Off Topic', function () {
-    return [{ json: { ok: true, offTopic: true, picks: [], note: $input.first().json.reply } }];
+    return [{ json: { ok: true, offTopic: true, pick: null, note: $input.first().json.reply } }];
   }),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),

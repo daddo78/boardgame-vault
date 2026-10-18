@@ -11,13 +11,15 @@ Live at **https://bg.ondorilabo.com** (GitHub Pages, custom domain via Cloudflar
 - **Filters**: search (title, genre, mechanics, designers, expansions), genre, desire-to-play rating, player count, length, weight, favorites-only, thinning-only. **Sorts** include favorites first, most/least played, recently played, longest since played, BGG rating and weight. On phones the filters fold behind a "Filters" button.
 - **Add games** (+ button): **by name** (search BGG, pick the edition, or add a game that isn't on BGG as is) or **by photo** (one box or a shelf section). Owned games are refused, expansions of owned games are attached to them, and new games are looked up on BGG and given an icon.
 
-## Ask: what should we play?
+## Ask Nathan: what should we play?
 
-The **Ask** button opens a recommender for this shelf and these people. Pick who is playing, then ask in plain words ("about an hour, something cozy", "a heavy game for Aaron and me, all evening"). Follow-ups refine the last answer ("shorter", "something different").
+**Ask Nathan** opens Nathan Schmidt, the collection's curator: warm, meticulous and enthusiastically corny. He recommends from this shelf for these people. Pick who is playing, then ask in plain words ("about an hour, something cozy", "a heavy game for Aaron and me, all evening"). Follow-ups refine the last answer ("shorter", "something different").
 
 - **Step 1, understand** (Gemini 2.5 Flash Lite): turns the request into constraints: who is playing, player count, time, youngest age, complexity, co-op or competitive, themes to include or avoid, and fresh or familiar.
 - **Step 2, shortlist** (code): applies the hard limits (players, time, age, weight, co-op, exclusions, and no plays in about 6 months when asked) and scores the rest by the group's ratings, best player count, theme matches and Dan's stars and favorites. The top 30 go to the next step.
-- **Step 3, recommend** (Claude Haiku 5.5): reads each person's profile dials, likes and dislikes, plus their plays, wins and ratings on the shortlisted games. It picks 3 games, a wildcard and an avoid-tonight, with reasons that name people.
+- **Step 3, Nathan** (Claude Haiku 5.5): reads each person's profile dials, likes and dislikes, plus their plays, wins and ratings on the shortlisted games. He gives one headline pick and one contrasting alternative, each with a first-mention dad-joke quip, reasons that name people and cite BGG metrics (best-at poll, time, weight, mechanics), and a short "at the table" picture. He may add a maybe-not-tonight. Every answer ends with "And that's what's hitting the table!"
+- **Honest gaps:** if nothing meets the limits, or the kind of game asked for isn't on the shelf, Nathan says so, picks the closest owned match, and may name one well-known game worth adding, clearly marked as not owned. He only cites the BGG data stored here, never forums or reviews.
+- The page shows the spec chips from its own BGG data, so the numbers are exact. It also remembers which games Nathan has already joked about in the session.
 - **Step 4, check** (code): drops anything that is not on the shortlist, so it can't invent games.
 
 Ask is public, board games only, and capped at 200 questions a day overall (about 0.3c each).
