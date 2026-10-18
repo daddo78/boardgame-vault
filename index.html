@@ -183,7 +183,8 @@
   .mention-opt { display: flex; align-items: center; gap: 0.55rem; width: 100%; border: none; background: none; text-align: left; padding: 0.5rem 0.65rem; border-radius: 0.6rem; font-family: var(--font-body); font-size: 0.92rem; font-weight: 600; color: var(--ink); cursor: pointer; }
   .mention-opt .at { width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--exp-bg); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--brand); flex-shrink: 0; }
   .mention-opt.active, .mention-opt:hover { background: #fbf3e6; }
-  .suggest-list { left: 0; right: 0; max-width: none; }
+  .suggest-list { left: 0; right: 0; max-width: none; max-height: none; }
+  .suggest-list .mention-opt { font-weight: 500; line-height: 1.3; }
   .suggest-head { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); padding: 0.45rem 0.65rem 0.25rem; }
   .suggest-list .at { color: var(--brand); }
   /* Conversation with Nathan, on the page */
@@ -513,12 +514,14 @@
         <button type="button" class="ask-send" id="askSend" aria-label="Ask Nathan" title="Ask Nathan (Enter)"><i class="ti ti-arrow-up"></i></button>
         <div class="mention-list" id="mentionList" role="listbox" hidden></div>
         <div class="mention-list suggest-list" id="askExamples" role="listbox" aria-label="Ideas to ask Nathan" hidden>
-          <div class="suggest-head">Ask Nathan</div>
-          <button type="button" class="mention-opt" role="option" data-example="Something quick, under 30 minutes"><span class="at"><i class="ti ti-sparkles"></i></span>Quick, under 30 min</button>
-          <button type="button" class="mention-opt" role="option" data-example="Something we haven't played in a long time"><span class="at"><i class="ti ti-sparkles"></i></span>Haven't played in ages</button>
-          <button type="button" class="mention-opt" role="option" data-example="A cozy, relaxing game for tonight"><span class="at"><i class="ti ti-sparkles"></i></span>Cozy</button>
-          <button type="button" class="mention-opt" role="option" data-example="A big strategic game, we have all evening"><span class="at"><i class="ti ti-sparkles"></i></span>Big strategy night</button>
-          <button type="button" class="mention-opt" role="option" data-example="A party game with lots of laughing"><span class="at"><i class="ti ti-sparkles"></i></span>Party</button>
+          <div class="suggest-head">Try asking Nathan</div>
+          <button type="button" class="mention-opt" role="option" data-example="What can four of us finish in under 30 minutes?"><span class="at"><i class="ti ti-sparkles"></i></span>What can four of us finish in under 30 minutes?</button>
+          <button type="button" class="mention-opt" role="option" data-example="What haven’t we played in a really long time?"><span class="at"><i class="ti ti-sparkles"></i></span>What haven’t we played in a really long time?</button>
+          <button type="button" class="mention-opt" role="option" data-example="Something cozy and cooperative for two of us tonight"><span class="at"><i class="ti ti-sparkles"></i></span>Something cozy and cooperative for two of us tonight</button>
+          <button type="button" class="mention-opt" role="option" data-example="We have all evening. What big strategy game is worth pulling down?"><span class="at"><i class="ti ti-sparkles"></i></span>We have all evening. What big strategy game is worth pulling down?</button>
+          <button type="button" class="mention-opt" role="option" data-example="A party game for six that gets everyone laughing"><span class="at"><i class="ti ti-sparkles"></i></span>A party game for six that gets everyone laughing</button>
+          <button type="button" class="mention-opt" role="option" data-example="What are my top ten most played games?"><span class="at"><i class="ti ti-sparkles"></i></span>What are my top ten most played games?</button>
+          <button type="button" class="mention-opt" role="option" data-example="What sci-fi games do I have?"><span class="at"><i class="ti ti-sparkles"></i></span>What sci-fi games do I have?</button>
         </div>
       </div>
       <section class="nathan-panel collapsed" id="nathanPanel" hidden aria-label="Conversation with Nathan">
