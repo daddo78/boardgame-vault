@@ -68,6 +68,7 @@
   .hero-tag { font-family: 'Luckiest Guy', var(--font-display); color: #f6c343; font-size: clamp(1.05rem, 2.1vw, 1.6rem); letter-spacing: 0.03em; margin-top: 0.7rem;
     -webkit-text-stroke: 1px #4a2a10; paint-order: stroke fill; text-shadow: 0 2px 0 #5c3510; }
   .sync-status { margin-top: 0.9rem; font-size: 0.8rem; color: rgba(60, 40, 20, 0.7); font-weight: 600; }
+  .sync-status:empty { display: none; }
   .sync-status.err { color: #fff; background: var(--red); display: inline-block; padding: 0.2rem 0.7rem; border-radius: 999px; font-weight: 700; }
   .icon-btn { background: #fff; border: 1px solid #eadfcb; color: #262626; width: 2.5rem; height: 2.5rem; border-radius: 50%; cursor: pointer; font-size: 1.05rem; }
   .icon-btn:hover { background: #fff8ec; }
@@ -232,6 +233,12 @@
   select, button.pill { background: var(--exp-bg); color: var(--ink); border: none; padding: 0.6rem 1.05rem; border-radius: 999px; cursor: pointer; outline: none; font-family: var(--font-body); font-weight: 600; font-size: 0.9rem; }
   button.pill:hover { background: var(--tag-bg); color: var(--brand-dark); }
   button.pill.active { background: var(--brand); color: #fff; }
+  .total-badge { display: inline-flex; align-items: center; gap: 0.35rem; height: 2.5rem; padding: 0 0.95rem; border-radius: 999px; background: #ec7a55; color: #fff; font-weight: 600; font-size: 0.88rem; white-space: nowrap; }
+  .total-badge b { font-weight: 800; }
+  .total-badge[hidden] { display: none; }
+  .toolbar .clear-pill { flex: 0 0 auto; background: #fde3d8; color: var(--brand-dark); font-weight: 700; }
+  .toolbar .clear-pill:hover { background: #fbd2c1; }
+  .clear-pill[hidden] { display: none !important; }
   .stats-badge { display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: #ec7a55; color: #fff; padding: 0.4rem 0.5rem 0.4rem 1rem; min-height: 2.3rem; border-radius: 999px; font-weight: 800; font-size: 0.85rem; white-space: nowrap; margin-left: auto; }
   .grid { max-width: 1300px; margin: 0 auto; padding: 0 1.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 1.5rem; }
   .grid > * { min-width: 0; }
@@ -420,6 +427,7 @@
   <div class="topbar">
     <button class="auth-btn" id="authBtn" type="button"><i class="ti ti-login"></i> <span>Sign in</span></button>
     <div class="actions">
+      <span class="total-badge" id="totalBadge" hidden title="Games in the collection"><i class="ti ti-cards"></i> <b id="totalCount"></b> games</span>
       <button class="icon-btn owner-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
     </div>
   </div>
@@ -496,7 +504,7 @@
       <button class="pill" id="favFilterBtn"><i class="fa-solid fa-heart"></i> Favorites</button>
       <button class="pill" id="thinFilterBtn">Thinning only</button>
       </div>
-      <div class="stats-badge"><span id="statsCount">Loading…</span><button type="button" class="stats-clear" id="clearAll" hidden><i class="ti ti-x"></i> Clear</button></div>
+      <button type="button" class="pill clear-pill" id="clearAll" hidden><i class="ti ti-x"></i> <span>Clear filters</span></button>
     </div>
   </div>
 
@@ -817,7 +825,7 @@
         const data = await n8nFetch('/collection', { method: 'GET' }, false);
         collection = Array.isArray(data) ? data : (data.items || []);
         localStorage.setItem(LS_CACHE, JSON.stringify(collection));
-        setSyncStatus('Game collection total: ' + collection.length);
+        setSyncStatus('');
         rebuildGenreFilter();
         render();
       } catch (e) {
@@ -1055,11 +1063,12 @@
 
       // Count and the clear controls reflect anything that narrows the list
       const nFilters = [genre, ratingFilter, players, time, weight].filter(v => v !== 'ALL').length + (favOnly ? 1 : 0) + (thinOnly ? 1 : 0);
-      const narrowed = !!search || nFilters > 0 || !!askIds;
-      document.getElementById('statsCount').textContent = askIds
-        ? filtered.length + ' from Nathan'
-        : narrowed ? filtered.length + ' of ' + collection.length + ' games' : collection.length + ' Playable Titles';
-      document.getElementById('clearAll').hidden = !narrowed;
+      // The badge is the collection total only; it never changes while you search or filter
+      document.getElementById('totalCount').textContent = collection.length;
+      document.getElementById('totalBadge').hidden = !collection.length;
+      const clearBtn = document.getElementById('clearAll');
+      clearBtn.hidden = !(nFilters > 0 || askIds);
+      clearBtn.querySelector('span').textContent = askIds && !nFilters ? 'Show all games' : 'Clear filters';
       document.getElementById('searchClear').hidden = !typed;
       document.getElementById('filtersToggle').innerHTML = '<i class="ti ti-adjustments-horizontal"></i> Filters' + (nFilters ? ' <span class="count">' + nFilters + '</span>' : '');
       grid.innerHTML = '';
