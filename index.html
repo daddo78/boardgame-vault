@@ -244,6 +244,9 @@
   .n-card.highlight .n-kind { color: var(--navy); }
   .n-seeall { display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.8rem; border: none; background: var(--tag-bg); color: var(--brand-dark); border-radius: 999px; padding: 0.5rem 0.95rem; font-family: var(--font-body); font-weight: 700; font-size: 0.88rem; cursor: pointer; }
   .n-seeall:hover { filter: brightness(0.97); }
+  .n-toprow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; margin: 0.15rem 0 0.4rem; }
+  .n-toprow .ask-understood { margin: 0; }
+  .n-toprow .n-seeall { margin-top: 0; padding: 0.35rem 0.85rem; font-size: 0.82rem; }
   .search-box input { padding-right: 2.6rem !important; }
   .search-clear { position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%); width: 1.8rem; height: 1.8rem; border-radius: 50%; border: none; background: #d5dbe5; color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; }
   .search-clear[hidden] { display: none; }
@@ -1884,9 +1887,12 @@
         nathanSets.push(orderedIds(r));
         seeAll = '<button type="button" class="n-seeall" data-see-all="' + (nathanSets.length - 1) + '"><i class="ti ti-layout-grid"></i> ' + (n === 1 ? 'See it in the library' : 'See all ' + n + ' games') + '</button>';
       }
+      // What Nathan understood and the "See all" button share the first row, so the filter is one click away without opening the chat
+      const top = (r.intent === 'browse' ? '' : understoodHtml(r.understood)) + seeAll;
+      const head = top ? '<div class="n-toprow">' + top + '</div>' : '';
       const body = r.intent === 'browse'
-        ? '<p class="n-summary">' + esc(r.summary || '') + '</p>' + gap + seeAll + r.highlights.map(h => nathanCard(h, 'highlight')).join('')
-        : understoodHtml(r.understood) + gap + nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid') + seeAll;
+        ? head + '<p class="n-summary">' + esc(r.summary || '') + '</p>' + gap + r.highlights.map(h => nathanCard(h, 'highlight')).join('')
+        : head + gap + nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid');
       return body + (r.signoff ? '<div class="n-sign">' + (r.intent === 'browse' ? '' : 'And that’s what’s hitting the table!') + '<span>' + esc(r.signoff) + '</span></div>' : '');
     }
     // The question as a bubble, with each @Full Name highlighted
