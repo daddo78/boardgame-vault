@@ -8,6 +8,9 @@ const [AIRTABLE_CRED = 'AIRTABLE_CRED_ID', BGG_CRED = 'BGG_CRED_ID', BGG_USERNAM
 const BASE = 'appb5FKsyLareQzG4';
 const TABLE = 'tblbGc0UuDxIPP2a8';
 const AT_URL = `https://api.airtable.com/v0/${BASE}/${TABLE}`;
+const PLAYERS_TABLE = 'tblNahVdHDueJJ0w4';
+const RATINGS_TABLE = 'tbllInOWIokikEiQH';
+const atUrl = (table) => `https://api.airtable.com/v0/${BASE}/${table}`;
 const TABLER_CSS = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css';
 const VISION_MODEL = 'google/gemini-2.5-flash-lite';
 // Google sign-in: only these accounts may change the collection (reading stays public)
@@ -29,6 +32,12 @@ const ID = {
   bggSearch: 'BGVaultBggSrch01',
   addByName: 'BGVaultAddName01',
   whoAmI: 'BGVaultWhoAmI001',
+  people: 'BGVaultPeople001',
+  rate: 'BGVaultRate00001',
+  playerSave: 'BGVaultPlyrSave1',
+  playersAdmin: 'BGVaultPlyrAdmn1',
+  bggUserRatings: 'BGVaultBggUser01',
+  syncPeople: 'BGVaultSyncPpl01',
 };
 
 const CRED = {
@@ -72,6 +81,37 @@ function prelude() {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // ---- People: Players and Ratings tables ----
+  const PF = {
+    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
+    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
+    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
+    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+  };
+  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
+  const toPlayer = (r) => {
+    const f = r.fields || {};
+    let history = {};
+    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}
+    return {
+      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),
+      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',
+      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
+      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
+      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+    };
+  };
+  // What visitors may see about a person (no email; BGG usernames are public on BGG anyway)
+  const publicPlayer = (p) => { const { googleEmail, ...rest } = p; return rest; };
+  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());
+  // Highest-priority source wins when one person has several ratings for a game
+  const RATING_PRIORITY = { site: 4, owner: 3, bgg: 2, bgstats: 1 };
+  const toRating = (r) => {
+    const f = r.fields || {};
+    const src = f[RF.source];
+    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,
+      source: typeof src === 'object' && src ? src.name : src || '' };
+  };
 }
 const body = (fn) => { const s = fn.toString(); return s.slice(s.indexOf('{') + 1, s.lastIndexOf('}')).replace(/^\n/, ''); };
 const PRELUDE = body(prelude);
@@ -100,20 +140,21 @@ const ifTrue = (name, expr) => node(name, 'n8n-nodes-base.if', 2, {
 });
 const retry = { retryOnFail: true, maxTries: 3, waitBetweenTries: 5000 };
 const qs = (pairs) => ({ sendQuery: true, queryParameters: { parameters: Object.entries(pairs).map(([name, value]) => ({ name, value })) } });
-const airtable = (name, method, urlSuffix, params = {}, options = {}) => node(name, 'n8n-nodes-base.httpRequest', 4.2, {
-  method, url: `=${AT_URL}${urlSuffix}`, authentication: 'predefinedCredentialType', nodeCredentialType: 'airtableTokenApi',
+// table defaults to Games; pass PLAYERS_TABLE / RATINGS_TABLE for the people data
+const airtable = (name, method, urlSuffix, params = {}, options = {}, table = TABLE) => node(name, 'n8n-nodes-base.httpRequest', 4.2, {
+  method, url: `=${atUrl(table)}${urlSuffix}`, authentication: 'predefinedCredentialType', nodeCredentialType: 'airtableTokenApi',
   ...params, options,
 }, { credentials: CRED.airtable, ...retry });
 const airtableLookup = (name, formulaExpr = '={{ $json.formula }}') =>
   airtable(name, 'GET', '', qs({ filterByFormula: formulaExpr, returnFieldsByFieldId: 'true', maxRecords: '1' }));
-const airtableListAll = (name) => airtable(name, 'GET', '', qs({ returnFieldsByFieldId: 'true', pageSize: '100' }), {
+const airtableListAll = (name, table = TABLE) => airtable(name, 'GET', '', qs({ returnFieldsByFieldId: 'true', pageSize: '100' }), {
   pagination: { pagination: {
     paginationMode: 'updateAParameterInEachRequest',
     parameters: { parameters: [{ type: 'qs', name: 'offset', value: '={{ $response.body.offset }}' }] },
     paginationCompleteWhen: 'other', completeExpression: '={{ !$response.body.offset }}',
     limitPagesFetched: true, maxRequests: 50, requestInterval: 250,
   } },
-});
+}, table);
 const jsonBody = (expr) => ({ sendBody: true, specifyBody: 'json', jsonBody: expr });
 const airtablePatch = (name) => airtable(name, 'PATCH', '/{{ $json.recordId }}',
   jsonBody('={{ JSON.stringify({ fields: $json.fields, typecast: true, returnFieldsByFieldId: true }) }}'));
@@ -1029,16 +1070,390 @@ function addAuth(w, { mode, failTo }) {
   return w;
 }
 // =====================================================================
-// 11. Who Am I  GET /webhook/vault/whoami  (behind the sign-in gate)
-//     The page calls this right after Google sign-in: 200 means the owner (show editing controls),
-//     401 means view-only. Keeps the owner's email out of the public page.
+// Member sign-in gate: like addAuth, but besides the owner it accepts friends whose Google email is
+// on a player card (rating-only features). Downstream nodes get json._auth = { role, playerId, playerName }.
+// =====================================================================
+function addMemberAuth(w, { failTo }) {
+  const conns = w.connections;
+  const targets = conns.Webhook.main[0];
+  const p0 = w.nodes.find((n) => n.name === 'Webhook').position;
+  const at = (i) => [p0[0] + 220 * i, p0[1] + 200];
+  const readToken = node('Auth: Read Token', 'n8n-nodes-base.code', 2, { jsCode: [
+    "const h = $input.first().json.headers || {};",
+    "const a = String(h.authorization || '');",
+    "return [{ json: { token: a.startsWith('Bearer ') ? a.slice(7).trim() : '' } }];",
+  ].join('\n') });
+  const tokeninfo = node('Auth: Verify With Google', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://oauth2.googleapis.com/tokeninfo',
+    ...qs({ id_token: "={{ $json.token || 'missing' }}" }), options: { timeout: 10000 },
+  }, { onError: 'continueRegularOutput' });
+  const checkToken = node('Auth: Check Token', 'n8n-nodes-base.code', 2, { jsCode: [
+    "const info = $input.first().json || {};",
+    "const owners = '" + OWNER_EMAILS.join(',') + "'.split(',');",
+    "const email = String(info.email || '').toLowerCase();",
+    "const ok = info.aud === '" + GOOGLE_CLIENT_ID + "'",
+    "  && (info.email_verified === true || info.email_verified === 'true')",
+    "  && Number(info.exp) * 1000 > Date.now() && !!email;",
+    "if (!ok) return [{ json: { ok: false, status: 401, message: 'Sign in to do that' } }];",
+    "return [{ json: { ok: true, email, owner: owners.includes(email) } }];",
+  ].join('\n') });
+  const tokenOk = ifTrue('Token Valid?', '={{ $json.ok === true }}');
+  const findPlayer = airtable('Auth: Find Player', 'GET', '', qs({
+    filterByFormula: `={{ "LOWER({GoogleEmail})='" + $json.email.replace(/'/g, '') + "'" }}`, returnFieldsByFieldId: 'true', maxRecords: '1',
+  }), {}, PLAYERS_TABLE);
+  const role = code('Auth: Role', function () {
+    const t = $('Auth: Check Token').first().json;
+    const rec = ($input.first().json.records || [])[0];
+    const role = t.owner ? 'owner' : rec ? 'friend' : null;
+    if (!role) return [{ json: { ok: false, status: 401, message: 'This account can view only' } }];
+    const auth = { role, email: t.email, playerId: rec ? rec.id : null, playerName: rec ? (rec.fields[PF.name] || '') : null };
+    return $('Webhook').all().map((i) => ({ ...i, json: { ...i.json, _authOk: true, _auth: auth } }));
+  });
+  const member = ifTrue('Member?', '={{ $json._authOk === true }}');
+  [readToken, tokeninfo, checkToken, tokenOk, findPlayer, role, member].forEach((n, i) => { n.position = at(i + 1); });
+  w.nodes.push(readToken, tokeninfo, checkToken, tokenOk, findPlayer, role, member);
+  const to = (name) => ({ node: name, type: 'main', index: 0 });
+  conns.Webhook = { main: [[to(readToken.name)]] };
+  conns[readToken.name] = { main: [[to(tokeninfo.name)]] };
+  conns[tokeninfo.name] = { main: [[to(checkToken.name)]] };
+  conns[checkToken.name] = { main: [[to(tokenOk.name)]] };
+  conns[tokenOk.name] = { main: [[to(findPlayer.name)], [to(failTo)]] };
+  conns[findPlayer.name] = { main: [[to(role.name)]] };
+  conns[role.name] = { main: [[to(member.name)]] };
+  conns[member.name] = { main: [targets, [to(failTo)]] };
+  return w;
+}
+
+// =====================================================================
+// 11. Who Am I  GET /webhook/vault/whoami  (member gate)
+//     Right after Google sign-in: owner → full editing; friend → can rate for themselves; 401 → view-only.
 // =====================================================================
 const whoAmI = wf(ID.whoAmI, 'Vault — Who Am I', [
   webhook('Webhook', 'GET', 'vault/whoami'),
-  respond('Respond OK', '={{ JSON.stringify({ ok: true, owner: true }) }}'),
+  respond('Respond OK', "={{ JSON.stringify({ ok: true, role: $json._auth.role, owner: $json._auth.role === 'owner', playerId: $json._auth.playerId, playerName: $json._auth.playerName }) }}"),
   respondError(),
 ], [['Webhook', 'Respond OK']]);
-addAuth(whoAmI, { mode: 'respond', failTo: 'Respond Error' });
+addMemberAuth(whoAmI, { failTo: 'Respond Error' });
+
+// =====================================================================
+// 12. People  GET /webhook/vault/people  (public)
+//     Player profiles (no emails) + every rating, resolved to one per person per game by source priority.
+// =====================================================================
+const people = wf(ID.people, 'Vault — People', [
+  webhook('Webhook', 'GET', 'vault/people'),
+  airtableListAll('List Players', PLAYERS_TABLE),
+  code('One Item', function () { return [{ json: {} }]; }),
+  airtableListAll('List Ratings', RATINGS_TABLE),
+  code('Shape People', function () {
+    const players = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer).map(publicPlayer)
+      .sort((a, b) => (b.active - a.active) || a.name.localeCompare(b.name));
+    const best = {}; // gameId -> playerId -> { stars, source }
+    for (const r of $input.all().flatMap((i) => i.json.records || []).map(toRating)) {
+      if (!r.gameId || !r.playerId || !r.stars) continue;
+      const g = (best[r.gameId] ??= {});
+      const cur = g[r.playerId];
+      if (!cur || (RATING_PRIORITY[r.source] || 0) > (RATING_PRIORITY[cur.source] || 0)) g[r.playerId] = { stars: r.stars, source: r.source };
+    }
+    return [{ json: { players, ratings: best } }];
+  }),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+], [['Webhook', 'List Players'], ['List Players', 'One Item'], ['One Item', 'List Ratings'], ['List Ratings', 'Shape People'], ['Shape People', 'Respond OK']]);
+
+// =====================================================================
+// 13. Rate Game  POST /webhook/vault/rate { gameId, stars (0 clears), playerId? }  (member gate)
+//     A friend rates for themselves (source "site"); the owner can also rate for anyone (source "owner").
+// =====================================================================
+const rate = wf(ID.rate, 'Vault — Rate Game', [
+  webhook('Webhook', 'POST', 'vault/rate'),
+  code('Validate', function () {
+    const j = $input.first().json;
+    const b = j.body || {};
+    const auth = j._auth;
+    const err = (status, message) => [{ json: { ok: false, status, message } }];
+    const gameId = String(b.gameId || '').trim();
+    const stars = Math.round(Number(b.stars) * 2) / 2;
+    if (!gameId) return err(400, 'Missing gameId');
+    if (!(stars >= 0 && stars <= 5)) return err(400, 'stars must be 0-5 (0 clears your rating)');
+    const target = b.playerId ? String(b.playerId) : auth.playerId;
+    if (!target) return err(400, 'Link your Google email to your player card to rate games');
+    if (target !== auth.playerId && auth.role !== 'owner') return err(403, 'You can only rate games for yourself');
+    const source = target === auth.playerId ? 'site' : 'owner';
+    const key = `${target}|${gameId}|${source}`;
+    return [{ json: { ok: true, key, playerId: target, gameId, stars, source, formula: `{Key}='${key.replace(/'/g, '')}'` } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  airtable('Find Existing', 'GET', '', qs({ filterByFormula: '={{ $json.formula }}', maxRecords: '1' }), {}, RATINGS_TABLE),
+  code('Plan Write', function () {
+    const v = $('Validate').first().json;
+    const existing = ($input.first().json.records || [])[0];
+    if (v.stars === 0) return [{ json: { ...v, action: existing ? 'delete' : 'none', recordId: existing ? existing.id : null } }];
+    return [{ json: { ...v, action: 'upsert', records: [{ fields: {
+      [RF.key]: v.key, [RF.playerId]: v.playerId, [RF.gameId]: v.gameId, [RF.stars]: v.stars, [RF.source]: v.source, [RF.updatedAt]: new Date().toISOString(),
+    } }] } }];
+  }),
+  ifTrue('Upsert?', "={{ $json.action === 'upsert' }}"),
+  airtable('Upsert Rating', 'PATCH', '', jsonBody("={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['" + 'fldSVVMwQygNrpyBm' + "'] }, records: $json.records, typecast: true }) }}"), {}, RATINGS_TABLE),
+  ifTrue('Delete?', "={{ $json.action === 'delete' }}"),
+  airtable('Delete Rating', 'DELETE', '/{{ $json.recordId }}', {}, {}, RATINGS_TABLE),
+  code('Result', function () {
+    const v = $('Validate').first().json;
+    return [{ json: { ok: true, gameId: v.gameId, playerId: v.playerId, stars: v.stars, source: v.source } }];
+  }),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [
+  ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Find Existing', 0], ['Valid?', 'Respond Error', 1],
+  ['Find Existing', 'Plan Write'], ['Plan Write', 'Upsert?'], ['Upsert?', 'Upsert Rating', 0], ['Upsert?', 'Delete?', 1],
+  ['Delete?', 'Delete Rating', 0], ['Delete?', 'Result', 1], ['Upsert Rating', 'Result'], ['Delete Rating', 'Result'],
+  ['Result', 'Respond OK'],
+]);
+addMemberAuth(rate, { failTo: 'Respond Error' });
+
+// =====================================================================
+// 14. Save Player  POST /webhook/vault/player-save { id?, name, aliases[], active, googleEmail, bggUsername,
+//     complexity, conflict, luck, tableTalk, theme (1-5 or null), likes, dislikes, age, notes }  (owner only)
+// =====================================================================
+const playerSave = wf(ID.playerSave, 'Vault — Save Player', [
+  webhook('Webhook', 'POST', 'vault/player-save'),
+  code('Validate', function () {
+    const b = $input.first().json.body || {};
+    const err = (message) => [{ json: { ok: false, status: 400, message } }];
+    const name = String(b.name || '').trim();
+    if (!name) return err('A player needs a name');
+    const dial = (v) => (v === null || v === '' || v === undefined) ? null : Math.min(5, Math.max(1, Math.round(Number(v))));
+    const text = (v, n = 1000) => String(v ?? '').trim().slice(0, n);
+    const email = text(b.googleEmail, 200).toLowerCase();
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err('That Google email doesn’t look right');
+    const fields = {
+      [PF.name]: name.slice(0, 100),
+      [PF.aliases]: (Array.isArray(b.aliases) ? b.aliases : String(b.aliases || '').split(',')).map((a) => String(a).trim()).filter(Boolean).join(', '),
+      [PF.active]: !!b.active, [PF.googleEmail]: email || null, [PF.bggUsername]: text(b.bggUsername, 100) || null,
+      [PF.complexity]: dial(b.complexity), [PF.conflict]: dial(b.conflict), [PF.luck]: dial(b.luck),
+      [PF.tableTalk]: dial(b.tableTalk), [PF.theme]: dial(b.theme),
+      [PF.likes]: text(b.likes), [PF.dislikes]: text(b.dislikes), [PF.notes]: text(b.notes),
+      [PF.age]: b.age === '' || b.age == null ? null : Math.max(1, Math.min(120, Math.round(Number(b.age)))) || null,
+      [PF.updatedAt]: new Date().toISOString(),
+    };
+    const id = /^rec[A-Za-z0-9]{14}$/.test(String(b.id || '')) ? b.id : null;
+    return [{ json: { ok: true, id, fields } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  ifTrue('Existing?', '={{ !!$json.id }}'),
+  airtable('Update Player', 'PATCH', '/{{ $json.id }}', jsonBody('={{ JSON.stringify({ fields: $json.fields, typecast: true, returnFieldsByFieldId: true }) }}'), {}, PLAYERS_TABLE),
+  airtable('Create Player', 'POST', '', jsonBody('={{ JSON.stringify({ fields: $json.fields, typecast: true, returnFieldsByFieldId: true }) }}'), {}, PLAYERS_TABLE),
+  code('Shape Player', function () { return [{ json: { ok: true, player: toPlayer($input.first().json) } }]; }),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [
+  ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Existing?', 0], ['Valid?', 'Respond Error', 1],
+  ['Existing?', 'Update Player', 0], ['Existing?', 'Create Player', 1],
+  ['Update Player', 'Shape Player'], ['Create Player', 'Shape Player'], ['Shape Player', 'Respond OK'],
+]);
+addAuth(playerSave, { mode: 'respond', failTo: 'Respond Error' });
+
+// =====================================================================
+// 15. Players Admin  GET /webhook/vault/players-admin  (owner only): full profiles incl. emails
+// =====================================================================
+const playersAdmin = wf(ID.playersAdmin, 'Vault — Players Admin', [
+  webhook('Webhook', 'GET', 'vault/players-admin'),
+  airtableListAll('List Players', PLAYERS_TABLE),
+  code('Shape Players', function () {
+    const players = $input.all().flatMap((i) => i.json.records || []).map(toPlayer)
+      .map(({ history, ...p }) => ({ ...p, games: Object.keys(history).length, plays: Object.values(history).reduce((n, h) => n + (h.plays || 0), 0) }))
+      .sort((a, b) => (b.active - a.active) || (b.plays - a.plays) || a.name.localeCompare(b.name));
+    return [{ json: { players } }];
+  }),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'List Players'], ['List Players', 'Shape Players'], ['Shape Players', 'Respond OK']]);
+addAuth(playersAdmin, { mode: 'respond', failTo: 'Respond Error' });
+
+// =====================================================================
+// 16. BGG User Ratings (sub-workflow) { playerId, username } -> { playerId, ratings: [{ bggId, rating10 }] }
+//     BGG's collection API answers 202 "queued" until it has built the list, so retry twice with waits.
+// =====================================================================
+const bggCollectionGet = (name) => node(name, 'n8n-nodes-base.httpRequest', 4.2, {
+  method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/collection',
+  authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+  ...qs({ username: "={{ $('When Called By Another Workflow').first().json.username }}", rated: '1', stats: '1', subtype: 'boardgame' }),
+  options: { timeout: 30000, response: { response: { fullResponse: true, neverError: true, responseFormat: 'text', outputPropertyName: 'data' } } },
+}, { credentials: CRED.bgg });
+const collectionReady = (name) => ifTrue(name, "={{ $json.statusCode === 200 && String($json.data || '').includes('<items') }}");
+const bggUserRatings = wf(ID.bggUserRatings, 'Vault — BGG User Ratings', [
+  subTrigger(),
+  bggCollectionGet('Fetch Collection'),
+  collectionReady('Ready?'),
+  wait('Wait 8s', 8),
+  bggCollectionGet('Fetch Again'),
+  collectionReady('Ready Now?'),
+  wait('Wait 20s', 20),
+  bggCollectionGet('Fetch Last Time'),
+  code('Parse Ratings', function () {
+    const t = $('When Called By Another Workflow').first().json;
+    const xml = String($input.first().json.data || '');
+    const ratings = [...xml.matchAll(/<item objecttype="thing" objectid="(\d+)"[\s\S]*?<rating value="([\d.]+)"/g)]
+      .map((m) => ({ bggId: Number(m[1]), rating10: Number(m[2]) })).filter((r) => r.rating10 > 0);
+    return [{ json: { playerId: t.playerId, username: t.username, ok: xml.includes('<items'), ratings } }];
+  }),
+], [
+  ['When Called By Another Workflow', 'Fetch Collection'], ['Fetch Collection', 'Ready?'],
+  ['Ready?', 'Parse Ratings', 0], ['Ready?', 'Wait 8s', 1], ['Wait 8s', 'Fetch Again'], ['Fetch Again', 'Ready Now?'],
+  ['Ready Now?', 'Parse Ratings', 0], ['Ready Now?', 'Wait 20s', 1], ['Wait 20s', 'Fetch Last Time'], ['Fetch Last Time', 'Parse Ratings'],
+]);
+
+// =====================================================================
+// 17. Sync People  daily 4:20 + POST /webhook/vault/sync-people  (owner)
+//     From BGG plays (logged in BG Stats): each person's history per owned game (plays, wins, last),
+//     a player card for anyone with 3+ plays, and BG Stats per-play ratings. Then friends' BGG ratings.
+//     Ratings are stored 1-5 (BGG/BG Stats 1-10 halved, to the nearest half star).
+// =====================================================================
+const upsertRatings = (name) => airtable(name, 'PATCH', '', jsonBody("={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['fldSVVMwQygNrpyBm'] }, records: $json.records, typecast: true }) }}"), {}, RATINGS_TABLE);
+const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
+  node('Daily', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ triggerAtHour: 4, triggerAtMinute: 20 }] } }),
+  webhook('Webhook', 'POST', 'vault/sync-people', 'lastNode'),
+  code('Options', function () { return [{ json: { username: '__BGG_USERNAME__' } }]; }),
+  node('BGG Plays', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/plays',
+    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    ...qs({ username: '={{ $json.username }}', type: 'thing', subtype: 'boardgame' }),
+    options: {
+      timeout: 30000,
+      response: { response: { responseFormat: 'text', outputPropertyName: 'data' } },
+      pagination: { pagination: {
+        paginationMode: 'updateAParameterInEachRequest',
+        parameters: { parameters: [{ type: 'qs', name: 'page', value: '={{ $pageCount + 1 }}' }] },
+        paginationCompleteWhen: 'other', completeExpression: '={{ !String($response.body).includes("<play ") }}',
+        limitPagesFetched: true, maxRequests: 100, requestInterval: 2000,
+      } },
+    },
+  }, { credentials: CRED.bgg, ...retry }),
+  code('Tally People', function () {
+    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    const people = {}; // lowercased name -> { name, total, games: { bggId: { plays, wins, last, ratings: [] } } }
+    for (const page of $input.all()) {
+      for (const m of String(page.json.data || '').matchAll(/<play id="\d+" date="([^"]*)" quantity="(\d+)"[^>]*>([\s\S]*?)<\/play>/g)) {
+        const [, date, qty, inner] = m;
+        const bggId = (inner.match(/objectid="(\d+)"/) || [])[1];
+        if (!bggId) continue;
+        for (const pm of inner.matchAll(/<player ([^>]*)\/>/g)) {
+          const a = Object.fromEntries([...pm[1].matchAll(/(\w+)="([^"]*)"/g)].map((x) => [x[1], decode(x[2])]));
+          const name = (a.name || a.username || '').trim();
+          if (!name || /^anonymous/i.test(name)) continue;
+          const p = (people[name.toLowerCase()] ??= { name, total: 0, games: {} });
+          const g = (p.games[bggId] ??= { plays: 0, wins: 0, last: null, ratings: [] });
+          const n = Number(qty) || 1;
+          g.plays += n; p.total += n;
+          if (a.win === '1') g.wins += n;
+          if (date && date !== '0000-00-00' && (!g.last || date > g.last)) g.last = date;
+          if (Number(a.rating) > 0) g.ratings.push(Number(a.rating));
+        }
+      }
+    }
+    return [{ json: { people } }];
+  }),
+  airtableListAll('List Games'),
+  code('One Item', function () { return [{ json: {} }]; }),
+  airtableListAll('List Players', PLAYERS_TABLE),
+  code('Plan New Players', function () {
+    const { people } = $('Tally People').first().json;
+    const known = new Set($input.all().flatMap((i) => i.json.records || []).map(toPlayer).flatMap(playerNames));
+    const creates = Object.values(people).filter((p) => p.total >= 3 && !known.has(p.name.toLowerCase()))
+      .map((p) => ({ fields: { [PF.name]: p.name, [PF.active]: p.total >= 10, [PF.updatedAt]: new Date().toISOString() } }));
+    const batches = [];
+    for (let i = 0; i < creates.length; i += 10) batches.push({ json: { records: creates.slice(i, i + 10) } });
+    return batches.length ? batches : [{ json: { records: [] } }];
+  }),
+  ifTrue('New Players?', '={{ $json.records.length > 0 }}'),
+  airtable('Create Players', 'POST', '', jsonBody('={{ JSON.stringify({ records: $json.records, typecast: true }) }}'), {}, PLAYERS_TABLE),
+  code('One Item Again', function () { return [{ json: {} }]; }),
+  airtableListAll('Reload Players', PLAYERS_TABLE),
+  code('Build Updates', function () {
+    const { people } = $('Tally People').first().json;
+    const games = $('List Games').all().flatMap((i) => i.json.records || []).map(toGame);
+    const gameIdByBgg = Object.fromEntries(games.filter((g) => g.bggId).map((g) => [String(g.bggId), g.id]));
+    const players = $input.all().flatMap((i) => i.json.records || []).map(toPlayer);
+    const now = new Date().toISOString();
+    const playerRecords = [], ratingRecords = [];
+    for (const pl of players) {
+      const names = playerNames(pl);
+      const merged = {};
+      for (const n of names) for (const [bggId, g] of Object.entries((people[n] || {}).games || {})) {
+        if (!gameIdByBgg[bggId]) continue; // only games in the collection
+        const m = (merged[bggId] ??= { plays: 0, wins: 0, last: null, ratings: [] });
+        m.plays += g.plays; m.wins += g.wins; m.ratings.push(...g.ratings);
+        if (g.last && (!m.last || g.last > m.last)) m.last = g.last;
+      }
+      const history = Object.fromEntries(Object.entries(merged).map(([k, v]) => [k, { plays: v.plays, wins: v.wins, last: v.last }]));
+      if (JSON.stringify(history) !== JSON.stringify(pl.history)) playerRecords.push({ id: pl.id, fields: { [PF.playHistory]: JSON.stringify(history), [PF.updatedAt]: now } });
+      for (const [bggId, v] of Object.entries(merged)) {
+        if (!v.ratings.length) continue;
+        const avg10 = v.ratings.reduce((a, b) => a + b, 0) / v.ratings.length;
+        const gameId = gameIdByBgg[bggId];
+        ratingRecords.push({ fields: { [RF.key]: `${pl.id}|${gameId}|bgstats`, [RF.playerId]: pl.id, [RF.gameId]: gameId,
+          [RF.stars]: Math.round(avg10) / 2, [RF.source]: 'bgstats', [RF.updatedAt]: now } });
+      }
+    }
+    const batch = (list) => { const out = []; for (let i = 0; i < list.length; i += 10) out.push(list.slice(i, i + 10)); return out; };
+    return [{ json: { playerBatches: batch(playerRecords), ratingBatches: batch(ratingRecords),
+      bggUsers: players.filter((p) => p.bggUsername).map((p) => ({ playerId: p.id, username: p.bggUsername })),
+      gameIdByBgg, summary: { people: Object.keys(people).length, players: players.length, historiesUpdated: playerRecords.length, bgstatsRatings: ratingRecords.length } } }];
+  }),
+  code('Player Batches', function () {
+    const b = $input.first().json.playerBatches;
+    return b.length ? b.map((records) => ({ json: { records } })) : [{ json: { records: [] } }];
+  }),
+  ifTrue('Histories To Save?', '={{ $json.records.length > 0 }}'),
+  airtable('Save Histories', 'PATCH', '', jsonBody('={{ JSON.stringify({ records: $json.records, typecast: true }) }}'), {}, PLAYERS_TABLE),
+  code('Rating Batches', function () {
+    const b = $('Build Updates').first().json.ratingBatches;
+    return b.length ? b.map((records) => ({ json: { records } })) : [{ json: { records: [] } }];
+  }),
+  ifTrue('BG Stats Ratings?', '={{ $json.records.length > 0 }}'),
+  upsertRatings('Save BG Stats Ratings'),
+  code('BGG Users', function () {
+    const u = $('Build Updates').first().json.bggUsers;
+    return u.length ? u.map((x) => ({ json: x })) : [{ json: { none: true } }];
+  }),
+  ifTrue('Any BGG Users?', '={{ !$json.none }}'),
+  execSub('Fetch BGG Ratings', ID.bggUserRatings),
+  code('BGG Rating Batches', function () {
+    const { gameIdByBgg } = $('Build Updates').first().json;
+    const now = new Date().toISOString();
+    const recs = [];
+    for (const r of $input.all().map((i) => i.json)) {
+      for (const x of r.ratings || []) {
+        const gameId = gameIdByBgg[String(x.bggId)];
+        if (!gameId || !r.playerId) continue;
+        recs.push({ fields: { [RF.key]: `${r.playerId}|${gameId}|bgg`, [RF.playerId]: r.playerId, [RF.gameId]: gameId,
+          [RF.stars]: Math.round(x.rating10) / 2, [RF.source]: 'bgg', [RF.updatedAt]: now } });
+      }
+    }
+    const out = [];
+    for (let i = 0; i < recs.length; i += 10) out.push({ json: { records: recs.slice(i, i + 10) } });
+    return out.length ? out : [{ json: { records: [] } }];
+  }),
+  ifTrue('BGG Ratings?', '={{ $json.records.length > 0 }}'),
+  upsertRatings('Save BGG Ratings'),
+  code('Result', function () {
+    const s = $('Build Updates').first().json.summary;
+    const created = $('Create Players').isExecuted ? $('Create Players').all().flatMap((i) => i.json.records || []).length : 0;
+    const bgg = $('BGG Rating Batches').isExecuted ? $('BGG Rating Batches').all().reduce((n, i) => n + i.json.records.length, 0) : 0;
+    return [{ json: { ok: true, ...s, playersCreated: created, bggRatings: bgg } }];
+  }),
+], [
+  ['Daily', 'Options'], ['Webhook', 'Options'], ['Options', 'BGG Plays'], ['BGG Plays', 'Tally People'],
+  ['Tally People', 'List Games'], ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'Plan New Players'],
+  ['Plan New Players', 'New Players?'], ['New Players?', 'Create Players', 0], ['New Players?', 'One Item Again', 1],
+  ['Create Players', 'One Item Again'], ['One Item Again', 'Reload Players'], ['Reload Players', 'Build Updates'],
+  ['Build Updates', 'Player Batches'], ['Player Batches', 'Histories To Save?'],
+  ['Histories To Save?', 'Save Histories', 0], ['Histories To Save?', 'Rating Batches', 1], ['Save Histories', 'Rating Batches'],
+  ['Rating Batches', 'BG Stats Ratings?'], ['BG Stats Ratings?', 'Save BG Stats Ratings', 0], ['BG Stats Ratings?', 'BGG Users', 1],
+  ['Save BG Stats Ratings', 'BGG Users'], ['BGG Users', 'Any BGG Users?'], ['Any BGG Users?', 'Fetch BGG Ratings', 0], ['Any BGG Users?', 'Result', 1],
+  ['Fetch BGG Ratings', 'BGG Rating Batches'], ['BGG Rating Batches', 'BGG Ratings?'],
+  ['BGG Ratings?', 'Save BGG Ratings', 0], ['BGG Ratings?', 'Result', 1], ['Save BGG Ratings', 'Result'],
+]);
+addAuth(syncPeople, { mode: 'throw' });
+
 addAuth(update, { mode: 'respond', failTo: 'Respond Error' });
 addAuth(del, { mode: 'respond', failTo: 'Respond Error' });
 addAuth(identify, { mode: 'respond', failTo: 'Delete Photo (no match)' }); // drop the upload, then 401
@@ -1049,7 +1464,7 @@ addAuth(bggOne, { mode: 'throw' });
 addAuth(syncPlays, { mode: 'throw' });
 
 // ---------- write ----------
-const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI };
+const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
