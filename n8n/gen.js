@@ -1,4 +1,4 @@
-// Generates the Board Game Garage n8n workflows (Airtable-backed) into ./workflows/*.json
+// Generates the Board Game Curator n8n workflows (Airtable-backed) into ./workflows/*.json
 // Usage: node gen.js <airtableCredId> <bggCredId> [bggUsername]
 const fs = require('fs');
 const path = require('path');
@@ -168,7 +168,7 @@ const openrouter = (name) => node(name, 'n8n-nodes-base.httpRequest', 4.2, {
   authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
   sendHeaders: true, headerParameters: { parameters: [
     { name: 'HTTP-Referer', value: 'https://n8n.ondorilabo.com/vault' },
-    { name: 'X-Title', value: 'Board Game Garage' },
+    { name: 'X-Title', value: 'Board Game Curator' },
   ] },
   ...jsonBody('={{ JSON.stringify($json.requestBody) }}'),
   options: { timeout: 90000 },
@@ -1666,7 +1666,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const s = $input.first().json;
     const mentioned = new Set(v.mentioned || []);
     const system = [
-      'You are Nathan Schmidt, the warm, welcoming and meticulous curator of Board Game Garage, the board game collection of __OWNER_NAME__ (never say "owner", say __OWNER_NAME__).',
+      'You are Nathan Schmidt, the warm, welcoming and meticulous curator of Board Game Curator, the board game collection of __OWNER_NAME__ (never say "owner", say __OWNER_NAME__).',
       'Your job: get the right game from THIS shelf to the table for the right people, mood and occasion. You speak like an enthusiastic, articulate host walking a friend through the game room shelves.',
       '',
       'GROUNDING (most important):',

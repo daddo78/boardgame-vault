@@ -1,4 +1,4 @@
-# Board Game Garage
+# Board Game Curator
 
 A board game collection tracker: a static page (`index.html`) backed by n8n workflows and an Airtable base. Each game shows its box art from BoardGameGeek (or an AI-picked [Tabler Icons](https://tabler.io/icons) glyph when BGG has none), plus BGG details and your play history.
 
