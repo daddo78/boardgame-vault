@@ -59,8 +59,8 @@
   .topbar .actions { display: flex; align-items: center; gap: 0.5rem; }
   /* Hero: illustrated game room, Nathan bottom-left, cartoon title in the calm middle */
   header.hero { position: relative; background: #efe3cc url(assets/hero.jpg) center / cover no-repeat; min-height: clamp(250px, 23vw, 360px);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 1.6rem 1.5rem 3.4rem clamp(1.5rem, 25vw, 430px); overflow: hidden; }
-  .hero-nathan { position: absolute; bottom: 0; left: clamp(0px, 10vw, 230px); height: 100%; max-height: 360px; width: auto; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 1.6rem 1.5rem 3.4rem clamp(1.5rem, 33vw, 600px); overflow: hidden; }
+  .hero-nathan { position: absolute; bottom: 0; left: clamp(0px, 17vw, 360px); height: 100%; max-height: 360px; width: auto; pointer-events: none;
     filter: drop-shadow(0 10px 18px rgba(40, 25, 10, 0.35)); }
   .hero-copy { position: relative; z-index: 1; max-width: 980px; }
   .hero-title { font-family: 'Luckiest Guy', var(--font-display); font-weight: 400; font-size: clamp(2.2rem, 4.3vw, 4.3rem); line-height: 0.95; white-space: nowrap; letter-spacing: 0.02em;
@@ -169,6 +169,43 @@
   .toolbar-container { max-width: 1300px; margin: -1.9rem auto 2rem; padding: 0 1.5rem; position: sticky; top: 1rem; z-index: 50; }
   .toolbar { background: #fff; border-radius: 1.25rem; padding: 0.8rem 1.1rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; box-shadow: 0 10px 30px rgba(31,63,143,0.14); }
   .search-box { flex: 1 1 240px; position: relative; }
+  /* The Ask Nathan bar: search as you type, Enter asks Nathan, @ adds people */
+  .ask-bar { flex: 1 1 420px; }
+  .ask-bar input { padding-left: 3.1rem !important; padding-right: 5.4rem !important; }
+  .ask-bar-avatar { position: absolute; left: 0.35rem; top: 50%; transform: translateY(-50%); width: 2.2rem; height: 2.2rem; border-radius: 50%; background: #f6c343 url(assets/nathan.webp) no-repeat; background-size: 250%; background-position: 46% 14%; pointer-events: none; }
+  .ask-send { position: absolute; right: 0.35rem; top: 50%; transform: translateY(-50%); width: 2.2rem; height: 2.2rem; border-radius: 50%; border: none; background: var(--brand); color: #fff; cursor: pointer; font-size: 1.15rem; display: flex; align-items: center; justify-content: center; }
+  .ask-send:hover { background: var(--brand-dark); }
+  .ask-send:disabled { background: #d9c9b8; cursor: default; }
+  .ask-bar .search-clear { right: 2.85rem; }
+  .mention-list { position: absolute; left: 2.6rem; top: calc(100% + 0.35rem); z-index: 20; background: #fff; border-radius: 0.9rem; box-shadow: 0 12px 30px rgba(40,25,10,0.18); padding: 0.35rem; min-width: 15rem; max-width: calc(100% - 3rem); max-height: 16rem; overflow-y: auto; }
+  .mention-list[hidden] { display: none; }
+  .mention-opt { display: flex; align-items: center; gap: 0.55rem; width: 100%; border: none; background: none; text-align: left; padding: 0.5rem 0.65rem; border-radius: 0.6rem; font-family: var(--font-body); font-size: 0.92rem; font-weight: 600; color: var(--ink); cursor: pointer; }
+  .mention-opt .at { width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--exp-bg); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--brand); flex-shrink: 0; }
+  .mention-opt.active, .mention-opt:hover { background: #fbf3e6; }
+  /* Conversation with Nathan, on the page */
+  .nathan-panel { max-width: 1300px; margin: -0.6rem auto 1.6rem; padding: 0 1.5rem; }
+  .nathan-panel[hidden] { display: none; }
+  .np-card { background: #fff; border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(31,63,143,0.10); padding: 1rem 1.2rem 1.2rem; }
+  .np-head { display: flex; align-items: center; gap: 0.7rem; }
+  .np-title { flex: 1; display: flex; flex-direction: column; line-height: 1.2; }
+  .np-title span { font-size: 0.8rem; color: var(--text-muted); }
+  .np-actions { display: flex; gap: 0.4rem; align-items: center; }
+  .np-actions .btn { flex: 0 0 auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+  .np-who { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.8rem; }
+  .np-who-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .np-who .player-chips { margin-top: 0; }
+  .np-who .hint { margin: 0; }
+  .player-chip .x { margin-left: 0.3rem; opacity: 0.75; }
+  .np-thread { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 0.9rem; }
+  .np-thread:empty { display: none; }
+  .np-turn.me { display: flex; justify-content: flex-end; }
+  .np-bubble { background: var(--brand); color: #fff; border-radius: 1.1rem 1.1rem 0.3rem 1.1rem; padding: 0.55rem 0.95rem; max-width: 80%; font-weight: 600; overflow-wrap: anywhere; }
+  .np-bubble .mention { background: rgba(255,255,255,0.22); border-radius: 0.4rem; padding: 0 0.25rem; }
+  .np-turn.nathan { display: flex; gap: 0.7rem; align-items: flex-start; }
+  .nathan-avatar.sm { width: 2.4rem; height: 2.4rem; box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(120,60,0,0.25); }
+  .np-body { flex: 1; min-width: 0; }
+  .np-body .ask-understood { margin-top: 0; }
+  .ask-examples[hidden] { display: none; }
   .search-box input { padding-right: 2.6rem !important; }
   .search-clear { position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%); width: 1.8rem; height: 1.8rem; border-radius: 50%; border: none; background: #d5dbe5; color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; }
   .search-clear[hidden] { display: none; }
@@ -329,6 +366,12 @@
     .toolbar { padding: 0.65rem 0.85rem; gap: 0.6rem; }
     .toolbar select, .toolbar button.pill { flex: 1 1 auto; font-size: 0.85rem; padding: 0.55rem 0.7rem; }
     .search-box { flex: 1 1 60%; }
+    .ask-bar { flex: 1 1 100%; }
+    .nathan-panel { padding: 0 1rem; margin-top: -0.4rem; }
+    .np-card { padding: 0.85rem 0.9rem 1rem; }
+    .np-actions .btn span, .np-title span { display: none; }
+    .np-bubble { max-width: 90%; }
+    .np-turn.nathan > .nathan-avatar.sm { display: none; }
     .filters-toggle { display: inline-flex; align-items: center; gap: 0.3rem; flex: 0 0 auto !important; }
     .filters { display: none; width: 100%; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
     .filters.open { display: grid; }
@@ -366,11 +409,14 @@
 
   <div class="toolbar-container">
     <div class="toolbar">
-      <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Search games, designers, mechanics…" enterkeyhint="search" />
-        <button type="button" class="search-clear" id="searchClear" aria-label="Clear search" hidden><i class="ti ti-x"></i></button>
+      <div class="search-box ask-bar">
+        <span class="ask-bar-avatar" aria-hidden="true"></span>
+        <input type="text" id="searchInput" placeholder="Search the shelf, or ask Nathan… (@ to add people)" enterkeyhint="send" maxlength="500" autocomplete="off"
+          aria-label="Search the shelf, or ask Nathan" role="combobox" aria-autocomplete="list" aria-controls="mentionList" aria-expanded="false" />
+        <button type="button" class="search-clear" id="searchClear" aria-label="Clear" hidden><i class="ti ti-x"></i></button>
+        <button type="button" class="ask-send" id="askSend" aria-label="Ask Nathan" title="Ask Nathan (Enter)"><i class="ti ti-arrow-up"></i></button>
+        <div class="mention-list" id="mentionList" role="listbox" hidden></div>
       </div>
-      <button class="pill ask-btn" id="askBtn" type="button"><i class="ti ti-meeple"></i> Ask Nathan</button>
       <button class="pill filters-toggle" id="filtersToggle" aria-expanded="false" aria-controls="filtersPanel"><i class="ti ti-adjustments-horizontal"></i> Filters</button>
       <div class="filters" id="filtersPanel">
       <select id="genreFilter"><option value="ALL">All Genres</option></select>
@@ -429,6 +475,28 @@
     </div>
   </div>
 
+  <section class="nathan-panel" id="nathanPanel" hidden aria-label="Conversation with Nathan">
+    <div class="np-card">
+      <div class="np-head">
+        <div class="nathan-avatar" aria-hidden="true"></div>
+        <div class="np-title"><b>Nathan</b><span>Your board game curator</span></div>
+        <div class="np-actions">
+          <button type="button" class="btn ghost" id="npNew" title="Start a new conversation"><i class="ti ti-refresh"></i> <span>New chat</span></button>
+          <button type="button" class="mini-btn" id="npHide" title="Hide (your conversation is kept)" aria-label="Hide conversation"><i class="ti ti-chevron-up"></i></button>
+        </div>
+      </div>
+      <div class="np-who"><span class="np-who-label">At the table</span><div class="player-chips" id="askPlayers"></div></div>
+      <div class="ask-examples" id="askExamples">
+        <button type="button" class="tag tag-plain" data-example="Something quick, under 30 minutes">Quick, under 30 min</button>
+        <button type="button" class="tag tag-plain" data-example="Something we haven't played in a long time">Haven't played in ages</button>
+        <button type="button" class="tag tag-plain" data-example="A cozy, relaxing game for tonight">Cozy</button>
+        <button type="button" class="tag tag-plain" data-example="A big strategic game, we have all evening">Big strategy night</button>
+        <button type="button" class="tag tag-plain" data-example="A party game with lots of laughing">Party</button>
+      </div>
+      <div class="np-thread" id="askThread" aria-live="polite"></div>
+    </div>
+  </section>
+
   <main class="grid" id="gamesGrid"></main>
   <div class="empty-state" id="emptyState" style="display:none;"></div>
 
@@ -440,31 +508,6 @@
   </footer>
 
   <button class="fab owner-only" id="addFab" title="Add games"><i class="fa-solid fa-plus"></i></button>
-
-  <!-- Ask: AI recommendations for this shelf and these people -->
-  <div class="modal-overlay" id="askModal">
-    <div class="modal ask-modal" role="dialog" aria-modal="true" aria-labelledby="askTitle">
-      <button class="mini-btn detail-close" id="askClose" title="Close"><i class="ti ti-x"></i></button>
-      <div class="nathan-head">
-        <div class="nathan-avatar" aria-hidden="true"></div>
-        <div><h2 id="askTitle">Ask Nathan</h2><div class="hint" style="margin:0;">Your board game curator. Tell him who’s playing and what you’re in the mood for.</div></div>
-      </div>
-      <div class="section-label">Who's playing?</div>
-      <div class="player-chips" id="askPlayers"></div>
-      <form id="askForm" class="ask-form">
-        <textarea id="askInput" rows="2" maxlength="500" placeholder="e.g. about an hour, something cozy, nothing with dice"></textarea>
-        <button class="btn primary" type="submit" id="askSubmit">Ask</button>
-      </form>
-      <div class="ask-examples" id="askExamples">
-        <button type="button" class="tag tag-plain" data-example="Something quick, under 30 minutes">Quick, under 30 min</button>
-        <button type="button" class="tag tag-plain" data-example="Something we haven't played in a long time">Haven't played in ages</button>
-        <button type="button" class="tag tag-plain" data-example="A cozy, relaxing game for tonight">Cozy</button>
-        <button type="button" class="tag tag-plain" data-example="A big strategic game, we have all evening">Big strategy night</button>
-        <button type="button" class="tag tag-plain" data-example="A party game with lots of laughing">Party</button>
-      </div>
-      <div id="askResult" aria-live="polite"></div>
-    </div>
-  </div>
 
   <!-- Players (owner only) -->
   <div class="modal-overlay" id="playersModal">
@@ -742,7 +785,7 @@
         const data = await n8nFetch('/collection', { method: 'GET' }, false);
         collection = Array.isArray(data) ? data : (data.items || []);
         localStorage.setItem(LS_CACHE, JSON.stringify(collection));
-        setSyncStatus('Synced ' + collection.length + ' games · ' + new Date().toLocaleTimeString());
+        setSyncStatus('Game collection total: ' + collection.length);
         rebuildGenreFilter();
         render();
       } catch (e) {
@@ -920,7 +963,8 @@
     function render() {
       const grid = document.getElementById('gamesGrid');
       const empty = document.getElementById('emptyState');
-      const search = document.getElementById('searchInput').value.toLowerCase();
+      const typed = document.getElementById('searchInput').value.toLowerCase();
+      const search = typed.includes('@') ? '' : typed; // an @mention means it's a message for Nathan, not a search
       const genre = document.getElementById('genreFilter').value;
       const ratingFilter = document.getElementById('ratingFilter').value;
       const sortBy = document.getElementById('sortSelect').value;
@@ -1546,47 +1590,106 @@
       renderAskPlayers();
       if (detailId) renderDetail();
     }
-    const askModal = document.getElementById('askModal');
-    const askSelected = new Set();
-    let askShowAll = false;
+    const askSelected = new Set(); // people at the table for this conversation
     let askLast = null;   // { question, constraints, pickIds } for follow-ups
     let askIds = null;    // when set, the grid shows only these games (in this order)
     const firstName = (n) => String(n || '').split(' ')[0];
+    const panel = document.getElementById('nathanPanel');
+    const thread = document.getElementById('askThread');
+    const bar = document.getElementById('searchInput');
+    const mentionBox = document.getElementById('mentionList');
+    const DEFAULT_PLACEHOLDER = bar.placeholder;
+    let askBusy = false;
     function renderAskPlayers() {
       const box = document.getElementById('askPlayers');
-      const list = people.players.filter(p => askShowAll || p.active || askSelected.has(p.id));
-      // Two people with the same first name get their last initial too
-      const counts = {};
-      for (const p of people.players) counts[firstName(p.name)] = (counts[firstName(p.name)] || 0) + 1;
-      const label = (p) => counts[firstName(p.name)] > 1 ? firstName(p.name) + ' ' + (p.name.split(' ')[1] || '').charAt(0) + '.' : firstName(p.name);
-      box.innerHTML = list.map(p => '<button type="button" class="player-chip' + (askSelected.has(p.id) ? ' sel' : '') + '" data-ask-player="' + esc(p.id) + '" title="' + esc(p.name) + '">' + esc(label(p)) + '</button>').join('') +
-        (people.players.length > list.length || askShowAll ? '<button type="button" class="player-chip" data-ask-more>' + (askShowAll ? 'Fewer' : 'More…') + '</button>' : '') +
-        (!people.players.length ? '<span class="hint" style="margin:0;">Name people in your question, like "Sam and Alex".</span>' : '');
+      const seated = people.players.filter(p => askSelected.has(p.id));
+      box.innerHTML = seated.length
+        ? seated.map(p => '<button type="button" class="player-chip sel" data-ask-player="' + esc(p.id) + '" title="Remove ' + esc(p.name) + '">' + esc(p.name) + '<i class="ti ti-x x"></i></button>').join('')
+        : '<span class="hint">Type @ in the bar to add the people you’re playing with.</span>';
     }
     document.getElementById('askPlayers').addEventListener('click', (e) => {
-      if (e.target.closest('[data-ask-more]')) { askShowAll = !askShowAll; renderAskPlayers(); return; }
       const chip = e.target.closest('[data-ask-player]');
       if (!chip) return;
-      const id = chip.dataset.askPlayer;
-      askSelected.has(id) ? askSelected.delete(id) : askSelected.add(id);
+      askSelected.delete(chip.dataset.askPlayer);
       renderAskPlayers();
     });
+    function openPanel() {
+      panel.hidden = false;
+      renderAskPlayers();
+      document.getElementById('askExamples').hidden = thread.children.length > 0;
+    }
+
+    // @mentions: "@" then part of a name opens a list of players; picking one writes their full name
+    let mentionAt = -1, mentionOpts = [], mentionActive = 0;
+    function closeMentions() { mentionBox.hidden = true; mentionAt = -1; bar.setAttribute('aria-expanded', 'false'); }
+    function updateMentions() {
+      const caret = bar.selectionStart ?? bar.value.length;
+      const before = bar.value.slice(0, caret);
+      const at = before.lastIndexOf('@');
+      if (at < 0 || (at > 0 && !/\s/.test(before[at - 1])) || !people.players.length) { closeMentions(); return; }
+      const q = before.slice(at + 1).toLowerCase();
+      if (q.length > 30 || /^\s/.test(q)) { closeMentions(); return; }
+      const words = q.split(/\s+/).filter(Boolean);
+      const matches = (p) => {
+        const names = [p.name, ...(p.aliases || [])].map(n => String(n).toLowerCase());
+        return names.some(n => n.startsWith(q) || words.every(w => n.split(/\s+/).some(part => part.startsWith(w))));
+      };
+      mentionOpts = people.players.filter(p => !askSelected.has(p.id) && matches(p))
+        .sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0) || a.name.localeCompare(b.name)).slice(0, 8);
+      if (!mentionOpts.length) { closeMentions(); return; }
+      mentionAt = at;
+      mentionActive = Math.min(mentionActive, mentionOpts.length - 1);
+      mentionBox.innerHTML = mentionOpts.map((p, i) => '<button type="button" class="mention-opt' + (i === mentionActive ? ' active' : '') + '" role="option" aria-selected="' + (i === mentionActive) + '" data-mention="' + i + '"><span class="at">@</span>' + esc(p.name) + '</button>').join('');
+      mentionBox.hidden = false;
+      bar.setAttribute('aria-expanded', 'true');
+    }
+    function pickMention(i) {
+      const p = mentionOpts[i];
+      if (!p || mentionAt < 0) return;
+      const caret = bar.selectionStart ?? bar.value.length;
+      const tag = '@' + p.name + ' ';
+      bar.value = bar.value.slice(0, mentionAt) + tag + bar.value.slice(caret).replace(/^\s+/, '');
+      const pos = mentionAt + tag.length;
+      bar.setSelectionRange(pos, pos);
+      askSelected.add(p.id);
+      closeMentions();
+      openPanel();
+      bar.focus();
+    }
+    mentionBox.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the bar
+    mentionBox.addEventListener('click', (e) => { const o = e.target.closest('[data-mention]'); if (o) pickMention(+o.dataset.mention); });
+    bar.addEventListener('input', () => { mentionActive = 0; updateMentions(); });
+    bar.addEventListener('click', updateMentions);
+    bar.addEventListener('blur', () => setTimeout(closeMentions, 120));
+    // Focusing an empty bar shows the table and some ideas, like an AI search box
+    bar.addEventListener('focus', () => { if (!bar.value.trim()) openPanel(); });
+    bar.addEventListener('keydown', (e) => {
+      if (!mentionBox.hidden) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          mentionActive = (mentionActive + (e.key === 'ArrowDown' ? 1 : -1) + mentionOpts.length) % mentionOpts.length;
+          updateMentions();
+          return;
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickMention(mentionActive); return; }
+        if (e.key === 'Escape') { e.preventDefault(); closeMentions(); return; }
+      }
+      if (e.key === 'Enter') { e.preventDefault(); askNathan(); return; }
+      if (e.key === 'Escape' && !panel.hidden) panel.hidden = true;
+    });
+    document.getElementById('askSend').addEventListener('click', () => askNathan());
     document.getElementById('askExamples').addEventListener('click', (e) => {
       const ex = e.target.closest('[data-example]');
-      if (!ex) return;
-      document.getElementById('askInput').value = ex.dataset.example;
-      document.getElementById('askForm').requestSubmit();
+      if (ex) askNathan(ex.dataset.example);
     });
-    function openAsk() {
-      askModal.classList.add('open');
-      renderAskPlayers();
-      setTimeout(() => document.getElementById('askInput').focus(), 0);
-    }
-    document.getElementById('askBtn').addEventListener('click', openAsk);
-    document.getElementById('askClose').addEventListener('click', () => askModal.classList.remove('open'));
-    askModal.addEventListener('click', (e) => { if (e.target === askModal) askModal.classList.remove('open'); });
-    document.getElementById('askInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('askForm').requestSubmit(); }
+    document.getElementById('npHide').addEventListener('click', () => { panel.hidden = true; });
+    document.getElementById('npNew').addEventListener('click', () => {
+      thread.innerHTML = '';
+      askLast = null;
+      askSelected.clear();
+      bar.placeholder = DEFAULT_PLACEHOLDER;
+      openPanel();
+      bar.focus();
     });
 
     // Titles Nathan already joked about this session (he quips on a game's first mention only)
@@ -1634,51 +1737,74 @@
       if (u.mood) bits.push(esc(u.mood));
       return bits.length ? '<div class="ask-understood">' + bits.map(b => '<span class="fact">' + b + '</span>').join('') + '</div>' : '';
     }
-    document.getElementById('askForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const input = document.getElementById('askInput');
-      const question = input.value.trim();
-      if (question.length < 3) { input.focus(); return; }
-      const out = document.getElementById('askResult');
+    function nathanAnswerHtml(r) {
+      if (r.offTopic || !r.pick) return '<p class="ask-note" style="margin:0;">' + esc(r.note || (r.gap && r.gap.missing) || 'Nathan came up empty on that one.') + '</p>';
+      const gap = r.gap ? '<div class="n-gap">' + esc(r.gap.missing) +
+        (r.gap.consider ? ' Not on your shelf, but worth a look: <a href="https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=' + encodeURIComponent(r.gap.consider) + '" target="_blank" rel="noopener">' + esc(r.gap.consider) + '</a>.' : '') + '</div>' : '';
+      return understoodHtml(r.understood) + gap +
+        nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid') +
+        '<div class="n-sign">And that’s what’s hitting the table!' + (r.signoff ? '<span>' + esc(r.signoff) + '</span>' : '') + '</div>' +
+        '<div class="ask-actions"><button type="button" class="btn" data-show-ids="' + esc((r.pickIds || []).join(',')) + '"><i class="ti ti-layout-grid"></i> Show in grid</button></div>';
+    }
+    // The question as a bubble, with each @Full Name highlighted
+    function bubbleHtml(q) {
+      let out = esc(q);
+      const names = people.players.map(p => p.name).sort((a, b) => b.length - a.length);
+      for (const n of names) out = out.split('@' + esc(n)).join('<span class="mention">@' + esc(n) + '</span>');
+      return out;
+    }
+    // Enter in the bar (or the arrow) turns what you typed into a message to Nathan
+    async function askNathan(text) {
+      const question = String(text ?? bar.value).trim();
+      if (question.length < 3) { bar.focus(); return; }
+      if (askBusy) return;
+      // Anyone written out in full as @Name counts, even if they weren't picked from the list
+      for (const p of people.players) if (question.toLowerCase().includes('@' + p.name.toLowerCase())) askSelected.add(p.id);
+      askBusy = true;
+      document.getElementById('askSend').disabled = true;
+      closeMentions();
+      bar.value = '';
+      document.getElementById('searchClear').hidden = true;
+      askIds = null;
+      render(); // the typed words were a question, not a search: show the whole shelf again
+      openPanel();
+      document.getElementById('askExamples').hidden = true;
+      thread.insertAdjacentHTML('beforeend', '<div class="np-turn me"><div class="np-bubble">' + bubbleHtml(question) + '</div></div>');
       const names = people.players.filter(p => askSelected.has(p.id)).map(p => firstName(p.name));
-      out.innerHTML = '<div class="ask-thinking"><div class="spinner"></div>Nathan is checking the shelves' + (names.length ? ' for ' + esc(names.join(', ')) : '') + '…</div>';
-      document.getElementById('askSubmit').disabled = true;
+      const turn = document.createElement('div');
+      turn.className = 'np-turn nathan';
+      turn.innerHTML = '<div class="nathan-avatar sm" aria-hidden="true"></div><div class="np-body"><div class="ask-thinking" style="margin:0.4rem 0 0;"><div class="spinner"></div>Nathan is checking the shelves' + (names.length ? ' for ' + esc(names.join(', ')) : '') + '…</div></div>';
+      thread.appendChild(turn);
+      turn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       try {
         const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked] }) }, false);
-        if (r.offTopic || !r.pick) {
-          out.innerHTML = '<p class="ask-note">' + esc(r.note || (r.gap && r.gap.missing) || 'Nathan came up empty on that one.') + '</p>';
-          return;
+        if (r.pick) {
+          askLast = { question, constraints: r.constraints, pickIds: r.pickIds };
+          rememberJoked(r.pickIds || []);
         }
-        askLast = { question, constraints: r.constraints, pickIds: r.pickIds };
-        rememberJoked(r.pickIds || []);
-        const gap = r.gap ? '<div class="n-gap">' + esc(r.gap.missing) +
-          (r.gap.consider ? ' Not on your shelf, but worth a look: <a href="https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=' + encodeURIComponent(r.gap.consider) + '" target="_blank" rel="noopener">' + esc(r.gap.consider) + '</a>.' : '') + '</div>' : '';
-        out.innerHTML = understoodHtml(r.understood) + gap +
-          nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid') +
-          '<div class="n-sign">And that’s what’s hitting the table!' + (r.signoff ? '<span>' + esc(r.signoff) + '</span>' : '') + '</div>' +
-          '<div class="ask-actions"><button type="button" class="btn" id="askShowGrid"><i class="ti ti-layout-grid"></i> Show in grid</button>' +
-          '<button type="button" class="btn ghost" id="askRefine"><i class="ti ti-adjustments"></i> Refine</button></div>';
-        const ids = r.pickIds || [];
-        document.getElementById('askShowGrid').onclick = () => { askIds = ids; askModal.classList.remove('open'); render(); window.scrollTo({ top: document.querySelector('.toolbar-container').offsetTop, behavior: 'smooth' }); };
-        document.getElementById('askRefine').onclick = () => { input.value = ''; input.placeholder = 'e.g. shorter, no dice, something we haven’t played'; input.focus(); };
-        input.value = '';
-        input.placeholder = 'Refine: shorter, something different, no dice…';
+        turn.querySelector('.np-body').innerHTML = nathanAnswerHtml(r);
+        bar.placeholder = 'Reply to Nathan: shorter, something different, no dice…';
       } catch (err) {
-        out.innerHTML = '<p class="ask-note">' + esc(err.message) + '</p>';
+        turn.querySelector('.np-body').innerHTML = '<p class="ask-note" style="margin:0;">' + esc(err.message) + '</p>';
       } finally {
-        document.getElementById('askSubmit').disabled = false;
+        askBusy = false;
+        document.getElementById('askSend').disabled = false;
+      }
+    }
+    thread.addEventListener('click', (e) => {
+      const open = e.target.closest('[data-ask-open]');
+      if (open) { openDetail(open.dataset.askOpen); return; }
+      const show = e.target.closest('[data-show-ids]');
+      if (show) {
+        askIds = show.dataset.showIds.split(',').filter(Boolean);
+        render();
+        document.getElementById('gamesGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
-    document.getElementById('askResult').addEventListener('keydown', (e) => {
+    thread.addEventListener('keydown', (e) => {
       const b = e.target.closest('[data-ask-open]');
       if (b && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); b.click(); }
-    });
-    document.getElementById('askResult').addEventListener('click', (e) => {
-      const b = e.target.closest('[data-ask-open]');
-      if (!b) return;
-      askModal.classList.remove('open');
-      openDetail(b.dataset.askOpen);
     });
 
     document.getElementById('authBtn').addEventListener('click', () => {
