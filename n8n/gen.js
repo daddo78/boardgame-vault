@@ -61,7 +61,7 @@ function prelude() {
     minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',
     year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',
     rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',
-    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu',
+    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',
     coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',
   };
   const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
@@ -77,6 +77,8 @@ function prelude() {
       year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),
       rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),
       favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,
+      // Other editions whose logged plays count toward this game
+      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),
     };
   };
   const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)
@@ -796,14 +798,20 @@ const syncPlays = wf(ID.syncPlays, 'Vault — Sync Plays From BGG', [
     const changes = [];
     for (const g of games) {
       if (!g.bggId) continue;
-      const p = byGame[String(g.bggId)] || { count: 0, last: null };
+      const p = { count: 0, last: null };
+      for (const id of [g.bggId, ...g.extraBggIds]) {
+        const x = byGame[String(id)];
+        if (!x) continue;
+        p.count += x.count;
+        if (x.last && (!p.last || x.last > p.last)) p.last = x.last;
+      }
       if ((g.playCount || 0) !== p.count || (g.lastPlayed || null) !== p.last) {
         changes.push({ id: g.recordId, fields: { [F.playCount]: p.count, [F.lastPlayed]: p.last } });
       }
     }
     const batches = [];
     for (let i = 0; i < changes.length; i += 10) batches.push({ json: { records: changes.slice(i, i + 10) } });
-    const matched = games.filter((g) => g.bggId && byGame[String(g.bggId)]).length;
+    const matched = games.filter((g) => g.bggId && [g.bggId, ...g.extraBggIds].some((id) => byGame[String(id)])).length;
     const summary = { totalPlays: total, gamesPlayedOnBgg: gamesPlayed, matchedInCollection: matched, updated: changes.length };
     return batches.length ? batches.map((b) => ({ json: { ...b.json, summary } })) : [{ json: { records: [], summary } }];
   }),
@@ -1374,6 +1382,8 @@ const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
     const { people } = $('Tally People').first().json;
     const games = $('List Games').all().flatMap((i) => i.json.records || []).map(toGame);
     const gameIdByBgg = Object.fromEntries(games.filter((g) => g.bggId).map((g) => [String(g.bggId), g.id]));
+    const primaryBgg = {}; // any BGG id we count (own or extra edition) -> the game's own BGG id
+    for (const g of games) if (g.bggId) for (const id of [g.bggId, ...g.extraBggIds]) primaryBgg[String(id)] ??= String(g.bggId);
     const players = $input.all().flatMap((i) => i.json.records || []).map(toPlayer);
     const now = new Date().toISOString();
     const playerRecords = [], ratingRecords = [];
@@ -1381,8 +1391,9 @@ const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
       const names = playerNames(pl);
       const merged = {};
       for (const n of names) for (const [bggId, g] of Object.entries((people[n] || {}).games || {})) {
-        if (!gameIdByBgg[bggId]) continue; // only games in the collection
-        const m = (merged[bggId] ??= { plays: 0, wins: 0, last: null, ratings: [] });
+        const own = primaryBgg[bggId];
+        if (!own) continue; // only games in the collection
+        const m = (merged[own] ??= { plays: 0, wins: 0, last: null, ratings: [] });
         m.plays += g.plays; m.wins += g.wins; m.ratings.push(...g.ratings);
         if (g.last && (!m.last || g.last > m.last)) m.last = g.last;
       }
