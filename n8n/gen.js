@@ -1576,7 +1576,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const words = (list) => (Array.isArray(list) ? list : []).map((s) => String(s).toLowerCase().trim()).filter((s) => s.length > 2);
     // Common words map onto BGG's category and mechanic names, so the matching set doesn't depend on the model's wording
     const SYN = {
-      'sci-fi': ['science fiction', 'space exploration'], 'scifi': ['science fiction', 'space exploration'], 'science fiction': ['space exploration'],
+      'sci-fi': ['science fiction', 'space exploration'], 'scifi': ['science fiction', 'space exploration'], 'science fiction': ['sci-fi', 'space exploration'], 'space exploration': ['sci-fi', 'science fiction'],
       'space': ['space exploration', 'science fiction'], 'aliens': ['science fiction'], 'robots': ['science fiction'],
       'co-op': ['cooperative game'], 'coop': ['cooperative game'], 'cooperative': ['cooperative game'],
       'dice': ['dice rolling'], 'war': ['wargame'], 'wargames': ['wargame'], 'deckbuilding': ['deck, bag, and pool building'], 'deck building': ['deck, bag, and pool building'], 'deck-building': ['deck, bag, and pool building'],
@@ -1633,11 +1633,13 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const themed = want.length ? scored.filter((x) => want.some((w) => tags(x.g).includes(w))) : scored;
     const browse = c.intent === 'browse';
     const gap = browse ? themed.length === 0 : scored.length === 0;
-    const short = (gap ? loose.sort((a, b) => b.s - a.s).slice(0, 12) : (browse || themed.length ? themed : scored).slice(0, 30)).map((x) => x.g);
-    const matchIds = gap ? [] : themed.map((x) => x.g.id);
+    // Themes filter only a browse ("what sci-fi games do I have"); for a recommendation they are moods that steer the score ("cozy")
+    const fits = browse ? themed : scored;
+    const short = (gap ? loose.sort((a, b) => b.s - a.s).slice(0, 12) : fits.slice(0, 30)).map((x) => x.g);
+    const matchIds = gap ? [] : fits.map((x) => x.g.id);
     // A few facts about the matching set, so a browse summary can be specific without guessing
     const tally = (list) => Object.entries(list.reduce((a, k) => (a[k] = (a[k] || 0) + 1, a), {})).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, n]) => k + ' ' + n).join(', ');
-    const set = themed.map((x) => x.g);
+    const set = fits.map((x) => x.g);
     const weights = set.map((g) => g.weight).filter(Boolean);
     const setFacts = gap ? '' : [
       'COUNT: ' + set.length + ' of ' + games.length + ' games on the shelf match everything asked, including any limits like time or players (say it naturally, never mention matching, e.g. "17 sci-fi games under an hour")',

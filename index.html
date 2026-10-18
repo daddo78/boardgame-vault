@@ -210,6 +210,20 @@
   .np-body { flex: 1; min-width: 0; }
   .np-body .ask-understood { margin-top: 0; }
   .ask-examples[hidden] { display: none; }
+  /* The Nathan card: bar on top, his answers flow out underneath */
+  .chat-container { max-width: 1300px; margin: -1.9rem auto 1.6rem; padding: 0 1.5rem; position: relative; z-index: 50; }
+  .nathan-box { background: #fff; border-radius: 1.4rem; padding: 0.75rem; box-shadow: 0 10px 30px rgba(31,63,143,0.14); }
+  .nathan-box .nathan-panel { max-width: none; margin: 0; padding: 0; }
+  .nathan-box .np-card { background: none; box-shadow: none; border-radius: 0; padding: 1rem 0.45rem 0.4rem; margin-top: 0.75rem; border-top: 1px solid #f1e6d6; }
+  /* Filters sit on the page itself: outlined and see-through, so the cream shows */
+  .filters-container { max-width: 1300px; margin: 0 auto 1.2rem; padding: 0 1.5rem; }
+  .toolbar.filter-bar { background: none; box-shadow: none; padding: 0; border-radius: 0; }
+  .filter-bar select, .filter-bar button.pill { background-color: transparent; border: 1.5px solid #d8c4a6; color: var(--ink); }
+  .filter-bar select:hover, .filter-bar button.pill:hover { background-color: rgba(255,255,255,0.45); color: var(--ink); }
+  .filter-bar select:focus-visible, .filter-bar button.pill:focus-visible { border-color: var(--brand); }
+  .filter-bar button.pill.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .filter-bar .clear-pill { background: transparent; border-color: #e7a58f; color: var(--brand-dark); }
+  .filter-bar .filters-toggle .count { margin-left: 0.15rem; }
   /* Overview first, like an AI search answer: clamped with a fade, "Chat more" opens the conversation */
   .nathan-panel.collapsed .np-thread.clamped { max-height: 25rem; overflow: hidden; position: relative; }
   .nathan-panel.collapsed .np-thread.clamped::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 6rem; background: linear-gradient(rgba(255,255,255,0), #fff); pointer-events: none; }
@@ -401,6 +415,9 @@
     .toolbar select, .toolbar button.pill { flex: 1 1 auto; font-size: 0.85rem; padding: 0.55rem 0.7rem; }
     .search-box { flex: 1 1 60%; }
     .ask-bar { flex: 1 1 100%; }
+    .chat-container { margin: -1rem auto 1.1rem; padding: 0 1rem; }
+    .nathan-box { padding: 0.55rem; border-radius: 1.3rem; }
+    .filters-container { padding: 0 1rem; margin-bottom: 1rem; }
     .nathan-panel { padding: 0 1rem; margin-top: -0.4rem; }
     .np-card { padding: 0.85rem 0.9rem 1rem; }
     .np-actions .btn span, .np-title span { display: none; }
@@ -443,8 +460,9 @@
     </div>
   </header>
 
-  <div class="toolbar-container">
-    <div class="toolbar">
+  <!-- One card for Nathan: the bar, then his answers and the conversation -->
+  <div class="chat-container">
+    <div class="nathan-box">
       <div class="search-box ask-bar">
         <span class="ask-bar-avatar" aria-hidden="true"></span>
         <input type="text" id="searchInput" placeholder="Search the shelf, or ask Nathan… (@ to add people)" enterkeyhint="send" maxlength="500" autocomplete="off"
@@ -461,6 +479,33 @@
           <button type="button" class="mention-opt" role="option" data-example="A party game with lots of laughing"><span class="at"><i class="ti ti-sparkles"></i></span>Party</button>
         </div>
       </div>
+      <section class="nathan-panel collapsed" id="nathanPanel" hidden aria-label="Conversation with Nathan">
+        <div class="np-card">
+          <div class="np-head">
+            <div class="nathan-avatar" aria-hidden="true"></div>
+            <div class="np-title"><b>Nathan</b><span>Your board game curator</span></div>
+            <div class="np-actions">
+              <button type="button" class="btn ghost" id="npNew" title="Start a new conversation"><i class="ti ti-refresh"></i> <span>New chat</span></button>
+              <button type="button" class="mini-btn" id="npHide" title="Close" aria-label="Close"><i class="ti ti-x"></i></button>
+            </div>
+          </div>
+          <div class="np-who"><span class="np-who-label">At the table</span><div class="player-chips" id="askPlayers"></div></div>
+          <div class="np-thread" id="askThread" aria-live="polite"></div>
+          <button type="button" class="np-more" id="npMore" hidden>Chat more <i class="ti ti-chevron-down"></i></button>
+          <div class="np-compose" id="npCompose">
+            <input type="text" id="npInput" placeholder="Reply to Nathan… (@ to add people)" enterkeyhint="send" maxlength="500" autocomplete="off"
+              aria-label="Reply to Nathan" role="combobox" aria-autocomplete="list" aria-controls="npMentionList" aria-expanded="false" />
+            <button type="button" class="ask-send" id="npSend" aria-label="Send to Nathan"><i class="ti ti-arrow-up"></i></button>
+            <div class="mention-list" id="npMentionList" role="listbox" hidden></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Filters for the library, right above the games -->
+  <div class="filters-container">
+    <div class="toolbar filter-bar">
       <button class="pill filters-toggle" id="filtersToggle" aria-expanded="false" aria-controls="filtersPanel"><i class="ti ti-adjustments-horizontal"></i> Filters</button>
       <div class="filters" id="filtersPanel">
       <select id="genreFilter"><option value="ALL">All Genres</option></select>
@@ -518,28 +563,6 @@
       <button type="button" class="pill clear-pill" id="clearAll" hidden><i class="ti ti-x"></i> <span>Clear filters</span></button>
     </div>
   </div>
-
-  <section class="nathan-panel collapsed" id="nathanPanel" hidden aria-label="Conversation with Nathan">
-    <div class="np-card">
-      <div class="np-head">
-        <div class="nathan-avatar" aria-hidden="true"></div>
-        <div class="np-title"><b>Nathan</b><span>Your board game curator</span></div>
-        <div class="np-actions">
-          <button type="button" class="btn ghost" id="npNew" title="Start a new conversation"><i class="ti ti-refresh"></i> <span>New chat</span></button>
-          <button type="button" class="mini-btn" id="npHide" title="Close" aria-label="Close"><i class="ti ti-x"></i></button>
-        </div>
-      </div>
-      <div class="np-who"><span class="np-who-label">At the table</span><div class="player-chips" id="askPlayers"></div></div>
-      <div class="np-thread" id="askThread" aria-live="polite"></div>
-      <button type="button" class="np-more" id="npMore" hidden>Chat more <i class="ti ti-chevron-down"></i></button>
-      <div class="np-compose" id="npCompose">
-        <input type="text" id="npInput" placeholder="Reply to Nathan… (@ to add people)" enterkeyhint="send" maxlength="500" autocomplete="off"
-          aria-label="Reply to Nathan" role="combobox" aria-autocomplete="list" aria-controls="npMentionList" aria-expanded="false" />
-        <button type="button" class="ask-send" id="npSend" aria-label="Send to Nathan"><i class="ti ti-arrow-up"></i></button>
-        <div class="mention-list" id="npMentionList" role="listbox" hidden></div>
-      </div>
-    </div>
-  </section>
 
   <main class="grid" id="gamesGrid"></main>
   <div class="empty-state" id="emptyState" style="display:none;"></div>
