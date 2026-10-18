@@ -254,7 +254,10 @@
   button.pill.active { background: var(--brand); color: #fff; }
   .total-badge { display: inline-flex; align-items: center; gap: 0.35rem; height: 2.5rem; padding: 0 0.95rem; border-radius: 999px; background: #ec7a55; color: #fff; font-weight: 600; font-size: 0.88rem; white-space: nowrap; }
   .total-badge b { font-weight: 800; }
-  .total-badge[hidden] { display: none; }
+  .total-badge [hidden] { display: none; }
+  .total-badge > span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .total-badge.err { background: var(--brand-dark); cursor: help; }
+  .badge-spin { width: 0.85rem; height: 0.85rem; border: 2px solid rgba(255,255,255,0.45); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
   .toolbar .clear-pill { flex: 0 0 auto; background: #fde3d8; color: var(--brand-dark); font-weight: 700; }
   .toolbar .clear-pill:hover { background: #fbd2c1; }
   .clear-pill[hidden] { display: none !important; }
@@ -487,7 +490,7 @@
   <div class="topbar">
     <button class="auth-btn" id="authBtn" type="button"><i class="ti ti-login"></i> <span>Sign in</span></button>
     <div class="actions">
-      <span class="total-badge" id="totalBadge" hidden title="Games in the collection"><i class="ti ti-cards"></i> <b id="totalCount"></b> games</span>
+      <span class="total-badge" id="totalBadge" title="Games in the collection"><span id="badgeStatus"><span class="badge-spin"></span> Loading…</span><span id="badgeTotal" hidden><i class="ti ti-cards"></i> <b id="totalCount"></b> games</span></span>
       <button class="icon-btn owner-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
     </div>
   </div>
@@ -496,7 +499,6 @@
     <div class="hero-copy">
       <h1 class="hero-title"><span>Board</span> <span>Game</span> <span>Curator</span></h1>
       <div class="hero-tag">Your collection cataloged and cultivated with love.</div>
-      <div class="sync-status" id="syncStatus">Loading the collection…</div>
     </div>
   </header>
 
@@ -880,14 +882,18 @@
       return ct.includes('application/json') ? res.json() : res.text();
     }
 
+    // Loading and errors show in the total badge in the top bar, not in the hero
     function setSyncStatus(msg, isErr) {
-      const el = document.getElementById('syncStatus');
-      el.textContent = msg;
-      el.className = 'sync-status' + (isErr ? ' err' : '');
+      const badge = document.getElementById('totalBadge'), status = document.getElementById('badgeStatus');
+      badge.classList.toggle('err', !!isErr);
+      badge.title = isErr ? msg : 'Games in the collection';
+      status.hidden = !msg;
+      status.innerHTML = isErr ? '<i class="ti ti-alert-triangle"></i> Offline' : '<span class="badge-spin"></span> ' + esc(msg);
+      document.getElementById('badgeTotal').hidden = !!msg;
     }
 
     async function loadCollection() {
-      setSyncStatus('Loading collection from n8n…');
+      setSyncStatus('Loading…');
       try {
         const data = await n8nFetch('/collection', { method: 'GET' }, false);
         collection = Array.isArray(data) ? data : (data.items || []);
@@ -1129,7 +1135,6 @@
       const nFilters = [genre, ratingFilter, players, time, weight].filter(v => v !== 'ALL').length + (favOnly ? 1 : 0) + (thinOnly ? 1 : 0);
       // The badge is the collection total only; it never changes while you search or filter
       document.getElementById('totalCount').textContent = collection.length;
-      document.getElementById('totalBadge').hidden = !collection.length;
       const clearBtn = document.getElementById('clearAll');
       clearBtn.hidden = !(nFilters > 0 || askIds);
       clearBtn.querySelector('span').textContent = nFilters + (askIds ? 1 : 0) > 1 ? 'Remove filters' : 'Remove filter';
