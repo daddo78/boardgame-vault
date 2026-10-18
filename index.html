@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#f5eee1" />
 <link rel="icon" type="image/png" href="assets/favicon-64.png" />
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Luckiest+Guy&family=Caveat+Brush&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css">
 <link rel="preload" as="image" href="assets/hero.jpg">
@@ -60,20 +60,15 @@
   .topbar .logo img { width: 2.3rem; height: 2.3rem; }
   .topbar .actions { display: flex; align-items: center; gap: 0.5rem; }
   /* Hero: illustrated game room, Nathan bottom-left, cartoon title in the calm middle */
-  header.hero { position: relative; background: #efe3cc url(assets/hero.jpg) center / cover no-repeat; min-height: clamp(380px, 38vw, 540px);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2.5rem 1.5rem 4.6rem; overflow: hidden; }
-  .hero-nathan { position: absolute; bottom: 0; left: max(-1rem, calc(50% - 760px)); height: 96%; max-height: 520px; width: auto; pointer-events: none;
+  header.hero { position: relative; background: #efe3cc url(assets/hero.jpg) center / cover no-repeat; min-height: clamp(250px, 23vw, 360px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 1.6rem 1.5rem 3.4rem clamp(1.5rem, 25vw, 430px); overflow: hidden; }
+  .hero-nathan { position: absolute; bottom: 0; left: clamp(0px, 10vw, 230px); height: 100%; max-height: 360px; width: auto; pointer-events: none;
     filter: drop-shadow(0 10px 18px rgba(40, 25, 10, 0.35)); }
   .hero-copy { position: relative; z-index: 1; max-width: 980px; }
-  .hero-title { font-family: 'Luckiest Guy', var(--font-display); font-weight: 400; font-size: clamp(2.4rem, 4.9vw, 4.8rem); line-height: 0.95; white-space: nowrap; letter-spacing: 0.02em;
+  .hero-title { font-family: 'Luckiest Guy', var(--font-display); font-weight: 400; font-size: clamp(2.2rem, 4.3vw, 4.3rem); line-height: 0.95; white-space: nowrap; letter-spacing: 0.02em;
     color: #e2382c; -webkit-text-stroke: 2px #4a1d12; paint-order: stroke fill; text-shadow: 0 5px 0 #7a2416, 0 10px 22px rgba(60, 20, 10, 0.35); margin: 0; }
   .hero-tag { font-family: 'Luckiest Guy', var(--font-display); color: #f6c343; font-size: clamp(1.05rem, 2.1vw, 1.6rem); letter-spacing: 0.03em; margin-top: 0.7rem;
     -webkit-text-stroke: 1px #4a2a10; paint-order: stroke fill; text-shadow: 0 2px 0 #5c3510; }
-  .hero-cta { margin-top: 1.4rem; font-family: 'Caveat Brush', var(--font-display); font-size: 1.85rem; color: #fff; background: #d23a2f; border: none; cursor: pointer;
-    padding: 0.35rem 2.2rem 0.45rem; line-height: 1.1; transform: rotate(-1.5deg); box-shadow: 0 6px 14px rgba(120, 30, 20, 0.35);
-    clip-path: polygon(2% 12%, 9% 2%, 30% 8%, 52% 0%, 74% 7%, 93% 1%, 100% 18%, 97% 46%, 100% 82%, 91% 100%, 68% 93%, 45% 100%, 22% 92%, 6% 99%, 0% 76%, 3% 44%); }
-  .hero-cta:hover { background: #b92d23; }
-  .hero-cta:focus-visible { outline: 3px solid #f6c343; outline-offset: 4px; }
   .sync-status { margin-top: 0.9rem; font-size: 0.8rem; color: rgba(60, 40, 20, 0.7); font-weight: 600; }
   .sync-status.err { color: #fff; background: var(--red); display: inline-block; padding: 0.2rem 0.7rem; border-radius: 999px; font-weight: 700; }
   .icon-btn { background: #fff; border: 1px solid #eadfcb; color: #262626; width: 2.5rem; height: 2.5rem; border-radius: 50%; cursor: pointer; font-size: 1.05rem; }
@@ -165,8 +160,8 @@
   .pl-check { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.9rem; font-weight: 700; font-size: 0.9rem; }
   /* Between phone and wide desktop, keep the text clear of Nathan */
   @media (min-width: 641px) and (max-width: 1180px) {
-    .hero-copy { margin-left: min(34vw, 380px); }
-    .hero-title { font-size: clamp(2.2rem, 5.2vw, 3.9rem); white-space: normal; }
+    .hero-copy { max-width: 100%; }
+    .hero-title { font-size: clamp(2rem, 4.6vw, 3.4rem); white-space: normal; }
   }
 
   @media (max-width: 640px) { .pl-two { grid-template-columns: 1fr; } }
@@ -326,11 +321,10 @@
     .topbar { padding: 0 0.85rem; }
     .topbar .logo span { display: none; }
     /* Phones: title on top, Nathan peeks up from the bottom-left */
-    header.hero { min-height: 0; justify-content: flex-start; padding: 1.6rem 1rem 10.5rem; background-position: 50% 50%; }
-    .hero-nathan { height: 205px; left: -0.6rem; }
+    header.hero { min-height: 0; justify-content: flex-start; padding: 1.4rem 1rem 11rem; background-position: 50% 50%; }
+    .hero-nathan { height: 168px; left: 4%; }
     .hero-title { white-space: normal; -webkit-text-stroke-width: 1.5px; text-shadow: 0 4px 0 #7a2416, 0 8px 16px rgba(60, 20, 10, 0.3); }
-    .hero-cta { font-size: 1.55rem; margin-top: 1.1rem; }
-    .sync-status { margin-left: 34%; }
+    .sync-status { position: absolute; left: 0; right: 0; bottom: -8.6rem; padding: 0 0.2rem 0 48%; text-align: right; font-size: 0.72rem; }
     .icon-btn { width: 2.3rem; height: 2.3rem; font-size: 1rem; }
     .toolbar-container { margin: -1rem auto 1.25rem; padding: 0 1rem; top: 0.5rem; }
     .toolbar { padding: 0.65rem 0.85rem; gap: 0.6rem; }
@@ -368,7 +362,6 @@
     <div class="hero-copy">
       <h1 class="hero-title">Board Game Curator</h1>
       <div class="hero-tag">A shelf of games, curated by Nathan</div>
-      <button class="hero-cta" id="heroAsk" type="button">Ask Nathan</button>
       <div class="sync-status" id="syncStatus">Loading the collection…</div>
     </div>
   </header>
@@ -1591,7 +1584,6 @@
       setTimeout(() => document.getElementById('askInput').focus(), 0);
     }
     document.getElementById('askBtn').addEventListener('click', openAsk);
-    document.getElementById('heroAsk').addEventListener('click', openAsk);
     document.getElementById('askClose').addEventListener('click', () => askModal.classList.remove('open'));
     askModal.addEventListener('click', (e) => { if (e.target === askModal) askModal.classList.remove('open'); });
     document.getElementById('askInput').addEventListener('keydown', (e) => {
