@@ -170,7 +170,7 @@
   .toolbar { background: #fff; border-radius: 1.25rem; padding: 0.8rem 1.1rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; box-shadow: 0 10px 30px rgba(31,63,143,0.14); }
   .search-box { flex: 1 1 240px; position: relative; }
   /* The Ask Nathan bar: search as you type, Enter asks Nathan, @ adds people */
-  .ask-bar { flex: 1 1 420px; }
+  .ask-bar { flex: 1 1 100%; }
   .ask-bar input { padding-left: 3.1rem !important; padding-right: 5.4rem !important; }
   .ask-bar-avatar { position: absolute; left: 0.35rem; top: 50%; transform: translateY(-50%); width: 2.2rem; height: 2.2rem; border-radius: 50%; background: #f6c343 url(assets/nathan.webp) no-repeat; background-size: 250%; background-position: 46% 14%; pointer-events: none; }
   .ask-send { position: absolute; right: 0.35rem; top: 50%; transform: translateY(-50%); width: 2.2rem; height: 2.2rem; border-radius: 50%; border: none; background: var(--brand); color: #fff; cursor: pointer; font-size: 1.15rem; display: flex; align-items: center; justify-content: center; }
@@ -224,7 +224,14 @@
   .filters-toggle .count { background: var(--brand); color: #fff; border-radius: 999px; font-size: 0.75rem; min-width: 1.3rem; height: 1.3rem; display: inline-flex; align-items: center; justify-content: center; padding: 0 0.35rem; }
   /* iPhone/iPad Safari zooms into any text field under 16px when it is focused, then leaves the page shifted */
   @media (pointer: coarse) { input, select, textarea { font-size: 16px !important; } }
-  .filters { display: contents; }
+  /* Wide screens: the Nathan bar on top, every filter on one row under it */
+  .filters { display: flex; flex-wrap: wrap; flex: 1 1 0; gap: 0.5rem; align-items: center; min-width: 0; }
+  .filters select { flex: 1 1 0; min-width: 7.6rem; text-overflow: ellipsis; }
+  .filters #sortSelect { min-width: 10.5rem; }
+  .filters button.pill { flex: 0 0 auto; }
+  .toolbar .stats-badge { flex: 0 0 auto; }
+  .toolbar select, .toolbar button.pill { padding: 0.55rem 0.8rem; font-size: 0.86rem; }
+  .toolbar .stats-badge { font-size: 0.8rem; padding-left: 0.85rem; }
   .filters-toggle { display: none; }
   .card { background: var(--card-bg); border-radius: 0.9rem; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.15s, box-shadow 0.15s; position: relative; box-shadow: 0 1px 3px rgba(24,49,83,0.08), 0 4px 14px rgba(24,49,83,0.06); cursor: pointer; }
   .card:hover, .card:focus-visible { transform: translateY(-3px); box-shadow: 0 2px 6px rgba(24,49,83,0.1), 0 10px 24px rgba(24,49,83,0.12); outline: none; }
@@ -373,9 +380,9 @@
     .np-bubble { max-width: 90%; }
     .np-turn.nathan > .nathan-avatar.sm { display: none; }
     .filters-toggle { display: inline-flex; align-items: center; gap: 0.3rem; flex: 0 0 auto !important; }
-    .filters { display: none; width: 100%; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .filters { display: none; width: 100%; flex: 1 1 100%; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
     .filters.open { display: grid; }
-    .filters select, .filters button.pill { width: 100%; min-width: 0; }
+    .filters select, .filters button.pill { width: 100%; min-width: 0; max-width: none; }
     .stats-badge { margin-left: 0; width: 100%; text-align: center; padding: 0.35rem; }
     .grid { padding: 0 1rem; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
     .card-body { padding: 0.8rem 1rem; }
