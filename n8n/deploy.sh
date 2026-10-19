@@ -30,6 +30,7 @@ $SSH "docker restart $CONTAINER >/dev/null"
 for i in $(seq 1 30); do
   sleep 2
   code=$(curl -s -o /dev/null -w '%{http_code}' https://n8n.ondorilabo.com/webhook/vault/collection || true)
-  [ "$code" = 200 ] && { echo "n8n back up (collection 200)"; exit 0; }
+  # The collection is members-only, so a 401 ("sign in first") also means n8n is up and answering
+  { [ "$code" = 200 ] || [ "$code" = 401 ]; } && { echo "n8n back up (collection $code)"; exit 0; }
 done
 echo "n8n did not come back within 60s" >&2; exit 1

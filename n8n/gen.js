@@ -1568,7 +1568,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       pickIds: Array.isArray(b.previous.pickIds) ? b.previous.pickIds.map(String).slice(0, 6) : [],
     } : null;
     const mentioned = Array.isArray(b.mentioned) ? b.mentioned.map(String).filter((x) => x.length < 40).slice(0, 100) : [];
-    return [{ json: { ok: true, question, playerIds, previous: prev, mentioned, email: $input.first().json._auth.email } }];
+    const auth = $input.first().json._auth;
+    return [{ json: { ok: true, question, playerIds, previous: prev, mentioned, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '' } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
   pg('Use Allowance', "INSERT INTO ask_usage (member_id, day, questions) VALUES (coalesce(bgc.member_id($1), 0), current_date, 1) ON CONFLICT (member_id, day) DO UPDATE SET questions = ask_usage.questions + 1 RETURNING questions",
@@ -1587,19 +1588,20 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   code('Build Understand Request', function () {
     const v = $('Validate').first().json;
     const players = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer);
-    const roster = players.filter((p) => p.active || v.playerIds.includes(p.id))
+    const roster = players.filter((p) => p.active || v.playerIds.includes(p.id) || p.id === v.askerId)
       .map((p) => `${p.id} | ${p.name}${p.aliases.length ? ' (also: ' + p.aliases.join(', ') + ')' : ''}`).join('\n');
     const selected = players.filter((p) => v.playerIds.includes(p.id)).map((p) => p.name);
     const prompt = [
       'You read requests for a board game night recommender that only knows one family\'s board game shelf.',
       'Extract what they want. Reply with JSON only:',
       '{',
-      '  "onTopic": true if this is about choosing or playing board games, or about the games on this shelf, else false,',
-      '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play,',
+      '  "onTopic": true if this is about choosing or playing board games, the games on this shelf, or the people who play here (their tastes, profile, play history), else false,',
+      '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"),',
+      '  "personIds": [for intent "person": ids from ROSTER of who they ask about; "me", "I" and "my" mean the ASKER],',
       '  "sort": for a ranked list only: "plays" (most played), "leastPlays", "recent" (most recently played), "stale" (longest since played), "rating" (BGG rating), "rank" (BGG rank), "want" (wants-to-play stars), "weight" (heaviest), "newest" (latest added); else null,',
       '  "limit": how many games they asked for ("top ten" = 10, "my 5 heaviest" = 5), else null,',
       '  "reply": "only if onTopic is false: one friendly, lightly punny sentence from Nathan, the collection curator, steering back to board games",',
-      '  "playerIds": [ids from ROSTER for people named or clearly meant, e.g. first names or nicknames],',
+      '  "playerIds": [ids from ROSTER for people playing, named or clearly meant (first names, nicknames); when they include themselves ("for me and Brittany", "something I would like") add the ASKER id],',
       '  "unknownPeople": number of other people mentioned who are not on the roster (e.g. "and 2 friends" = 2),',
       '  "playerCount": total players if stated or implied, else null,',
       '  "maxMinutes": longest acceptable play time in minutes, else null ("quick" ~ 30, "an hour" = 60, "all evening" ~ 240),',
@@ -1615,6 +1617,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'If PREVIOUS is given, this is a follow-up ("shorter", "something else"): start from its constraints and change only what the new message changes. Only when they want different games ("something else", "another one") put the previous picks in excludeIds; when they narrow it down ("which of those are quick") keep excludeIds empty.',
       '',
       'ROSTER (id | name):', roster || '(none)',
+      v.askerId ? 'ASKER (the person typing): ' + v.askerId + ' | ' + (v.askerName || 'unknown') : '',
       selected.length ? `Already selected as playing: ${selected.join(', ')}` : '',
       v.previous ? 'PREVIOUS: ' + JSON.stringify(v.previous) : '',
       '',
@@ -1733,7 +1736,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       sorter ? 'ORDER: the CANDIDATES are ranked, ' + sorter.label + (limit ? ', top ' + limit : '') : '',
     ].filter(Boolean).join('\n');
     const askerIsOwner = $('Auth: Role').first().json._auth.role === 'owner';
-    const line = (g) => {
+    const line = (g, ppl = group) => {
       const facts = [
         g.minPlayers ? `${g.minPlayers}-${g.maxPlayers}p` + (g.bestPlayers.length ? ` best ${g.bestPlayers.join('/')}` : '') : '',
         g.minTime ? `${g.minTime === g.maxTime ? g.minTime : g.minTime + '-' + g.maxTime}min` : '',
@@ -1744,7 +1747,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         g.playCount ? `${g.playCount} plays, last ${g.lastPlayed}` : 'never played',
         (g.expansions || []).length ? `+${g.expansions.length} expansions` : '',
       ].filter(Boolean).join('; ');
-      const people = group.map((p) => {
+      const people = ppl.map((p) => {
         const hst = p.history[String(g.bggId)] || null;
         const r = rate[p.id + '|' + g.id];
         const bits = [hst ? `${hst.plays} plays/${hst.wins} wins` : 'never played', r && r.stars ? `rates it ${r.stars}/5 on BGC` : '', r && r.bgg ? `BGG rating ${r.bgg}/10` : ''].filter(Boolean).join(', ');
@@ -1767,11 +1770,30 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         top.length ? `most played: ${top.join(', ')}` : '', loved.length ? `rated 4+: ${loved.join(', ')}` : '',
       ].filter(Boolean).join('\n  ');
     };
+    const asker = byId[v.askerId] || null;
+    if (c.intent === 'person') {
+      // "What do you know about me?": their own words, their play history here, and the games that show their taste
+      const who = [...new Set(Array.isArray(c.personIds) ? c.personIds : [])].map((id) => byId[id]).filter(Boolean);
+      const ppl = who.length ? who : asker ? [asker] : group;
+      const playsOf = (g) => ppl.reduce((n, p) => n + ((p.history[String(g.bggId)] || {}).plays || 0), 0);
+      const theirs = games.filter((g) => g.bggId && playsOf(g) > 0).sort((a, b) => playsOf(b) - playsOf(a));
+      const pick = (theirs.length ? theirs : [...games].sort((a, b) => (b.desireToPlay || 0) - (a.desireToPlay || 0))).slice(0, 12);
+      const facts = [
+        'ASKER (the person typing; call them "you"): ' + (asker ? asker.name : 'unknown'),
+        'ABOUT: ' + (ppl.map((p) => p.name).join(', ') || 'unknown'),
+        ppl.length ? ppl.map(profile).join('\n') : '(no profile or play history found)',
+        'COUNT: ' + (ppl.length === 1 ? 'they have' : 'together they have') + ' played ' + theirs.length + ' of the ' + games.length + ' games on this shelf (logged plays)',
+      ].join('\n');
+      return [{ json: { offTopic: false, gap: false, browse: true, person: true, matchIds: theirs.map((g) => g.id), setFacts: facts,
+        understood: { players: ppl.map((p) => p.name) }, constraints: c, shortIds: pick.map((g) => g.id),
+        titles: Object.fromEntries(pick.map((g) => [g.id, g.title])), gameLines: pick.map((g) => line(g, ppl)).join('\n'), profiles: '' } }];
+    }
     const understood = { players: group.map((p) => p.name), playerCount: count, maxMinutes: maxMin, youngestAge: youngest,
       weight: c.weight || null, coop: c.coop ?? null, themes: want, avoid, freshness: c.freshness || null, mood: c.mood || '' };
     return [{ json: { offTopic: false, gap, browse, matchIds, setFacts, understood, constraints: c, shortIds: short.map((g) => g.id),
       titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
-      gameLines: short.map(line).join('\n'), profiles: group.map(profile).join('\n') } }];
+      gameLines: short.map((g) => line(g)).join('\n'), profiles: group.map(profile).join('\n'),
+      askerProfile: asker && !group.includes(asker) ? profile(asker) : '', askerName: asker ? asker.name : '' } }];
   }),
   ifTrue('On Topic?', '={{ !$json.offTopic }}'),
   ifTrue('Any Candidates?', '={{ $json.shortIds.length > 0 }}'),
@@ -1795,7 +1817,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '- First mention: for a title NOT in ALREADY_JOKED, open its entry with a one-line dad-joke quip about that game. For titles in ALREADY_JOKED, leave quip empty.',
       '- Only if you are confident the game has an unlimited or substitutable component pool, or it supports an expanded player count, add exactly this joke in swapJoke: "The [component] can be substituted as needed, so if you ever run short, feel free to use a suitable replacement… like [funny, semi-related household item]." Otherwise null.',
       '',
-      ...(s.browse ? [
+      ...(s.person ? [
+      'FORMAT: this is a question about a person, not a request for a game. In "summary" (3-6 sentences) tell them what you know, warmly and specifically: their own words first (likes, dislikes, dials, about), then their play history here (plays, wins, most played, rated 4+), and what that says about their taste. Speak to the ASKER as "you" when the question is about them; use first names for anyone else.',
+      'Use only the facts in SET FACTS. If the profile is empty, say so kindly and suggest filling in My profile (under their name, top left of the site) so you can do better. Then pick 3 to 5 highlights from CANDIDATES that best show their taste (most played or rated highest), each with one sentence of "why". gap is null.',
+      ] : s.browse ? [
       'FORMAT: this is a question about what is on the shelf, not a request for one game. Sum up the matching games in "summary" (2-4 sentences): use the exact COUNT from SET FACTS, then what kinds they are (weights, lengths, mechanics, sub-themes) and any pattern in plays or favorites. Then pick 3 to 5 varied highlights from CANDIDATES that show the range (for example a favorite, a light one, a heavy one, one that is never played), each with one sentence of "why".',
       'If SET FACTS has an ORDER, it is a ranked list: in the summary name the top three in order with their numbers (e.g. "The Crew leads with 21 plays"), and make the highlights the top 3 to 5 in that same order.',
       ] : [
@@ -1821,8 +1846,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       v.previous ? 'This follows up on: ' + v.previous.question : '',
       'UNDERSTOOD: ' + JSON.stringify(s.understood),
       'GAP: ' + (s.gap ? 'true' : 'false'),
-      s.setFacts ? 'SET FACTS (all games that match):\n' + s.setFacts : '',
+      s.setFacts ? (s.person ? 'SET FACTS (about the people asked about):\n' : 'SET FACTS (all games that match):\n') + s.setFacts : '',
       'ALREADY_JOKED: ' + (s.shortIds.filter((id) => mentioned.has(id)).join(', ') || '(none)'),
+      s.askerName ? 'ASKER (the person typing; call them "you"): ' + s.askerName : '',
+      s.askerProfile ? 'ASKER PROFILE (use it when they ask for something they would like, even if they are not listed as playing):\n' + s.askerProfile : '',
       '', 'PEOPLE PLAYING:', s.profiles || '(not specified; recommend for the group described in the request)',
       '', 'CANDIDATES (id | title | facts | how each person relates to it):', s.gameLines,
     ].filter((l) => l !== '').join('\n');
