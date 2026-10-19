@@ -15,7 +15,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 
 **Agreed decisions**
 - Shared game catalog: one row per game with the BGG facts; each person's shelf row holds everything personal (favorite, wants-to-play, thinning, plays, notes, expansions owned, extra BGG ids)
-- Real friend connections by friend code: each member has a code to share; entering someone's code sends a request they accept (no browsing the member list). You see a shelf only if you are friends with its owner
+- Friend connections by code: each member has a code to share; entering someone's code connects you both right away (no browsing the member list). You see a member's shelf only if you are friends; Dan's collection is visible to every member
 - BGC stars are each person's own rating; BGG ratings are kept separate, out of 10; nobody rates for someone else
 - People speak for themselves: each member sets their own taste profile (complexity, conflict, luck, table talk, theme, likes, dislikes); nobody writes notes or dials about someone else. People who never join are known only from play history
 - Friend takes: you can fill in the same card (dials, likes, dislikes) about a friend. Takes are private to the writer: the friend never sees them, and Nathan uses a take only when its writer is the one asking. Nathan weighs a person's own words above a friend's take, and both above plays
@@ -37,7 +37,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [x] Phase 2: members: a friend signs in, opens My shelf, enters their BGG username; their owned games, expansions (attached to base games) and every play import in the background (tested end to end: 267 games, 61 expansions, 651 plays in ~2 min). Their own copy gets heart, stars, thinning and remove; Dan's shelf stays view-only for them
 - [x] Phase 2b: friends add games by name or photo to their own shelf (shared catalog first, BGG for anything new, expansions under their base game); Nathan, the @ list and "Your rating" follow the shelf being viewed
 - [ ] Per-shelf game names: a shelf can call a game something else (today names live in the shared catalog, so "Splendor Series" shows for everyone)
-- [ ] Phase 3: friends: requests, a Friends page, a shelf switcher, visibility rules on every read
+- [x] Phase 3: friends by code: entering a friend's code connects you both right away (no request step); the Friends panel shows your code, adds and removes friends; friends' shelves sit in the shelf switcher, view only with thinning hidden; Nathan and the @ list follow the shelf
 - [x] My profile: signed-in members fill in their own card (dials, likes, dislikes, about me, BGG username) from the account menu; the Players screen keeps only names, aliases, email and BGG username
 - [ ] Phase 4: friend takes (private); BG Stats players link to members; friend profile pages
 - [ ] Phase 5: social Nathan: "what can we play at Keith's?", "who owns Spirit Island?"

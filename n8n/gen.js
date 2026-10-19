@@ -52,6 +52,8 @@ const ID = {
   importBgg: 'BGVaultImport001',
   shelfAdd: 'BGVaultShelfAdd1',
   shelfIdentify: 'BGVaultShelfPic1',
+  friends: 'BGVaultFriends01',
+  friendsChange: 'BGVaultFriendCh1',
   errorAlert: 'BGVaultAlert0001',
   healthCheck: 'BGVaultHealth001',
 };
@@ -1262,7 +1264,7 @@ addMemberAuth(whoAmI, { failTo: 'Respond Error' });
 const people = wf(ID.people, 'Vault — People', [
   webhook('Webhook', 'GET', 'vault/people'),
   pg('Shelf View', 'SELECT bgc.shelf_view($1, $2, $3) AS v',
-    "={{ [$json._auth.email, ($json.query || {}).shelf === 'mine' ? 'mine' : 'main', $json._auth.playerId] }}"),
+    "={{ [$json._auth.email, /^(mine|friend:\\d+)$/.test(String(($json.query || {}).shelf || '')) ? String($json.query.shelf) : 'main', $json._auth.playerId] }}"),
   code('List Players', function () { return [{ json: { records: $input.first().json.v.players } }]; }),
   code('One Item', function () { return [{ json: {} }]; }),
   code('List Ratings', function () { return [{ json: { records: $('Shelf View').first().json.v.ratings } }]; }),
@@ -1613,7 +1615,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const mentioned = Array.isArray(b.mentioned) ? b.mentioned.map(String).filter((x) => x.length < 40).slice(0, 100) : [];
     const auth = $input.first().json._auth;
     return [{ json: { ok: true, question, playerIds, previous: prev, mentioned, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
-      shelf: b.shelf === 'mine' ? 'mine' : 'main' } }];
+      shelf: /^friend:\d+$/.test(String(b.shelf || '')) ? String(b.shelf) : b.shelf === 'mine' ? 'mine' : 'main' } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
   pg('Use Allowance', "INSERT INTO ask_usage (member_id, day, questions) VALUES (coalesce(bgc.member_id($1), 0), current_date, 1) ON CONFLICT (member_id, day) DO UPDATE SET questions = ask_usage.questions + 1 RETURNING questions",
@@ -2435,8 +2437,41 @@ const shelfIdentify = wf(ID.shelfIdentify, 'Vault — Add To My Shelf From Photo
 ], { saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none', saveManualExecutions: false, saveExecutionProgress: false });
 addMemberAuth(shelfIdentify, { failTo: 'Delete Photo (no match)' });
 
+// =====================================================================
+// 29. Friends  GET /webhook/vault/friends            -> { code, friends: [{ id, name, firstName, games }] }
+//              GET /webhook/vault/friends?shelf=<id>  -> a friend's shelf, view only (thinning hidden)   (member gate)
+// 30. Friends  POST /webhook/vault/friends { action: 'add', code } | { action: 'remove', id }      (member gate)
+//     Entering someone's code connects you both right away.
+// =====================================================================
+const friends = wf(ID.friends, 'Vault — Friends', [
+  webhook('Webhook', 'GET', 'vault/friends'),
+  pg('Read', "SELECT CASE WHEN $2 ~ '^\\d+$' THEN bgc.friend_shelf($1, $2::bigint) ELSE bgc.friends($1) END AS r",
+    "={{ [$json._auth.email, String(($json.query || {}).shelf || '')] }}"),
+  code('Shape', function () {
+    const r = $input.first().json.r || {};
+    if (r.ok === false) return [{ json: r }];
+    if (r.records) return [{ json: { ok: true, name: r.name, items: r.records.map(toGame).sort((a, b) => (a.num || 0) - (b.num || 0)) } }];
+    return [{ json: { ok: true, code: r.code, friends: r.friends || [] } }];
+  }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Read'], ['Read', 'Shape'], ['Shape', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(friends, { failTo: 'Respond Error' });
+
+const friendsChange = wf(ID.friendsChange, 'Vault — Friends (add / remove)', [
+  webhook('Webhook', 'POST', 'vault/friends'),
+  pg('Change', "SELECT CASE WHEN $2 = 'remove' THEN bgc.remove_friend($1, nullif($4, '')::bigint) ELSE bgc.add_friend($1, $3) END AS r",
+    "={{ [$json._auth.email, String(($json.body || {}).action || 'add'), String(($json.body || {}).code || ''), String(Number(($json.body || {}).id) || '')] }}"),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Change'], ['Change', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(friendsChange, { failTo: 'Respond Error' });
+
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

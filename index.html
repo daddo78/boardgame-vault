@@ -155,9 +155,22 @@
   }
   /* Shelf switcher (friends): Dan's shelf / My shelf */
   .shelf-switch { display: none; gap: 0.25rem; padding: 0.25rem; background: rgba(255,255,255,0.55); border: 1.5px solid #d8c4a6; border-radius: 999px; margin-bottom: 0.8rem; width: max-content; max-width: 100%; }
-  body.member:not(.owner) .shelf-switch { display: inline-flex; }
+  body.member .shelf-switch:not([hidden]) { display: inline-flex; flex-wrap: wrap; border-radius: 1.4rem; }
   .shelf-switch button { border: none; background: none; border-radius: 999px; padding: 0.45rem 1rem; font-family: var(--font-body); font-weight: 700; font-size: 0.88rem; color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; }
   .shelf-switch button.on { background: var(--brand); color: #fff; }
+  /* Friends panel */
+  .fr-code { display: flex; align-items: center; justify-content: center; gap: 0.6rem; margin: 0.4rem 0 0.2rem; }
+  .fr-code b { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.9rem; letter-spacing: 0.18em; color: var(--ink); background: var(--exp-bg); border-radius: 0.8rem; padding: 0.2rem 0.4rem 0.2rem 0.6rem; }
+  .fr-add { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+  .fr-add input { flex: 1; min-width: 0; background: var(--exp-bg); border: none; border-radius: 999px; padding: 0.7rem 1rem; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.05rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); outline: none; }
+  .fr-add input:focus { box-shadow: 0 0 0 2px var(--teal) inset; }
+  .fr-add .btn { flex: 0 0 auto; }
+  .fr-list { display: grid; gap: 0.5rem; margin-top: 0.5rem; text-align: left; }
+  .fr-row { display: flex; align-items: center; gap: 0.6rem; background: var(--exp-bg); border-radius: 0.9rem; padding: 0.55rem 0.7rem; }
+  .fr-row .who { flex: 1; min-width: 0; }
+  .fr-row .who b { display: block; }
+  .fr-row .who span { font-size: 0.8rem; color: var(--text-muted); }
+  .fr-row .btn { flex: 0 0 auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; }
   /* Importing a shelf from BGG */
   .import-panel { max-width: 1300px; margin: 0 auto 1.4rem; padding: 0 1.5rem; }
   .import-panel[hidden] { display: none; }
@@ -803,14 +816,15 @@
   <div class="modal-overlay" id="friendsModal">
     <div class="modal" style="text-align:center;">
       <h2 style="margin-bottom:0.3rem;"><i class="fa-solid fa-user-group" style="color:var(--brand);"></i> Friends</h2>
-      <p class="hint" style="margin-top:0;">Coming soon. Here’s what it’ll do:</p>
-      <ul class="soon-list">
-        <li><i class="fa-solid fa-ticket"></i><span><b>Your friend code.</b> Share it, and anyone who enters it sends you a friend request.</span></li>
-        <li><i class="fa-solid fa-book-open"></i><span><b>Friends’ shelves.</b> Browse your friends’ collections, and see who owns what.</span></li>
-        <li><i class="fa-solid fa-comment-dots"></i><span><b>Nathan, for the whole group.</b> “What can we play at Keith’s tonight?”</span></li>
-      </ul>
-      <p class="hint">In the meantime, fill in <b>My profile</b> (under your name, top left) so Nathan knows what you like.</p>
-      <div class="modal-actions"><button class="btn ghost" id="friendsClose" type="button">Got it</button></div>
+      <p class="hint" style="margin-top:0;">Swap codes to see each other’s shelves. Entering a friend’s code connects you both.</p>
+      <div class="section-label" style="margin-top:0.8rem;">Your friend code</div>
+      <div class="fr-code"><b id="myFriendCode">······</b><button type="button" class="btn ghost" id="copyFriendCode"><i class="fa-regular fa-copy"></i> Copy</button></div>
+      <div class="section-label" style="margin-top:1rem;">Add a friend</div>
+      <form class="fr-add" id="friendAddForm"><input id="friendCodeInput" maxlength="12" autocomplete="off" placeholder="Their code" aria-label="Friend code">
+        <button class="btn primary" type="submit">Connect</button></form>
+      <div class="section-label" style="margin-top:1.1rem;">Your friends</div>
+      <div class="fr-list" id="friendsList"><p class="hint" style="margin:0;">No friends yet. Share your code!</p></div>
+      <div class="modal-actions"><button class="btn ghost" id="friendsClose" type="button">Close</button></div>
     </div>
   </div>
 
@@ -1012,6 +1026,7 @@
           toast(w.role === 'owner' ? 'Signed in. Welcome back!' : 'Welcome, ' + (w.playerName || who).split(' ')[0] + '!');
           loadCollection();
           loadPeople();
+          loadFriends();
         }
       } else {
         try { localStorage.removeItem(LS_ROLE); localStorage.removeItem(LS_OWNER); } catch (e) {}
@@ -1108,16 +1123,22 @@
 
     // Which shelf is showing: 'main' (the public collection) or 'mine' (a signed-in friend's own shelf)
     const LS_SHELF = 'vault_shelf_view';
-    let shelfView = (() => { try { return localStorage.getItem(LS_SHELF) === 'mine' ? 'mine' : 'main'; } catch (e) { return 'main'; } })();
+    let shelfView = (() => { try { const v = localStorage.getItem(LS_SHELF) || ''; return v === 'mine' || /^friend:\d+$/.test(v) ? v : 'main'; } catch (e) { return 'main'; } })();
+    let friendsData = { code: '', friends: [] };
+    let friendShelfName = '';
     let myShelf = null; // { items, status, bggUsername } for the 'mine' view
     let importPoll = null;
     const viewingMine = () => shelfView === 'mine' && isMember() && !isOwner();
+    const viewingFriend = () => isMember() && /^friend:\d+$/.test(shelfView) ? Number(shelfView.slice(7)) : null;
+    // What Nathan, the @ list and "See all" are about
+    const currentShelf = () => viewingMine() ? 'mine' : viewingFriend() ? shelfView : 'main';
     // Edit controls follow the shelf being viewed: the owner on the main shelf, a friend on their own
-    function canEdit() { return viewingMine() || isOwner(); }
+    function canEdit() { return viewingMine() || (isOwner() && currentShelf() === 'main'); }
     function updateShelfUi() {
       document.body.classList.toggle('can-edit', canEdit());
+      renderShelfSwitch();
       document.querySelectorAll('#shelfSwitch [data-shelf]').forEach(b => {
-        const on = b.dataset.shelf === (viewingMine() ? 'mine' : 'main');
+        const on = b.dataset.shelf === currentShelf();
         b.classList.toggle('on', on);
         b.setAttribute('aria-selected', String(on));
       });
@@ -1133,8 +1154,47 @@
     }
     document.getElementById('shelfSwitch').addEventListener('click', (e) => {
       const b = e.target.closest('[data-shelf]');
-      if (b && b.dataset.shelf !== (viewingMine() ? 'mine' : 'main')) setShelfView(b.dataset.shelf);
+      if (b && b.dataset.shelf !== currentShelf()) setShelfView(b.dataset.shelf);
     });
+    // Buttons: the main collection, your own shelf (friends), and each friend's shelf
+    function renderShelfSwitch() {
+      const box = document.getElementById('shelfSwitch');
+      if (!isMember()) { box.hidden = true; return; }
+      const btn = (key, icon, label) => '<button type="button" role="tab" data-shelf="' + key + '"><i class="fa-solid ' + icon + '"></i> ' + esc(label) + '</button>';
+      const others = (friendsData.friends || []).filter(f => !f.isAdmin);
+      const html = (isOwner() ? btn('main', 'fa-house', 'My shelf') : btn('main', 'fa-book-open', 'Dan’s shelf') + btn('mine', 'fa-house', 'My shelf')) +
+        others.map(f => btn('friend:' + f.id, 'fa-user', f.firstName + '’s')).join('');
+      if (box.dataset.html !== html) { box.innerHTML = html; box.dataset.html = html; }
+      box.hidden = box.children.length < 2;
+      box.querySelectorAll('[data-shelf]').forEach(b => { const on = b.dataset.shelf === currentShelf(); b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
+    }
+    async function loadFriends() {
+      if (!isMember()) return;
+      try { friendsData = await n8nFetch('/friends', { method: 'GET' }); } catch (e) { return; }
+      // A saved friend view whose friendship is gone falls back to the main shelf
+      if (viewingFriend() && !(friendsData.friends || []).some(f => f.id === viewingFriend())) { setShelfView('main'); return; }
+      renderShelfSwitch();
+      renderFriendsPanel();
+    }
+    async function loadFriendShelf(id) {
+      setSyncStatus('Loading…');
+      const panel = document.getElementById('importPanel');
+      try {
+        const r = await n8nFetch('/friends?shelf=' + id, { method: 'GET' });
+        collection = r.items || [];
+        friendShelfName = r.name || 'a friend';
+        setSyncStatus('');
+        rebuildGenreFilter();
+        render();
+        panel.hidden = false;
+        panel.innerHTML = '<p class="import-note"><span><i class="fa-solid fa-user"></i> <b>' + esc(friendShelfName) + '’s</b> shelf · view only' +
+          (collection.length ? '' : ' · nothing on it yet') + '</span></p>';
+      } catch (e) {
+        setSyncStatus('');
+        toast(e.message, true);
+        setShelfView('main');
+      }
+    }
 
     async function loadMyShelf() {
       setSyncStatus('Loading…');
@@ -1209,6 +1269,7 @@
     async function loadCollection() {
       updateShelfUi();
       if (viewingMine()) return loadMyShelf();
+      if (viewingFriend()) return loadFriendShelf(viewingFriend());
       document.getElementById('importPanel').hidden = true;
       clearTimeout(importPoll);
       setSyncStatus('Loading…');
@@ -1990,7 +2051,7 @@
     let people = { players: [], ratings: {} };
     async function loadPeople() {
       if (!isMember()) return;
-      try { people = await n8nFetch('/people' + (viewingMine() ? '?shelf=mine' : ''), { method: 'GET' }); } catch (e) { /* Ask still works without the roster */ }
+      try { people = await n8nFetch('/people' + (currentShelf() !== 'main' ? '?shelf=' + encodeURIComponent(currentShelf()) : ''), { method: 'GET' }); } catch (e) { /* Ask still works without the roster */ }
       renderAskPlayers();
       if (detailId) renderDetail();
     }
@@ -2177,7 +2238,7 @@
       const n = (r.matchIds || []).length;
       let seeAll = '';
       if (n && n < collection.length && (n > 1 || r.intent === 'browse')) {
-        nathanSets.push({ ids: orderedIds(r), shelf: viewingMine() ? 'mine' : 'main' });
+        nathanSets.push({ ids: orderedIds(r), shelf: currentShelf() });
         seeAll = '<button type="button" class="n-seeall" data-see-all="' + (nathanSets.length - 1) + '"><i class="ti ti-layout-grid"></i> ' + (n === 1 ? 'See it in the library' : 'See all ' + n + ' games') + '</button>';
       }
       // What Nathan understood and the "See all" button share the first row, so the filter is one click away without opening the chat
@@ -2230,7 +2291,7 @@
       (followUp ? turn : panel).scrollIntoView({ behavior: 'smooth', block: followUp ? 'nearest' : 'start' });
       try {
         const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], shelf: viewingMine() ? 'mine' : 'main' }) });
+          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], shelf: currentShelf() }) });
         if (r.pick || (r.highlights || []).length) {
           askLast = { question, constraints: r.constraints, pickIds: r.pickIds };
           rememberJoked(r.pickIds || []);
@@ -2250,7 +2311,7 @@
       if (see) {
         const set = nathanSets[+see.dataset.seeAll] || null;
         const ids = set ? set.ids : null;
-        if (set && set.shelf !== (viewingMine() ? 'mine' : 'main')) { setShelfView(set.shelf).then(() => { askIds = ids; render(); }); return; }
+        if (set && set.shelf !== currentShelf()) { setShelfView(set.shelf).then(() => { askIds = ids; render(); }); return; }
         askIds = ids;
         render();
         document.querySelector('.filters-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2349,9 +2410,48 @@
       }
     });
 
-    // ---------- Friends (placeholder until the database move) ----------
+    // ---------- Friends: your code, add by code, your friends ----------
     const friendsModal = document.getElementById('friendsModal');
-    document.getElementById('friendsBtn').addEventListener('click', () => friendsModal.classList.add('open'));
+    function renderFriendsPanel() {
+      document.getElementById('myFriendCode').textContent = friendsData.code || '······';
+      const list = friendsData.friends || [];
+      document.getElementById('friendsList').innerHTML = list.length ? list.map(f =>
+        '<div class="fr-row"><div class="who"><b>' + esc(f.name) + '</b><span>' + (f.isAdmin ? 'Dan’s collection is the main shelf' : f.games + (f.games === 1 ? ' game' : ' games')) + '</span></div>' +
+        (f.isAdmin ? '' : '<button type="button" class="btn ghost" data-view-friend="' + f.id + '">View shelf</button>') +
+        '<button type="button" class="mini-btn" data-remove-friend="' + f.id + '" data-name="' + esc(f.firstName) + '" title="Remove ' + esc(f.firstName) + '" aria-label="Remove ' + esc(f.firstName) + '"><i class="fa-solid fa-xmark"></i></button></div>'
+      ).join('') : '<p class="hint" style="margin:0;">No friends yet. Share your code!</p>';
+    }
+    document.getElementById('friendsBtn').addEventListener('click', () => { renderFriendsPanel(); friendsModal.classList.add('open'); loadFriends(); });
+    document.getElementById('copyFriendCode').addEventListener('click', async () => {
+      const code = friendsData.code;
+      if (!code) return;
+      try { await navigator.clipboard.writeText(code); toast('Copied your code: ' + code); } catch (e) { toast('Your code is ' + code); }
+    });
+    document.getElementById('friendAddForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('friendCodeInput');
+      const code = input.value.trim();
+      if (!code) return;
+      try {
+        const r = await n8nFetch('/friends', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add', code }) });
+        input.value = '';
+        toast(r.already ? 'You and ' + r.friend.name.split(' ')[0] + ' are already friends.' : 'You and ' + r.friend.name.split(' ')[0] + ' are now friends!');
+        await loadFriends();
+      } catch (err) { toast(err.message.replace(/^n8n request failed \(\d+\) /, ''), true); }
+    });
+    document.getElementById('friendsList').addEventListener('click', async (e) => {
+      const view = e.target.closest('[data-view-friend]');
+      if (view) { friendsModal.classList.remove('open'); setShelfView('friend:' + view.dataset.viewFriend); return; }
+      const rm = e.target.closest('[data-remove-friend]');
+      if (rm) {
+        if (!confirm('Remove ' + rm.dataset.name + ' as a friend? You’ll stop seeing each other’s shelves.')) return;
+        try {
+          await n8nFetch('/friends', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'remove', id: Number(rm.dataset.removeFriend) }) });
+          if (viewingFriend() === Number(rm.dataset.removeFriend)) setShelfView('main');
+          await loadFriends();
+        } catch (err) { toast(err.message, true); }
+      }
+    });
     document.getElementById('friendsClose').addEventListener('click', () => friendsModal.classList.remove('open'));
     friendsModal.addEventListener('click', (e) => { if (e.target === friendsModal) friendsModal.classList.remove('open'); });
 
@@ -2377,7 +2477,7 @@
     if (signedIn() && !isMember() && tokenFresh()) verifyMember(false);
     else if (isMember() && !myPlayerId() && tokenFresh()) verifyMember(true);
     // Members get the collection and people; visitors see the welcome page and nothing is fetched
-    if (isMember()) { loadCollection(); loadPeople(); }
+    if (isMember()) { loadCollection(); loadPeople(); loadFriends(); }
   </script>
 </body>
 </html>
