@@ -50,12 +50,15 @@ const ID = {
   shelfUpdate: 'BGVaultShelfUpd1',
   shelfRemove: 'BGVaultShelfRem1',
   importBgg: 'BGVaultImport001',
+  errorAlert: 'BGVaultAlert0001',
+  healthCheck: 'BGVaultHealth001',
 };
 
 const STORE = process.env.STORE || 'postgres';
 const CRED = {
   airtable: { airtableTokenApi: { id: AIRTABLE_CRED, name: 'Airtable Personal Access Token account' } },
   postgres: { postgres: { id: 'BGCPostgres00001', name: 'BGC Postgres' } },
+  smtp: { smtp: { id: 'wj7wyYOWaVVIrifQ', name: 'Resend SMTP' } },
   openrouter: { httpHeaderAuth: { id: 'vxwyGYOyusPAYIJd', name: 'OpenRouter API' } },
   bgg: { httpHeaderAuth: { id: BGG_CRED, name: 'BGG API Token' } },
 };
@@ -261,7 +264,8 @@ const wf = (id, name, nodes, edges, extraSettings = {}) => {
   const names = new Set(nodes.map((n) => n.name));
   for (const [a, b] of edges) for (const n of [a, b]) if (!names.has(n)) throw new Error(`${name}: unknown node ${n}`);
   return { id, name, active: false, isArchived: false, nodes, connections, pinData: {},
-    settings: { executionOrder: 'v1', callerPolicy: 'workflowsFromSameOwner', ...extraSettings }, tags: [] };
+    // Every workflow reports its failures to the Error Alert workflow (which emails Dan)
+    settings: { executionOrder: 'v1', callerPolicy: 'workflowsFromSameOwner', ...(id !== ID.errorAlert ? { errorWorkflow: ID.errorAlert } : {}), ...extraSettings }, tags: [] };
 };
 
 // =====================================================================
@@ -2173,8 +2177,65 @@ const importBgg = wf(ID.importBgg, 'Vault — Import From BGG', [
 ]);
 addMemberAuth(importBgg, { failTo: 'Respond Error' });
 
+// =====================================================================
+// 25. Error Alert  (n8n error workflow for every Board Game Curator workflow): emails Dan when one fails.
+//     At most one email per workflow per 30 minutes, so a bad night doesn't flood the inbox.
+// 26. Health Check  daily: emails Dan if the nightly database backup hasn't succeeded in 26 hours.
+// =====================================================================
+const ALERT_FROM = 'Board Game Curator <alpha@ondorilabo.com>';
+const ALERT_TO = OWNER_EMAILS[0];
+const email = (name, subjectExpr, textExpr) => node(name, 'n8n-nodes-base.emailSend', 2.1, {
+  fromEmail: ALERT_FROM, toEmail: ALERT_TO, subject: subjectExpr, emailFormat: 'text', text: textExpr, options: { appendAttribution: false },
+}, { credentials: CRED.smtp, ...retry });
+const errorAlert = wf(ID.errorAlert, 'Vault — Error Alert', [
+  node('Error Trigger', 'n8n-nodes-base.errorTrigger', 1, {}),
+  code('Compose', function () {
+    const e = $input.first().json;
+    const wfName = (e.workflow && e.workflow.name) || 'A workflow';
+    const ex = e.execution || {};
+    const st = $getWorkflowStaticData('global');
+    const key = (e.workflow && e.workflow.id) || wfName;
+    const now = Date.now();
+    if (st[key] && now - st[key] < 30 * 60 * 1000) return [{ json: { send: false } }];
+    st[key] = now;
+    const msg = (ex.error && (ex.error.message || ex.error.description)) || 'Unknown error';
+    return [{ json: { send: true,
+      subject: 'Board Game Curator: "' + wfName.replace(/^Vault — /, '') + '" failed',
+      text: [
+        'Something went wrong in Board Game Curator.', '',
+        'Workflow: ' + wfName,
+        'Failed at: ' + (ex.lastNodeExecuted || 'unknown step'),
+        'Error: ' + msg,
+        'When: ' + new Date().toISOString(), '',
+        ex.url ? 'Details: ' + ex.url : (ex.id ? 'Execution id: ' + ex.id : ''),
+        '', '(More failures from this workflow in the next 30 minutes will not send another email.)',
+      ].filter((l) => l !== null).join('\n') } }];
+  }),
+  ifTrue('Send?', '={{ $json.send }}'),
+  email('Email Dan', '={{ $json.subject }}', '={{ $json.text }}'),
+], [['Error Trigger', 'Compose'], ['Compose', 'Send?'], ['Send?', 'Email Dan', 0]]);
+
+const healthCheck = wf(ID.healthCheck, 'Vault — Health Check', [
+  node('Daily', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ triggerAtHour: 9 }] } }),
+  pg('Read Status', "SELECT (SELECT max(at) FROM backup_runs WHERE ok) AS last_ok, (SELECT message FROM backup_runs WHERE NOT ok ORDER BY at DESC LIMIT 1) AS last_error, (SELECT max(at) FROM backup_runs WHERE NOT ok) AS last_fail, (SELECT max(played_on) FROM plays) AS newest_play"),
+  code('Check', function () {
+    const s = $input.first().json;
+    const problems = [];
+    const lastOk = s.last_ok ? new Date(s.last_ok) : null;
+    if (!lastOk || Date.now() - lastOk.getTime() > 26 * 3600 * 1000) {
+      problems.push('The nightly database backup has not succeeded since ' + (lastOk ? lastOk.toISOString() : 'it was set up') + '.'
+        + (s.last_error ? '\nLast error: ' + String(s.last_error).slice(-400) : ''));
+    }
+    if (!problems.length) return [{ json: { send: false } }];
+    return [{ json: { send: true, subject: 'Board Game Curator: backups need attention',
+      text: problems.join('\n\n') + '\n\nBackups go to the private GitHub repo daddo78/bgc-backups from the bgc-backup container on the Hostinger server.' } }];
+  }),
+  ifTrue('Send?', '={{ $json.send }}'),
+  email('Email Dan', '={{ $json.subject }}', '={{ $json.text }}'),
+], [['Daily', 'Read Status'], ['Read Status', 'Check'], ['Check', 'Send?'], ['Send?', 'Email Dan', 0]]);
+
 // ---------- write ----------
-const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg };
+const all = { errorAlert, healthCheck, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

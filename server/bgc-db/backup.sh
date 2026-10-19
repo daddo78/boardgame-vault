@@ -18,17 +18,30 @@ run() {
   done
   git add -A
   if git -c user.name="BGC backup" -c user.email="backup@bgc.invalid" commit -qm "Backup $(date -u +%F)"; then
-    git push -q origin HEAD:main && echo "backup: pushed $(date -u +%FT%TZ)"
+    git push -q origin HEAD:main || { echo "backup: push failed"; return 1; }
+    echo "backup: pushed $(date -u +%FT%TZ)"
   else
     echo "backup: nothing changed $(date -u +%FT%TZ)"
   fi
 }
 
-if [ "${1:-}" = "now" ]; then run; exit $?; fi
+# Every attempt is recorded in the database; a daily n8n health check emails if backups stop succeeding
+record() {
+  msg=$(printf '%s' "$2" | tail -c 500 | sed "s/'/''/g")
+  psql -q -d bgc -c "INSERT INTO backup_runs (ok, message) VALUES ($1, '$msg')" >/dev/null 2>&1 || true
+}
+backup() {
+  out=$(run 2>&1); rc=$?
+  echo "$out"
+  if [ $rc -eq 0 ]; then record true "$out"; else record false "$out"; fi
+  return $rc
+}
+
+if [ "${1:-}" = "now" ]; then backup; exit $?; fi
 while true; do
   now=$(date -u +%s)
   target=$(date -u -d "$(date -u +%Y-%m-%d) $BACKUP_AT" +%s)
   [ "$target" -le "$now" ] && target=$((target + 86400))
   sleep $((target - now))
-  run
+  backup
 done

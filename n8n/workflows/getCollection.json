@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "3f8efdfa-162d-434a-ab88-01ff8a4bbaef",
+      "id": "11decf02-91ba-47a4-8c0c-120ffa0d3714",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "0d527839-99b7-4653-a407-17fd60a08b69"
+      "webhookId": "2ea48768-68da-4d05-ab15-3c3bf97234f8"
     },
     {
-      "id": "75d7054d-c7aa-4cbb-a66b-feb1c17707fd",
+      "id": "116d75cd-79d5-4531-9cb4-2e65a6b748f1",
       "name": "List All Games",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -51,7 +51,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "b380b9d1-98e4-4d93-bf40-e5aecc6fe2b2",
+      "id": "43baf38e-a165-4649-8e6d-a7685943657c",
       "name": "Shape For Frontend",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -64,7 +64,7 @@
       }
     },
     {
-      "id": "ae1fb86e-d50c-467b-a208-3108d667cb76",
+      "id": "5758a937-4a35-4512-8d18-2cafcf83511f",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -81,7 +81,7 @@
       }
     },
     {
-      "id": "5e49bfca-2d44-4a80-9455-e03322f53fec",
+      "id": "68efd29a-1ba9-403e-86e7-173ecb1830c8",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -98,7 +98,7 @@
       }
     },
     {
-      "id": "f463d414-edba-4c3d-b7b2-57f9a823d3b8",
+      "id": "10a5bb9b-e311-4f99-ba4c-937eb646af96",
       "name": "Auth: Read Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -111,7 +111,7 @@
       }
     },
     {
-      "id": "bafaf933-e99b-4cce-83a3-208609788497",
+      "id": "2fe33c85-343a-410f-ae7e-71dec5efe385",
       "name": "Auth: Verify With Google",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -138,7 +138,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "5a281201-7a28-4343-8954-b3bc258d1802",
+      "id": "c7f5ef07-5299-4b3e-9381-54fe742caa4b",
       "name": "Auth: Check Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -151,7 +151,7 @@
       }
     },
     {
-      "id": "53248c47-3656-4e79-a766-898613b6b851",
+      "id": "eaec0542-0c71-4d63-a5d7-ab18f41d964b",
       "name": "Token Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -168,7 +168,7 @@
           },
           "conditions": [
             {
-              "id": "e0685262-c5e4-4a8e-a6b5-4c2d16261c46",
+              "id": "1a04c640-64eb-43ab-b72f-4337646ea934",
               "leftValue": "={{ $json.ok === true }}",
               "rightValue": "",
               "operator": {
@@ -184,7 +184,7 @@
       }
     },
     {
-      "id": "bce7255a-a6aa-4614-8b4c-5bb6ad94c40b",
+      "id": "131cebde-a9ad-4986-ac35-425736a2fcf9",
       "name": "Auth: Find Player",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -211,7 +211,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "56d74dd0-6087-455e-b764-8fa9f9837426",
+      "id": "3a179ee5-377c-433b-bf86-5961a7705248",
       "name": "Auth: Role",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -224,7 +224,7 @@
       }
     },
     {
-      "id": "e5119786-349d-41ad-a8ae-90eb95b6819d",
+      "id": "96b5959c-3c99-47a8-9288-0253cfdd1fb2",
       "name": "Member?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -241,7 +241,7 @@
           },
           "conditions": [
             {
-              "id": "146de514-01fa-466f-b727-71abbc99fd57",
+              "id": "de63e565-ec09-43c1-a86a-ecfb04a169bf",
               "leftValue": "={{ $json._authOk === true }}",
               "rightValue": "",
               "operator": {
@@ -386,7 +386,8 @@
   "pinData": {},
   "settings": {
     "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "BGVaultAlert0001"
   },
   "tags": []
 }
