@@ -17,19 +17,20 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - Shared game catalog: one row per game with the BGG facts; each person's shelf row holds everything personal (favorite, wants-to-play, thinning, plays, notes, expansions owned, extra BGG ids)
 - Real friend connections (request → accept); you see a shelf only if you are friends with its owner
 - BGC stars are each person's own rating; BGG ratings are kept separate, out of 10; nobody rates for someone else
-- Private to the owner: the thinning list, your notes and dials about players, and plays with people other than the viewer
+- People speak for themselves: each member sets their own taste profile (complexity, conflict, luck, table talk, theme, likes, dislikes); nobody writes notes or dials about someone else. People who never join are known only from play history
+- Private to the owner: the thinning list, and plays with people other than the viewer
 - Friends see: shelf, favorites, wants-to-play, BGC ratings, play counts, and full details of plays they were part of
 - Dan is the admin: invites and removes members (Google test users, under Google's 100-user limit)
 - Nathan knows people from your own play history (plays are a hint, not a verdict); a friend's own ratings, plays and shelf add to that
 
-**Tables**: members, games (catalog), shelves, friendships, ratings (BGC), bgg_ratings, players (each member's BG Stats names, optionally linked to a member), plays (real play records from BGG)
+**Tables**: members (with their own taste profile), games (catalog), shelves, friendships, ratings (BGC), bgg_ratings, players (each member's BG Stats names and aliases, optionally linked to a member; no notes), plays (real play records from BGG)
 
 **Phases**
 - [x] Server: Postgres + NocoDB (`db.ondorilabo.com`, behind Cloudflare Access) + nightly backups to the private repo `daddo78/bgc-backups`
 - [ ] Phase 1: create the tables; copy the 220 games, 40 players and play history from Airtable; switch the n8n workflows over one by one (Airtable stays as a fallback until everything checks out)
 - [ ] Phase 2: members: a friend signs in, enters their BGG username, and their collection and plays import
 - [ ] Phase 3: friends: requests, a Friends page, a shelf switcher, visibility rules on every read
-- [ ] Phase 4: profiles: BG Stats players link to members; friend profile pages
+- [ ] Phase 4: profiles: each member fills in their own taste profile; BG Stats players link to members; friend profile pages; the dials and notes come off the owner's Players screen
 - [ ] Phase 5: social Nathan: "what can we play at Keith's?", "who owns Spirit Island?"
 - First testers: Aaron Wiesinger, Keith McKimmy, Matt Kruse (need their Google emails and BGG usernames)
 
@@ -38,7 +39,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [ ] Error alerts: n8n emails when a nightly sync, photo add, backup or other workflow fails (Resend SMTP is already set up)
 
 ## 4. Better Nathan answers
-- [ ] Fill in profiles (dials, likes, dislikes) for the regulars: Dan, Brittany, Avery, Amelia, Janis, …
+- [ ] Regulars fill in their own taste profiles once they join (see Friends & shelves)
 - [ ] Cache the collection and people data for a few minutes so answers come back in ~8-10 s instead of 12-20 s
 - [ ] "What's like this?" (Ask Nathan from a game's detail view)
 
