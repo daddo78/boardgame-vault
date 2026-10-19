@@ -512,16 +512,16 @@
 <body>
   <div class="topbar">
     <div class="account">
-      <button class="auth-btn" id="authBtn" type="button" aria-haspopup="menu" aria-expanded="false"><i class="ti ti-login"></i> <span>Sign in</span></button>
+      <button class="auth-btn" id="authBtn" type="button" aria-haspopup="menu" aria-expanded="false"><i class="fa-solid fa-right-to-bracket"></i> <span>Sign in</span></button>
       <div class="account-menu" id="accountMenu" role="menu" hidden>
-        <button type="button" role="menuitem" id="menuProfile"><i class="ti ti-user-heart"></i> My profile</button>
-        <button type="button" role="menuitem" id="menuSignOut"><i class="ti ti-logout"></i> Sign out</button>
+        <button type="button" role="menuitem" id="menuProfile"><i class="fa-solid fa-id-badge"></i> My profile</button>
+        <button type="button" role="menuitem" id="menuSignOut"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
       </div>
     </div>
     <div class="actions">
-      <button class="icon-btn friends-btn member-only" id="friendsBtn" type="button" title="Friends" aria-label="Friends"><i class="ti ti-users"></i></button>
-      <button class="icon-btn tip-btn" id="tipBtn" type="button" title="Tip jar" aria-label="Tip jar" hidden><i class="ti ti-coffee"></i></button>
-      <span class="total-badge" id="totalBadge" title="Games in the collection"><span id="badgeStatus"><span class="badge-spin"></span> Loading…</span><span id="badgeTotal" hidden><i class="ti ti-cards"></i> <b id="totalCount"></b> games</span></span>
+      <button class="icon-btn friends-btn member-only" id="friendsBtn" type="button" title="Friends" aria-label="Friends"><i class="fa-solid fa-user-group"></i></button>
+      <button class="icon-btn tip-btn" id="tipBtn" type="button" title="Tip jar" aria-label="Tip jar" hidden><i class="fa-solid fa-mug-hot"></i></button>
+      <span class="total-badge" id="totalBadge" title="Games in the collection"><span id="badgeStatus"><span class="badge-spin"></span> Loading…</span><span id="badgeTotal" hidden><i class="fa-solid fa-dice"></i> <b id="totalCount"></b> games</span></span>
       <button class="icon-btn owner-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
     </div>
   </div>
@@ -681,12 +681,12 @@
   <!-- Friends (members); the real thing arrives with the database move -->
   <div class="modal-overlay" id="friendsModal">
     <div class="modal" style="text-align:center;">
-      <h2 style="margin-bottom:0.3rem;"><i class="ti ti-users" style="color:var(--brand);"></i> Friends</h2>
+      <h2 style="margin-bottom:0.3rem;"><i class="fa-solid fa-user-group" style="color:var(--brand);"></i> Friends</h2>
       <p class="hint" style="margin-top:0;">Coming soon. Here’s what it’ll do:</p>
       <ul class="soon-list">
-        <li><i class="ti ti-ticket"></i><span><b>Your friend code.</b> Share it, and anyone who enters it sends you a friend request.</span></li>
-        <li><i class="ti ti-books"></i><span><b>Friends’ shelves.</b> Browse your friends’ collections, and see who owns what.</span></li>
-        <li><i class="ti ti-message-heart"></i><span><b>Nathan, for the whole group.</b> “What can we play at Keith’s tonight?”</span></li>
+        <li><i class="fa-solid fa-ticket"></i><span><b>Your friend code.</b> Share it, and anyone who enters it sends you a friend request.</span></li>
+        <li><i class="fa-solid fa-book-open"></i><span><b>Friends’ shelves.</b> Browse your friends’ collections, and see who owns what.</span></li>
+        <li><i class="fa-solid fa-comment-dots"></i><span><b>Nathan, for the whole group.</b> “What can we play at Keith’s tonight?”</span></li>
       </ul>
       <p class="hint">In the meantime, fill in <b>My profile</b> (under your name, top left) so Nathan knows what you like.</p>
       <div class="modal-actions"><button class="btn ghost" id="friendsClose" type="button">Got it</button></div>
@@ -851,9 +851,9 @@
       if (typeof updateTipJar === 'function') updateTipJar();
       const btn = document.getElementById('authBtn');
       btn.innerHTML = signedIn()
-        ? (profile.picture ? '<img src="' + esc(profile.picture) + '" alt="" referrerpolicy="no-referrer">' : '<i class="ti ti-user-circle"></i>') +
-          '<span class="who">' + esc(((myRole() || {}).playerName || profile.given_name || profile.name || profile.email || '').split(' ')[0]) + '</span><i class="ti ti-chevron-down" style="opacity:0.6;"></i>'
-        : '<i class="ti ti-login"></i> <span>Sign in</span>';
+        ? (profile.picture ? '<img src="' + esc(profile.picture) + '" alt="" referrerpolicy="no-referrer">' : '<i class="fa-solid fa-circle-user"></i>') +
+          '<span class="who">' + esc(((myRole() || {}).playerName || profile.given_name || profile.name || profile.email || '').split(' ')[0]) + '</span><i class="fa-solid fa-chevron-down" style="opacity:0.55; font-size:0.7rem;"></i>'
+        : '<i class="fa-solid fa-right-to-bracket"></i> <span>Sign in</span>';
       btn.title = signedIn() ? 'Signed in as ' + (profile.name || profile.email) : 'Sign in to make changes';
       if (collection.length) render();
     }
@@ -955,7 +955,7 @@
       badge.classList.toggle('err', !!isErr);
       badge.title = isErr ? msg : 'Games in the collection';
       status.hidden = !msg;
-      status.innerHTML = isErr ? '<i class="ti ti-alert-triangle"></i> Offline' : '<span class="badge-spin"></span> ' + esc(msg);
+      status.innerHTML = isErr ? '<i class="fa-solid fa-triangle-exclamation"></i> Offline' : '<span class="badge-spin"></span> ' + esc(msg);
       document.getElementById('badgeTotal').hidden = !!msg;
     }
 
@@ -2101,7 +2101,7 @@
     function updateTipJar() { document.getElementById('tipBtn').hidden = !TIP_URL && !isOwner(); }
     document.getElementById('tipBtn').addEventListener('click', () => {
       document.getElementById('tipBody').innerHTML = TIP_URL
-        ? '<a class="btn primary" style="display:inline-flex; align-items:center; gap:0.4rem; margin-top:0.4rem; text-decoration:none;" href="' + esc(TIP_URL) + '" target="_blank" rel="noopener"><i class="ti ti-coffee"></i> Leave a tip on Ko-fi</a>'
+        ? '<a class="btn primary" style="display:inline-flex; align-items:center; gap:0.4rem; margin-top:0.4rem; text-decoration:none;" href="' + esc(TIP_URL) + '" target="_blank" rel="noopener"><i class="fa-solid fa-mug-hot"></i> Leave a tip on Ko-fi</a>'
         : '<p class="hint" style="background:var(--exp-bg); border-radius:0.8rem; padding:0.6rem 0.8rem;">Only you see this until the Ko-fi link is added. Make a Ko-fi page and send Claude the link.</p>';
       tipModal.classList.add('open');
     });
