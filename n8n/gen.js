@@ -1,5 +1,8 @@
-// Generates the Board Game Curator n8n workflows (Airtable-backed) into ./workflows/*.json
+// Generates the Board Game Curator n8n workflows into ./workflows/*.json
 // Usage: node gen.js <airtableCredId> <bggCredId> [bggUsername]
+// Data lives in Postgres (server/bgc-db). The workflows still speak Airtable's record format; each storage node calls
+// the database's at.request() adapter, which answers like the Airtable API did. STORE=airtable ./deploy.sh rolls back
+// to the frozen Airtable archive.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -45,8 +48,10 @@ const ID = {
   meSave: 'BGVaultMeSave001',
 };
 
+const STORE = process.env.STORE || 'postgres';
 const CRED = {
   airtable: { airtableTokenApi: { id: AIRTABLE_CRED, name: 'Airtable Personal Access Token account' } },
+  postgres: { postgres: { id: 'BGCPostgres00001', name: 'BGC Postgres' } },
   openrouter: { httpHeaderAuth: { id: 'vxwyGYOyusPAYIJd', name: 'OpenRouter API' } },
   bgg: { httpHeaderAuth: { id: BGG_CRED, name: 'BGG API Token' } },
 };
@@ -161,10 +166,34 @@ const ifTrue = (name, expr) => node(name, 'n8n-nodes-base.if', 2, {
 const retry = { retryOnFail: true, maxTries: 3, waitBetweenTries: 5000 };
 const qs = (pairs) => ({ sendQuery: true, queryParameters: { parameters: Object.entries(pairs).map(([name, value]) => ({ name, value })) } });
 // table defaults to Games; pass PLAYERS_TABLE / RATINGS_TABLE for the people data
-const airtable = (name, method, urlSuffix, params = {}, options = {}, table = TABLE) => node(name, 'n8n-nodes-base.httpRequest', 4.2, {
-  method, url: `=${atUrl(table)}${urlSuffix}`, authentication: 'predefinedCredentialType', nodeCredentialType: 'airtableTokenApi',
-  ...params, options,
-}, { credentials: CRED.airtable, ...retry });
+// '={{ expr }}' -> 'expr'; a plain string -> its JSON literal
+const innerExpr = (v) => { const m = String(v).match(/^=\{\{([\s\S]*)\}\}$/); return m ? m[1].trim() : JSON.stringify(String(v)); };
+// '/{{ $json.id }}' -> a JS template literal that builds the same path at run time
+const BT = String.fromCharCode(96);
+const templateExpr = (v) => BT + String(v || '').split(BT).join('\\' + BT).replace(/\{\{([\s\S]*?)\}\}/g, (m, e) => '$' + '{' + e + '}') + BT;
+// Same request as the Airtable API call, answered by Postgres: at.request(table, method, path, body, formula)
+const pgRequest = (name, method, urlSuffix, params, table) => {
+  const formula = ((params.queryParameters || {}).parameters || []).find((p) => p.name === 'filterByFormula');
+  return node(name, 'n8n-nodes-base.postgres', 2.6, {
+    operation: 'executeQuery',
+    query: "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
+    options: {
+      queryReplacement: '={{ [' + [JSON.stringify(table), JSON.stringify(method), templateExpr(urlSuffix),
+        params.jsonBody ? innerExpr(params.jsonBody) : "'null'", formula ? innerExpr(formula.value) : "''"].join(', ') + '] }}',
+      queryBatching: 'independently',
+    },
+  }, { credentials: CRED.postgres, ...retry });
+};
+const airtable = (name, method, urlSuffix, params = {}, options = {}, table = TABLE) => STORE === 'postgres'
+  ? pgRequest(name, method, urlSuffix, params, table)
+  : node(name, 'n8n-nodes-base.httpRequest', 4.2, {
+    method, url: `=${atUrl(table)}${urlSuffix}`, authentication: 'predefinedCredentialType', nodeCredentialType: 'airtableTokenApi',
+    ...params, options,
+  }, { credentials: CRED.airtable, ...retry });
+// Native Postgres query (no Airtable equivalent): params is an n8n expression returning an array
+const pg = (name, query, params) => node(name, 'n8n-nodes-base.postgres', 2.6, {
+  operation: 'executeQuery', query, options: { ...(params ? { queryReplacement: params } : {}), queryBatching: 'independently' },
+}, { credentials: CRED.postgres, ...retry });
 const airtableLookup = (name, formulaExpr = '={{ $json.formula }}') =>
   airtable(name, 'GET', '', qs({ filterByFormula: formulaExpr, returnFieldsByFieldId: 'true', maxRecords: '1' }));
 const airtableListAll = (name, table = TABLE) => airtable(name, 'GET', '', qs({ returnFieldsByFieldId: 'true', pageSize: '100' }), {
@@ -806,6 +835,24 @@ const syncPlays = wf(ID.syncPlays, 'Vault — Sync Plays From BGG', [
     }
     return [{ json: { byGame, total, gamesPlayed: Object.keys(byGame).length } }];
   }),
+  code('Parse Plays', function () {
+    const unxml = (v) => String(v || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    const attr = (tag, k) => { const m = tag.match(new RegExp('\\b' + k + '="([^"]*)"')); return m ? unxml(m[1]) : ''; };
+    const plays = [];
+    for (const page of $('BGG Plays').all()) {
+      for (const p of String(page.json.data || '').match(/<play [\s\S]*?<\/play>/g) || []) {
+        const head = p.match(/<play [^>]*>/)[0];
+        const item = (p.match(/<item [^>]*>/) || [''])[0];
+        plays.push({ id: Number(attr(head, 'id')), date: attr(head, 'date'), quantity: Number(attr(head, 'quantity')) || 1,
+          minutes: Number(attr(head, 'length')) || 0, incomplete: attr(head, 'incomplete') === '1', location: attr(head, 'location'),
+          bggId: Number(attr(item, 'objectid')), gameName: attr(item, 'name'), comments: unxml((p.match(/<comments>([\s\S]*?)<\/comments>/) || ['', ''])[1]).trim(),
+          players: (p.match(/<player [^>]*\/?>/g) || []).map((t, i) => ({ seat: i + 1, name: attr(t, 'name') || attr(t, 'username') || 'Anonymous',
+            user: attr(t, 'username'), win: attr(t, 'win') === '1', score: attr(t, 'score'), isNew: attr(t, 'new') === '1' })) });
+      }
+    }
+    return [{ json: { plays: plays.filter((p) => p.id && p.bggId) } }];
+  }),
+  pg('Save Plays', 'SELECT at.save_plays($1, $2::jsonb) AS saved', "={{ ['__OWNER_EMAIL__', JSON.stringify($json.plays)] }}"),
   airtableListAll('List All Games'),
   code('Build Updates', function () {
     const { byGame, total, gamesPlayed } = $('Tally Plays').first().json;
@@ -827,7 +874,7 @@ const syncPlays = wf(ID.syncPlays, 'Vault — Sync Plays From BGG', [
     const batches = [];
     for (let i = 0; i < changes.length; i += 10) batches.push({ json: { records: changes.slice(i, i + 10) } });
     const matched = games.filter((g) => g.bggId && [g.bggId, ...g.extraBggIds].some((id) => byGame[String(id)])).length;
-    const summary = { totalPlays: total, gamesPlayedOnBgg: gamesPlayed, matchedInCollection: matched, updated: changes.length };
+    const summary = { totalPlays: total, gamesPlayedOnBgg: gamesPlayed, matchedInCollection: matched, updated: changes.length, stored: $('Save Plays').first().json.saved };
     return batches.length ? batches.map((b) => ({ json: { ...b.json, summary } })) : [{ json: { records: [], summary } }];
   }),
   ifTrue('Anything To Save?', '={{ $json.records.length > 0 }}'),
@@ -837,7 +884,7 @@ const syncPlays = wf(ID.syncPlays, 'Vault — Sync Plays From BGG', [
   }),
 ], [
   ['Daily', 'Options'], ['Webhook', 'Options'], ['Options', 'BGG Plays'], ['BGG Plays', 'Tally Plays'],
-  ['Tally Plays', 'List All Games'], ['List All Games', 'Build Updates'], ['Build Updates', 'Anything To Save?'],
+  ['Tally Plays', 'Parse Plays'], ['Parse Plays', 'Save Plays'], ['Save Plays', 'List All Games'], ['List All Games', 'Build Updates'], ['Build Updates', 'Anything To Save?'],
   ['Anything To Save?', 'Save Play Counts', 0], ['Anything To Save?', 'Result', 1], ['Save Play Counts', 'Result'],
 ]);
 
@@ -1383,6 +1430,7 @@ const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
   }),
   ifTrue('New Players?', '={{ $json.records.length > 0 }}'),
   airtable('Create Players', 'POST', '', jsonBody('={{ JSON.stringify({ records: $json.records, typecast: true }) }}'), {}, PLAYERS_TABLE),
+  pg('Link New Players', "SELECT at.save_plays($1, '[]'::jsonb) AS linked", "={{ ['__OWNER_EMAIL__'] }}"),
   code('One Item Again', function () { return [{ json: {} }]; }),
   airtableListAll('Reload Players', PLAYERS_TABLE),
   code('Build Updates', function () {
@@ -1458,7 +1506,7 @@ const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
   ['Daily', 'Options'], ['Webhook', 'Options'], ['Options', 'BGG Plays'], ['BGG Plays', 'Tally People'],
   ['Tally People', 'List Games'], ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'Plan New Players'],
   ['Plan New Players', 'New Players?'], ['New Players?', 'Create Players', 0], ['New Players?', 'One Item Again', 1],
-  ['Create Players', 'One Item Again'], ['One Item Again', 'Reload Players'], ['Reload Players', 'Build Updates'],
+  ['Create Players', 'Link New Players'], ['Link New Players', 'One Item Again'], ['One Item Again', 'Reload Players'], ['Reload Players', 'Build Updates'],
   ['Build Updates', 'Player Batches'], ['Player Batches', 'Histories To Save?'],
   ['Histories To Save?', 'Save Histories', 0], ['Histories To Save?', 'Rating Batches', 1], ['Save Histories', 'Rating Batches'],
   ['Rating Batches', 'BG Stats Ratings?'], ['BG Stats Ratings?', 'Save BG Stats Ratings', 0], ['BG Stats Ratings?', 'BGG Users', 1],
@@ -1869,7 +1917,7 @@ fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
   let s = JSON.stringify(w, null, 2).replace(/__ICON_MODEL__/g, ICON_MODEL).replace(/__VISION_MODEL__/g, VISION_MODEL)
     .replace(/__BGG_USERNAME__/g, BGG_USERNAME)
-    .replace(/__ASK_MODEL__/g, ASK_MODEL).replace(/__ASK_DAILY_CAP__/g, String(ASK_DAILY_CAP)).replace(/__OWNER_NAME__/g, OWNER_NAME);
+    .replace(/__ASK_MODEL__/g, ASK_MODEL).replace(/__ASK_DAILY_CAP__/g, String(ASK_DAILY_CAP)).replace(/__OWNER_NAME__/g, OWNER_NAME).replace(/__OWNER_EMAIL__/g, OWNER_EMAILS[0]);
   fs.writeFileSync(path.join(outDir, `${k}.json`), s);
   console.log(k, w.id, w.nodes.length, 'nodes');
 }

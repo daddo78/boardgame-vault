@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "c42c047b-7e1b-46a9-bd48-1963cd3876ef",
+      "id": "2fc9bb70-d06e-4f7e-bdfb-494c0c968bfe",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,61 +21,29 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "dee3ca9a-be08-40b8-b2bd-aede2f4d7717"
+      "webhookId": "0dde4e97-5083-4820-8284-c8dfa0d6f464"
     },
     {
-      "id": "1a661cb1-c329-4a41-a450-c85396f47e47",
+      "id": "edbc8ff7-6cb6-4770-ae9c-befb82495e55",
       "name": "List All Games",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         220,
         300
       ],
       "parameters": {
-        "method": "GET",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tblbGc0UuDxIPP2a8",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "returnFieldsByFieldId",
-              "value": "true"
-            },
-            {
-              "name": "pageSize",
-              "value": "100"
-            }
-          ]
-        },
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
         "options": {
-          "pagination": {
-            "pagination": {
-              "paginationMode": "updateAParameterInEachRequest",
-              "parameters": {
-                "parameters": [
-                  {
-                    "type": "qs",
-                    "name": "offset",
-                    "value": "={{ $response.body.offset }}"
-                  }
-                ]
-              },
-              "paginationCompleteWhen": "other",
-              "completeExpression": "={{ !$response.body.offset }}",
-              "limitPagesFetched": true,
-              "maxRequests": 50,
-              "requestInterval": 250
-            }
-          }
+          "queryReplacement": "={{ [\"tblbGc0UuDxIPP2a8\", \"GET\", ``, 'null', ''] }}",
+          "queryBatching": "independently"
         }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -83,7 +51,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "a06d6fe9-466a-410f-ba93-72ea1eeef396",
+      "id": "a34b4689-fa5f-4e08-b14e-057e03e8b273",
       "name": "Shape For Frontend",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -96,7 +64,7 @@
       }
     },
     {
-      "id": "93460fdc-ffed-4876-8a63-1edba79c2e8f",
+      "id": "70fda5ab-e303-4697-9a59-d682366d7b06",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,

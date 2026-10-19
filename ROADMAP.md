@@ -32,7 +32,8 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 **Phases**
 - [x] Server: Postgres + NocoDB (`db.ondorilabo.com`, behind Cloudflare Access) + nightly backups to the private repo `daddo78/bgc-backups`
 - [x] Phase 1a: tables created (server/bgc-db/schema); copied 220 games + 113 played-not-owned, 40 players, and all 651 BGG plays (2,289 seats); play counts match the live site exactly
-- [ ] Phase 1b: switch the n8n workflows to Postgres one by one (Airtable stays as a fallback until everything checks out), then freeze Airtable
+- [x] Phase 1b: all workflows run on Postgres through an Airtable-compatible adapter (schema/002); collection identical to Airtable (0 differences); the nightly sync now stores every play. Airtable is the frozen archive (STORE=airtable ./deploy.sh rolls back)
+- [ ] Replace the adapter with direct queries as each area is rebuilt for friends (Phases 2-3)
 - [ ] Phase 2: members: a friend signs in, enters their BGG username, and their collection and plays import
 - [ ] Phase 3: friends: requests, a Friends page, a shelf switcher, visibility rules on every read
 - [x] My profile: signed-in members fill in their own card (dials, likes, dislikes, about me, BGG username) from the account menu; the Players screen keeps only names, aliases, email and BGG username

@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "934157de-6102-44d2-ae72-5a27d321f5e5",
+      "id": "3831af3f-145d-4421-a150-3311a59aec4a",
       "name": "Run Manually",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
@@ -16,7 +16,7 @@
       "parameters": {}
     },
     {
-      "id": "34ece721-bc59-471e-abff-8e361b36fb88",
+      "id": "7d1aa23e-1dc7-461a-9f6a-2c8c60e25260",
       "name": "Options",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -29,58 +29,26 @@
       }
     },
     {
-      "id": "5b93f390-e9ff-4653-8b03-bd6ca18ed50a",
+      "id": "ce738274-794b-452a-8b05-e7fd9e3191f2",
       "name": "List All Games",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         440,
         300
       ],
       "parameters": {
-        "method": "GET",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tblbGc0UuDxIPP2a8",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "returnFieldsByFieldId",
-              "value": "true"
-            },
-            {
-              "name": "pageSize",
-              "value": "100"
-            }
-          ]
-        },
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
         "options": {
-          "pagination": {
-            "pagination": {
-              "paginationMode": "updateAParameterInEachRequest",
-              "parameters": {
-                "parameters": [
-                  {
-                    "type": "qs",
-                    "name": "offset",
-                    "value": "={{ $response.body.offset }}"
-                  }
-                ]
-              },
-              "paginationCompleteWhen": "other",
-              "completeExpression": "={{ !$response.body.offset }}",
-              "limitPagesFetched": true,
-              "maxRequests": 50,
-              "requestInterval": 250
-            }
-          }
+          "queryReplacement": "={{ [\"tblbGc0UuDxIPP2a8\", \"GET\", ``, 'null', ''] }}",
+          "queryBatching": "independently"
         }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -88,7 +56,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "fe5eefb7-0a7d-4e4e-94e6-7ad9c9ad2b89",
+      "id": "eea68159-2a67-4725-a53e-73537967bbe4",
       "name": "Pick Games",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -101,7 +69,7 @@
       }
     },
     {
-      "id": "350cd9c2-dd2e-406e-8c5e-bfdba5684fff",
+      "id": "e0df7fae-c597-418b-b949-a562110df69e",
       "name": "Assign Icon",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
@@ -124,7 +92,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "cb30fb98-c527-4c67-8cb5-0b820ef0da87",
+      "id": "f399886c-4814-4753-9267-e6916ee4cdd3",
       "name": "Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

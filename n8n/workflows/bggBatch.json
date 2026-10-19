@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "e0af672c-02b5-4d7c-b034-43b709fe0927",
+      "id": "9fa3b42e-10ed-4461-a5f7-365819c37784",
       "name": "Run Manually",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
@@ -16,7 +16,7 @@
       "parameters": {}
     },
     {
-      "id": "e914edeb-33e2-46aa-ac56-040163c168b3",
+      "id": "7b697a9d-dbf9-4b72-8b00-81095ca93bf6",
       "name": "Options",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -29,58 +29,26 @@
       }
     },
     {
-      "id": "2af52eb6-32a0-43c9-9b47-33e1469a7c82",
+      "id": "f3730799-b533-43f8-ba17-9ae795593aaa",
       "name": "List All Games",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         440,
         300
       ],
       "parameters": {
-        "method": "GET",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tblbGc0UuDxIPP2a8",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "returnFieldsByFieldId",
-              "value": "true"
-            },
-            {
-              "name": "pageSize",
-              "value": "100"
-            }
-          ]
-        },
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
         "options": {
-          "pagination": {
-            "pagination": {
-              "paginationMode": "updateAParameterInEachRequest",
-              "parameters": {
-                "parameters": [
-                  {
-                    "type": "qs",
-                    "name": "offset",
-                    "value": "={{ $response.body.offset }}"
-                  }
-                ]
-              },
-              "paginationCompleteWhen": "other",
-              "completeExpression": "={{ !$response.body.offset }}",
-              "limitPagesFetched": true,
-              "maxRequests": 50,
-              "requestInterval": 250
-            }
-          }
+          "queryReplacement": "={{ [\"tblbGc0UuDxIPP2a8\", \"GET\", ``, 'null', ''] }}",
+          "queryBatching": "independently"
         }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -88,7 +56,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "fbfc697b-7777-4faf-97d9-d987cc4063f6",
+      "id": "731039bf-5c05-437a-8354-d13ebe5573cc",
       "name": "Pick Games",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -101,7 +69,7 @@
       }
     },
     {
-      "id": "caa0542c-c799-4713-b76d-2f1bf163d367",
+      "id": "627be865-dd1c-46d8-94e5-a0178fd07e4e",
       "name": "BGG Enrich",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
@@ -124,7 +92,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "138be68f-7bd7-43f5-a1f4-5b0267e7f347",
+      "id": "cd1c7438-55fa-4da0-b526-8dac26611ea6",
       "name": "Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

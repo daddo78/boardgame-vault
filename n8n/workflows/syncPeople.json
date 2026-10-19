@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "bce60298-7e09-4bc6-9c5b-f79a84d9b78f",
+      "id": "2c9fffaa-9a3f-45c0-b3fb-8c7b488590aa",
       "name": "Daily",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -25,7 +25,7 @@
       }
     },
     {
-      "id": "c5f502d9-abce-4b50-9f09-3d3acadd6d8f",
+      "id": "26362c85-719e-417e-9c99-0d5cc176a021",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -42,10 +42,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "4a82670a-1ceb-45d8-bb12-1d94fe092358"
+      "webhookId": "45163cf3-eb6a-4a73-bbb1-53566662c71e"
     },
     {
-      "id": "66dc88de-13bf-403d-97d1-33c92552f09f",
+      "id": "0dedae7d-6357-4ebf-a854-f308a9ae5a39",
       "name": "Options",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -58,7 +58,7 @@
       }
     },
     {
-      "id": "92dffcc7-8482-4658-a85e-782580034ef2",
+      "id": "7943c076-9026-408d-8080-d6b055ef19fa",
       "name": "BGG Plays",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -128,7 +128,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "85637b74-8192-4a27-81d2-bdc3e8639ecc",
+      "id": "b14b3d87-13dc-447f-a6fb-7dd24d45f9f0",
       "name": "Tally People",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -141,58 +141,26 @@
       }
     },
     {
-      "id": "eb6e80f2-c4b5-4171-9f86-583baf7c382a",
+      "id": "46ccd7ec-e7a5-4996-8c20-4ba87f85ad0a",
       "name": "List Games",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         1100,
         300
       ],
       "parameters": {
-        "method": "GET",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tblbGc0UuDxIPP2a8",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "returnFieldsByFieldId",
-              "value": "true"
-            },
-            {
-              "name": "pageSize",
-              "value": "100"
-            }
-          ]
-        },
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
         "options": {
-          "pagination": {
-            "pagination": {
-              "paginationMode": "updateAParameterInEachRequest",
-              "parameters": {
-                "parameters": [
-                  {
-                    "type": "qs",
-                    "name": "offset",
-                    "value": "={{ $response.body.offset }}"
-                  }
-                ]
-              },
-              "paginationCompleteWhen": "other",
-              "completeExpression": "={{ !$response.body.offset }}",
-              "limitPagesFetched": true,
-              "maxRequests": 50,
-              "requestInterval": 250
-            }
-          }
+          "queryReplacement": "={{ [\"tblbGc0UuDxIPP2a8\", \"GET\", ``, 'null', ''] }}",
+          "queryBatching": "independently"
         }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -200,7 +168,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "53669f08-3b30-4849-b5e7-f355189e7bbf",
+      "id": "1800da9f-e00f-45c7-b7a4-c0d0ee0c901b",
       "name": "One Item",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -213,58 +181,26 @@
       }
     },
     {
-      "id": "80b400d5-fbb5-4ba6-b01a-3fd1d0fc3d52",
+      "id": "2e4be80b-1899-4022-b7d8-30dda150112e",
       "name": "List Players",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         1540,
         300
       ],
       "parameters": {
-        "method": "GET",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tblNahVdHDueJJ0w4",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "returnFieldsByFieldId",
-              "value": "true"
-            },
-            {
-              "name": "pageSize",
-              "value": "100"
-            }
-          ]
-        },
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
         "options": {
-          "pagination": {
-            "pagination": {
-              "paginationMode": "updateAParameterInEachRequest",
-              "parameters": {
-                "parameters": [
-                  {
-                    "type": "qs",
-                    "name": "offset",
-                    "value": "={{ $response.body.offset }}"
-                  }
-                ]
-              },
-              "paginationCompleteWhen": "other",
-              "completeExpression": "={{ !$response.body.offset }}",
-              "limitPagesFetched": true,
-              "maxRequests": 50,
-              "requestInterval": 250
-            }
-          }
+          "queryReplacement": "={{ [\"tblNahVdHDueJJ0w4\", \"GET\", ``, 'null', ''] }}",
+          "queryBatching": "independently"
         }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -272,7 +208,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "179dd686-352d-49e0-915a-858285c5efab",
+      "id": "8a023d11-b727-45f4-b64f-4766d6d3a7bf",
       "name": "Plan New Players",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -285,7 +221,7 @@
       }
     },
     {
-      "id": "58d4a9d7-77ab-4373-b33e-644d9c4d75a6",
+      "id": "06100f27-d98c-428c-b9da-eb2e38abd53f",
       "name": "New Players?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -302,7 +238,7 @@
           },
           "conditions": [
             {
-              "id": "ee6c78a2-b114-4c9b-ad63-f76c7d3bb769",
+              "id": "dd892437-5d8f-4476-8899-a3088b669505",
               "leftValue": "={{ $json.records.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -318,28 +254,26 @@
       }
     },
     {
-      "id": "57f932c7-4d93-4fa0-88bc-be03fbefebff",
+      "id": "62230e46-e8ef-43f2-897a-bfe644f9353f",
       "name": "Create Players",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         2200,
         300
       ],
       "parameters": {
-        "method": "POST",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tblNahVdHDueJJ0w4",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ records: $json.records, typecast: true }) }}",
-        "options": {}
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
+        "options": {
+          "queryReplacement": "={{ [\"tblNahVdHDueJJ0w4\", \"POST\", ``, JSON.stringify({ records: $json.records, typecast: true }), ''] }}",
+          "queryBatching": "independently"
+        }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -347,12 +281,39 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "5bf1b848-32a8-4919-9c79-16eb1ba157ec",
+      "id": "14fc602a-ee4e-43b9-9b28-62e73820678b",
+      "name": "Link New Players",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2420,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT at.save_plays($1, '[]'::jsonb) AS linked",
+        "options": {
+          "queryReplacement": "={{ ['dandehaan@gmail.com'] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "abe5fd51-3668-46ad-a467-39c7e043e428",
       "name": "One Item Again",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2420,
+        2640,
         300
       ],
       "parameters": {
@@ -360,58 +321,26 @@
       }
     },
     {
-      "id": "e221ac69-a92d-49fd-909b-a5cbfb2d40de",
+      "id": "c78785ef-9c5d-4334-8e79-c78562789852",
       "name": "Reload Players",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
-        2640,
+        2860,
         300
       ],
       "parameters": {
-        "method": "GET",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tblNahVdHDueJJ0w4",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "returnFieldsByFieldId",
-              "value": "true"
-            },
-            {
-              "name": "pageSize",
-              "value": "100"
-            }
-          ]
-        },
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
         "options": {
-          "pagination": {
-            "pagination": {
-              "paginationMode": "updateAParameterInEachRequest",
-              "parameters": {
-                "parameters": [
-                  {
-                    "type": "qs",
-                    "name": "offset",
-                    "value": "={{ $response.body.offset }}"
-                  }
-                ]
-              },
-              "paginationCompleteWhen": "other",
-              "completeExpression": "={{ !$response.body.offset }}",
-              "limitPagesFetched": true,
-              "maxRequests": 50,
-              "requestInterval": 250
-            }
-          }
+          "queryReplacement": "={{ [\"tblNahVdHDueJJ0w4\", \"GET\", ``, 'null', ''] }}",
+          "queryBatching": "independently"
         }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -419,21 +348,8 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "5d2e5668-b140-4649-9672-e207f4a95b34",
+      "id": "663d444b-364a-4bf6-86b5-1d8a95d80b76",
       "name": "Build Updates",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2860,
-        300
-      ],
-      "parameters": {
-        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n      // Other editions whose logged plays count toward this game\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n  // ---- People: Players and Ratings tables ----\n  const PF = {\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\n  };\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\n  const toPlayer = (r) => {\n    const f = r.fields || {};\n    let history = {};\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\n    return {\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\n    };\n  };\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\n  // The part of a player card that belongs to the person: only they edit it (via /me)\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\n  // Highest-priority source wins when one person has several ratings for a game\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\n  const ratingsByPlayerGame = (list) => {\n    const out = {};\n    for (const r of list) {\n      if (!r.gameId || !r.playerId || !r.stars) continue;\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\n      if (r.source === 'site') e.stars = r.stars;\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\n    }\n    return out;\n  };\n  const toRating = (r) => {\n    const f = r.fields || {};\n    const src = f[RF.source];\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\n      source: typeof src === 'object' && src ? src.name : src || '' };\n  };\n\n    const { people } = $('Tally People').first().json;\n    const games = $('List Games').all().flatMap((i) => i.json.records || []).map(toGame);\n    const gameIdByBgg = Object.fromEntries(games.filter((g) => g.bggId).map((g) => [String(g.bggId), g.id]));\n    const primaryBgg = {}; // any BGG id we count (own or extra edition) -> the game's own BGG id\n    for (const g of games) if (g.bggId) for (const id of [g.bggId, ...g.extraBggIds]) primaryBgg[String(id)] ??= String(g.bggId);\n    const players = $input.all().flatMap((i) => i.json.records || []).map(toPlayer);\n    const now = new Date().toISOString();\n    const playerRecords = [], ratingRecords = [];\n    for (const pl of players) {\n      const names = playerNames(pl);\n      const merged = {};\n      for (const n of names) for (const [bggId, g] of Object.entries((people[n] || {}).games || {})) {\n        const own = primaryBgg[bggId];\n        if (!own) continue; // only games in the collection\n        const m = (merged[own] ??= { plays: 0, wins: 0, last: null, ratings: [] });\n        m.plays += g.plays; m.wins += g.wins; m.ratings.push(...g.ratings);\n        if (g.last && (!m.last || g.last > m.last)) m.last = g.last;\n      }\n      const history = Object.fromEntries(Object.entries(merged).map(([k, v]) => [k, { plays: v.plays, wins: v.wins, last: v.last }]));\n      if (JSON.stringify(history) !== JSON.stringify(pl.history)) playerRecords.push({ id: pl.id, fields: { [PF.playHistory]: JSON.stringify(history), [PF.updatedAt]: now } });\n    }\n    const batch = (list) => { const out = []; for (let i = 0; i < list.length; i += 10) out.push(list.slice(i, i + 10)); return out; };\n    return [{ json: { playerBatches: batch(playerRecords), ratingBatches: batch(ratingRecords),\n      bggUsers: players.filter((p) => p.bggUsername).map((p) => ({ playerId: p.id, username: p.bggUsername })),\n      gameIdByBgg, summary: { people: Object.keys(people).length, players: players.length, historiesUpdated: playerRecords.length, bgstatsRatings: ratingRecords.length } } }];\n  "
-      }
-    },
-    {
-      "id": "b7f70053-23c3-4a0a-8035-b4971c211a4c",
-      "name": "Player Batches",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -441,16 +357,29 @@
         300
       ],
       "parameters": {
+        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n      // Other editions whose logged plays count toward this game\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n  // ---- People: Players and Ratings tables ----\n  const PF = {\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\n  };\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\n  const toPlayer = (r) => {\n    const f = r.fields || {};\n    let history = {};\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\n    return {\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\n    };\n  };\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\n  // The part of a player card that belongs to the person: only they edit it (via /me)\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\n  // Highest-priority source wins when one person has several ratings for a game\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\n  const ratingsByPlayerGame = (list) => {\n    const out = {};\n    for (const r of list) {\n      if (!r.gameId || !r.playerId || !r.stars) continue;\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\n      if (r.source === 'site') e.stars = r.stars;\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\n    }\n    return out;\n  };\n  const toRating = (r) => {\n    const f = r.fields || {};\n    const src = f[RF.source];\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\n      source: typeof src === 'object' && src ? src.name : src || '' };\n  };\n\n    const { people } = $('Tally People').first().json;\n    const games = $('List Games').all().flatMap((i) => i.json.records || []).map(toGame);\n    const gameIdByBgg = Object.fromEntries(games.filter((g) => g.bggId).map((g) => [String(g.bggId), g.id]));\n    const primaryBgg = {}; // any BGG id we count (own or extra edition) -> the game's own BGG id\n    for (const g of games) if (g.bggId) for (const id of [g.bggId, ...g.extraBggIds]) primaryBgg[String(id)] ??= String(g.bggId);\n    const players = $input.all().flatMap((i) => i.json.records || []).map(toPlayer);\n    const now = new Date().toISOString();\n    const playerRecords = [], ratingRecords = [];\n    for (const pl of players) {\n      const names = playerNames(pl);\n      const merged = {};\n      for (const n of names) for (const [bggId, g] of Object.entries((people[n] || {}).games || {})) {\n        const own = primaryBgg[bggId];\n        if (!own) continue; // only games in the collection\n        const m = (merged[own] ??= { plays: 0, wins: 0, last: null, ratings: [] });\n        m.plays += g.plays; m.wins += g.wins; m.ratings.push(...g.ratings);\n        if (g.last && (!m.last || g.last > m.last)) m.last = g.last;\n      }\n      const history = Object.fromEntries(Object.entries(merged).map(([k, v]) => [k, { plays: v.plays, wins: v.wins, last: v.last }]));\n      if (JSON.stringify(history) !== JSON.stringify(pl.history)) playerRecords.push({ id: pl.id, fields: { [PF.playHistory]: JSON.stringify(history), [PF.updatedAt]: now } });\n    }\n    const batch = (list) => { const out = []; for (let i = 0; i < list.length; i += 10) out.push(list.slice(i, i + 10)); return out; };\n    return [{ json: { playerBatches: batch(playerRecords), ratingBatches: batch(ratingRecords),\n      bggUsers: players.filter((p) => p.bggUsername).map((p) => ({ playerId: p.id, username: p.bggUsername })),\n      gameIdByBgg, summary: { people: Object.keys(people).length, players: players.length, historiesUpdated: playerRecords.length, bgstatsRatings: ratingRecords.length } } }];\n  "
+      }
+    },
+    {
+      "id": "b3c42d8c-245d-43c9-9db4-3ef9bd04684f",
+      "name": "Player Batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3300,
+        300
+      ],
+      "parameters": {
         "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n      // Other editions whose logged plays count toward this game\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n  // ---- People: Players and Ratings tables ----\n  const PF = {\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\n  };\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\n  const toPlayer = (r) => {\n    const f = r.fields || {};\n    let history = {};\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\n    return {\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\n    };\n  };\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\n  // The part of a player card that belongs to the person: only they edit it (via /me)\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\n  // Highest-priority source wins when one person has several ratings for a game\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\n  const ratingsByPlayerGame = (list) => {\n    const out = {};\n    for (const r of list) {\n      if (!r.gameId || !r.playerId || !r.stars) continue;\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\n      if (r.source === 'site') e.stars = r.stars;\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\n    }\n    return out;\n  };\n  const toRating = (r) => {\n    const f = r.fields || {};\n    const src = f[RF.source];\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\n      source: typeof src === 'object' && src ? src.name : src || '' };\n  };\n\n    const b = $input.first().json.playerBatches;\n    return b.length ? b.map((records) => ({ json: { records } })) : [{ json: { records: [] } }];\n  "
       }
     },
     {
-      "id": "b663f2de-f928-4cbb-bd12-fb7b4b8edc12",
+      "id": "a4656529-1514-4b23-a67c-010c02fa8413",
       "name": "Histories To Save?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        3300,
+        3520,
         300
       ],
       "parameters": {
@@ -462,7 +391,7 @@
           },
           "conditions": [
             {
-              "id": "09ad86d4-a755-49b7-b82a-d1b69151eae4",
+              "id": "9b0295b6-6356-4fbb-ba22-aa055f9c578a",
               "leftValue": "={{ $json.records.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -478,28 +407,26 @@
       }
     },
     {
-      "id": "b7cb51ac-3ad7-4b77-9bf0-54488a0e28a2",
+      "id": "dff923f2-c257-4ba7-b5df-7e44a36cb20b",
       "name": "Save Histories",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
-        3520,
+        3740,
         300
       ],
       "parameters": {
-        "method": "PATCH",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tblNahVdHDueJJ0w4",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ records: $json.records, typecast: true }) }}",
-        "options": {}
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
+        "options": {
+          "queryReplacement": "={{ [\"tblNahVdHDueJJ0w4\", \"PATCH\", ``, JSON.stringify({ records: $json.records, typecast: true }), ''] }}",
+          "queryBatching": "independently"
+        }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -507,12 +434,12 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "f4c23f20-1bb3-430f-af28-640eb59d05c5",
+      "id": "8f6f015a-8170-4255-a995-a2d3dee8ca0c",
       "name": "Rating Batches",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3740,
+        3960,
         300
       ],
       "parameters": {
@@ -520,12 +447,12 @@
       }
     },
     {
-      "id": "f5763d65-1a6d-485f-9711-261339c21ae6",
+      "id": "00a9a236-93b9-4fd7-82fd-deac9c733472",
       "name": "BG Stats Ratings?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        3960,
+        4180,
         300
       ],
       "parameters": {
@@ -537,7 +464,7 @@
           },
           "conditions": [
             {
-              "id": "4ad574be-9267-4c29-898c-b0edefd585d6",
+              "id": "50b1a1e8-0c53-41cd-ba2a-739967e89c24",
               "leftValue": "={{ $json.records.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -553,28 +480,26 @@
       }
     },
     {
-      "id": "2a4ff2cb-7502-4cc0-b207-63b9e274d90a",
+      "id": "4c85e5a8-7763-429c-adeb-c748bbe34178",
       "name": "Save BG Stats Ratings",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
-        4180,
+        4400,
         300
       ],
       "parameters": {
-        "method": "PATCH",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tbllInOWIokikEiQH",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['fldSVVMwQygNrpyBm'] }, records: $json.records, typecast: true }) }}",
-        "options": {}
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
+        "options": {
+          "queryReplacement": "={{ [\"tbllInOWIokikEiQH\", \"PATCH\", ``, JSON.stringify({ performUpsert: { fieldsToMergeOn: ['fldSVVMwQygNrpyBm'] }, records: $json.records, typecast: true }), ''] }}",
+          "queryBatching": "independently"
+        }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -582,12 +507,12 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "26c73b5a-72e0-424a-9476-7117dfa44c6d",
+      "id": "5ad76428-228d-4d91-b09d-dd5e7a626ec5",
       "name": "BGG Users",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4400,
+        4620,
         300
       ],
       "parameters": {
@@ -595,12 +520,12 @@
       }
     },
     {
-      "id": "a5a635ad-3129-4984-a8b8-ea4b2e3b1ca1",
+      "id": "8374b669-23be-43c0-8bf9-e588840d26de",
       "name": "Any BGG Users?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        4620,
+        4840,
         300
       ],
       "parameters": {
@@ -612,7 +537,7 @@
           },
           "conditions": [
             {
-              "id": "3d35089d-de7d-4f7a-8f39-3ece2a74dff8",
+              "id": "f2d9ded4-1a8a-4037-ab3c-6c36c58742e6",
               "leftValue": "={{ !$json.none }}",
               "rightValue": "",
               "operator": {
@@ -628,12 +553,12 @@
       }
     },
     {
-      "id": "76a3376f-b956-4101-b27d-341491622a0f",
+      "id": "b2f329bd-7380-492d-a09f-f589302cea13",
       "name": "Fetch BGG Ratings",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
       "position": [
-        4840,
+        5060,
         300
       ],
       "parameters": {
@@ -651,12 +576,12 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "e55c79c8-4d36-453b-94cf-c76fd4a5ab77",
+      "id": "6076031f-0da9-47cc-9e7f-b7f02a813db8",
       "name": "BGG Rating Batches",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5060,
+        5280,
         300
       ],
       "parameters": {
@@ -664,12 +589,12 @@
       }
     },
     {
-      "id": "f31a1894-2571-45ea-8af5-237ed7482d44",
+      "id": "6d66f299-9305-44df-8991-e048ce05ddfe",
       "name": "BGG Ratings?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        5280,
+        5500,
         300
       ],
       "parameters": {
@@ -681,7 +606,7 @@
           },
           "conditions": [
             {
-              "id": "48dbdfa4-1741-4c30-b468-77aee2e8e8b0",
+              "id": "39616298-7219-403b-95d0-a1cd462d0254",
               "leftValue": "={{ $json.records.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -697,28 +622,26 @@
       }
     },
     {
-      "id": "ce10d9df-35fe-418f-aa90-8952b047c8f0",
+      "id": "682ab176-8c91-4d3b-a6ab-e5cb8de4c4c2",
       "name": "Save BGG Ratings",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
-        5500,
+        5720,
         300
       ],
       "parameters": {
-        "method": "PATCH",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tbllInOWIokikEiQH",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['fldSVVMwQygNrpyBm'] }, records: $json.records, typecast: true }) }}",
-        "options": {}
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
+        "options": {
+          "queryReplacement": "={{ [\"tbllInOWIokikEiQH\", \"PATCH\", ``, JSON.stringify({ performUpsert: { fieldsToMergeOn: ['fldSVVMwQygNrpyBm'] }, records: $json.records, typecast: true }), ''] }}",
+          "queryBatching": "independently"
+        }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -726,12 +649,12 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "7441871c-1254-4952-bf88-ee5a84efc001",
+      "id": "de9e89a2-73bb-4691-b9ff-460fd44ede27",
       "name": "Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5720,
+        5940,
         300
       ],
       "parameters": {
@@ -739,7 +662,7 @@
       }
     },
     {
-      "id": "56bf1583-bd76-4005-8907-5f98d9250398",
+      "id": "2e0c52fc-bbe6-41a2-8a7c-4a27654be57b",
       "name": "Auth: Read Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -752,7 +675,7 @@
       }
     },
     {
-      "id": "70f97326-097e-4498-a3a9-0589948ad7c4",
+      "id": "705b01d9-c08c-4822-849d-0cf5dde81c04",
       "name": "Auth: Verify With Google",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -779,7 +702,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "7fad98f5-ac42-482d-845f-ee61c5a23041",
+      "id": "0aa2ee8d-7030-463c-b81f-716a822cab85",
       "name": "Auth: Check Owner",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -911,6 +834,17 @@
       ]
     },
     "Create Players": {
+      "main": [
+        [
+          {
+            "node": "Link New Players",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link New Players": {
       "main": [
         [
           {

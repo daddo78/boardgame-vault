@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "f5252080-6cfc-4565-8078-8aa98aa93d3f",
+      "id": "de34de88-6d1d-4d49-ac6c-5a6bbc52e5b3",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "222bc4cd-8c6b-4f90-a3c1-6b11511d0c11"
+      "webhookId": "c6df1089-a121-4ec5-9d19-d2d99773abeb"
     },
     {
-      "id": "930eaaf2-29a6-408d-afac-77c1644fd9a1",
+      "id": "bac1eeab-49d9-4074-b34a-cb781c72b273",
       "name": "Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -37,7 +37,7 @@
       }
     },
     {
-      "id": "8a477a05-9da0-4d38-89c7-6536595f7037",
+      "id": "76a916a1-26d7-4d53-aeca-8d2d8452d272",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "5071daa3-2f75-4927-a288-2196a74b2842",
+              "id": "344f5ef2-dade-4bfb-98ac-d036ead750c8",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,42 +70,26 @@
       }
     },
     {
-      "id": "83f47cba-55ee-4f88-b486-958ffb993e92",
+      "id": "d3e50abe-7684-417d-a5ee-4740dd958851",
       "name": "Find Record",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         660,
         300
       ],
       "parameters": {
-        "method": "GET",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tblbGc0UuDxIPP2a8",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "filterByFormula",
-              "value": "={{ $json.formula }}"
-            },
-            {
-              "name": "returnFieldsByFieldId",
-              "value": "true"
-            },
-            {
-              "name": "maxRecords",
-              "value": "1"
-            }
-          ]
-        },
-        "options": {}
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
+        "options": {
+          "queryReplacement": "={{ [\"tblbGc0UuDxIPP2a8\", \"GET\", ``, 'null', $json.formula] }}",
+          "queryBatching": "independently"
+        }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -113,7 +97,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "783a2ee3-b31d-410d-819d-3896c364be8c",
+      "id": "540dbc11-c02d-433d-9cf0-fd36f09ac4d4",
       "name": "Check Found",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -126,7 +110,7 @@
       }
     },
     {
-      "id": "de8bf5c5-5412-42e7-871a-6c2c18fedae2",
+      "id": "03be90c4-20f9-4183-a283-47a2b5e937d8",
       "name": "Found?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -143,7 +127,7 @@
           },
           "conditions": [
             {
-              "id": "a1115d71-d36f-48f3-a7df-7b89095332f1",
+              "id": "cc77407b-3d3a-4ae5-87aa-23c99b9ecb9b",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -159,25 +143,26 @@
       }
     },
     {
-      "id": "6f00cbd7-b438-4e03-afcb-bb776e2fe678",
+      "id": "90fed8b7-10e0-4795-919d-5dfad3c15eae",
       "name": "Delete Record",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         1320,
         300
       ],
       "parameters": {
-        "method": "DELETE",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tblbGc0UuDxIPP2a8/{{ $json.recordId }}",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "options": {}
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
+        "options": {
+          "queryReplacement": "={{ [\"tblbGc0UuDxIPP2a8\", \"DELETE\", `/${ $json.recordId }`, 'null', ''] }}",
+          "queryBatching": "independently"
+        }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -185,7 +170,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "0a9d6811-fef4-48d5-9866-2965de642f8a",
+      "id": "799227a5-442f-48fa-b777-03eac3f7f60f",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -202,7 +187,7 @@
       }
     },
     {
-      "id": "68431d23-f34e-41fb-ac48-300c09cbe819",
+      "id": "fe30991c-dc9e-44f7-a8f5-52dd1bc23de3",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -219,7 +204,7 @@
       }
     },
     {
-      "id": "0d40ae38-223c-4197-b803-eb4e51e021b6",
+      "id": "0a8bd673-2ee2-4ba1-a6d5-06be4137550e",
       "name": "Auth: Read Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -232,7 +217,7 @@
       }
     },
     {
-      "id": "3ccaad6e-dcd2-453b-8f06-2e8d86566388",
+      "id": "669c36df-b507-4f89-b745-95d51ffa5896",
       "name": "Auth: Verify With Google",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -259,7 +244,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "59293821-93d3-4811-8762-b0a6b943aa3c",
+      "id": "9e9f6b3c-93fd-4609-904f-8bee04919fdf",
       "name": "Auth: Check Owner",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -272,7 +257,7 @@
       }
     },
     {
-      "id": "5e340102-24af-4eeb-a2be-8efcfa27aed9",
+      "id": "701b659e-5fbc-4e0f-9e50-4e159914abf4",
       "name": "Signed In?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -289,7 +274,7 @@
           },
           "conditions": [
             {
-              "id": "0a02fa8d-7820-4dcf-af48-9f2ad12bd80c",
+              "id": "86bc8a0f-05dd-4449-92d5-a560f2bc21d7",
               "leftValue": "={{ $json._authOk === true }}",
               "rightValue": "",
               "operator": {

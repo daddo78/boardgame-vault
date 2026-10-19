@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "d9961de1-5c18-40b0-8aa9-cc96b27e0ef3",
+      "id": "71296ea0-ce21-42f4-b76a-d4eb3c4b40b4",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "15cfaef7-4542-44a3-8415-38ce2c33058e"
+      "webhookId": "ac48fc1d-6c5b-4c1b-9735-0370436955bb"
     },
     {
-      "id": "7c0af58e-bbd7-4a8f-8be9-792977da946e",
+      "id": "1b3a2e4f-52e1-4268-9948-04516a10175a",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -41,7 +41,7 @@
       }
     },
     {
-      "id": "a45d09ea-4183-45c1-b26b-8b8ca218f682",
+      "id": "06f4b342-2284-4ce3-a382-73b675644ec3",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -58,7 +58,7 @@
       }
     },
     {
-      "id": "a15aa51b-5f46-4922-b848-a547517f2822",
+      "id": "086d086b-16b6-465a-80fe-dc6a69df4041",
       "name": "Auth: Read Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -71,7 +71,7 @@
       }
     },
     {
-      "id": "5cbf943e-7d13-4c58-9d9f-b3dee4f903b2",
+      "id": "14e85232-9fa9-49ab-bd0f-61a9921c38b7",
       "name": "Auth: Verify With Google",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -98,7 +98,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "d4d64411-47c4-41a5-9ec0-7bff8573831c",
+      "id": "d0c7c99c-7013-4267-b24c-258fc2f3b0ed",
       "name": "Auth: Check Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -111,7 +111,7 @@
       }
     },
     {
-      "id": "3274a0db-d930-4d00-9545-7889ec7af61e",
+      "id": "04f6fc4d-f39d-4784-a5ce-daa9a92d69ef",
       "name": "Token Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -128,7 +128,7 @@
           },
           "conditions": [
             {
-              "id": "7c7cf052-7bdb-4a72-a248-4b212e90240c",
+              "id": "ebccedb1-27f0-4e19-af8c-f86bbeee45dc",
               "leftValue": "={{ $json.ok === true }}",
               "rightValue": "",
               "operator": {
@@ -144,42 +144,26 @@
       }
     },
     {
-      "id": "583caa70-4b38-4026-b22c-b0a84306dc13",
+      "id": "5c73e02e-3799-4297-8627-9e377f6903d8",
       "name": "Auth: Find Player",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         1100,
         500
       ],
       "parameters": {
-        "method": "GET",
-        "url": "=https://api.airtable.com/v0/appb5FKsyLareQzG4/tblNahVdHDueJJ0w4",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "airtableTokenApi",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "filterByFormula",
-              "value": "={{ \"LOWER({GoogleEmail})='\" + $json.email.replace(/'/g, '') + \"'\" }}"
-            },
-            {
-              "name": "returnFieldsByFieldId",
-              "value": "true"
-            },
-            {
-              "name": "maxRecords",
-              "value": "1"
-            }
-          ]
-        },
-        "options": {}
+        "operation": "executeQuery",
+        "query": "SELECT x -> 'records' AS records, x ->> 'id' AS id, x ->> 'createdTime' AS \"createdTime\", x -> 'fields' AS fields, (x ->> 'deleted')::boolean AS deleted FROM (SELECT at.request($1, $2, $3, $4::jsonb, $5) AS x) q",
+        "options": {
+          "queryReplacement": "={{ [\"tblNahVdHDueJJ0w4\", \"GET\", ``, 'null', \"LOWER({GoogleEmail})='\" + $json.email.replace(/'/g, '') + \"'\"] }}",
+          "queryBatching": "independently"
+        }
       },
       "credentials": {
-        "airtableTokenApi": {
-          "id": "DjPIwMJ1Lmar6CuJ",
-          "name": "Airtable Personal Access Token account"
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
         }
       },
       "retryOnFail": true,
@@ -187,7 +171,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "496a1f2a-afb7-40dd-9445-3542f6333acf",
+      "id": "d2a12ce5-557e-4eea-a029-396e1f8a17bf",
       "name": "Auth: Role",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -200,7 +184,7 @@
       }
     },
     {
-      "id": "1140e0da-4999-42ec-b555-79e68269cad1",
+      "id": "1f4e1575-2908-45d4-860e-d1cbd55a9346",
       "name": "Member?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -217,7 +201,7 @@
           },
           "conditions": [
             {
-              "id": "8e721aa7-6078-41ac-aa29-b5eeae4363b0",
+              "id": "8b48956b-7f0d-4fa8-96c3-ae6daa84b20e",
               "leftValue": "={{ $json._authOk === true }}",
               "rightValue": "",
               "operator": {
