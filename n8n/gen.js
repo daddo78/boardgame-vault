@@ -1628,7 +1628,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'REQUEST: ' + v.question,
     ].filter((l) => l !== '').join('\n');
     return [{ json: { requestBody: {
-      model: '__VISION_MODEL__', max_tokens: 1500, reasoning: { effort: 'low' }, provider: { data_collection: 'deny' },
+      model: '__VISION_MODEL__', max_tokens: 1500, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
       messages: [{ role: 'user', content: prompt }],
     } } }];
   }),
@@ -1858,7 +1858,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '', 'CANDIDATES (id | title | facts | how each person relates to it):', s.gameLines,
     ].filter((l) => l !== '').join('\n');
     return [{ json: { ...s, requestBody: {
-      model: '__ASK_MODEL__', max_tokens: 2500, reasoning: { effort: 'low' }, provider: { data_collection: 'deny' },
+      model: '__ASK_MODEL__', max_tokens: 2500, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
       messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
     } } }];
   }),
