@@ -110,7 +110,17 @@ function prelude() {
   const publicPlayer = (p) => { const { googleEmail, ...rest } = p; return rest; };
   const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());
   // Highest-priority source wins when one person has several ratings for a game
-  const RATING_PRIORITY = { site: 4, owner: 3, bgg: 2, bgstats: 1 };
+  // BGC stars come only from the person themselves ("site"); BGG ratings are kept apart, out of 10 (stored as stars x2)
+  const ratingsByPlayerGame = (list) => {
+    const out = {};
+    for (const r of list) {
+      if (!r.gameId || !r.playerId || !r.stars) continue;
+      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });
+      if (r.source === 'site') e.stars = r.stars;
+      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);
+    }
+    return out;
+  };
   const toRating = (r) => {
     const f = r.fields || {};
     const src = f[RF.source];
@@ -1158,12 +1168,9 @@ const people = wf(ID.people, 'Vault — People', [
   code('Shape People', function () {
     const players = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer).map(publicPlayer)
       .sort((a, b) => (b.active - a.active) || a.name.localeCompare(b.name));
-    const best = {}; // gameId -> playerId -> { stars, source }
-    for (const r of $input.all().flatMap((i) => i.json.records || []).map(toRating)) {
-      if (!r.gameId || !r.playerId || !r.stars) continue;
-      const g = (best[r.gameId] ??= {});
-      const cur = g[r.playerId];
-      if (!cur || (RATING_PRIORITY[r.source] || 0) > (RATING_PRIORITY[cur.source] || 0)) g[r.playerId] = { stars: r.stars, source: r.source };
+    const best = {}; // gameId -> playerId -> { stars (their BGC rating), bgg (their BGG rating, /10) }
+    for (const e of Object.values(ratingsByPlayerGame($input.all().flatMap((i) => i.json.records || []).map(toRating)))) {
+      (best[e.gameId] ??= {})[e.playerId] = { ...(e.stars ? { stars: e.stars } : {}), ...(e.bgg ? { bgg: e.bgg } : {}) };
     }
     return [{ json: { players, ratings: best } }];
   }),
@@ -1171,8 +1178,8 @@ const people = wf(ID.people, 'Vault — People', [
 ], [['Webhook', 'List Players'], ['List Players', 'One Item'], ['One Item', 'List Ratings'], ['List Ratings', 'Shape People'], ['Shape People', 'Respond OK']]);
 
 // =====================================================================
-// 13. Rate Game  POST /webhook/vault/rate { gameId, stars (0 clears), playerId? }  (member gate)
-//     A friend rates for themselves (source "site"); the owner can also rate for anyone (source "owner").
+// 13. Rate Game  POST /webhook/vault/rate { gameId, stars (0 clears) }  (member gate)
+//     Everyone rates only for themselves (source "site"); nobody rates on someone else's behalf.
 // =====================================================================
 const rate = wf(ID.rate, 'Vault — Rate Game', [
   webhook('Webhook', 'POST', 'vault/rate'),
@@ -1185,10 +1192,10 @@ const rate = wf(ID.rate, 'Vault — Rate Game', [
     const stars = Math.round(Number(b.stars) * 2) / 2;
     if (!gameId) return err(400, 'Missing gameId');
     if (!(stars >= 0 && stars <= 5)) return err(400, 'stars must be 0-5 (0 clears your rating)');
-    const target = b.playerId ? String(b.playerId) : auth.playerId;
+    const target = auth.playerId;
     if (!target) return err(400, 'Link your Google email to your player card to rate games');
-    if (target !== auth.playerId && auth.role !== 'owner') return err(403, 'You can only rate games for yourself');
-    const source = target === auth.playerId ? 'site' : 'owner';
+    if (b.playerId && String(b.playerId) !== target) return err(403, 'You can only rate games for yourself');
+    const source = 'site';
     const key = `${target}|${gameId}|${source}`;
     return [{ json: { ok: true, key, playerId: target, gameId, stars, source, formula: `{Key}='${key.replace(/'/g, '')}'` } }];
   }),
@@ -1399,13 +1406,6 @@ const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
       }
       const history = Object.fromEntries(Object.entries(merged).map(([k, v]) => [k, { plays: v.plays, wins: v.wins, last: v.last }]));
       if (JSON.stringify(history) !== JSON.stringify(pl.history)) playerRecords.push({ id: pl.id, fields: { [PF.playHistory]: JSON.stringify(history), [PF.updatedAt]: now } });
-      for (const [bggId, v] of Object.entries(merged)) {
-        if (!v.ratings.length) continue;
-        const avg10 = v.ratings.reduce((a, b) => a + b, 0) / v.ratings.length;
-        const gameId = gameIdByBgg[bggId];
-        ratingRecords.push({ fields: { [RF.key]: `${pl.id}|${gameId}|bgstats`, [RF.playerId]: pl.id, [RF.gameId]: gameId,
-          [RF.stars]: Math.round(avg10) / 2, [RF.source]: 'bgstats', [RF.updatedAt]: now } });
-      }
     }
     const batch = (list) => { const out = []; for (let i = 0; i < list.length; i += 10) out.push(list.slice(i, i + 10)); return out; };
     return [{ json: { playerBatches: batch(playerRecords), ratingBatches: batch(ratingRecords),
@@ -1588,13 +1588,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const expand = (list) => [...new Set(list.flatMap((w) => [w, ...(SYN[w] || [])]))];
     const want = expand(words(c.themes)), avoid = words(c.avoid);
     const exclude = new Set(c.intent !== 'browse' && Array.isArray(c.excludeIds) ? c.excludeIds : []); // previous picks, when they want different games (a browse lists everything)
-    // best rating per player per game
-    const rate = {};
-    for (const r of ratings) {
-      if (!r.stars) continue;
-      const k = r.playerId + '|' + r.gameId;
-      if (!rate[k] || (RATING_PRIORITY[r.source] || 0) > (RATING_PRIORITY[rate[k].source] || 0)) rate[k] = r;
-    }
+    // each person's own BGC stars and their BGG rating, kept apart
+    const rate = ratingsByPlayerGame(ratings);
+    const fit = (r) => r ? (r.stars ? r.stars : r.bgg ? r.bgg / 2 : null) : null; // 1-5 for scoring; their BGC stars win over BGG
     const hay = (g) => [g.title, g.genre, g.type, g.desc, ...g.categories, ...g.mechanics].join(' ').toLowerCase();
     const isCoop = (g) => g.mechanics.some((m) => /cooperative/i.test(m)) || /co-?op/i.test(g.type);
     const daysSince = (d) => d ? (Date.now() - new Date(d).getTime()) / 86400000 : Infinity;
@@ -1622,7 +1618,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       s += want.filter((w) => h.includes(w)).length * 2.5;
       s += (g.desireToPlay || 0) * 0.4 + (g.favorite ? 1 : 0) - (g.thinningCandidate ? 0.5 : 0);
       s += ((g.bggRating || 6.5) - 6.5) * 0.5;
-      const groupStars = group.map((p) => rate[p.id + '|' + g.id]?.stars).filter(Boolean);
+      const groupStars = group.map((p) => fit(rate[p.id + '|' + g.id])).filter(Boolean);
       if (groupStars.length) s += (groupStars.reduce((a, b) => a + b, 0) / groupStars.length - 3) * 1.2;
       if (c.freshness === 'unplayed' && !g.playCount) s += 3;
       if (c.freshness === 'stale' && daysSince(g.lastPlayed) > 365) s += 3;
@@ -1683,7 +1679,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       const people = group.map((p) => {
         const hst = p.history[String(g.bggId)] || null;
         const r = rate[p.id + '|' + g.id];
-        const bits = [hst ? `${hst.plays} plays/${hst.wins} wins` : 'never played', r ? `rates ${r.stars}/5` : ''].filter(Boolean).join(', ');
+        const bits = [hst ? `${hst.plays} plays/${hst.wins} wins` : 'never played', r && r.stars ? `rates it ${r.stars}/5 on BGC` : '', r && r.bgg ? `BGG rating ${r.bgg}/10` : ''].filter(Boolean).join(', ');
         return `${p.name.split(' ')[0]}: ${bits}`;
       }).join('; ');
       return `${g.id} | ${g.title} | ${facts}${people ? ' | ' + people : ''}`;
@@ -1692,7 +1688,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       const dial = (label, v, lo, hi) => v ? `${label} ${v}/5 (${lo}..${hi})` : '';
       const top = Object.entries(p.history).map(([bgg, h]) => ({ g: games.find((x) => String(x.bggId) === bgg), h })).filter((x) => x.g)
         .sort((a, b) => b.h.plays - a.h.plays).slice(0, 6).map((x) => `${x.g.title} (${x.h.plays}x, ${x.h.wins} wins)`);
-      const loved = ratings.filter((r) => r.playerId === p.id && r.stars >= 4).map((r) => games.find((g) => g.id === r.gameId)?.title).filter(Boolean).slice(0, 6);
+      const loved = Object.values(rate).filter((r) => r.playerId === p.id && fit(r) >= 4).map((r) => games.find((g) => g.id === r.gameId)?.title).filter(Boolean).slice(0, 6);
       const totals = Object.values(p.history).reduce((a, h) => ({ plays: a.plays + h.plays, wins: a.wins + h.wins }), { plays: 0, wins: 0 });
       return [
         `- ${p.name}` + (p.age ? `, age ${p.age}` : ''),
@@ -1723,6 +1719,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '- Recommend only games from CANDIDATES, by id. Never invent games, numbers or rules.',
       '- Cite the key metrics from the candidate facts: the best player count ("the BGG community poll says it is best at 4"), play time, BGG weight, and primary mechanics. These facts come from BoardGameGeek, so you may attribute them to BGG.',
       '- Do not quote forums, Reddit or reviews: you have no access to them.',
+      '- Plays are a hint, not a verdict: "Keith has played it 12 times" suggests he does not mind it, not that he loves it. Only a BGC or BGG rating says how much someone likes a game; say which one you mean.',
       '- Fit to the people comes first: each person\'s dials, likes, dislikes and notes; their plays, wins and ratings on each candidate; __OWNER_NAME__\'s wants-to-play stars and favorites; a game __OWNER_NAME__ may give away is a good last-chance pick. Name people by first name. Be kind about people and never judge anyone\'s taste: party games and heavy economic games deserve equal respect.',
       '',
       'VOICE:',

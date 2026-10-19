@@ -1546,44 +1546,41 @@
     }
 
     // ---------- Ratings (per person, 1-5) ----------
-    const SOURCE_LABEL = { site: '', owner: '', bgg: 'BGG', bgstats: 'BG Stats' };
     function starsPicker(attr, gameId, current, extra) {
       let h = '';
       for (let i = 1; i <= 5; i++) h += '<button type="button" class="' + (current >= i - 0.25 ? 'on' : '') + '" ' + attr + '="' + esc(gameId) + '" data-stars="' + i + '"' + (extra || '') + ' title="' + i + ' star' + (i > 1 ? 's' : '') + '"><i class="fa-solid fa-star"></i></button>';
       return '<div class="rate-stars">' + h + '</div>';
     }
+    // Stars are each person's own BGC rating; BGG ratings are shown apart, out of 10
     function ratingsHtml(g) {
       const byPlayer = (people.ratings || {})[g.id] || {};
       const name = (id) => (people.players.find(p => p.id === id) || {}).name || 'Someone';
-      const entries = Object.entries(byPlayer).sort((a, b) => b[1].stars - a[1].stars);
       const me = myPlayerId();
       const rows = [];
       if (isMember() && me) rows.push('<div class="rate-row"><span class="who">Your rating</span>' + starsPicker('data-rate-self', g.id, (byPlayer[me] || {}).stars || 0) + '</div>');
       if (isMember() && !me) rows.push('<p class="hint" style="margin:0;">Link your Google email to your player card to rate games.</p>');
-      if (isOwner()) {
-        const opts = people.players.filter(p => p.id !== me).map(p => '<option value="' + esc(p.id) + '"' + (p.id === rateForId ? ' selected' : '') + '>' + esc(p.name) + (p.active ? '' : ' (inactive)') + '</option>').join('');
-        const cur = rateForId ? ((byPlayer[rateForId] || {}).stars || 0) : 0;
-        rows.push('<div class="rate-row"><select id="rateFor"><option value="">Rate for…</option>' + opts + '</select>' + (rateForId ? starsPicker('data-rate-for', g.id, cur) : '') + '</div>');
-      }
-      const others = entries.filter(([pid]) => pid !== me);
-      const avg = entries.length ? entries.reduce((n, [, r]) => n + r.stars, 0) / entries.length : 0;
-      return '<div class="ratings-block"><div class="section-label" style="margin:0;">Ratings' + (entries.length ? ' · ' + avg.toFixed(1) + '★ from ' + entries.length + (entries.length === 1 ? ' person' : ' people') : '') + '</div>' +
+      const bgc = Object.entries(byPlayer).filter(([, r]) => r.stars).sort((x, y) => y[1].stars - x[1].stars);
+      const bgg = Object.entries(byPlayer).filter(([, r]) => r.bgg).sort((x, y) => y[1].bgg - x[1].bgg);
+      const others = bgc.filter(([pid]) => pid !== me);
+      const avg = bgc.length ? bgc.reduce((n, [, r]) => n + r.stars, 0) / bgc.length : 0;
+      return '<div class="ratings-block"><div class="section-label" style="margin:0;">BGC ratings' + (bgc.length ? ' · ' + avg.toFixed(1) + '★ from ' + bgc.length + (bgc.length === 1 ? ' person' : ' people') : '') + '</div>' +
         rows.join('') +
-        (others.length ? '<div class="rate-list">' + others.map(([pid, r]) => '<span class="rate-chip">' + esc(firstName(name(pid))) + ' ' + r.stars + ' <i class="fa-solid fa-star"></i>' + (SOURCE_LABEL[r.source] ? '<small>' + SOURCE_LABEL[r.source] + '</small>' : '') + '</span>').join('') + '</div>'
+        (others.length ? '<div class="rate-list">' + others.map(([pid, r]) => '<span class="rate-chip">' + esc(firstName(name(pid))) + ' ' + r.stars + ' <i class="fa-solid fa-star"></i></span>').join('') + '</div>'
           : (!rows.length ? '<p class="hint" style="margin:0;">No ratings yet.</p>' : '')) +
+        (bgg.length ? '<div class="section-label" style="margin:0.4rem 0 0;">On BGG</div><div class="rate-list">' + bgg.map(([pid, r]) => '<span class="rate-chip">' + esc(firstName(name(pid))) + ' ' + r.bgg + '<small>/10</small></span>').join('') + '</div>' : '') +
       '</div>';
     }
-    let rateForId = '';
-    async function savePlayerRating(gameId, stars, playerId) {
-      const pid = playerId || myPlayerId();
+    async function savePlayerRating(gameId, stars) {
+      const pid = myPlayerId();
       const byPlayer = ((people.ratings ||= {})[gameId] ||= {});
       const prev = byPlayer[pid] ? { ...byPlayer[pid] } : null;
-      const clear = prev && Math.round(prev.stars) === stars; // tapping your current rating clears it
+      const clear = prev && Math.round(prev.stars || 0) === stars; // tapping your current rating clears it
       const next = clear ? 0 : stars;
-      if (next) byPlayer[pid] = { stars: next, source: playerId && playerId !== myPlayerId() ? 'owner' : 'site' }; else delete byPlayer[pid];
+      const keep = prev && prev.bgg ? { bgg: prev.bgg } : {};
+      if (next) byPlayer[pid] = { ...keep, stars: next }; else if (keep.bgg) byPlayer[pid] = keep; else delete byPlayer[pid];
       renderDetail();
       try {
-        await n8nFetch('/rate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId, stars: next, ...(playerId ? { playerId } : {}) }) });
+        await n8nFetch('/rate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId, stars: next }) });
       } catch (e) {
         if (prev) byPlayer[pid] = prev; else delete byPlayer[pid];
         renderDetail();
@@ -1592,12 +1589,7 @@
     }
     document.getElementById('detailModal').addEventListener('click', (e) => {
       const self = e.target.closest('[data-rate-self]');
-      if (self) { savePlayerRating(self.dataset.rateSelf, Number(self.dataset.stars)); return; }
-      const other = e.target.closest('[data-rate-for]');
-      if (other && rateForId) savePlayerRating(other.dataset.rateFor, Number(other.dataset.stars), rateForId);
-    });
-    document.getElementById('detailModal').addEventListener('change', (e) => {
-      if (e.target.id === 'rateFor') { rateForId = e.target.value; renderDetail(); }
+      if (self) savePlayerRating(self.dataset.rateSelf, Number(self.dataset.stars));
     });
 
     // ---------- Players (owner) ----------
