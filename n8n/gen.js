@@ -50,6 +50,8 @@ const ID = {
   shelfUpdate: 'BGVaultShelfUpd1',
   shelfRemove: 'BGVaultShelfRem1',
   importBgg: 'BGVaultImport001',
+  shelfAdd: 'BGVaultShelfAdd1',
+  shelfIdentify: 'BGVaultShelfPic1',
   errorAlert: 'BGVaultAlert0001',
   healthCheck: 'BGVaultHealth001',
 };
@@ -137,6 +139,38 @@ function prelude() {
       else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);
     }
     return out;
+  };
+  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
+  const parseThingXml = (xml) => {
+    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
+    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
+    const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
+    // "Best with": player counts where Best is the top vote in BGG's suggested_numplayers poll
+    const bestWith = (s) => {
+      const poll = (s.match(/<poll name="suggested_numplayers"[\s\S]*?<\/poll>/) || [''])[0];
+      const rows = [...poll.matchAll(/<results numplayers="(\d+)">([\s\S]*?)<\/results>/g)].map((m) => {
+        const votes = (label) => Number((m[2].match(new RegExp('value="' + label + '" numvotes="(\\d+)"')) || [])[1] || 0);
+        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };
+      });
+      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);
+      if (winners.length) return winners;
+      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];
+      return top ? [top.n] : [];
+    };
+    return [...String(xml || '').matchAll(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/g)].map((m) => {
+      const s = m[3];
+      const rank = (s.match(/<rank type="subtype"[^>]*name="boardgame"[^>]*value="(\d+)"/) || [])[1];
+      const avg = Number(attr(s, 'average') || 0);
+      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type="primary"[^>]*value="([^"]*)"/) || [])[1] || ''),
+        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,
+        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),
+        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),
+        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),
+        // An expansion's inbound links point at the base game(s) it expands
+        baseIds: [...s.matchAll(/<link type="boardgameexpansion" id="(\d+)"[^>]*inbound="true"/g)].map((x) => Number(x[1])),
+        picId: (s.match(/<image>[^<]*\/pic(\d+)\.[a-z]+<\/image>/) || [])[1] || null };
+    });
   };
   const toRating = (r) => {
     const f = r.fields || {};
@@ -1538,7 +1572,7 @@ addAuth(syncPeople, { mode: 'throw' });
 addAuth(update, { mode: 'respond', failTo: 'Respond Error' });
 addAuth(del, { mode: 'respond', failTo: 'Respond Error' });
 addAuth(identify, { mode: 'respond', failTo: 'Delete Photo (no match)' }); // drop the upload, then 401
-addAuth(bggSearch, { mode: 'respond', failTo: 'Respond Error' });
+addMemberAuth(bggSearch, { failTo: 'Respond Error' }); // any member can search BGG (it only reads)
 addAuth(addByName, { mode: 'respond', failTo: 'Respond Error' });
 addAuth(iconOne, { mode: 'throw' });
 addAuth(bggOne, { mode: 'throw' });
@@ -2088,37 +2122,7 @@ const importBgg = wf(ID.importBgg, 'Vault — Import From BGG', [
     options: { timeout: 60000, batching: { batch: { batchSize: 1, batchInterval: 2500 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
   }, { credentials: CRED.bgg, ...retry }), onError: 'continueRegularOutput' },
   code('Parse Details', function () {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
-    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
-    const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
-    const bestWith = (s) => {
-      const poll = (s.match(/<poll name="suggested_numplayers"[\s\S]*?<\/poll>/) || [''])[0];
-      const rows = [...poll.matchAll(/<results numplayers="(\d+)">([\s\S]*?)<\/results>/g)].map((m) => {
-        const votes = (label) => Number((m[2].match(new RegExp('value="' + label + '" numvotes="(\\d+)"')) || [])[1] || 0);
-        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };
-      });
-      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);
-      if (winners.length) return winners;
-      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];
-      return top ? [top.n] : [];
-    };
-    const things = [];
-    for (const page of $input.all()) {
-      for (const m of String(page.json.data || '').matchAll(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/g)) {
-        const s = m[3];
-        const rank = (s.match(/<rank type="subtype"[^>]*name="boardgame"[^>]*value="(\d+)"/) || [])[1];
-        const avg = Number(attr(s, 'average') || 0);
-        things.push({ id: Number(m[2]), type: m[1], name: decode((s.match(/<name type="primary"[^>]*value="([^"]*)"/) || [])[1] || ''),
-          year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,
-          minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),
-          minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),
-          designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),
-          // An expansion's inbound links point at the base game(s) it expands
-          baseIds: [...s.matchAll(/<link type="boardgameexpansion" id="(\d+)"[^>]*inbound="true"/g)].map((x) => Number(x[1])),
-          picId: (s.match(/<image>[^<]*\/pic(\d+)\.[a-z]+<\/image>/) || [])[1] || null });
-      }
-    }
+    const things = $input.all().flatMap((page) => parseThingXml(page.json.data));
     return things.length ? things.map((t) => ({ json: t })) : [{ json: { none: true } }];
   }),
   // In-between image sizes from BGG's image service (the XML only has a thumbnail and the huge original)
@@ -2248,8 +2252,191 @@ const healthCheck = wf(ID.healthCheck, 'Vault — Health Check', [
   email('Email Dan', '={{ $json.subject }}', '={{ $json.text }}'),
 ], [['Daily', 'Read Status'], ['Read Status', 'Check'], ['Check', 'Send?'], ['Send?', 'Email Dan', 0]]);
 
+// =====================================================================
+// 27. Add To My Shelf  POST /webhook/vault/shelf-add { bggId } | { title }  (member gate)
+//     A game anyone already has comes straight from the shared catalog; a new one gets its BGG details and box art.
+//     An expansion of a game on the member's shelf is listed under that game.
+// =====================================================================
+const shelfAdd = wf(ID.shelfAdd, 'Vault — Add To My Shelf', [
+  webhook('Webhook', 'POST', 'vault/shelf-add'),
+  code('Validate', function () {
+    const j = $input.first().json;
+    const b = j.body || {};
+    const bggId = Number(b.bggId) || null;
+    const title = String(b.title || '').trim().slice(0, 200);
+    if (!bggId && !title) return [{ json: { ok: false, status: 400, message: 'Send a bggId, or a title for a game that is not on BGG' } }];
+    return [{ json: { ok: true, email: j._auth.email, bggId, title } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  ifTrue('On BGG?', '={{ !!$json.bggId }}'),
+  { ...textGet('BGG Thing', 'https://boardgamegeek.com/xmlapi2/thing', qs({ id: '={{ $json.bggId }}', stats: '1' }), CRED.bgg), onError: 'continueRegularOutput' },
+  code('Parse Thing', function () {
+    const t = parseThingXml($input.first().json.data)[0];
+    if (!t) return [{ json: { ok: false, status: 404, message: 'BGG has no game #' + $('Validate').first().json.bggId } }];
+    return [{ json: { ok: true, thing: t } }];
+  }),
+  ifTrue('Found On BGG?', '={{ $json.ok }}'),
+  { ...node('BGG Image Sizes', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: '=https://api.geekdo.com/api/images/{{ $json.thing.picId || 0 }}', options: { timeout: 20000 },
+  }, { retryOnFail: true, maxTries: 2, waitBetweenTries: 3000 }), onError: 'continueRegularOutput' },
+  code('Add Cover', function () {
+    const t = $('Parse Thing').first().json.thing;
+    const im = $input.first().json.images || {};
+    return [{ json: { thing: { ...t, coverCard: im.medium?.url || im.itempage?.url || null, coverLarge: im.itempage?.url || im.medium?.url || null } } }];
+  }),
+  code('Title Only', function () { return [{ json: { thing: null } }]; }),
+  pg('Add', 'SELECT bgc.shelf_add($1, $2::jsonb, $3) AS r',
+    "={{ [$('Validate').first().json.email, JSON.stringify($json.thing || null), $('Validate').first().json.title] }}"),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('Added?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [
+  ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'On BGG?', 0], ['Valid?', 'Respond Error', 1],
+  ['On BGG?', 'BGG Thing', 0], ['On BGG?', 'Title Only', 1], ['BGG Thing', 'Parse Thing'], ['Parse Thing', 'Found On BGG?'],
+  ['Found On BGG?', 'BGG Image Sizes', 0], ['Found On BGG?', 'Respond Error', 1], ['BGG Image Sizes', 'Add Cover'],
+  ['Add Cover', 'Add'], ['Title Only', 'Add'], ['Add', 'Result'], ['Result', 'Added?'], ['Added?', 'Respond OK', 0], ['Added?', 'Respond Error', 1],
+]);
+addMemberAuth(shelfAdd, { failTo: 'Respond Error' });
+
+// =====================================================================
+// 28. Add To My Shelf From Photo  POST /webhook/vault/shelf-identify  multipart { photo }  (member gate)
+//     The member's version of the photo add: read the boxes, skip what's already on their shelf, look each new title
+//     up on BGG (most-rated exact match), then add it like Add To My Shelf (expansions go under their base game).
+//     The photo is deleted when the request ends and no execution data is kept.
+// =====================================================================
+const shelfIdentify = wf(ID.shelfIdentify, 'Vault — Add To My Shelf From Photo', [
+  webhook('Webhook', 'POST', 'vault/shelf-identify'),
+  node('Photo To Base64', 'n8n-nodes-base.extractFromFile', 1, {
+    operation: 'binaryToPropery', binaryPropertyName: '={{ Object.keys($binary)[0] }}', destinationKey: 'photoB64', options: {},
+  }),
+  pg('Read Shelf', 'SELECT bgc.shelf($1) AS shelf', "={{ [$('Auth: Role').first().json._auth.email] }}"),
+  code('Build Vision Request', function () {
+    const bin = $('Webhook').first().binary || {};
+    const key = Object.keys(bin)[0];
+    if (!key) throw new Error('No photo uploaded');
+    const mime = bin[key].mimeType || 'image/jpeg';
+    const b64 = $('Photo To Base64').first().json.photoB64;
+    const owned = (($input.first().json.shelf || {}).records || []).map(toGame).map((g) => g.title).sort();
+    const instructions = [
+      'Identify every board game box visible in this photo (fronts, backs or spines). Skip anything you cannot read confidently.',
+      'Reply with JSON only:',
+      '{"items": [{"title": "official title as printed", "kind": "game" or "expansion", "baseGame": "for an expansion, the game it expands; else null",',
+      '  "owned": "if this is the same game (any edition, spelling or language) as a title in OWNED, that exact OWNED title; else null. An expansion is never the same game as its base game",',
+      '  "confidence": 0.0-1.0}], "reason": "only if no boxes could be identified"}',
+      '', 'OWNED:', ...owned,
+    ].join('\n');
+    return [{ json: { requestBody: {
+      model: '__VISION_MODEL__', max_tokens: 4000, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
+      messages: [
+        { role: 'system', content: 'You identify board games from photos for a personal collection catalog. Reply with JSON only.' },
+        { role: 'user', content: [{ type: 'text', text: instructions }, { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } }] },
+      ],
+    } } }];
+  }),
+  openrouter('Ask Vision Model'),
+  code('Plan', function () {
+    const text = $input.first().json.choices?.[0]?.message?.content || '';
+    let r = {};
+    try { r = JSON.parse(text.match(/\{[\s\S]*\}/)[0]); } catch (e) {}
+    const found = (Array.isArray(r.items) ? r.items : []).filter((i) => i && i.title && (i.confidence == null || Number(i.confidence) >= 0.5))
+      .map((i) => ({ title: String(i.title).trim(), kind: i.kind === 'expansion' ? 'expansion' : 'game', baseGame: i.baseGame ? String(i.baseGame) : null, owned: i.owned ? String(i.owned) : null }));
+    if (!found.length) return [{ json: { ok: false, status: 422, message: 'Could not identify a game in that photo' + (r.reason ? ': ' + r.reason : '') } }];
+    const games = (($('Read Shelf').first().json.shelf || {}).records || []).map(toGame);
+    const byTitle = new Map(games.map((g) => [normTitle(g.title), g]));
+    const expansionOwner = new Map();
+    for (const g of games) for (const e of g.expansions) expansionOwner.set(normTitle(e), g);
+    const skipped = [], todo = [], deferred = [], seen = new Set();
+    for (const it of found) {
+      const key = normTitle(it.title);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const same = byTitle.get(key) || (it.owned && it.kind !== 'expansion' ? byTitle.get(normTitle(it.owned)) : null);
+      if (same) { skipped.push({ title: it.title, reason: 'already on your shelf', existing: same.title }); continue; }
+      const owner = expansionOwner.get(key);
+      if (owner) { skipped.push({ title: it.title, reason: 'already listed as an expansion', existing: owner.title }); continue; }
+      if (todo.length >= 8) { deferred.push(it.title); continue; } // keeps the request inside Cloudflare's ~100s limit
+      todo.push(it);
+    }
+    return [{ json: { ok: true, todo, skipped, deferred } }];
+  }),
+  ifTrue('Identified?', '={{ $json.ok }}'),
+  code('One Item Per Title', function () {
+    const p = $input.first().json;
+    return p.todo.length ? p.todo.map((t) => ({ json: { ...t, query: t.title.replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim() } })) : [{ json: { none: true } }];
+  }),
+  ifTrue('Anything New?', '={{ !$json.none }}'),
+  { ...node('BGG Search', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/search',
+    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    ...qs({ query: '={{ $json.query }}', type: 'boardgame,boardgameexpansion' }),
+    options: { timeout: 30000, batching: { batch: { batchSize: 1, batchInterval: 1200 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
+  }, { credentials: CRED.bgg, ...retry }), onError: 'continueRegularOutput' },
+  code('Candidates', function () {
+    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    const asked = $('One Item Per Title').all().map((i) => i.json);
+    return $input.all().map((res, i) => {
+      const t = normTitle(asked[i].title);
+      const items = [...String(res.json.data || '').matchAll(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/g)]
+        .map((m) => ({ id: m[2], name: decode((m[3].match(/<name type="[^"]+" value="([^"]*)"/) || [])[1] || '') }));
+      let pool = items.filter((x) => normTitle(x.name) === t);
+      if (!pool.length) pool = items.filter((x) => { const n = normTitle(x.name); return n && (n.startsWith(t + ' ') || t.startsWith(n + ' ')); });
+      return { json: { ids: [...new Set(pool.map((x) => x.id))].slice(0, 20).join(',') } };
+    });
+  }),
+  { ...node('BGG Thing', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/thing',
+    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    ...qs({ id: '={{ $json.ids || 0 }}', stats: '1' }),
+    options: { timeout: 30000, batching: { batch: { batchSize: 1, batchInterval: 1200 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
+  }, { credentials: CRED.bgg, ...retry }), onError: 'continueRegularOutput' },
+  code('Choose', function () {
+    const asked = $('One Item Per Title').all().map((i) => i.json);
+    return $input.all().map((res, i) => {
+      const want = asked[i].kind === 'expansion' ? 'boardgameexpansion' : 'boardgame';
+      const usersRated = (id) => Number(((String(res.json.data || '').match(new RegExp('<item type="[^"]+" id="' + id + '">[\\s\\S]*?<usersrated value="(\\d+)"')) || [])[1]) || 0);
+      const things = parseThingXml(res.json.data).sort((a, b) => ((b.type === want) - (a.type === want)) || (usersRated(b.id) - usersRated(a.id)));
+      return { json: { title: asked[i].title, thing: things[0] || null } };
+    });
+  }),
+  { ...node('BGG Image Sizes', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: '=https://api.geekdo.com/api/images/{{ ($json.thing && $json.thing.picId) || 0 }}',
+    options: { timeout: 20000, batching: { batch: { batchSize: 1, batchInterval: 250 } } },
+  }, { retryOnFail: true, maxTries: 2, waitBetweenTries: 3000 }), onError: 'continueRegularOutput' },
+  code('Add Covers', function () {
+    const chosen = $('Choose').all().map((i) => i.json);
+    return $input.all().map((res, i) => {
+      const c = chosen[i];
+      const im = res.json.images || {};
+      return { json: { title: c.title, thing: c.thing ? { ...c.thing, coverCard: im.medium?.url || im.itempage?.url || null, coverLarge: im.itempage?.url || im.medium?.url || null } : null } };
+    });
+  }),
+  pg('Add', 'SELECT bgc.shelf_add($1, $2::jsonb, $3) AS r',
+    "={{ [$('Auth: Role').first().json._auth.email, JSON.stringify($json.thing || null), $json.title] }}"),
+  code('Summary', function () {
+    const plan = $('Plan').first().json;
+    const results = $('Add').isExecuted ? $('Add').all().map((i) => i.json.r || {}) : [];
+    const added = results.flatMap((r) => r.added || []);
+    const expansions = results.flatMap((r) => r.expansions || []);
+    const skipped = [...plan.skipped, ...results.filter((r) => r.ok === false && r.status === 409).map((r) => ({ title: (r.message || '').replace(/^"|".*$/g, ''), reason: r.message }))];
+    return [{ json: { ok: true, added, expansions, skipped, deferred: plan.deferred, title: added[0]?.title || null } }];
+  }),
+  deleteUploads('Delete Photo'),
+  deleteUploads('Delete Photo (no match)'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [
+  ['Webhook', 'Photo To Base64'], ['Photo To Base64', 'Read Shelf'], ['Read Shelf', 'Build Vision Request'],
+  ['Build Vision Request', 'Ask Vision Model'], ['Ask Vision Model', 'Plan'], ['Plan', 'Identified?'],
+  ['Identified?', 'One Item Per Title', 0], ['Identified?', 'Delete Photo (no match)', 1], ['Delete Photo (no match)', 'Respond Error'],
+  ['One Item Per Title', 'Anything New?'], ['Anything New?', 'BGG Search', 0], ['Anything New?', 'Summary', 1],
+  ['BGG Search', 'Candidates'], ['Candidates', 'BGG Thing'], ['BGG Thing', 'Choose'], ['Choose', 'BGG Image Sizes'],
+  ['BGG Image Sizes', 'Add Covers'], ['Add Covers', 'Add'], ['Add', 'Summary'], ['Summary', 'Delete Photo'], ['Delete Photo', 'Respond OK'],
+], { saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none', saveManualExecutions: false, saveExecutionProgress: false });
+addMemberAuth(shelfIdentify, { failTo: 'Delete Photo (no match)' });
+
 // ---------- write ----------
-const all = { errorAlert, healthCheck, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

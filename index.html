@@ -764,7 +764,7 @@
     <div class="fine">Game data and box art <a href="https://boardgamegeek.com" target="_blank" rel="noopener">powered by BoardGameGeek</a> · plays logged with <a href="https://www.bgstatsapp.com/" target="_blank" rel="noopener">BG Stats</a></div>
   </footer>
 
-  <button class="fab owner-only" id="addFab" title="Add games"><i class="fa-solid fa-plus"></i></button>
+  <button class="fab edit-only" id="addFab" title="Add games"><i class="fa-solid fa-plus"></i></button>
 
   <!-- Players (owner only) -->
   <div class="modal-overlay" id="playersModal">
@@ -1773,7 +1773,8 @@
       document.querySelectorAll('#nameResults button').forEach(b => b.disabled = true); // one add at a time
       identifyArea.innerHTML = '<div class="spinner"></div><p class="hint" style="text-align:center;">Adding "' + esc(label) + '" and looking it up on BGG…</p>';
       try {
-        const r = await n8nFetch('/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        // A friend's own shelf, or Dan's collection
+        const r = await n8nFetch(viewingMine() ? '/shelf-add' : '/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         identifyArea.innerHTML = identifySummaryHtml(r);
         document.getElementById('addCancel').textContent = 'Done';
         toast((r.added || []).length ? 'Added "' + label + '".' : 'Added "' + label + '" as an expansion.');
@@ -1809,7 +1810,8 @@
         const base = n8nBase();
         const form = new FormData();
         form.append('photo', await shrinkPhoto(file), 'boxes.jpg');
-        const res = await fetch(base + '/identify', { method: 'POST', body: form, headers: { Authorization: 'Bearer ' + await ensureToken() } });
+        // A friend's own shelf, or Dan's collection
+        const res = await fetch(base + (viewingMine() ? '/shelf-identify' : '/identify'), { method: 'POST', body: form, headers: { Authorization: 'Bearer ' + await ensureToken() } });
         if (res.status === 401) throw handleUnauthorized();
         let result = {};
         try { result = await res.json(); } catch (e) {}

@@ -35,7 +35,8 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [x] Phase 1b: all workflows run on Postgres through an Airtable-compatible adapter (schema/002); collection identical to Airtable (0 differences); the nightly sync now stores every play. Airtable is the frozen archive (STORE=airtable ./deploy.sh rolls back)
 - [ ] Replace the adapter with direct queries as each area is rebuilt for friends (Phases 2-3)
 - [x] Phase 2: members: a friend signs in, opens My shelf, enters their BGG username; their owned games, expansions (attached to base games) and every play import in the background (tested end to end: 267 games, 61 expansions, 651 plays in ~2 min). Their own copy gets heart, stars, thinning and remove; Dan's shelf stays view-only for them
-- [ ] Phase 2b: friends add games by name or photo to their own shelf; Nathan answers from the shelf being viewed
+- [x] Phase 2b: friends add games by name or photo to their own shelf (shared catalog first, BGG for anything new, expansions under their base game); Nathan, the @ list and "Your rating" follow the shelf being viewed
+- [ ] Per-shelf game names: a shelf can call a game something else (today names live in the shared catalog, so "Splendor Series" shows for everyone)
 - [ ] Phase 3: friends: requests, a Friends page, a shelf switcher, visibility rules on every read
 - [x] My profile: signed-in members fill in their own card (dials, likes, dislikes, about me, BGG username) from the account menu; the Players screen keeps only names, aliases, email and BGG username
 - [ ] Phase 4: friend takes (private); BG Stats players link to members; friend profile pages
@@ -47,11 +48,13 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 
 ## 3. Protection against another wipe
 - [x] Nightly backup of the new database to a private GitHub repo (restore tested)
-- [ ] Error alerts: n8n emails when a nightly sync, photo add, backup or other workflow fails (Resend SMTP is already set up)
+- [x] Error alerts: any workflow failure emails Dan (one per workflow per 30 min); a daily health check emails if backups stop
 
 ## 4. Better Nathan answers
 - [ ] Regulars fill in their own taste profiles once they join (see Friends & shelves)
-- [ ] Cache the collection and people data for a few minutes so answers come back in ~8-10 s instead of 12-20 s
+- [x] Faster answers: about 6.5 s (was 10-20). Data is under a second on Postgres; "thinking" is off for both AI steps
+- [x] Nathan knows who is asking, and answers questions about people ("what do you know about me?")
+- [ ] "Games like this" with embeddings (pgvector on our own Postgres), alongside "What's like this?"
 - [ ] "What's like this?" (Ask Nathan from a game's detail view)
 
 ## 5. Data cleanup
