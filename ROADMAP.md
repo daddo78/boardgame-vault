@@ -39,7 +39,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [ ] Phase 5: social Nathan: "what can we play at Keith's?", "who owns Spirit Island?"
 - First testers: Aaron Wiesinger (email on his card), Keith McKimmy, Matt Kruse (still need emails); BGG usernames for all three
 
-- [ ] Tip jar: button is in the top bar (owner-only until set); make a Ko-fi page and set TIP_URL in index.html
+- [x] Tip jar: ☕ in the top bar opens a thank-you panel linking to ko-fi.com/dandehaan
 - [ ] Friends menu icon in the top bar (comes with Phase 3)
 
 ## 3. Protection against another wipe
