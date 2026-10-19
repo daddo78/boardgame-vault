@@ -137,6 +137,12 @@
   .landing-demo .bubble .quip { font-style: italic; color: var(--text-muted); margin: 0.2rem 0 0.5rem; }
   .landing-bottom { text-align: center; margin: 3rem auto 0; max-width: 34rem; }
   .landing-bottom p { color: var(--text-muted); }
+  /* Wide screens: text starts about a quarter across, Nathan stands in the open floor about two-thirds across */
+  @media (min-width: 1400px) {
+    .landing-inner { max-width: none; align-self: stretch; display: flex; align-items: center; padding: 3rem 0 3rem 23.5vw; }
+    .landing-copy { max-width: 32rem; padding-bottom: 0; }
+    .landing-nathan { position: absolute; bottom: 0; left: calc(66vw - min(40vw, 520px) / 2); margin: 0; }
+  }
   @media (max-width: 760px) {
     .landing-hero { min-height: 0; }
     .landing-hero::before { background: linear-gradient(180deg, rgba(10,28,32,0.82) 0%, rgba(10,28,32,0.7) 60%, rgba(10,28,32,0.35) 100%); }
