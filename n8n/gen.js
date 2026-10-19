@@ -1221,14 +1221,17 @@ const whoAmI = wf(ID.whoAmI, 'Vault — Who Am I', [
 addMemberAuth(whoAmI, { failTo: 'Respond Error' });
 
 // =====================================================================
-// 12. People  GET /webhook/vault/people  (member gate: names and play history are for the group, not visitors)
+// 12. People  GET /webhook/vault/people[?shelf=mine]  (member gate: names and play history are for the group, not visitors)
+//     shelf=mine: the member's own player list (from their plays) and ratings, for their own shelf.
 //     Player profiles (no emails) + every rating, resolved to one per person per game by source priority.
 // =====================================================================
 const people = wf(ID.people, 'Vault — People', [
   webhook('Webhook', 'GET', 'vault/people'),
-  airtableListAll('List Players', PLAYERS_TABLE),
+  pg('Shelf View', 'SELECT bgc.shelf_view($1, $2, $3) AS v',
+    "={{ [$json._auth.email, ($json.query || {}).shelf === 'mine' ? 'mine' : 'main', $json._auth.playerId] }}"),
+  code('List Players', function () { return [{ json: { records: $input.first().json.v.players } }]; }),
   code('One Item', function () { return [{ json: {} }]; }),
-  airtableListAll('List Ratings', RATINGS_TABLE),
+  code('List Ratings', function () { return [{ json: { records: $('Shelf View').first().json.v.ratings } }]; }),
   code('Shape People', function () {
     const players = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer).map(publicPlayer)
       .sort((a, b) => (b.active - a.active) || a.name.localeCompare(b.name));
@@ -1236,11 +1239,13 @@ const people = wf(ID.people, 'Vault — People', [
     for (const e of Object.values(ratingsByPlayerGame($input.all().flatMap((i) => i.json.records || []).map(toRating)))) {
       (best[e.gameId] ??= {})[e.playerId] = { ...(e.stars ? { stars: e.stars } : {}), ...(e.bgg ? { bgg: e.bgg } : {}) };
     }
-    return [{ json: { players, ratings: best } }];
+    const sv = $('Shelf View').first().json.v;
+    // me: the signed-in member's card in this list (their own BGC stars show under "Your rating")
+    return [{ json: { players, ratings: best, me: sv.askerKey || null, shelf: sv.shelf } }];
   }),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
-], [['Webhook', 'List Players'], ['List Players', 'One Item'], ['One Item', 'List Ratings'], ['List Ratings', 'Shape People'], ['Shape People', 'Respond OK']]);
+], [['Webhook', 'Shelf View'], ['Shelf View', 'List Players'], ['List Players', 'One Item'], ['One Item', 'List Ratings'], ['List Ratings', 'Shape People'], ['Shape People', 'Respond OK']]);
 addMemberAuth(people, { failTo: 'Respond Error' });
 
 // =====================================================================
@@ -1266,7 +1271,7 @@ const rate = wf(ID.rate, 'Vault — Rate Game', [
     return [{ json: { ok: true, key, playerId: target, gameId, stars, source, formula: `{Key}='${key.replace(/'/g, '')}'` } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
-  airtable('Find Existing', 'GET', '', qs({ filterByFormula: '={{ $json.formula }}', maxRecords: '1' }), {}, RATINGS_TABLE),
+  pg('Find Existing', 'SELECT at.find_rating($1) AS records', '={{ [$json.key] }}'),
   code('Plan Write', function () {
     const v = $('Validate').first().json;
     const existing = ($input.first().json.records || [])[0];
@@ -1573,7 +1578,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     } : null;
     const mentioned = Array.isArray(b.mentioned) ? b.mentioned.map(String).filter((x) => x.length < 40).slice(0, 100) : [];
     const auth = $input.first().json._auth;
-    return [{ json: { ok: true, question, playerIds, previous: prev, mentioned, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '' } }];
+    return [{ json: { ok: true, question, playerIds, previous: prev, mentioned, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
+      shelf: b.shelf === 'mine' ? 'mine' : 'main' } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
   pg('Use Allowance', "INSERT INTO ask_usage (member_id, day, questions) VALUES (coalesce(bgc.member_id($1), 0), current_date, 1) ON CONFLICT (member_id, day) DO UPDATE SET questions = ask_usage.questions + 1 RETURNING questions",
@@ -1584,15 +1590,20 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     return [{ json: { ok: true, used } }];
   }),
   ifTrue('Allowed?', '={{ $json.ok }}'),
-  airtableListAll('List Games'),
+  // Dan's shelf, or the member's own: its games, its owner's player list (from their plays) and ratings
+  pg('Shelf View', 'SELECT bgc.shelf_view($1, $2, $3) AS v',
+    "={{ [$('Validate').first().json.email, $('Validate').first().json.shelf, $('Validate').first().json.askerId] }}"),
+  code('List Games', function () { return [{ json: { records: $input.first().json.v.games } }]; }),
   code('One Item', function () { return [{ json: {} }]; }),
-  airtableListAll('List Players', PLAYERS_TABLE),
+  code('List Players', function () { return [{ json: { records: $('Shelf View').first().json.v.players } }]; }),
   code('One More Item', function () { return [{ json: {} }]; }),
-  airtableListAll('List Ratings', RATINGS_TABLE),
+  code('List Ratings', function () { return [{ json: { records: $('Shelf View').first().json.v.ratings } }]; }),
   code('Build Understand Request', function () {
     const v = $('Validate').first().json;
+    const askerId = $('Shelf View').first().json.v.askerKey || null;
     const players = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer);
-    const roster = players.filter((p) => p.active || v.playerIds.includes(p.id) || p.id === v.askerId)
+    const askerName = (players.find((p) => p.id === askerId) || {}).name || v.askerName;
+    const roster = players.filter((p) => p.active || v.playerIds.includes(p.id) || p.id === askerId)
       .map((p) => `${p.id} | ${p.name}${p.aliases.length ? ' (also: ' + p.aliases.join(', ') + ')' : ''}`).join('\n');
     const selected = players.filter((p) => v.playerIds.includes(p.id)).map((p) => p.name);
     const prompt = [
@@ -1621,7 +1632,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'If PREVIOUS is given, this is a follow-up ("shorter", "something else"): start from its constraints and change only what the new message changes. Only when they want different games ("something else", "another one") put the previous picks in excludeIds; when they narrow it down ("which of those are quick") keep excludeIds empty.',
       '',
       'ROSTER (id | name):', roster || '(none)',
-      v.askerId ? 'ASKER (the person typing): ' + v.askerId + ' | ' + (v.askerName || 'unknown') : '',
+      askerId ? 'ASKER (the person typing): ' + askerId + ' | ' + (askerName || 'unknown') : '',
       selected.length ? `Already selected as playing: ${selected.join(', ')}` : '',
       v.previous ? 'PREVIOUS: ' + JSON.stringify(v.previous) : '',
       '',
@@ -1739,7 +1750,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'top mechanics: ' + tally(set.flatMap((g) => g.mechanics)),
       sorter ? 'ORDER: the CANDIDATES are ranked, ' + sorter.label + (limit ? ', top ' + limit : '') : '',
     ].filter(Boolean).join('\n');
-    const askerIsOwner = $('Auth: Role').first().json._auth.role === 'owner';
+    const sv = $('Shelf View').first().json.v;
+    const shelfOwner = sv.ownerName || '__OWNER_NAME__';
+    const askerIsOwner = sv.shelf === 'mine' || $('Auth: Role').first().json._auth.role === 'owner';
     const line = (g, ppl = group) => {
       const facts = [
         g.minPlayers ? `${g.minPlayers}-${g.maxPlayers}p` + (g.bestPlayers.length ? ` best ${g.bestPlayers.join('/')}` : '') : '',
@@ -1747,7 +1760,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         g.weight ? `weight ${Number(g.weight).toFixed(1)}` : '', g.minAge ? `age ${g.minAge}+` : '',
         g.bggRating ? `BGG ${g.bggRating}` : '', g.genre, g.type,
         g.mechanics.slice(0, 4).join(', '),
-        `__OWNER_NAME__ wants to play ${g.desireToPlay || 0}/5`, g.favorite ? "__OWNER_NAME__'s favorite" : '', g.thinningCandidate && askerIsOwner ? '__OWNER_NAME__ may give it away' : '',
+        `${shelfOwner} wants to play ${g.desireToPlay || 0}/5`, g.favorite ? `${shelfOwner}'s favorite` : '', g.thinningCandidate && askerIsOwner ? `${shelfOwner} may give it away` : '',
         g.playCount ? `${g.playCount} plays, last ${g.lastPlayed}` : 'never played',
         (g.expansions || []).length ? `+${g.expansions.length} expansions` : '',
       ].filter(Boolean).join('; ');
@@ -1774,7 +1787,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         top.length ? `most played: ${top.join(', ')}` : '', loved.length ? `rated 4+: ${loved.join(', ')}` : '',
       ].filter(Boolean).join('\n  ');
     };
-    const asker = byId[v.askerId] || null;
+    const asker = byId[sv.askerKey] || null;
     if (c.intent === 'person') {
       // "What do you know about me?": their own words, their play history here, and the games that show their taste
       const who = [...new Set(Array.isArray(c.personIds) ? c.personIds : [])].map((id) => byId[id]).filter(Boolean);
@@ -1790,14 +1803,14 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       ].join('\n');
       return [{ json: { offTopic: false, gap: false, browse: true, person: true, matchIds: theirs.map((g) => g.id), setFacts: facts,
         understood: { players: ppl.map((p) => p.name) }, constraints: c, shortIds: pick.map((g) => g.id),
-        titles: Object.fromEntries(pick.map((g) => [g.id, g.title])), gameLines: pick.map((g) => line(g, ppl)).join('\n'), profiles: '' } }];
+        titles: Object.fromEntries(pick.map((g) => [g.id, g.title])), gameLines: pick.map((g) => line(g, ppl)).join('\n'), profiles: '', ownerName: shelfOwner } }];
     }
     const understood = { players: group.map((p) => p.name), playerCount: count, maxMinutes: maxMin, youngestAge: youngest,
       weight: c.weight || null, coop: c.coop ?? null, themes: want, avoid, freshness: c.freshness || null, mood: c.mood || '' };
     return [{ json: { offTopic: false, gap, browse, matchIds, setFacts, understood, constraints: c, shortIds: short.map((g) => g.id),
       titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
       gameLines: short.map((g) => line(g)).join('\n'), profiles: group.map(profile).join('\n'),
-      askerProfile: asker && !group.includes(asker) ? profile(asker) : '', askerName: asker ? asker.name : '' } }];
+      askerProfile: asker && !group.includes(asker) ? profile(asker) : '', askerName: asker ? asker.name : '', ownerName: shelfOwner } }];
   }),
   ifTrue('On Topic?', '={{ !$json.offTopic }}'),
   ifTrue('Any Candidates?', '={{ $json.shortIds.length > 0 }}'),
@@ -1806,7 +1819,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const s = $input.first().json;
     const mentioned = new Set(v.mentioned || []);
     const system = [
-      'You are Nathan Schmidt, the warm, welcoming and meticulous curator of Board Game Curator, the board game collection of __OWNER_NAME__ (never say "owner", say __OWNER_NAME__).',
+      'You are Nathan Schmidt, the warm, welcoming and meticulous curator of Board Game Curator. This shelf is the board game collection of {SHELF_OWNER} (never say "owner", say {SHELF_OWNER}).',
       'Your job: get the right game from THIS shelf to the table for the right people, mood and occasion. You speak like an enthusiastic, articulate host walking a friend through the game room shelves.',
       '',
       'GROUNDING (most important):',
@@ -1814,7 +1827,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '- Cite the key metrics from the candidate facts: the best player count ("the BGG community poll says it is best at 4"), play time, BGG weight, and primary mechanics. These facts come from BoardGameGeek, so you may attribute them to BGG.',
       '- Do not quote forums, Reddit or reviews: you have no access to them.',
       '- Plays are a hint, not a verdict: "Keith has played it 12 times" suggests he does not mind it, not that he loves it. Only a BGC or BGG rating says how much someone likes a game; say which one you mean.',
-      '- Fit to the people comes first: each person\'s dials, likes, dislikes and notes; their plays, wins and ratings on each candidate; __OWNER_NAME__\'s wants-to-play stars and favorites; a game __OWNER_NAME__ may give away is a good last-chance pick. Name people by first name. Be kind about people and never judge anyone\'s taste: party games and heavy economic games deserve equal respect.',
+      '- Fit to the people comes first: each person\'s dials, likes, dislikes and notes; their plays, wins and ratings on each candidate; {SHELF_OWNER}\'s wants-to-play stars and favorites; a game {SHELF_OWNER} may give away is a good last-chance pick. Name people by first name. Be kind about people and never judge anyone\'s taste: party games and heavy economic games deserve equal respect.',
       '',
       'VOICE:',
       '- Warm and enthusiastically corny: wholesome dad jokes and puns about cardboard and meeples, gentle self-deprecating humor about shelf space and the shelf of shame. Humor is a light flourish and never crowds out the recommendation.',
@@ -1845,6 +1858,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       ' "gap": {"missing": "...", "consider": "Game title" or null} or null,',
       ' "signoff": "an optional short corny sign-off, or empty"}',
     ].join('\n');
+    const systemText = system.split('{SHELF_OWNER}').join(s.ownerName || '__OWNER_NAME__');
     const user = [
       'REQUEST: ' + v.question,
       v.previous ? 'This follows up on: ' + v.previous.question : '',
@@ -1859,7 +1873,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     ].filter((l) => l !== '').join('\n');
     return [{ json: { ...s, requestBody: {
       model: '__ASK_MODEL__', max_tokens: 2500, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
-      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      messages: [{ role: 'system', content: systemText }, { role: 'user', content: user }],
     } } }];
   }),
   openrouter('Recommend'),
@@ -1906,7 +1920,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   respondError(),
 ], [
   ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Use Allowance', 0], ['Valid?', 'Respond Error', 1],
-  ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'List Games', 0], ['Allowed?', 'Respond Error', 1],
+  ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'Shelf View', 0], ['Allowed?', 'Respond Error', 1], ['Shelf View', 'List Games'],
   ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'One More Item'], ['One More Item', 'List Ratings'],
   ['List Ratings', 'Build Understand Request'], ['Build Understand Request', 'Understand Request'], ['Understand Request', 'Shortlist'],
   ['Shortlist', 'On Topic?'], ['On Topic?', 'Any Candidates?', 0], ['On Topic?', 'Off Topic', 1],

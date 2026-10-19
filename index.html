@@ -1121,7 +1121,9 @@
       try { localStorage.setItem(LS_SHELF, view); } catch (e) {}
       askIds = null;
       updateShelfUi();
-      await loadCollection();
+      askSelected.clear();
+      askLast = null;
+      await Promise.all([loadCollection(), loadPeople()]);
     }
     document.getElementById('shelfSwitch').addEventListener('click', (e) => {
       const b = e.target.closest('[data-shelf]');
@@ -1861,7 +1863,7 @@
     function ratingsHtml(g) {
       const byPlayer = (people.ratings || {})[g.id] || {};
       const name = (id) => (people.players.find(p => p.id === id) || {}).name || 'Someone';
-      const me = myPlayerId();
+      const me = people.me || myPlayerId();
       const rows = [];
       if (isMember() && me) rows.push('<div class="rate-row"><span class="who">Your rating</span>' + starsPicker('data-rate-self', g.id, (byPlayer[me] || {}).stars || 0) + '</div>');
       if (isMember() && !me) rows.push('<p class="hint" style="margin:0;">Link your Google email to your player card to rate games.</p>');
@@ -1877,7 +1879,7 @@
       '</div>';
     }
     async function savePlayerRating(gameId, stars) {
-      const pid = myPlayerId();
+      const pid = people.me || myPlayerId();
       const byPlayer = ((people.ratings ||= {})[gameId] ||= {});
       const prev = byPlayer[pid] ? { ...byPlayer[pid] } : null;
       const clear = prev && Math.round(prev.stars || 0) === stars; // tapping your current rating clears it
@@ -1980,7 +1982,7 @@
     let people = { players: [], ratings: {} };
     async function loadPeople() {
       if (!isMember()) return;
-      try { people = await n8nFetch('/people', { method: 'GET' }); } catch (e) { /* Ask still works without the roster */ }
+      try { people = await n8nFetch('/people' + (viewingMine() ? '?shelf=mine' : ''), { method: 'GET' }); } catch (e) { /* Ask still works without the roster */ }
       renderAskPlayers();
       if (detailId) renderDetail();
     }
@@ -2167,7 +2169,7 @@
       const n = (r.matchIds || []).length;
       let seeAll = '';
       if (n && n < collection.length && (n > 1 || r.intent === 'browse')) {
-        nathanSets.push(orderedIds(r));
+        nathanSets.push({ ids: orderedIds(r), shelf: viewingMine() ? 'mine' : 'main' });
         seeAll = '<button type="button" class="n-seeall" data-see-all="' + (nathanSets.length - 1) + '"><i class="ti ti-layout-grid"></i> ' + (n === 1 ? 'See it in the library' : 'See all ' + n + ' games') + '</button>';
       }
       // What Nathan understood and the "See all" button share the first row, so the filter is one click away without opening the chat
@@ -2220,7 +2222,7 @@
       (followUp ? turn : panel).scrollIntoView({ behavior: 'smooth', block: followUp ? 'nearest' : 'start' });
       try {
         const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked] }) });
+          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], shelf: viewingMine() ? 'mine' : 'main' }) });
         if (r.pick || (r.highlights || []).length) {
           askLast = { question, constraints: r.constraints, pickIds: r.pickIds };
           rememberJoked(r.pickIds || []);
@@ -2238,8 +2240,9 @@
       if (open) { openDetail(open.dataset.askOpen); return; }
       const see = e.target.closest('[data-see-all]');
       if (see) {
-        const ids = nathanSets[+see.dataset.seeAll] || null;
-        if (viewingMine()) { setShelfView('main').then(() => { askIds = ids; render(); }); return; }
+        const set = nathanSets[+see.dataset.seeAll] || null;
+        const ids = set ? set.ids : null;
+        if (set && set.shelf !== (viewingMine() ? 'mine' : 'main')) { setShelfView(set.shelf).then(() => { askIds = ids; render(); }); return; }
         askIds = ids;
         render();
         document.querySelector('.filters-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
