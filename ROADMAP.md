@@ -37,7 +37,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [x] My profile: signed-in members fill in their own card (dials, likes, dislikes, about me, BGG username) from the account menu; the Players screen keeps only names, aliases, email and BGG username
 - [ ] Phase 4: friend takes (private); BG Stats players link to members; friend profile pages
 - [ ] Phase 5: social Nathan: "what can we play at Keith's?", "who owns Spirit Island?"
-- First testers: Aaron Wiesinger (email on his card), Keith McKimmy, Matt Kruse (still need emails); BGG usernames for all three
+- First testers: Aaron Wiesinger and Matt Kruse (emails on their cards, added as Google test users), Keith McKimmy (still need his email); BGG usernames for all three
 
 - [x] Tip jar: ☕ in the top bar opens a thank-you panel linking to ko-fi.com/dandehaan
 - [x] Friends icon in the top bar (members only); a "coming soon" panel until Phase 3 makes it real
