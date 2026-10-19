@@ -2445,7 +2445,8 @@ addMemberAuth(shelfIdentify, { failTo: 'Delete Photo (no match)' });
 // =====================================================================
 const friends = wf(ID.friends, 'Vault — Friends', [
   webhook('Webhook', 'GET', 'vault/friends'),
-  pg('Read', "SELECT CASE WHEN $2 ~ '^\\d+$' THEN bgc.friend_shelf($1, $2::bigint) ELSE bgc.friends($1) END AS r",
+  // substring() yields NULL (not '') when there's no shelf id, so the cast never sees an empty string
+  pg('Read', "SELECT CASE WHEN $2 ~ '^\\d+$' THEN bgc.friend_shelf($1, substring($2 from '^\\d+$')::bigint) ELSE bgc.friends($1) END AS r",
     "={{ [$json._auth.email, String(($json.query || {}).shelf || '')] }}"),
   code('Shape', function () {
     const r = $input.first().json.r || {};

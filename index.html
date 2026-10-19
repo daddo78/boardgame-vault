@@ -160,6 +160,7 @@
   .shelf-switch button.on { background: var(--brand); color: #fff; }
   /* Friends panel */
   .fr-code { display: flex; align-items: center; justify-content: center; gap: 0.6rem; margin: 0.4rem 0 0.2rem; }
+  .fr-code b.loading, .fr-code b.failed { font-family: var(--font-body); font-size: 1rem; letter-spacing: normal; color: var(--text-muted); }
   .fr-code b { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.9rem; letter-spacing: 0.18em; color: var(--ink); background: var(--exp-bg); border-radius: 0.8rem; padding: 0.2rem 0.4rem 0.2rem 0.6rem; }
   .fr-add { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
   .fr-add input { flex: 1; min-width: 0; background: var(--exp-bg); border: none; border-radius: 999px; padding: 0.7rem 1rem; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.05rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); outline: none; }
@@ -818,7 +819,7 @@
       <h2 style="margin-bottom:0.3rem;"><i class="fa-solid fa-user-group" style="color:var(--brand);"></i> Friends</h2>
       <p class="hint" style="margin-top:0;">Swap codes to see each other’s shelves. Entering a friend’s code connects you both.</p>
       <div class="section-label" style="margin-top:0.8rem;">Your friend code</div>
-      <div class="fr-code"><b id="myFriendCode">······</b><button type="button" class="btn ghost" id="copyFriendCode"><i class="fa-regular fa-copy"></i> Copy</button></div>
+      <div class="fr-code"><b id="myFriendCode" class="loading">Loading…</b><button type="button" class="btn ghost" id="copyFriendCode"><i class="fa-regular fa-copy"></i> Copy</button></div>
       <div class="section-label" style="margin-top:1rem;">Add a friend</div>
       <form class="fr-add" id="friendAddForm"><input id="friendCodeInput" maxlength="12" autocomplete="off" placeholder="Their code" aria-label="Friend code">
         <button class="btn primary" type="submit">Connect</button></form>
@@ -1125,6 +1126,7 @@
     const LS_SHELF = 'vault_shelf_view';
     let shelfView = (() => { try { const v = localStorage.getItem(LS_SHELF) || ''; return v === 'mine' || /^friend:\d+$/.test(v) ? v : 'main'; } catch (e) { return 'main'; } })();
     let friendsData = { code: '', friends: [] };
+    let friendsFailed = false;
     let friendShelfName = '';
     let myShelf = null; // { items, status, bggUsername } for the 'mine' view
     let importPoll = null;
@@ -1170,7 +1172,8 @@
     }
     async function loadFriends() {
       if (!isMember()) return;
-      try { friendsData = await n8nFetch('/friends', { method: 'GET' }); } catch (e) { return; }
+      try { friendsData = await n8nFetch('/friends', { method: 'GET' }); friendsFailed = false; }
+      catch (e) { friendsFailed = true; renderFriendsPanel(); return; }
       // A saved friend view whose friendship is gone falls back to the main shelf
       if (viewingFriend() && !(friendsData.friends || []).some(f => f.id === viewingFriend())) { setShelfView('main'); return; }
       renderShelfSwitch();
@@ -2413,7 +2416,10 @@
     // ---------- Friends: your code, add by code, your friends ----------
     const friendsModal = document.getElementById('friendsModal');
     function renderFriendsPanel() {
-      document.getElementById('myFriendCode').textContent = friendsData.code || '······';
+      const codeEl = document.getElementById('myFriendCode');
+      codeEl.className = friendsData.code ? '' : friendsFailed ? 'failed' : 'loading';
+      codeEl.innerHTML = friendsData.code ? esc(friendsData.code) : friendsFailed ? 'Couldn’t load your code · <button type="button" class="add-asis" data-retry-friends style="display:inline; margin:0;">Try again</button>' : 'Loading…';
+      document.getElementById('copyFriendCode').hidden = !friendsData.code;
       const list = friendsData.friends || [];
       document.getElementById('friendsList').innerHTML = list.length ? list.map(f =>
         '<div class="fr-row"><div class="who"><b>' + esc(f.name) + '</b><span>' + (f.isAdmin ? 'Dan’s collection is the main shelf' : f.games + (f.games === 1 ? ' game' : ' games')) + '</span></div>' +
@@ -2422,6 +2428,7 @@
       ).join('') : '<p class="hint" style="margin:0;">No friends yet. Share your code!</p>';
     }
     document.getElementById('friendsBtn').addEventListener('click', () => { renderFriendsPanel(); friendsModal.classList.add('open'); loadFriends(); });
+    document.getElementById('myFriendCode').addEventListener('click', (e) => { if (e.target.closest('[data-retry-friends]')) { friendsFailed = false; renderFriendsPanel(); loadFriends(); } });
     document.getElementById('copyFriendCode').addEventListener('click', async () => {
       const code = friendsData.code;
       if (!code) return;
