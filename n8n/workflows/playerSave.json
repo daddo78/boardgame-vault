@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "955e5ea4-e033-4722-a003-a8898c69c8ff",
+      "id": "f0e91c3c-5206-495b-9f0d-f5a6ca110862",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "075a3b21-eb52-4755-94e9-9eb5c2b76ae3"
+      "webhookId": "ac48bada-476a-4648-83ad-6f3879955bd6"
     },
     {
-      "id": "17abccfc-74ab-463f-ac03-172fe7bb47b1",
+      "id": "2748c879-3155-4bfa-af66-a403caca82df",
       "name": "Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -37,7 +37,7 @@
       }
     },
     {
-      "id": "338e090d-180c-408f-8575-4540f0adb902",
+      "id": "37ce5c61-457c-4a3f-94c1-c26010933280",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "6bdfdff0-66c3-497c-a79d-25c98fdbf128",
+              "id": "fe0d9a8f-67fc-4ab8-bd22-be0ccb086edd",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,7 +70,7 @@
       }
     },
     {
-      "id": "c4fd8eb3-cfae-499f-a925-f895d0016011",
+      "id": "87df6bf0-ebbf-46eb-a33a-4ea98f32058e",
       "name": "Existing?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -87,7 +87,7 @@
           },
           "conditions": [
             {
-              "id": "dfdf543b-ac0d-4d61-a060-9243b04eeeea",
+              "id": "601f63b3-a410-4d53-b1ed-d72fee8d6684",
               "leftValue": "={{ !!$json.id }}",
               "rightValue": "",
               "operator": {
@@ -103,7 +103,7 @@
       }
     },
     {
-      "id": "16908812-4a8d-4636-9aa2-404c2c2de4af",
+      "id": "d3e2ed7e-d2a4-45c2-832d-fb114e1b0718",
       "name": "Update Player",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -130,7 +130,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "7d219572-836b-47b5-800e-53e4f3b114e5",
+      "id": "bb765c7b-4a6f-413f-bfd6-801eca893965",
       "name": "Create Player",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -157,7 +157,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "78d2557f-0122-4185-8edb-eb33a6eee82b",
+      "id": "59be24a2-01f0-48a6-aa0e-d0c131fc9565",
       "name": "Shape Player",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -170,7 +170,7 @@
       }
     },
     {
-      "id": "a44dfba3-1ab6-4214-8087-2e673e84a872",
+      "id": "511046ca-2b6b-4ef0-a15e-be248360f9f7",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -187,7 +187,7 @@
       }
     },
     {
-      "id": "3b88bf70-3d70-4a33-a20c-8161453e1b10",
+      "id": "016516fb-ec97-4002-8508-cc354eacf516",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -204,7 +204,7 @@
       }
     },
     {
-      "id": "2ed1807c-6408-4c83-8800-74b558eb29ac",
+      "id": "164a940d-ed8c-4bd4-b563-5528fa30d16f",
       "name": "Auth: Read Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -217,7 +217,7 @@
       }
     },
     {
-      "id": "edcb5a3a-aaa1-4c92-89b5-d6076282a4de",
+      "id": "d59948d9-8dcb-4883-adb2-cdd7738e0794",
       "name": "Auth: Verify With Google",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -244,7 +244,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "9fc5413b-a95f-4fe6-a34d-3f61b567b460",
+      "id": "8b6eb6ee-3f62-41a0-825f-e43c7bd056ab",
       "name": "Auth: Check Owner",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -257,7 +257,7 @@
       }
     },
     {
-      "id": "41598f16-3de9-412a-828d-b6a26e192568",
+      "id": "32d9f3f6-6c9c-408c-a893-c781ae0ce0a4",
       "name": "Signed In?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -274,7 +274,7 @@
           },
           "conditions": [
             {
-              "id": "f2482f77-cde1-4a71-b9e9-8afb8899c283",
+              "id": "e116b4f0-e7bc-40d9-bdbc-1972fc1664fc",
               "leftValue": "={{ $json._authOk === true }}",
               "rightValue": "",
               "operator": {

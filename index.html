@@ -96,6 +96,25 @@
   .auth-btn .out { color: var(--text-muted); font-weight: 600; font-size: 0.8rem; border-left: 1px solid #eadfcb; padding-left: 0.5rem; margin-left: 0.15rem; }
   /* Visitors browse read-only: editing controls only appear for a signed-in owner */
   body:not(.owner) .owner-only { display: none !important; }
+  body:not(.can-edit) .edit-only { display: none !important; }
+  /* Shelf switcher (friends): Dan's shelf / My shelf */
+  .shelf-switch { display: none; gap: 0.25rem; padding: 0.25rem; background: rgba(255,255,255,0.55); border: 1.5px solid #d8c4a6; border-radius: 999px; margin-bottom: 0.8rem; width: max-content; max-width: 100%; }
+  body.member:not(.owner) .shelf-switch { display: inline-flex; }
+  .shelf-switch button { border: none; background: none; border-radius: 999px; padding: 0.45rem 1rem; font-family: var(--font-body); font-weight: 700; font-size: 0.88rem; color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; }
+  .shelf-switch button.on { background: var(--brand); color: #fff; }
+  /* Importing a shelf from BGG */
+  .import-panel { max-width: 1300px; margin: 0 auto 1.4rem; padding: 0 1.5rem; }
+  .import-panel[hidden] { display: none; }
+  .import-card { background: #fff; border-radius: 1.25rem; padding: 1.4rem; box-shadow: 0 10px 30px rgba(31,63,143,0.10); max-width: 560px; }
+  .import-card h2 { margin: 0 0 0.3rem; }
+  .import-card .row { display: flex; gap: 0.5rem; margin-top: 0.9rem; flex-wrap: wrap; }
+  .import-card input { flex: 1 1 12rem; min-width: 0; background: var(--exp-bg); border: none; border-radius: 999px; padding: 0.7rem 1rem; font-family: var(--font-body); font-size: 0.95rem; color: var(--ink); outline: none; }
+  .import-card input:focus { box-shadow: 0 0 0 2px var(--teal) inset; }
+  .import-card .btn { flex: 0 0 auto; }
+  .import-progress { display: flex; align-items: center; gap: 0.7rem; margin-top: 0.8rem; font-weight: 600; }
+  .import-progress .spinner { margin: 0; }
+  .import-note { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 0.9rem; display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; align-items: center; }
+  .import-note button { border: none; background: none; color: var(--brand-dark); font: inherit; font-weight: 700; cursor: pointer; padding: 0; text-decoration: underline; }
   body:not(.owner) .star-btn { pointer-events: none; }
   .ask-btn { background: var(--brand) !important; color: #fff !important; display: inline-flex; align-items: center; gap: 0.3rem; }
   .ask-btn:hover { background: var(--brand-dark) !important; }
@@ -578,6 +597,10 @@
 
   <!-- Filters for the library, right above the games -->
   <div class="filters-container">
+    <div class="shelf-switch" id="shelfSwitch" role="tablist" aria-label="Whose shelf">
+      <button type="button" role="tab" data-shelf="main"><i class="fa-solid fa-book-open"></i> <span id="mainShelfLabel">Dan’s shelf</span></button>
+      <button type="button" role="tab" data-shelf="mine"><i class="fa-solid fa-house"></i> My shelf</button>
+    </div>
     <div class="toolbar filter-bar">
       <button class="pill filters-toggle" id="filtersToggle" aria-expanded="false" aria-controls="filtersPanel"><i class="ti ti-adjustments-horizontal"></i> Filters</button>
       <div class="filters" id="filtersPanel">
@@ -636,6 +659,8 @@
       <button type="button" class="pill clear-pill" id="clearAll" hidden><i class="ti ti-x"></i> <span>Remove filter</span></button>
     </div>
   </div>
+
+  <section class="import-panel" id="importPanel" hidden></section>
 
   <main class="grid" id="gamesGrid"></main>
   <div class="empty-state" id="emptyState" style="display:none;"></div>
@@ -846,6 +871,7 @@
     function updateAuthUi() {
       document.body.classList.toggle('owner', isOwner());
       document.body.classList.toggle('member', isMember());
+      if (typeof updateShelfUi === 'function') updateShelfUi();
       if (typeof updateTipJar === 'function') updateTipJar();
       const btn = document.getElementById('authBtn');
       btn.innerHTML = signedIn()
@@ -957,7 +983,109 @@
       document.getElementById('badgeTotal').hidden = !!msg;
     }
 
+    // Which shelf is showing: 'main' (the public collection) or 'mine' (a signed-in friend's own shelf)
+    const LS_SHELF = 'vault_shelf_view';
+    let shelfView = (() => { try { return localStorage.getItem(LS_SHELF) === 'mine' ? 'mine' : 'main'; } catch (e) { return 'main'; } })();
+    let myShelf = null; // { items, status, bggUsername } for the 'mine' view
+    let importPoll = null;
+    const viewingMine = () => shelfView === 'mine' && isMember() && !isOwner();
+    // Edit controls follow the shelf being viewed: the owner on the main shelf, a friend on their own
+    function canEdit() { return viewingMine() || isOwner(); }
+    function updateShelfUi() {
+      document.body.classList.toggle('can-edit', canEdit());
+      document.querySelectorAll('#shelfSwitch [data-shelf]').forEach(b => {
+        const on = b.dataset.shelf === (viewingMine() ? 'mine' : 'main');
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', String(on));
+      });
+    }
+    async function setShelfView(view) {
+      shelfView = view;
+      try { localStorage.setItem(LS_SHELF, view); } catch (e) {}
+      askIds = null;
+      updateShelfUi();
+      await loadCollection();
+    }
+    document.getElementById('shelfSwitch').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-shelf]');
+      if (b && b.dataset.shelf !== (viewingMine() ? 'mine' : 'main')) setShelfView(b.dataset.shelf);
+    });
+
+    async function loadMyShelf() {
+      setSyncStatus('Loading…');
+      try {
+        myShelf = await n8nFetch('/shelf', { method: 'GET' });
+        collection = myShelf.items || [];
+        setSyncStatus('');
+        rebuildGenreFilter();
+        render();
+        renderImportPanel();
+      } catch (e) {
+        setSyncStatus(e.message, true);
+      }
+    }
+    // Empty shelf: offer the BGG import; while it runs, show progress and check back every few seconds
+    function renderImportPanel() {
+      const panel = document.getElementById('importPanel');
+      clearTimeout(importPoll);
+      if (!viewingMine() || !myShelf) { panel.hidden = true; return; }
+      const st = myShelf.status || {};
+      const running = st.state === 'running' && (Date.now() - Date.parse(st.at || 0)) < 15 * 60 * 1000;
+      const empty = !(myShelf.items || []).length;
+      if (running) {
+        panel.hidden = false;
+        panel.innerHTML = '<div class="import-card"><h2>Bringing your shelf over from BGG…</h2>' +
+          '<p class="hint" style="margin:0;">You can leave this page open; it fills in when it’s done. A big collection takes a few minutes.</p>' +
+          '<div class="import-progress"><div class="spinner"></div><span>' + esc(st.step || 'Working') +
+          (st.games ? ' · ' + st.games + ' games' + (st.expansions ? ', ' + st.expansions + ' expansions' : '') : '') + '</span></div></div>';
+        importPoll = setTimeout(async () => {
+          try {
+            const next = await n8nFetch('/shelf', { method: 'GET' });
+            const done = next.status && next.status.state === 'done' && (!st.state || st.state === 'running');
+            myShelf = next;
+            if (viewingMine()) { collection = next.items || []; rebuildGenreFilter(); render(); }
+            renderImportPanel();
+            if (done) toast('Your shelf is ready: ' + (next.items || []).length + ' games' + (next.status.plays ? ' and ' + next.status.plays + ' plays' : '') + '.');
+          } catch (e) { importPoll = setTimeout(renderImportPanel, 8000); }
+        }, 4000);
+        return;
+      }
+      if (empty) {
+        panel.hidden = false;
+        panel.innerHTML = '<div class="import-card"><h2>Build your shelf from BoardGameGeek</h2>' +
+          '<p class="hint" style="margin:0;">Enter your BGG username. We’ll bring in the games you own, their expansions, and the plays you’ve logged (from BG Stats too, if it posts to BGG).</p>' +
+          (st.state === 'error' ? '<p class="hint" style="color:var(--brand-dark); font-weight:700;">' + esc(st.message || 'The last import didn’t finish.') + '</p>' : '') +
+          '<form class="row" id="importForm"><input id="importUser" type="text" autocomplete="username" placeholder="BGG username" value="' + esc(myShelf.bggUsername || '') + '">' +
+          '<button class="btn primary" type="submit"><i class="fa-solid fa-cloud-arrow-down"></i> Import</button></form></div>';
+        return;
+      }
+      // Shelf has games: a quiet line to pull in anything new from BGG
+      panel.hidden = false;
+      panel.innerHTML = '<p class="import-note"><span><i class="fa-solid fa-house"></i> Your shelf' + (myShelf.bggUsername ? ', from BGG user <b>' + esc(myShelf.bggUsername) + '</b>' : '') + '.</span>' +
+        (myShelf.bggUsername ? '<button type="button" data-reimport>Update from BGG</button>' : '') + '</p>';
+    }
+    async function startImport(username) {
+      try {
+        await n8nFetch('/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bggUsername: username }) });
+        myShelf = { ...(myShelf || {}), bggUsername: username, status: { state: 'running', step: 'Reading your BGG collection', at: new Date().toISOString() } };
+        renderImportPanel();
+      } catch (err) { toast(err.message, true); }
+    }
+    document.getElementById('importPanel').addEventListener('submit', (e) => {
+      if (e.target.id !== 'importForm') return;
+      e.preventDefault();
+      const u = document.getElementById('importUser').value.trim();
+      if (u) startImport(u);
+    });
+    document.getElementById('importPanel').addEventListener('click', (e) => {
+      if (e.target.closest('[data-reimport]') && myShelf && myShelf.bggUsername) startImport(myShelf.bggUsername);
+    });
+
     async function loadCollection() {
+      updateShelfUi();
+      if (viewingMine()) return loadMyShelf();
+      document.getElementById('importPanel').hidden = true;
+      clearTimeout(importPoll);
       setSyncStatus('Loading…');
       try {
         const data = await n8nFetch('/collection', { method: 'GET' }, false);
@@ -993,12 +1121,12 @@
       collection[idx] = { ...collection[idx], ...patch };
       render();
       try {
-        await n8nFetch('/update', {
+        await n8nFetch(viewingMine() ? '/shelf-update' : '/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, fields: patch })
         });
-        localStorage.setItem(LS_CACHE, JSON.stringify(collection));
+        if (!viewingMine()) localStorage.setItem(LS_CACHE, JSON.stringify(collection));
       } catch (e) {
         collection[idx] = prev;
         render();
@@ -1124,13 +1252,13 @@
       collection = collection.filter(g => g.id !== id);
       render();
       try {
-        await n8nFetch('/delete', {
+        await n8nFetch(viewingMine() ? '/shelf-remove' : '/delete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id })
         });
-        localStorage.setItem(LS_CACHE, JSON.stringify(collection));
-        toast('Removed "' + (prev ? prev.title : 'game') + '" from your collection.');
+        if (!viewingMine()) localStorage.setItem(LS_CACHE, JSON.stringify(collection));
+        toast('Removed "' + (prev ? prev.title : 'game') + '" from your shelf.');
       } catch (e) {
         if (prev && idx !== -1) collection.splice(idx, 0, prev);
         render();
@@ -1206,7 +1334,9 @@
       document.getElementById('searchClear').hidden = !typed;
       document.getElementById('filtersToggle').innerHTML = '<i class="ti ti-adjustments-horizontal"></i> Filters' + (nFilters ? ' <span class="count">' + nFilters + '</span>' : '');
       grid.innerHTML = '';
-      empty.style.display = (collection.length === 0 || filtered.length === 0) ? 'block' : 'none';
+      // A friend's empty shelf shows the BGG import card instead
+      const mineEmpty = typeof viewingMine === 'function' && viewingMine() && collection.length === 0;
+      empty.style.display = !mineEmpty && (collection.length === 0 || filtered.length === 0) ? 'block' : 'none';
       if (collection.length === 0) {
         empty.textContent = 'No games yet — tap the + button to add one.';
       } else if (filtered.length === 0) {
@@ -1235,9 +1365,9 @@
             starsHtml(g) +
             '<div class="plays' + (plays ? '' : ' never') + '" title="Plays logged on BGG">' +
               (plays ? '<i class="ti ti-player-play"></i>' + esc(plays) : 'Not played yet') + '</div>' +
-            favButton(g, 'mini-btn owner-only') +
-            '<button class="mini-btn owner-only' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" title="' + (g.thinningCandidate ? 'Unmark thinning candidate' : 'Mark for thinning') + '"><i class="ti ti-scale"></i></button>' +
-            '<button class="mini-btn danger owner-only" data-delete="' + esc(g.id) + '" title="Remove from collection"><i class="ti ti-trash"></i></button>' +
+            favButton(g, 'mini-btn edit-only') +
+            '<button class="mini-btn edit-only' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" title="' + (g.thinningCandidate ? 'Unmark thinning candidate' : 'Mark for thinning') + '"><i class="ti ti-scale"></i></button>' +
+            '<button class="mini-btn danger edit-only" data-delete="' + esc(g.id) + '" title="Remove from collection"><i class="ti ti-trash"></i></button>' +
           '</div>' +
           '</div>';
         grid.appendChild(card);
@@ -1281,11 +1411,11 @@
             '<div class="big">' + c + '</div>' +
             '<div style="flex:1; min-width:9rem;"><div class="section-label" style="margin:0;">' + (c === 1 ? 'Play' : 'Plays') + '</div>' +
               '<div class="sub">' + (g.lastPlayed ? 'Last played ' + esc(g.lastPlayed) + ' (' + agoText(g.lastPlayed) + ')' : 'No plays logged on BGG yet') + '</div></div>' +
-            '<button class="btn primary owner-only" data-logplay="' + esc(g.id) + '"><i class="ti ti-player-play"></i> Log play</button>' +
+            '<button class="btn primary edit-only" data-logplay="' + esc(g.id) + '"><i class="ti ti-player-play"></i> Log play</button>' +
           '</div>' +
           '<div class="detail-row">' + starsHtml(g) +
             '<span class="sub" style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Desire to play</span>' +
-            '<span class="owner-only" style="display:flex; gap:0.5rem; margin-left:auto;">' + favButton(g, 'btn') +
+            '<span class="edit-only" style="display:flex; gap:0.5rem; margin-left:auto;">' + favButton(g, 'btn') +
             '<button class="btn' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" style="flex:0 0 auto;"><i class="ti ti-scale"></i> ' + (g.thinningCandidate ? 'Thinning candidate' : 'Mark for thinning') + '</button></span>' +
           '</div>' +
           (stats.length ? '<div class="stat-grid">' + stats.join('') + '</div>' : '') +
@@ -1300,7 +1430,7 @@
           ((g.categories || []).length ? '<div><div class="section-label">Categories</div><div class="tags">' + chips(g.categories) + '</div></div>' : '') +
           '<div class="detail-actions">' +
             (g.bggId ? '<a class="btn" href="https://boardgamegeek.com/boardgame/' + Number(g.bggId) + '" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> BoardGameGeek</a>' : '') +
-            '<button class="btn danger owner-only" data-delete="' + esc(g.id) + '"><i class="ti ti-trash"></i> Delete</button>' +
+            '<button class="btn danger edit-only" data-delete="' + esc(g.id) + '"><i class="ti ti-trash"></i> Delete</button>' +
           '</div>' +
         '</div>';
     }
@@ -1318,7 +1448,7 @@
     // Shared by cards and the detail modal; returns true if the click hit a control
     function handleGameAction(e) {
       // Edit controls are hidden for visitors; ignore them anyway if one is reached
-      if (!isOwner() && e.target.closest('.star-btn, [data-thin], [data-fav], [data-delete], [data-logplay]')) return false;
+      if (!canEdit() && e.target.closest('.star-btn, [data-thin], [data-fav], [data-delete], [data-logplay]')) return false;
       const star = e.target.closest('.star-btn');
       if (star) { saveRating(star.dataset.id, Number(star.dataset.rank)); return true; }
       const thin = e.target.closest('[data-thin]');
@@ -1990,7 +2120,9 @@
       if (open) { openDetail(open.dataset.askOpen); return; }
       const see = e.target.closest('[data-see-all]');
       if (see) {
-        askIds = nathanSets[+see.dataset.seeAll] || null;
+        const ids = nathanSets[+see.dataset.seeAll] || null;
+        if (viewingMine()) { setShelfView('main').then(() => { askIds = ids; render(); }); return; }
+        askIds = ids;
         render();
         document.querySelector('.filters-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
