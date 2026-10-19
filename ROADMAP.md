@@ -1,31 +1,54 @@
 # Roadmap
 
-What's next for Board Game Garage, roughly in priority order. Check items off as they land.
+What's next for Board Game Curator, roughly in priority order. Check items off as they land.
 
 ## 1. Real-world check on a phone
 Things that pass in testing but haven't been tried for real yet:
 - [ ] Sign in with the owner's Google account on the live site
-- [ ] Rate a game (Your rating) and rate for someone else
+- [ ] Rate a game (Your rating) while signed in
 - [ ] Log play → BG Stats hand-off → play shows up after a sync
 - [ ] Shelf photo with spines, glare and angles (multi-box identify)
-- [ ] A friend signs in (needs their Google email on their card, and adding them as a Google test user or publishing the OAuth app)
+- [ ] A friend signs in (needs their Google email on their card, and adding them as a Google test user)
 
-## 2. Protection against another wipe
-- [ ] Nightly backup of the Games, Players and Ratings tables to a private place (GitHub or Google Drive)
-- [ ] Error alerts: n8n emails when a nightly sync, photo add or other workflow fails (Resend SMTP is already set up)
+## 2. Friends & shelves (5-10 people, invite only)
+Friends sign in, build their own shelf, and see their friends' shelves. Runs on our own server: Postgres + NocoDB on the Hostinger VPS (`server/bgc-db/`), with n8n doing the work.
 
-## 3. Better Nathan answers
+**Agreed decisions**
+- Shared game catalog: one row per game with the BGG facts; each person's shelf row holds everything personal (favorite, wants-to-play, thinning, plays, notes, expansions owned, extra BGG ids)
+- Real friend connections (request → accept); you see a shelf only if you are friends with its owner
+- BGC stars are each person's own rating; BGG ratings are kept separate, out of 10; nobody rates for someone else
+- Private to the owner: the thinning list, your notes and dials about players, and plays with people other than the viewer
+- Friends see: shelf, favorites, wants-to-play, BGC ratings, play counts, and full details of plays they were part of
+- Dan is the admin: invites and removes members (Google test users, under Google's 100-user limit)
+- Nathan knows people from your own play history (plays are a hint, not a verdict); a friend's own ratings, plays and shelf add to that
+
+**Tables**: members, games (catalog), shelves, friendships, ratings (BGC), bgg_ratings, players (each member's BG Stats names, optionally linked to a member), plays (real play records from BGG)
+
+**Phases**
+- [x] Server: Postgres + NocoDB (`db.ondorilabo.com`, behind Cloudflare Access) + nightly backups to the private repo `daddo78/bgc-backups`
+- [ ] Phase 1: create the tables; copy the 220 games, 40 players and play history from Airtable; switch the n8n workflows over one by one (Airtable stays as a fallback until everything checks out)
+- [ ] Phase 2: members: a friend signs in, enters their BGG username, and their collection and plays import
+- [ ] Phase 3: friends: requests, a Friends page, a shelf switcher, visibility rules on every read
+- [ ] Phase 4: profiles: BG Stats players link to members; friend profile pages
+- [ ] Phase 5: social Nathan: "what can we play at Keith's?", "who owns Spirit Island?"
+- First testers: Aaron Wiesinger, Keith McKimmy, Matt Kruse (need their Google emails and BGG usernames)
+
+## 3. Protection against another wipe
+- [x] Nightly backup of the new database to a private GitHub repo (restore tested)
+- [ ] Error alerts: n8n emails when a nightly sync, photo add, backup or other workflow fails (Resend SMTP is already set up)
+
+## 4. Better Nathan answers
 - [ ] Fill in profiles (dials, likes, dislikes) for the regulars: Dan, Brittany, Avery, Amelia, Janis, …
 - [ ] Cache the collection and people data for a few minutes so answers come back in ~8-10 s instead of 12-20 s
 - [ ] "What's like this?" (Ask Nathan from a game's detail view)
 
-## 4. Data cleanup
+## 5. Data cleanup
 - [x] Count plays logged under other editions: games can list extra BGG ids (`ExtraBGGIds`); Catan counts Catan: 3D Edition, and Camel Up is re-linked to the Second Edition you own. Most unmatched plays (~330) turned out to be games not in the collection.
 - [ ] Decide which played-but-not-in-collection games are still owned, and add those
 - [x] 4 games with no BGG data: left as they are (by choice)
 - [x] Merge duplicate player cards: Keith McKimmy III merged into Keith McKimmy (now an alias)
 
-## 5. Later ideas
+## 6. Later ideas
 - [ ] Player pages: each person's top games, win rate, favorites
 - [ ] Game night log: who came and what was played
 - [ ] Thinning helper: suggest what to let go using thinning flags plus play data
