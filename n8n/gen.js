@@ -1268,20 +1268,22 @@ const people = wf(ID.people, 'Vault — People', [
   code('List Players', function () { return [{ json: { records: $input.first().json.v.players } }]; }),
   code('One Item', function () { return [{ json: {} }]; }),
   code('List Ratings', function () { return [{ json: { records: $('Shelf View').first().json.v.ratings } }]; }),
+  pg('Asks Used', 'SELECT bgc.asks_used($1) AS used', "={{ [$('Auth: Role').first().json._auth.email] }}"),
   code('Shape People', function () {
     const players = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer).map(publicPlayer)
       .sort((a, b) => (b.active - a.active) || a.name.localeCompare(b.name));
     const best = {}; // gameId -> playerId -> { stars (their BGC rating), bgg (their BGG rating, /10) }
-    for (const e of Object.values(ratingsByPlayerGame($input.all().flatMap((i) => i.json.records || []).map(toRating)))) {
+    for (const e of Object.values(ratingsByPlayerGame($('List Ratings').all().flatMap((i) => i.json.records || []).map(toRating)))) {
       (best[e.gameId] ??= {})[e.playerId] = { ...(e.stars ? { stars: e.stars } : {}), ...(e.bgg ? { bgg: e.bgg } : {}) };
     }
     const sv = $('Shelf View').first().json.v;
     // me: the signed-in member's card in this list (their own BGC stars show under "Your rating")
-    return [{ json: { players, ratings: best, me: sv.askerKey || null, shelf: sv.shelf } }];
+    const used = Number($('Asks Used').first().json.used) || 0;
+    return [{ json: { players, ratings: best, me: sv.askerKey || null, shelf: sv.shelf, asks: { limit: __ASK_PER_MEMBER__, left: Math.max(0, __ASK_PER_MEMBER__ - used) } } }];
   }),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
-], [['Webhook', 'Shelf View'], ['Shelf View', 'List Players'], ['List Players', 'One Item'], ['One Item', 'List Ratings'], ['List Ratings', 'Shape People'], ['Shape People', 'Respond OK']]);
+], [['Webhook', 'Shelf View'], ['Shelf View', 'List Players'], ['List Players', 'One Item'], ['One Item', 'List Ratings'], ['List Ratings', 'Asks Used'], ['Asks Used', 'Shape People'], ['Shape People', 'Respond OK']]);
 addMemberAuth(people, { failTo: 'Respond Error' });
 
 // =====================================================================
@@ -1618,7 +1620,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       shelf: /^friend:\d+$/.test(String(b.shelf || '')) ? String(b.shelf) : b.shelf === 'mine' ? 'mine' : 'main' } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
-  pg('Use Allowance', "INSERT INTO ask_usage (member_id, day, questions) VALUES (coalesce(bgc.member_id($1), 0), current_date, 1) ON CONFLICT (member_id, day) DO UPDATE SET questions = ask_usage.questions + 1 RETURNING questions",
+  pg('Use Allowance', 'SELECT bgc.use_ask($1) AS questions',
     '={{ [$json.email] }}'),
   code('Allowance Left?', function () {
     const used = Number($input.first().json.questions) || 0;

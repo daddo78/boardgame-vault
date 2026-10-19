@@ -317,6 +317,13 @@
   .np-body { flex: 1; min-width: 0; }
   .np-body .ask-understood { margin-top: 0; }
   .ask-examples[hidden] { display: none; }
+  /* How many questions Nathan has left for you today: always visible, quiet */
+  .ask-meter { text-align: right; font-size: 0.74rem; font-weight: 600; color: var(--text-muted); margin: 0.35rem 0.8rem 0; display: flex; justify-content: flex-end; align-items: center; gap: 0.35rem; }
+  .ask-meter[hidden] { display: none; }
+  .ask-meter i { font-size: 0.8rem; opacity: 0.7; }
+  .ask-meter.low { color: var(--brand-dark); }
+  .ask-meter.out { color: var(--brand); }
+  .search-box.ask-bar input:disabled { opacity: 0.6; cursor: not-allowed; }
   /* The Nathan card: bar on top, his answers flow out underneath */
   .chat-container { max-width: 1300px; margin: -1.9rem auto 1.6rem; padding: 0 1.5rem; position: relative; z-index: 50; }
   .nathan-box { background: #fff; border-radius: 1.4rem; padding: 0.75rem; box-shadow: 0 10px 30px rgba(31,63,143,0.14); }
@@ -683,6 +690,7 @@
           <button type="button" class="mention-opt" role="option" data-example="What sci-fi games do I have?"><span class="at"><i class="ti ti-sparkles"></i></span>What sci-fi games do I have?</button>
         </div>
       </div>
+      <div class="ask-meter" id="askMeter" hidden aria-live="polite"></div>
       <section class="nathan-panel collapsed" id="nathanPanel" hidden aria-label="Conversation with Nathan">
         <div class="np-card">
           <div class="np-head">
@@ -2055,6 +2063,7 @@
     async function loadPeople() {
       if (!isMember()) return;
       try { people = await n8nFetch('/people' + (currentShelf() !== 'main' ? '?shelf=' + encodeURIComponent(currentShelf()) : ''), { method: 'GET' }); } catch (e) { /* Ask still works without the roster */ }
+      if (people && people.asks) { asks = people.asks; renderAskMeter(); }
       renderAskPlayers();
       if (detailId) renderDetail();
     }
@@ -2267,7 +2276,27 @@
       const first = (r.pickIds || []).filter(id => ids.includes(id));
       return [...first, ...ids.filter(id => !first.includes(id))];
     }
+    // ---------- Nathan's daily allowance ----------
+    let asks = null; // { limit, left } for the signed-in member, from the people data
+    function renderAskMeter() {
+      const m = document.getElementById('askMeter');
+      if (!asks || !isMember()) { m.hidden = true; return; }
+      const left = Math.max(0, asks.left);
+      m.hidden = false;
+      m.className = 'ask-meter' + (left === 0 ? ' out' : left <= 5 ? ' low' : '');
+      m.innerHTML = '<i class="fa-solid fa-comment-dots"></i>' + (left === 0
+        ? 'No questions left today · Nathan’s back after midnight'
+        : left + ' of ' + asks.limit + ' question' + (asks.limit === 1 ? '' : 's') + ' left today');
+      const out = left === 0;
+      for (const el of [bar, npInput]) {
+        el.disabled = out;
+        el.placeholder = out ? 'Nathan’s back tomorrow' : el === bar ? 'Ask Nathan about your shelf… (@ to add people)' : 'Reply to Nathan… (@ to add people)';
+      }
+      document.getElementById('askSend').disabled = out;
+      document.getElementById('npSend').disabled = out;
+    }
     async function askNathan(text, followUp) {
+      if (asks && asks.left <= 0) { renderAskMeter(); return; }
       const question = String(text || '').trim();
       const input = followUp ? npInput : bar;
       if (question.length < 3) { input.focus(); return; }
@@ -2300,8 +2329,11 @@
           rememberJoked(r.pickIds || []);
         }
         turn.querySelector('.np-body').innerHTML = nathanAnswerHtml(r);
+        if (asks) { asks.left = Math.max(0, asks.left - 1); renderAskMeter(); }
       } catch (err) {
-        turn.querySelector('.np-body').innerHTML = '<p class="ask-note" style="margin:0;">' + esc(err.message) + '</p>';
+        const msg = String(err.message || '').replace(/^n8n request failed \(\d+\) /, '');
+        if (/\(429\)/.test(String(err.message)) && asks) { asks.left = 0; renderAskMeter(); }
+        turn.querySelector('.np-body').innerHTML = '<p class="ask-note" style="margin:0;">' + esc(msg || 'Nathan couldn’t answer that one. Try again in a moment.') + '</p>';
       } finally {
         askBusy = false;
         refreshClamp();
