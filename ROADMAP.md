@@ -15,12 +15,15 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 
 **Agreed decisions**
 - Shared game catalog: one row per game with the BGG facts; each person's shelf row holds everything personal (favorite, wants-to-play, thinning, plays, notes, expansions owned, extra BGG ids)
-- Real friend connections (request → accept); you see a shelf only if you are friends with its owner
+- Real friend connections by friend code: each member has a code to share; entering someone's code sends a request they accept (no browsing the member list). You see a shelf only if you are friends with its owner
 - BGC stars are each person's own rating; BGG ratings are kept separate, out of 10; nobody rates for someone else
 - People speak for themselves: each member sets their own taste profile (complexity, conflict, luck, table talk, theme, likes, dislikes); nobody writes notes or dials about someone else. People who never join are known only from play history
 - Private to the owner: the thinning list, and plays with people other than the viewer
 - Friends see: shelf, favorites, wants-to-play, BGC ratings, play counts, and full details of plays they were part of
-- Dan is the admin: invites and removes members (Google test users, under Google's 100-user limit)
+- Dan is the admin: invites and removes members (Google test users, under Google's 100-user limit). A removed member's shelf and ratings are kept, in case they come back
+- Nathan: 30 questions per person per day
+- Played-but-not-owned games stay in the data: every play is stored, and games you played but don't own sit in the catalog without a shelf row (useful for Nathan and a "played, not owned" list)
+- Airtable becomes a frozen, read-only archive after the move (kept, not deleted)
 - Nathan knows people from your own play history (plays are a hint, not a verdict); a friend's own ratings, plays and shelf add to that
 
 **Tables**: members (with their own taste profile), games (catalog), shelves, friendships, ratings (BGC), bgg_ratings, players (each member's BG Stats names and aliases, optionally linked to a member; no notes), plays (real play records from BGG)
@@ -32,7 +35,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [ ] Phase 3: friends: requests, a Friends page, a shelf switcher, visibility rules on every read
 - [ ] Phase 4: profiles: each member fills in their own taste profile; BG Stats players link to members; friend profile pages; the dials and notes come off the owner's Players screen
 - [ ] Phase 5: social Nathan: "what can we play at Keith's?", "who owns Spirit Island?"
-- First testers: Aaron Wiesinger, Keith McKimmy, Matt Kruse (need their Google emails and BGG usernames)
+- First testers: Aaron Wiesinger (email on his card), Keith McKimmy, Matt Kruse (still need emails); BGG usernames for all three
 
 ## 3. Protection against another wipe
 - [x] Nightly backup of the new database to a private GitHub repo (restore tested)
