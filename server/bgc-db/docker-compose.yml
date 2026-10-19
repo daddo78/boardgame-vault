@@ -1,0 +1,71 @@
+# Board Game Curator database on the Hostinger VPS (~/bgc-db):
+#   postgres  the data (private: only reachable from n8n, NocoDB and the backup job)
+#   nocodb    an Airtable-like grid over the data (127.0.0.1:8080, and via the Cloudflare tunnel)
+#   backup    nightly plain-SQL dump pushed to a private GitHub repo (git keeps every night)
+# Secrets live in ./.env on the server (see .env.example); never commit them.
+name: bgc-db
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bgc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bgc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: bgc
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    networks: [default, n8n]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bgc -d bgc"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nocodb:
+    image: nocodb/nocodb:latest
+    container_name: bgc-nocodb
+    restart: unless-stopped
+    environment:
+      NC_DB: pg://bgc-postgres:5432?u=bgc&p=${POSTGRES_PASSWORD}&d=nocodb
+      NC_AUTH_JWT_SECRET: ${NC_JWT_SECRET}
+      NC_DISABLE_TELE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ncdata:/usr/app/data
+    networks: [default, n8n]   # the n8n network is where the Cloudflare tunnel lives
+
+  backup:
+    image: postgres:16-alpine
+    container_name: bgc-backup
+    restart: unless-stopped
+    environment:
+      PGHOST: bgc-postgres
+      PGUSER: bgc
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_REPO: ${BACKUP_REPO}
+      BACKUP_AT: "09:30"   # UTC, i.e. early morning in the US
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backup.sh:/backup.sh:ro
+      - ./keys:/keys:ro
+      - backuprepo:/repo
+    entrypoint: ["/bin/sh", "/backup.sh"]
+
+volumes:
+  pgdata:
+  ncdata:
+  backuprepo:
+
+networks:
+  n8n:
+    external: true
+    name: n8n-ckq4_default
