@@ -76,6 +76,19 @@
   .auth-btn:hover { background: #fff8ec; }
   .auth-btn img { width: 1.6rem; height: 1.6rem; border-radius: 50%; margin-left: -0.35rem; }
   .auth-btn .who { font-weight: 800; }
+  .account { position: relative; }
+  .account-menu { position: absolute; top: calc(100% + 0.4rem); left: 0; min-width: 12rem; background: #fff; border-radius: 0.9rem; box-shadow: 0 12px 30px rgba(40,25,10,0.18); padding: 0.35rem; z-index: 60; }
+  .account-menu[hidden] { display: none; }
+  .account-menu button { display: flex; align-items: center; gap: 0.55rem; width: 100%; border: none; background: none; text-align: left; padding: 0.6rem 0.7rem; border-radius: 0.6rem; font-family: var(--font-body); font-size: 0.92rem; font-weight: 600; color: var(--ink); cursor: pointer; }
+  .account-menu button:hover { background: #fbf3e6; }
+  .account-menu i { font-size: 1.1rem; color: var(--brand); }
+  .tip-btn[hidden] { display: none; }
+  .tip-btn i { color: var(--brand-dark); }
+  .tip-art { width: 5.5rem; height: 5.5rem; border-radius: 50%; margin: 0 auto 0.6rem; background: #f6c343 url(assets/nathan.webp) no-repeat; background-size: 165%; background-position: 47% 8%; box-shadow: 0 0 0 4px #fff, 0 6px 14px rgba(120,60,0,0.25); }
+  .me-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.4rem; }
+  .me-head img, .me-head .ph { width: 3.2rem; height: 3.2rem; border-radius: 50%; background: var(--exp-bg); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: var(--text-muted); }
+  .me-head h2 { margin: 0; }
+  .me-head .hint { margin: 0.1rem 0 0; }
   .auth-btn .out { color: var(--text-muted); font-weight: 600; font-size: 0.8rem; border-left: 1px solid #eadfcb; padding-left: 0.5rem; margin-left: 0.15rem; }
   /* Visitors browse read-only: editing controls only appear for a signed-in owner */
   body:not(.owner) .owner-only { display: none !important; }
@@ -492,8 +505,15 @@
 </head>
 <body>
   <div class="topbar">
-    <button class="auth-btn" id="authBtn" type="button"><i class="ti ti-login"></i> <span>Sign in</span></button>
+    <div class="account">
+      <button class="auth-btn" id="authBtn" type="button" aria-haspopup="menu" aria-expanded="false"><i class="ti ti-login"></i> <span>Sign in</span></button>
+      <div class="account-menu" id="accountMenu" role="menu" hidden>
+        <button type="button" role="menuitem" id="menuProfile"><i class="ti ti-user-heart"></i> My profile</button>
+        <button type="button" role="menuitem" id="menuSignOut"><i class="ti ti-logout"></i> Sign out</button>
+      </div>
+    </div>
     <div class="actions">
+      <button class="icon-btn tip-btn" id="tipBtn" type="button" title="Tip jar" aria-label="Tip jar" hidden><i class="ti ti-coffee"></i></button>
       <span class="total-badge" id="totalBadge" title="Games in the collection"><span id="badgeStatus"><span class="badge-spin"></span> Loading…</span><span id="badgeTotal" hidden><i class="ti ti-cards"></i> <b id="totalCount"></b> games</span></span>
       <button class="icon-btn owner-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
     </div>
@@ -644,6 +664,24 @@
     </div>
   </div>
 
+  <!-- My profile: people describe themselves; nobody edits someone else's profile -->
+  <div class="modal-overlay" id="profileModal">
+    <div class="modal">
+      <div id="profileBody"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- Tip jar -->
+  <div class="modal-overlay" id="tipModal">
+    <div class="modal" style="text-align:center;">
+      <div class="tip-art" aria-hidden="true"></div>
+      <h2 style="margin-bottom:0.3rem;">Enjoying the shelf?</h2>
+      <p class="hint" style="margin-top:0;">Board Game Curator is a hobby project. If Nathan found you a good game, a tip keeps the lights on and the shelves dusted.</p>
+      <div id="tipBody"></div>
+      <div class="modal-actions"><button class="btn ghost" id="tipClose" type="button">Maybe later</button></div>
+    </div>
+  </div>
+
   <!-- Settings modal -->
   <div class="modal-overlay" id="settingsModal">
     <div class="modal">
@@ -654,7 +692,7 @@
         <button class="btn" id="syncPlaysBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-refresh"></i> Sync plays now</button>
         <p class="hint" id="syncPlaysStatus"></p>
         <label>People</label>
-        <p class="hint" style="margin-top:0;">Profiles help Nathan pick for the people at the table. A Google email lets that friend sign in and rate games.</p>
+        <p class="hint" style="margin-top:0;">Names and aliases from BG Stats. A Google email lets that friend sign in, rate games and fill in their own profile.</p>
         <button class="btn" id="openPlayersBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-users"></i> Players</button>
       </div>
       <div class="modal-actions">
@@ -788,10 +826,11 @@
     function updateAuthUi() {
       document.body.classList.toggle('owner', isOwner());
       document.body.classList.toggle('member', isMember());
+      if (typeof updateTipJar === 'function') updateTipJar();
       const btn = document.getElementById('authBtn');
       btn.innerHTML = signedIn()
         ? (profile.picture ? '<img src="' + esc(profile.picture) + '" alt="" referrerpolicy="no-referrer">' : '<i class="ti ti-user-circle"></i>') +
-          '<span class="who">' + esc(((myRole() || {}).playerName || profile.given_name || profile.name || profile.email || '').split(' ')[0]) + '</span><span class="out">Sign out</span>'
+          '<span class="who">' + esc(((myRole() || {}).playerName || profile.given_name || profile.name || profile.email || '').split(' ')[0]) + '</span><i class="ti ti-chevron-down" style="opacity:0.6;"></i>'
         : '<i class="ti ti-login"></i> <span>Sign in</span>';
       btn.title = signedIn() ? 'Signed in as ' + (profile.name || profile.email) : 'Sign in to make changes';
       if (collection.length) render();
@@ -1628,20 +1667,12 @@
           '<span class="m">' + (p.plays ? p.plays + ' plays' : 'no plays') + '</span></button>').join('') + '</div>';
     }
     function playerFormHtml(p) {
-      const dial = (d) => '<div class="dial"><div class="dl"><span>' + d.lo + '</span><b>' + d.label + '</b><span>' + d.hi + '</span></div><div class="db">' +
-        [1, 2, 3, 4, 5].map(v => '<button type="button" class="' + (p[d.key] === v ? 'on' : '') + '" data-dial="' + d.key + '" data-v="' + v + '">' + v + '</button>').join('') + '</div></div>';
       return '<form class="pl-form" id="playerForm">' +
         '<div class="pl-two"><div><label for="pfName">Name</label><input type="text" id="pfName" value="' + esc(p.name || '') + '" required></div>' +
         '<div><label for="pfAliases">Other names <span style="font-weight:600;">(as logged in BG Stats)</span></label><input type="text" id="pfAliases" value="' + esc((p.aliases || []).join(', ')) + '"></div></div>' +
         '<label class="pl-check"><input type="checkbox" id="pfActive"' + (p.active ? ' checked' : '') + '> Active (shows first when asking Nathan)</label>' +
-        '<div class="section-label" style="margin-top:1rem;">How they like to play</div>' +
-        '<p class="hint" style="margin-top:0;">Tap a number; tap it again to leave it unset.</p>' +
-        DIALS.map(dial).join('') +
-        '<div class="pl-two"><div><label for="pfLikes">Likes</label><textarea id="pfLikes" rows="2" placeholder="animals, engine building, co-ops">' + esc(p.likes || '') + '</textarea></div>' +
-        '<div><label for="pfDislikes">Dislikes</label><textarea id="pfDislikes" rows="2" placeholder="trivia, take-that, long rules">' + esc(p.dislikes || '') + '</textarea></div></div>' +
-        '<div class="pl-two"><div><label for="pfAge">Age <span style="font-weight:600;">(for kids)</span></label><input type="number" id="pfAge" min="1" max="120" value="' + (p.age || '') + '"></div>' +
-        '<div><label for="pfBgg">BGG username <span style="font-weight:600;">(syncs their ratings)</span></label><input type="text" id="pfBgg" value="' + esc(p.bggUsername || '') + '"></div></div>' +
-        '<label for="pfNotes">Notes <span style="font-weight:600;">(Nathan can mention these; keep them friendly)</span></label><textarea id="pfNotes" rows="2">' + esc(p.notes || '') + '</textarea>' +
+        '<label for="pfBgg">BGG username <span style="font-weight:600;">(syncs their BGG ratings)</span></label><input type="text" id="pfBgg" value="' + esc(p.bggUsername || '') + '">' +
+        '<p class="hint">Their taste profile (likes, dislikes, how they like to play) is theirs to fill in under My profile once they sign in.</p>' +
         '<label for="pfEmail">Google email <span style="font-weight:600;">(lets them sign in and rate games for themselves)</span></label><input type="email" id="pfEmail" value="' + esc(p.googleEmail || '') + '" placeholder="name@gmail.com">' +
         '<div class="modal-actions"><button type="button" class="btn ghost" id="playerBack">Back</button><button type="submit" class="btn primary" id="playerSave">Save</button></div>' +
       '</form>';
@@ -1653,21 +1684,13 @@
       const row = e.target.closest('[data-edit-player]');
       if (row) { editing = { ...adminPlayers.find(p => p.id === row.dataset.editPlayer) }; renderPlayers(); playersModal.querySelector('.modal').scrollTop = 0; return; }
       if (e.target.closest('#playerBack')) { editing = null; renderPlayers(); return; }
-      const d = e.target.closest('[data-dial]');
-      if (d) {
-        const v = Number(d.dataset.v);
-        editing[d.dataset.dial] = editing[d.dataset.dial] === v ? null : v;
-        d.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', Number(b.dataset.v) === editing[d.dataset.dial]));
-      }
     });
     document.getElementById('playersBody').addEventListener('submit', async (e) => {
       if (e.target.id !== 'playerForm') return;
       e.preventDefault();
       const val = (id) => document.getElementById(id).value;
       const payload = { ...(editing.id ? { id: editing.id } : {}), name: val('pfName').trim(), aliases: val('pfAliases'),
-        active: document.getElementById('pfActive').checked, googleEmail: val('pfEmail').trim(), bggUsername: val('pfBgg').trim(),
-        likes: val('pfLikes'), dislikes: val('pfDislikes'), notes: val('pfNotes'), age: val('pfAge'),
-        ...Object.fromEntries(DIALS.map(d => [d.key, editing[d.key] ?? null])) };
+        active: document.getElementById('pfActive').checked, googleEmail: val('pfEmail').trim(), bggUsername: val('pfBgg').trim() };
       const btn = document.getElementById('playerSave');
       btn.disabled = true;
       try {
@@ -1957,14 +1980,105 @@
       if (b && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); b.click(); }
     });
 
-    document.getElementById('authBtn').addEventListener('click', () => {
+    // Signed in: your name opens a small menu (My profile, Sign out)
+    const accountMenu = document.getElementById('accountMenu');
+    const setMenu = (open) => { accountMenu.hidden = !open; document.getElementById('authBtn').setAttribute('aria-expanded', String(open)); };
+    document.getElementById('authBtn').addEventListener('click', (e) => {
       if (!signedIn()) { openSignIn(); return; }
-      if (!confirm('Sign out of Board Game Curator?')) return;
+      e.stopPropagation();
+      document.getElementById('menuProfile').hidden = !isMember();
+      setMenu(accountMenu.hidden);
+    });
+    document.addEventListener('click', (e) => { if (!accountMenu.hidden && !e.target.closest('.account')) setMenu(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
+    document.getElementById('menuSignOut').addEventListener('click', () => {
+      setMenu(false);
       if (gisReady) google.accounts.id.disableAutoSelect();
       try { localStorage.removeItem(LS_OWNER); localStorage.removeItem(LS_ROLE); } catch (e) {}
       setToken(null);
       toast('Signed out.');
     });
+
+    // ---------- My profile ----------
+    const profileModal = document.getElementById('profileModal');
+    let myProfile = null;
+    document.getElementById('menuProfile').addEventListener('click', async () => {
+      setMenu(false);
+      profileModal.classList.add('open');
+      const body = document.getElementById('profileBody');
+      body.innerHTML = '<div class="spinner"></div>';
+      try {
+        myProfile = (await n8nFetch('/me', { method: 'GET' })).profile;
+        renderProfile();
+      } catch (e) {
+        body.innerHTML = '<p class="hint">' + esc(e.message) + '</p><div class="modal-actions"><button type="button" class="btn ghost" data-profile-close>Close</button></div>';
+      }
+    });
+    function renderProfile() {
+      const body = document.getElementById('profileBody');
+      const pic = profile && profile.picture ? '<img src="' + esc(profile.picture) + '" alt="" referrerpolicy="no-referrer">' : '<span class="ph"><i class="ti ti-user"></i></span>';
+      if (!myProfile) {
+        body.innerHTML = '<div class="me-head">' + pic + '<div><h2>My profile</h2></div></div>' +
+          '<p class="hint">Your Google account isn’t linked to a player card yet. Ask Dan to add your email, then come back here.</p>' +
+          '<div class="modal-actions"><button type="button" class="btn ghost" data-profile-close>Close</button></div>';
+        return;
+      }
+      const p = myProfile;
+      const dial = (d) => '<div class="dial"><div class="dl"><span>' + d.lo + '</span><b>' + d.label + '</b><span>' + d.hi + '</span></div><div class="db">' +
+        [1, 2, 3, 4, 5].map(v => '<button type="button" class="' + (p[d.key] === v ? 'on' : '') + '" data-me-dial="' + d.key + '" data-v="' + v + '">' + v + '</button>').join('') + '</div></div>';
+      body.innerHTML = '<form class="pl-form" id="profileForm">' +
+        '<div class="me-head">' + pic + '<div><h2>' + esc(p.name || 'My profile') + '</h2><p class="hint">In your own words. Nathan reads this when you’re at the table, and your friends will see it.</p></div></div>' +
+        '<div class="section-label" style="margin-top:0.8rem;">How I like to play</div>' +
+        '<p class="hint" style="margin-top:0;">Tap a number; tap it again to leave it unset.</p>' +
+        DIALS.map(dial).join('') +
+        '<div class="pl-two"><div><label for="meLikes">I like</label><textarea id="meLikes" rows="2" maxlength="600" placeholder="engine builders, anything with animals, co-ops">' + esc(p.likes || '') + '</textarea></div>' +
+        '<div><label for="meDislikes">Not for me</label><textarea id="meDislikes" rows="2" maxlength="600" placeholder="trivia, take-that, 3-hour rules explanations">' + esc(p.dislikes || '') + '</textarea></div></div>' +
+        '<label for="meNotes">About me <span style="font-weight:600;">(favorite games, what I’d recommend, anything Nathan should know)</span></label><textarea id="meNotes" rows="3" maxlength="600">' + esc(p.notes || '') + '</textarea>' +
+        '<div class="pl-two"><div><label for="meBgg">BGG username <span style="font-weight:600;">(optional)</span></label><input type="text" id="meBgg" maxlength="60" value="' + esc(p.bggUsername || '') + '"></div>' +
+        '<div><label for="meAge">Age <span style="font-weight:600;">(optional)</span></label><input type="number" id="meAge" min="1" max="120" value="' + (p.age || '') + '"></div></div>' +
+        '<div class="modal-actions"><button type="button" class="btn ghost" data-profile-close>Cancel</button><button type="submit" class="btn primary" id="profileSave">Save</button></div>' +
+      '</form>';
+    }
+    profileModal.addEventListener('click', (e) => {
+      if (e.target === profileModal || e.target.closest('[data-profile-close]')) { profileModal.classList.remove('open'); return; }
+      const d = e.target.closest('[data-me-dial]');
+      if (d && myProfile) {
+        const v = Number(d.dataset.v);
+        myProfile[d.dataset.meDial] = myProfile[d.dataset.meDial] === v ? null : v;
+        d.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', Number(b.dataset.v) === myProfile[d.dataset.meDial]));
+      }
+    });
+    profileModal.addEventListener('submit', async (e) => {
+      if (e.target.id !== 'profileForm') return;
+      e.preventDefault();
+      const val = (id) => document.getElementById(id).value;
+      const payload = { likes: val('meLikes'), dislikes: val('meDislikes'), notes: val('meNotes'), bggUsername: val('meBgg').trim(), age: val('meAge'),
+        ...Object.fromEntries(DIALS.map(d => [d.key, myProfile[d.key] ?? null])) };
+      const btn = document.getElementById('profileSave');
+      btn.disabled = true;
+      try {
+        myProfile = (await n8nFetch('/me-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).profile;
+        profileModal.classList.remove('open');
+        toast('Profile saved. Nathan will take it from here.');
+      } catch (err) {
+        toast(err.message, true);
+        btn.disabled = false;
+      }
+    });
+
+    // ---------- Tip jar ----------
+    // Set TIP_URL to the Ko-fi page (e.g. https://ko-fi.com/yourname); until then only the owner sees the button, with a reminder
+    var TIP_URL = ''; // var: the top bar can ask before this line runs
+    var tipModal = document.getElementById('tipModal');
+    function updateTipJar() { document.getElementById('tipBtn').hidden = !TIP_URL && !isOwner(); }
+    document.getElementById('tipBtn').addEventListener('click', () => {
+      document.getElementById('tipBody').innerHTML = TIP_URL
+        ? '<a class="btn primary" style="display:inline-flex; align-items:center; gap:0.4rem; margin-top:0.4rem; text-decoration:none;" href="' + esc(TIP_URL) + '" target="_blank" rel="noopener"><i class="ti ti-coffee"></i> Leave a tip on Ko-fi</a>'
+        : '<p class="hint" style="background:var(--exp-bg); border-radius:0.8rem; padding:0.6rem 0.8rem;">Only you see this until the Ko-fi link is added. Make a Ko-fi page and send Claude the link.</p>';
+      tipModal.classList.add('open');
+    });
+    document.getElementById('tipClose').addEventListener('click', () => tipModal.classList.remove('open'));
+    tipModal.addEventListener('click', (e) => { if (e.target === tipModal) tipModal.classList.remove('open'); });
     document.getElementById('signInCancel').addEventListener('click', () => document.getElementById('signInModal').classList.remove('open'));
     window.addEventListener('load', initGoogle); // the Google script loads async
 

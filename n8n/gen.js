@@ -41,6 +41,8 @@ const ID = {
   bggUserRatings: 'BGVaultBggUser01',
   syncPeople: 'BGVaultSyncPpl01',
   ask: 'BGVaultAsk000001',
+  me: 'BGVaultMeGet0001',
+  meSave: 'BGVaultMeSave001',
 };
 
 const CRED = {
@@ -106,8 +108,11 @@ function prelude() {
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
     };
   };
-  // What visitors may see about a person (no email; BGG usernames are public on BGG anyway)
-  const publicPlayer = (p) => { const { googleEmail, ...rest } = p; return rest; };
+  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
+  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };
+  // The part of a player card that belongs to the person: only they edit it (via /me)
+  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,
+    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });
   const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());
   // Highest-priority source wins when one person has several ratings for a game
   // BGC stars come only from the person themselves ("site"); BGG ratings are kept apart, out of 10 (stored as stars x2)
@@ -1228,8 +1233,8 @@ const rate = wf(ID.rate, 'Vault — Rate Game', [
 addMemberAuth(rate, { failTo: 'Respond Error' });
 
 // =====================================================================
-// 14. Save Player  POST /webhook/vault/player-save { id?, name, aliases[], active, googleEmail, bggUsername,
-//     complexity, conflict, luck, tableTalk, theme (1-5 or null), likes, dislikes, age, notes }  (owner only)
+// 14. Save Player  POST /webhook/vault/player-save { id?, name, aliases[], active, googleEmail, bggUsername }  (owner only)
+//     Bookkeeping only: a person's taste profile is theirs to fill in (see /me).
 // =====================================================================
 const playerSave = wf(ID.playerSave, 'Vault — Save Player', [
   webhook('Webhook', 'POST', 'vault/player-save'),
@@ -1238,7 +1243,6 @@ const playerSave = wf(ID.playerSave, 'Vault — Save Player', [
     const err = (message) => [{ json: { ok: false, status: 400, message } }];
     const name = String(b.name || '').trim();
     if (!name) return err('A player needs a name');
-    const dial = (v) => (v === null || v === '' || v === undefined) ? null : Math.min(5, Math.max(1, Math.round(Number(v))));
     const text = (v, n = 1000) => String(v ?? '').trim().slice(0, n);
     const email = text(b.googleEmail, 200).toLowerCase();
     if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err('That Google email doesn’t look right');
@@ -1246,10 +1250,6 @@ const playerSave = wf(ID.playerSave, 'Vault — Save Player', [
       [PF.name]: name.slice(0, 100),
       [PF.aliases]: (Array.isArray(b.aliases) ? b.aliases : String(b.aliases || '').split(',')).map((a) => String(a).trim()).filter(Boolean).join(', '),
       [PF.active]: !!b.active, [PF.googleEmail]: email || null, [PF.bggUsername]: text(b.bggUsername, 100) || null,
-      [PF.complexity]: dial(b.complexity), [PF.conflict]: dial(b.conflict), [PF.luck]: dial(b.luck),
-      [PF.tableTalk]: dial(b.tableTalk), [PF.theme]: dial(b.theme),
-      [PF.likes]: text(b.likes), [PF.dislikes]: text(b.dislikes), [PF.notes]: text(b.notes),
-      [PF.age]: b.age === '' || b.age == null ? null : Math.max(1, Math.min(120, Math.round(Number(b.age)))) || null,
       [PF.updatedAt]: new Date().toISOString(),
     };
     const id = /^rec[A-Za-z0-9]{14}$/.test(String(b.id || '')) ? b.id : null;
@@ -1694,7 +1694,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         `- ${p.name}` + (p.age ? `, age ${p.age}` : ''),
         [dial('complexity', p.complexity, 'light', 'heavy'), dial('conflict', p.conflict, 'co-op only', 'cutthroat'), dial('luck', p.luck, 'hates dice', 'loves chaos'),
           dial('table talk', p.tableTalk, 'quiet', 'party'), dial('theme', p.theme, 'puzzle first', 'story first')].filter(Boolean).join('; '),
-        p.likes ? `likes: ${p.likes}` : '', p.dislikes ? `dislikes: ${p.dislikes}` : '', p.notes ? `notes: ${p.notes}` : '',
+        p.likes ? `in their own words, likes: ${p.likes}` : '', p.dislikes ? `in their own words, dislikes: ${p.dislikes}` : '', p.notes ? `about themselves: ${p.notes}` : '',
         totals.plays ? `logged ${totals.plays} plays, won ${totals.wins}` : 'no logged plays',
         top.length ? `most played: ${top.join(', ')}` : '', loved.length ? `rated 4+: ${loved.join(', ')}` : '',
       ].filter(Boolean).join('\n  ');
@@ -1815,8 +1815,55 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   ['Check Answer', 'Respond OK'], ['No Candidates', 'Respond OK'], ['Off Topic', 'Respond OK'],
 ]);
 
+// =====================================================================
+// 19. My Profile  GET /webhook/vault/me  (member gate): the signed-in person's own player card
+// =====================================================================
+const me = wf(ID.me, 'Vault — My Profile', [
+  webhook('Webhook', 'GET', 'vault/me'),
+  ifTrue('Linked?', '={{ !!$json._auth.playerId }}'),
+  airtable('Get Player', 'GET', '/{{ $json._auth.playerId }}', qs({ returnFieldsByFieldId: 'true' }), {}, PLAYERS_TABLE),
+  code('Shape Profile', function () { return [{ json: { ok: true, profile: ownProfile(toPlayer($input.first().json)) } }]; }),
+  code('Not Linked', function () { return [{ json: { ok: true, profile: null } }]; }),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Linked?'], ['Linked?', 'Get Player', 0], ['Linked?', 'Not Linked', 1], ['Get Player', 'Shape Profile'], ['Shape Profile', 'Respond OK'], ['Not Linked', 'Respond OK']]);
+addMemberAuth(me, { failTo: 'Respond Error' });
+
+// =====================================================================
+// 20. Save My Profile  POST /webhook/vault/me-save { bggUsername, age, complexity, conflict, luck, tableTalk, theme (1-5 or null),
+//     likes, dislikes, notes }  (member gate): people describe themselves; nobody edits someone else's profile
+// =====================================================================
+const meSave = wf(ID.meSave, 'Vault — Save My Profile', [
+  webhook('Webhook', 'POST', 'vault/me-save'),
+  code('Validate', function () {
+    const j = $input.first().json;
+    const b = j.body || {};
+    const err = (status, message) => [{ json: { ok: false, status, message } }];
+    if (!j._auth.playerId) return err(400, 'Your Google account isn’t linked to a player card yet. Ask Dan to add your email.');
+    const dial = (v) => (v === null || v === '' || v === undefined) ? null : Math.min(5, Math.max(1, Math.round(Number(v))));
+    const text = (v, n = 600) => String(v ?? '').trim().slice(0, n);
+    const bgg = text(b.bggUsername, 60);
+    if (bgg && !/^[A-Za-z0-9_ .-]+$/.test(bgg)) return err(400, 'That BGG username doesn’t look right');
+    const fields = {
+      [PF.bggUsername]: bgg || null,
+      [PF.age]: b.age === '' || b.age == null ? null : Math.max(1, Math.min(120, Math.round(Number(b.age)))) || null,
+      [PF.complexity]: dial(b.complexity), [PF.conflict]: dial(b.conflict), [PF.luck]: dial(b.luck),
+      [PF.tableTalk]: dial(b.tableTalk), [PF.theme]: dial(b.theme),
+      [PF.likes]: text(b.likes), [PF.dislikes]: text(b.dislikes), [PF.notes]: text(b.notes),
+      [PF.updatedAt]: new Date().toISOString(),
+    };
+    return [{ json: { ok: true, id: j._auth.playerId, fields } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  airtable('Update Player', 'PATCH', '/{{ $json.id }}', jsonBody('={{ JSON.stringify({ fields: $json.fields, typecast: true, returnFieldsByFieldId: true }) }}'), {}, PLAYERS_TABLE),
+  code('Shape Profile', function () { return [{ json: { ok: true, profile: ownProfile(toPlayer($input.first().json)) } }]; }),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Update Player', 0], ['Valid?', 'Respond Error', 1], ['Update Player', 'Shape Profile'], ['Shape Profile', 'Respond OK']]);
+addMemberAuth(meSave, { failTo: 'Respond Error' });
+
 // ---------- write ----------
-const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask };
+const all = { getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

@@ -18,6 +18,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - Real friend connections by friend code: each member has a code to share; entering someone's code sends a request they accept (no browsing the member list). You see a shelf only if you are friends with its owner
 - BGC stars are each person's own rating; BGG ratings are kept separate, out of 10; nobody rates for someone else
 - People speak for themselves: each member sets their own taste profile (complexity, conflict, luck, table talk, theme, likes, dislikes); nobody writes notes or dials about someone else. People who never join are known only from play history
+- Friend takes: you can fill in the same card (dials, likes, dislikes) about a friend. Takes are private to the writer: the friend never sees them, and Nathan uses a take only when its writer is the one asking. Nathan weighs a person's own words above a friend's take, and both above plays
 - Private to the owner: the thinning list, and plays with people other than the viewer
 - Friends see: shelf, favorites, wants-to-play, BGC ratings, play counts, and full details of plays they were part of
 - Dan is the admin: invites and removes members (Google test users, under Google's 100-user limit). A removed member's shelf and ratings are kept, in case they come back
@@ -33,9 +34,13 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [ ] Phase 1: create the tables; copy the 220 games, 40 players and play history from Airtable; switch the n8n workflows over one by one (Airtable stays as a fallback until everything checks out)
 - [ ] Phase 2: members: a friend signs in, enters their BGG username, and their collection and plays import
 - [ ] Phase 3: friends: requests, a Friends page, a shelf switcher, visibility rules on every read
-- [ ] Phase 4: profiles: each member fills in their own taste profile; BG Stats players link to members; friend profile pages; the dials and notes come off the owner's Players screen
+- [x] My profile: signed-in members fill in their own card (dials, likes, dislikes, about me, BGG username) from the account menu; the Players screen keeps only names, aliases, email and BGG username
+- [ ] Phase 4: friend takes (private); BG Stats players link to members; friend profile pages
 - [ ] Phase 5: social Nathan: "what can we play at Keith's?", "who owns Spirit Island?"
 - First testers: Aaron Wiesinger (email on his card), Keith McKimmy, Matt Kruse (still need emails); BGG usernames for all three
+
+- [ ] Tip jar: button is in the top bar (owner-only until set); make a Ko-fi page and set TIP_URL in index.html
+- [ ] Friends menu icon in the top bar (comes with Phase 3)
 
 ## 3. Protection against another wipe
 - [x] Nightly backup of the new database to a private GitHub repo (restore tested)
