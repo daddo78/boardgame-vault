@@ -265,18 +265,22 @@ const wf = (id, name, nodes, edges, extraSettings = {}) => {
 };
 
 // =====================================================================
-// 1. Get Collection  GET /webhook/vault/collection
+// 1. Get Collection  GET /webhook/vault/collection  (member gate; thinning flags only for the owner)
 // =====================================================================
 const getCollection = wf(ID.collection, 'Vault — Get Collection', [
   webhook('Webhook', 'GET', 'vault/collection'),
   airtableListAll('List All Games'),
   code('Shape For Frontend', function () {
+    const owner = $('Auth: Role').first().json._auth.role === 'owner';
     const items = $input.all().flatMap((i) => i.json.records || []).map(toGame)
+      .map((g) => owner ? g : { ...g, thinningCandidate: false }) // what Dan may give away is his business
       .sort((a, b) => (a.num || 0) - (b.num || 0));
     return [{ json: { items } }];
   }),
   respond('Respond', '={{ JSON.stringify($json.items) }}'),
+  respondError(),
 ], [['Webhook', 'List All Games'], ['List All Games', 'Shape For Frontend'], ['Shape For Frontend', 'Respond']]);
+addMemberAuth(getCollection, { failTo: 'Respond Error' });
 
 // =====================================================================
 // 2. Update  POST /webhook/vault/update  { id, fields: { desireToPlay?, thinningCandidate?, ... } }
@@ -1213,7 +1217,7 @@ const whoAmI = wf(ID.whoAmI, 'Vault — Who Am I', [
 addMemberAuth(whoAmI, { failTo: 'Respond Error' });
 
 // =====================================================================
-// 12. People  GET /webhook/vault/people  (public)
+// 12. People  GET /webhook/vault/people  (member gate: names and play history are for the group, not visitors)
 //     Player profiles (no emails) + every rating, resolved to one per person per game by source priority.
 // =====================================================================
 const people = wf(ID.people, 'Vault — People', [
@@ -1231,7 +1235,9 @@ const people = wf(ID.people, 'Vault — People', [
     return [{ json: { players, ratings: best } }];
   }),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
 ], [['Webhook', 'List Players'], ['List Players', 'One Item'], ['One Item', 'List Ratings'], ['List Ratings', 'Shape People'], ['Shape People', 'Respond OK']]);
+addMemberAuth(people, { failTo: 'Respond Error' });
 
 // =====================================================================
 // 13. Rate Game  POST /webhook/vault/rate { gameId, stars (0 clears) }  (member gate)
@@ -1530,15 +1536,16 @@ addAuth(bggOne, { mode: 'throw' });
 addAuth(syncPlays, { mode: 'throw' });
 
 // =====================================================================
-// 18. Ask  POST /webhook/vault/ask { question, playerIds?: [], previous?: { question, constraints, pickIds } }  (public)
+// 18. Ask  POST /webhook/vault/ask { question, playerIds?: [], previous?: { question, constraints, pickIds } }  (member gate, 30 a day each)
 //     "What should we play?" (or "what sci-fi games do I have?") for this shelf and these people:
 //       1. a small model turns the question into constraints + who is playing
 //       2. code applies the hard limits (players, time, age, weight, exclusions) and scores a shortlist
 //       3. a stronger model picks from the shortlist using profiles, play history and ratings
 //       4. code drops anything that isn't on the shortlist
-//     Public but capped per day; board games only.
+//     Members only, 30 questions each per day (plus a shared safety cap); board games only.
 // =====================================================================
 const ASK_DAILY_CAP = 200;
+const ASK_PER_MEMBER = 30; // Nathan's questions per member per day
 const OWNER_NAME = 'Dan';
 const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   webhook('Webhook', 'POST', 'vault/ask'),
@@ -1548,7 +1555,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const question = String(b.question || '').trim();
     if (question.length < 3) return err(400, 'Ask a question, like "a co-op for 3 under an hour".');
     if (question.length > 500) return err(400, 'Keep the question under 500 characters.');
-    // Daily cap shared by everyone (persists across production runs)
+    // Safety net across everyone (the per-member allowance is checked next, in the database)
     const st = $getWorkflowStaticData('global');
     const today = new Date().toISOString().slice(0, 10);
     if (st.day !== today) { st.day = today; st.count = 0; }
@@ -1561,9 +1568,17 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       pickIds: Array.isArray(b.previous.pickIds) ? b.previous.pickIds.map(String).slice(0, 6) : [],
     } : null;
     const mentioned = Array.isArray(b.mentioned) ? b.mentioned.map(String).filter((x) => x.length < 40).slice(0, 100) : [];
-    return [{ json: { ok: true, question, playerIds, previous: prev, mentioned } }];
+    return [{ json: { ok: true, question, playerIds, previous: prev, mentioned, email: $input.first().json._auth.email } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
+  pg('Use Allowance', "INSERT INTO ask_usage (member_id, day, questions) VALUES (coalesce(bgc.member_id($1), 0), current_date, 1) ON CONFLICT (member_id, day) DO UPDATE SET questions = ask_usage.questions + 1 RETURNING questions",
+    '={{ [$json.email] }}'),
+  code('Allowance Left?', function () {
+    const used = Number($input.first().json.questions) || 0;
+    if (used > __ASK_PER_MEMBER__) return [{ json: { ok: false, status: 429, message: 'Nathan has answered your ' + __ASK_PER_MEMBER__ + ' questions for today. He’ll be back at the shelves tomorrow!' } }];
+    return [{ json: { ok: true, used } }];
+  }),
+  ifTrue('Allowed?', '={{ $json.ok }}'),
   airtableListAll('List Games'),
   code('One Item', function () { return [{ json: {} }]; }),
   airtableListAll('List Players', PLAYERS_TABLE),
@@ -1717,6 +1732,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'top mechanics: ' + tally(set.flatMap((g) => g.mechanics)),
       sorter ? 'ORDER: the CANDIDATES are ranked, ' + sorter.label + (limit ? ', top ' + limit : '') : '',
     ].filter(Boolean).join('\n');
+    const askerIsOwner = $('Auth: Role').first().json._auth.role === 'owner';
     const line = (g) => {
       const facts = [
         g.minPlayers ? `${g.minPlayers}-${g.maxPlayers}p` + (g.bestPlayers.length ? ` best ${g.bestPlayers.join('/')}` : '') : '',
@@ -1724,7 +1740,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         g.weight ? `weight ${Number(g.weight).toFixed(1)}` : '', g.minAge ? `age ${g.minAge}+` : '',
         g.bggRating ? `BGG ${g.bggRating}` : '', g.genre, g.type,
         g.mechanics.slice(0, 4).join(', '),
-        `__OWNER_NAME__ wants to play ${g.desireToPlay || 0}/5`, g.favorite ? "__OWNER_NAME__'s favorite" : '', g.thinningCandidate ? '__OWNER_NAME__ may give it away' : '',
+        `__OWNER_NAME__ wants to play ${g.desireToPlay || 0}/5`, g.favorite ? "__OWNER_NAME__'s favorite" : '', g.thinningCandidate && askerIsOwner ? '__OWNER_NAME__ may give it away' : '',
         g.playCount ? `${g.playCount} plays, last ${g.lastPlayed}` : 'never played',
         (g.expansions || []).length ? `+${g.expansions.length} expansions` : '',
       ].filter(Boolean).join('; ');
@@ -1858,7 +1874,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
 ], [
-  ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'List Games', 0], ['Valid?', 'Respond Error', 1],
+  ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Use Allowance', 0], ['Valid?', 'Respond Error', 1],
+  ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'List Games', 0], ['Allowed?', 'Respond Error', 1],
   ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'One More Item'], ['One More Item', 'List Ratings'],
   ['List Ratings', 'Build Understand Request'], ['Build Understand Request', 'Understand Request'], ['Understand Request', 'Shortlist'],
   ['Shortlist', 'On Topic?'], ['On Topic?', 'Any Candidates?', 0], ['On Topic?', 'Off Topic', 1],
@@ -1866,6 +1883,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   ['Build Recommend Request', 'Recommend'], ['Recommend', 'Check Answer'],
   ['Check Answer', 'Respond OK'], ['No Candidates', 'Respond OK'], ['Off Topic', 'Respond OK'],
 ]);
+addMemberAuth(ask, { failTo: 'Respond Error' });
 
 // =====================================================================
 // 19. My Profile  GET /webhook/vault/me  (member gate): the signed-in person's own player card
@@ -2135,7 +2153,7 @@ fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
   let s = JSON.stringify(w, null, 2).replace(/__ICON_MODEL__/g, ICON_MODEL).replace(/__VISION_MODEL__/g, VISION_MODEL)
     .replace(/__BGG_USERNAME__/g, BGG_USERNAME)
-    .replace(/__ASK_MODEL__/g, ASK_MODEL).replace(/__ASK_DAILY_CAP__/g, String(ASK_DAILY_CAP)).replace(/__OWNER_NAME__/g, OWNER_NAME).replace(/__OWNER_EMAIL__/g, OWNER_EMAILS[0]);
+    .replace(/__ASK_MODEL__/g, ASK_MODEL).replace(/__ASK_DAILY_CAP__/g, String(ASK_DAILY_CAP)).replace(/__ASK_PER_MEMBER__/g, String(ASK_PER_MEMBER)).replace(/__OWNER_NAME__/g, OWNER_NAME).replace(/__OWNER_EMAIL__/g, OWNER_EMAILS[0]);
   fs.writeFileSync(path.join(outDir, `${k}.json`), s);
   console.log(k, w.id, w.nodes.length, 'nodes');
 }

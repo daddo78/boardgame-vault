@@ -97,6 +97,56 @@
   /* Visitors browse read-only: editing controls only appear for a signed-in owner */
   body:not(.owner) .owner-only { display: none !important; }
   body:not(.can-edit) .edit-only { display: none !important; }
+  /* Visitors (not signed in as a member) see only the welcome page */
+  .landing { display: none; }
+  body.guest .landing { display: block; }
+  body.guest .topbar, body.guest header.hero, body.guest .chat-container, body.guest .filters-container, body.guest #importPanel,
+  body.guest #gamesGrid, body.guest #emptyState, body.guest #addFab { display: none !important; }
+  .landing-hero { position: relative; min-height: min(88vh, 760px); background: #12343a url(assets/landing-room.jpg) center / cover no-repeat; display: flex; align-items: center; overflow: hidden; }
+  .landing-hero::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10,28,32,0.86) 0%, rgba(10,28,32,0.62) 45%, rgba(10,28,32,0.15) 75%), linear-gradient(0deg, rgba(10,28,32,0.55), rgba(10,28,32,0) 40%); }
+  .landing-inner { position: relative; z-index: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding: 3rem 1.5rem 2.5rem; display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem; }
+  .landing-copy { max-width: 36rem; padding-bottom: 2rem; }
+  .landing-kicker { display: inline-flex; align-items: center; gap: 0.45rem; background: rgba(246,195,67,0.16); color: #f6c343; border: 1px solid rgba(246,195,67,0.45); border-radius: 999px; padding: 0.3rem 0.85rem; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.02em; }
+  .landing .hero-title { margin-top: 0.9rem; white-space: normal; font-size: clamp(2.8rem, 6.6vw, 5.6rem); line-height: 0.95; }
+  .landing .hero-title span { display: block; }
+  .landing-tag { font-family: 'Luckiest Guy', var(--font-display); color: #f6c343; font-size: clamp(1.05rem, 1.9vw, 1.4rem); letter-spacing: 0.03em; margin: 0.9rem 0 0; -webkit-text-stroke: 1px #3a1f0b; paint-order: stroke fill; text-wrap: balance; }
+  .landing-pitch { color: #f3ead9; font-size: clamp(1rem, 1.5vw, 1.15rem); line-height: 1.55; margin: 1rem 0 0; max-width: 32rem; }
+  .landing-cta { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; margin-top: 1.6rem; }
+  .landing-cta .gsi { min-height: 44px; }
+  .landing-cta small { color: #d9cdb8; font-size: 0.88rem; }
+  .landing-note { margin-top: 0.9rem; background: rgba(201,52,42,0.92); color: #fff; border-radius: 0.8rem; padding: 0.6rem 0.9rem; font-weight: 600; font-size: 0.92rem; max-width: 32rem; }
+  .landing-note[hidden] { display: none; }
+  .landing-nathan { width: min(40vw, 520px); height: auto; flex-shrink: 0; margin-bottom: -2.5rem; filter: drop-shadow(0 18px 30px rgba(0,0,0,0.45)); }
+  .landing-body { max-width: 1240px; margin: 0 auto; padding: 3.2rem 1.5rem 1rem; }
+  .landing-body h2 { font-family: 'Luckiest Guy', var(--font-display); font-weight: 400; color: var(--brand); font-size: clamp(1.7rem, 3vw, 2.4rem); letter-spacing: 0.02em; margin: 0 0 1.2rem; text-align: center; -webkit-text-stroke: 1px #4a1d12; paint-order: stroke fill; }
+  .landing-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr)); gap: 1.1rem; }
+  .landing-feature { background: #fff; border-radius: 1.25rem; padding: 1.4rem; box-shadow: 0 10px 30px rgba(40,25,10,0.08); }
+  .landing-feature .ic { width: 3rem; height: 3rem; border-radius: 0.9rem; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; color: #fff; background: var(--brand); margin-bottom: 0.8rem; }
+  .landing-feature:nth-child(2) .ic { background: #0b8fc0; }
+  .landing-feature:nth-child(3) .ic { background: #e2a52b; }
+  .landing-feature h3 { margin: 0 0 0.35rem; font-size: 1.12rem; }
+  .landing-feature p { margin: 0; color: var(--text-muted); line-height: 1.5; font-size: 0.95rem; }
+  .landing-soon { display: inline-block; margin-left: 0.35rem; background: var(--exp-bg); color: var(--ink); border-radius: 999px; padding: 0.05rem 0.5rem; font-size: 0.7rem; font-weight: 700; vertical-align: middle; }
+  .landing-demo { margin-top: 3rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: 760px; margin-left: auto; margin-right: auto; }
+  .landing-demo .q { justify-self: end; background: var(--brand); color: #fff; border-radius: 1.1rem 1.1rem 0.3rem 1.1rem; padding: 0.6rem 1rem; font-weight: 600; max-width: 85%; }
+  .landing-demo .a { display: flex; gap: 0.8rem; align-items: flex-start; }
+  .landing-demo .a .nathan-avatar { width: 2.8rem; height: 2.8rem; }
+  .landing-demo .bubble { background: #fff; border-radius: 1.1rem; padding: 1rem 1.1rem; box-shadow: 0 10px 30px rgba(40,25,10,0.08); line-height: 1.5; }
+  .landing-demo .bubble b { color: var(--brand-dark); }
+  .landing-demo .bubble .kind { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--brand); }
+  .landing-demo .bubble .quip { font-style: italic; color: var(--text-muted); margin: 0.2rem 0 0.5rem; }
+  .landing-bottom { text-align: center; margin: 3rem auto 0; max-width: 34rem; }
+  .landing-bottom p { color: var(--text-muted); }
+  @media (max-width: 760px) {
+    .landing-hero { min-height: 0; }
+    .landing-hero::before { background: linear-gradient(180deg, rgba(10,28,32,0.82) 0%, rgba(10,28,32,0.7) 60%, rgba(10,28,32,0.35) 100%); }
+    .landing-inner { flex-direction: column; align-items: stretch; padding: 2rem 1.1rem 0; gap: 0; }
+    .landing-copy { padding-bottom: 1rem; text-align: center; margin: 0 auto; }
+    .landing-cta { justify-content: center; }
+    .landing-pitch, .landing-note { margin-left: auto; margin-right: auto; }
+    .landing-nathan { width: min(78vw, 340px); margin: 0 auto -1.5rem; }
+    .landing-body { padding: 2.4rem 1rem 0.5rem; }
+  }
   /* Shelf switcher (friends): Dan's shelf / My shelf */
   .shelf-switch { display: none; gap: 0.25rem; padding: 0.25rem; background: rgba(255,255,255,0.55); border: 1.5px solid #d8c4a6; border-radius: 999px; margin-bottom: 0.8rem; width: max-content; max-width: 100%; }
   body.member:not(.owner) .shelf-switch { display: inline-flex; }
@@ -527,6 +577,48 @@
 </style>
 </head>
 <body>
+  <!-- Welcome page for visitors; the collection, Nathan and people are for signed-in members only -->
+  <section class="landing" id="landing" aria-label="Welcome to Board Game Curator">
+    <div class="landing-hero">
+      <div class="landing-inner">
+        <div class="landing-copy">
+          <span class="landing-kicker"><i class="fa-solid fa-ticket"></i> Invite only, for friends who game together</span>
+          <h1 class="hero-title"><span>Board</span> <span>Game</span> <span>Curator</span></h1>
+          <p class="landing-tag">Your collection cataloged and cultivated with love.</p>
+          <p class="landing-pitch">Bring your shelf over from BoardGameGeek in a couple of minutes, then let Nathan, your board game librarian, pick the perfect game for whoever’s at the table tonight.</p>
+          <div class="landing-cta">
+            <div class="gsi" id="landingSignIn"></div>
+            <small>Invite only for now. Ask Dan to add you.</small>
+          </div>
+          <p class="landing-note" id="landingNote" hidden></p>
+        </div>
+        <img class="landing-nathan" src="assets/landing-nathan.webp" width="1024" height="1024" alt="Nathan, the board game librarian, holding a game box">
+      </div>
+    </div>
+    <div class="landing-body">
+      <h2>What Nathan does for your shelf</h2>
+      <div class="landing-features">
+        <div class="landing-feature"><div class="ic"><i class="fa-solid fa-cloud-arrow-down"></i></div><h3>Your shelf in minutes</h3>
+          <p>Enter your BGG username and your games, expansions and every logged play come along, box art and all.</p></div>
+        <div class="landing-feature"><div class="ic"><i class="fa-solid fa-comment-dots"></i></div><h3>Ask Nathan what to play</h3>
+          <p>“Something cozy for two, under an hour?” He knows your shelf, your play history and who’s at the table.</p></div>
+        <div class="landing-feature"><div class="ic"><i class="fa-solid fa-user-group"></i></div><h3>Game with friends<span class="landing-soon">soon</span></h3>
+          <p>Swap friend codes, browse each other’s shelves, and find out what you can play at Keith’s tonight.</p></div>
+      </div>
+      <div class="landing-demo" aria-label="An example question for Nathan">
+        <div class="q">What can four of us finish in under 30 minutes?</div>
+        <div class="a"><div class="nathan-avatar" aria-hidden="true"></div>
+          <div class="bubble"><div class="kind">Tonight’s pick</div><b>The Crew: The Quest for Planet Nine</b>
+            <div class="quip">A trick-taker in space: houston, we have a winning hand.</div>
+            The BGG community says it’s best at four and it plays in about 20 minutes at a light 2.0 weight. You’ve logged 21 plays, so the table already knows it, and since it’s co-op, all four of you win or lose together.</div></div>
+      </div>
+      <div class="landing-bottom">
+        <p>Board Game Curator is a small, invite-only club for now. If Dan sent you here, sign in with the Google account he added.</p>
+        <div class="gsi" id="landingSignIn2" style="display:inline-block;"></div>
+      </div>
+    </div>
+  </section>
+
   <div class="topbar">
     <div class="account">
       <button class="auth-btn" id="authBtn" type="button" aria-haspopup="menu" aria-expanded="false"><i class="fa-solid fa-right-to-bracket"></i> <span>Sign in</span></button>
@@ -654,7 +746,7 @@
         <option value="weight-asc">Lightest First</option>
       </select>
       <button class="pill" id="favFilterBtn"><i class="fa-solid fa-heart"></i> Favorites</button>
-      <button class="pill" id="thinFilterBtn">Thinning only</button>
+      <button class="pill edit-only" id="thinFilterBtn">Thinning only</button>
       </div>
       <button type="button" class="pill clear-pill" id="clearAll" hidden><i class="ti ti-x"></i> <span>Remove filter</span></button>
     </div>
@@ -871,6 +963,8 @@
     function updateAuthUi() {
       document.body.classList.toggle('owner', isOwner());
       document.body.classList.toggle('member', isMember());
+      document.body.classList.toggle('guest', !isMember());
+      if (typeof renderLandingSignIn === 'function') renderLandingSignIn();
       if (typeof updateShelfUi === 'function') updateShelfUi();
       if (typeof updateTipJar === 'function') updateTipJar();
       const btn = document.getElementById('authBtn');
@@ -907,15 +1001,38 @@
           localStorage.removeItem(LS_OWNER);
         } catch (e) {}
         updateAuthUi();
-        if (!wasMember) toast(w.role === 'owner' ? 'Signed in. You can edit your collection.' : 'Signed in as ' + (w.playerName || who) + '. You can rate games for yourself.');
+        landingNotice('');
+        if (!wasMember) {
+          toast(w.role === 'owner' ? 'Signed in. Welcome back!' : 'Welcome, ' + (w.playerName || who).split(' ')[0] + '!');
+          loadCollection();
+          loadPeople();
+        }
       } else {
         try { localStorage.removeItem(LS_ROLE); localStorage.removeItem(LS_OWNER); } catch (e) {}
         if (gisReady) google.accounts.id.disableAutoSelect();
         setToken(null);
-        toast('Signed in as ' + who + '. This collection is view-only for that account.');
+        landingNotice((who || 'That account') + ' isn’t on the invite list yet. Ask Dan to add you, then sign in again.');
       }
     }
     let gisReady = false;
+    // The welcome page's Google buttons (drawn once Google's script has loaded)
+    function renderLandingSignIn() {
+      if (isMember()) return;
+      if (!gisReady) initGoogle();
+      for (const id of ['landingSignIn', 'landingSignIn2']) {
+        const box = document.getElementById(id);
+        if (!box || box.dataset.drawn === String(gisReady)) continue;
+        box.dataset.drawn = String(gisReady);
+        box.innerHTML = '';
+        if (gisReady) google.accounts.id.renderButton(box, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', logo_alignment: 'left' });
+        else box.innerHTML = '<button class="btn primary" type="button" onclick="openSignIn()">Sign in with Google</button>';
+      }
+    }
+    function landingNotice(msg) {
+      const n = document.getElementById('landingNote');
+      n.textContent = msg || '';
+      n.hidden = !msg;
+    }
     function initGoogle() {
       if (gisReady || !window.google || !google.accounts) return;
       gisReady = true;
@@ -1088,7 +1205,7 @@
       clearTimeout(importPoll);
       setSyncStatus('Loading…');
       try {
-        const data = await n8nFetch('/collection', { method: 'GET' }, false);
+        const data = await n8nFetch('/collection', { method: 'GET' });
         collection = Array.isArray(data) ? data : (data.items || []);
         localStorage.setItem(LS_CACHE, JSON.stringify(collection));
         setSyncStatus('');
@@ -1862,7 +1979,8 @@
     // ---------- Ask ----------
     let people = { players: [], ratings: {} };
     async function loadPeople() {
-      try { people = await n8nFetch('/people', { method: 'GET' }, false); } catch (e) { /* Ask still works without the roster */ }
+      if (!isMember()) return;
+      try { people = await n8nFetch('/people', { method: 'GET' }); } catch (e) { /* Ask still works without the roster */ }
       renderAskPlayers();
       if (detailId) renderDetail();
     }
@@ -2102,7 +2220,7 @@
       (followUp ? turn : panel).scrollIntoView({ behavior: 'smooth', block: followUp ? 'nearest' : 'start' });
       try {
         const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked] }) }, false);
+          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked] }) });
         if (r.pick || (r.highlights || []).length) {
           askLast = { question, constraints: r.constraints, pickIds: r.pickIds };
           rememberJoked(r.pickIds || []);
@@ -2146,9 +2264,11 @@
     document.getElementById('menuSignOut').addEventListener('click', () => {
       setMenu(false);
       if (gisReady) google.accounts.id.disableAutoSelect();
-      try { localStorage.removeItem(LS_OWNER); localStorage.removeItem(LS_ROLE); } catch (e) {}
+      try { localStorage.removeItem(LS_OWNER); localStorage.removeItem(LS_ROLE); localStorage.removeItem(LS_CACHE); } catch (e) {}
       setToken(null);
-      toast('Signed out.');
+      collection = []; people = { players: [], ratings: {} };
+      render();
+      window.scrollTo(0, 0);
     });
 
     // ---------- My profile ----------
@@ -2238,15 +2358,15 @@
     document.getElementById('tipClose').addEventListener('click', () => tipModal.classList.remove('open'));
     tipModal.addEventListener('click', (e) => { if (e.target === tipModal) tipModal.classList.remove('open'); });
     document.getElementById('signInCancel').addEventListener('click', () => document.getElementById('signInModal').classList.remove('open'));
-    window.addEventListener('load', initGoogle); // the Google script loads async
+    window.addEventListener('load', () => { initGoogle(); renderLandingSignIn(); }); // the Google script loads async
 
     try { localStorage.removeItem('vault_n8n_base_url'); } catch (e) {}
     try { setToken(localStorage.getItem(LS_TOKEN)); } catch (e) { setToken(null); }
     // Signed in before the owner check existed: confirm once instead of asking to sign in again
     if (signedIn() && !isMember() && tokenFresh()) verifyMember(false);
     else if (isMember() && !myPlayerId() && tokenFresh()) verifyMember(true);
-    loadCollection();
-    loadPeople();
+    // Members get the collection and people; visitors see the welcome page and nothing is fetched
+    if (isMember()) { loadCollection(); loadPeople(); }
   </script>
 </body>
 </html>
