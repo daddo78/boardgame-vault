@@ -83,6 +83,12 @@
   .account-menu button:hover { background: #fbf3e6; }
   .account-menu i { font-size: 1.1rem; color: var(--brand); }
   .tip-btn[hidden] { display: none; }
+  .member-only { display: none; }
+  body.member .member-only, body.owner .member-only { display: inline-block; }
+  .friends-btn i { color: var(--navy); }
+  .soon-list { text-align: left; margin: 0.8rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.5rem; }
+  .soon-list li { display: flex; gap: 0.6rem; align-items: flex-start; background: var(--exp-bg); border-radius: 0.8rem; padding: 0.6rem 0.8rem; font-size: 0.9rem; }
+  .soon-list i { color: var(--brand); font-size: 1.15rem; flex-shrink: 0; margin-top: 0.05rem; }
   .tip-btn i { color: var(--brand-dark); }
   .tip-art { width: 5.5rem; height: 5.5rem; border-radius: 50%; margin: 0 auto 0.6rem; background: #f6c343 url(assets/nathan.webp) no-repeat; background-size: 165%; background-position: 47% 8%; box-shadow: 0 0 0 4px #fff, 0 6px 14px rgba(120,60,0,0.25); }
   .me-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.4rem; }
@@ -513,6 +519,7 @@
       </div>
     </div>
     <div class="actions">
+      <button class="icon-btn friends-btn member-only" id="friendsBtn" type="button" title="Friends" aria-label="Friends"><i class="ti ti-users"></i></button>
       <button class="icon-btn tip-btn" id="tipBtn" type="button" title="Tip jar" aria-label="Tip jar" hidden><i class="ti ti-coffee"></i></button>
       <span class="total-badge" id="totalBadge" title="Games in the collection"><span id="badgeStatus"><span class="badge-spin"></span> Loading…</span><span id="badgeTotal" hidden><i class="ti ti-cards"></i> <b id="totalCount"></b> games</span></span>
       <button class="icon-btn owner-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
@@ -668,6 +675,21 @@
   <div class="modal-overlay" id="profileModal">
     <div class="modal">
       <div id="profileBody"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- Friends (members); the real thing arrives with the database move -->
+  <div class="modal-overlay" id="friendsModal">
+    <div class="modal" style="text-align:center;">
+      <h2 style="margin-bottom:0.3rem;"><i class="ti ti-users" style="color:var(--brand);"></i> Friends</h2>
+      <p class="hint" style="margin-top:0;">Coming soon. Here’s what it’ll do:</p>
+      <ul class="soon-list">
+        <li><i class="ti ti-ticket"></i><span><b>Your friend code.</b> Share it, and anyone who enters it sends you a friend request.</span></li>
+        <li><i class="ti ti-books"></i><span><b>Friends’ shelves.</b> Browse your friends’ collections, and see who owns what.</span></li>
+        <li><i class="ti ti-message-heart"></i><span><b>Nathan, for the whole group.</b> “What can we play at Keith’s tonight?”</span></li>
+      </ul>
+      <p class="hint">In the meantime, fill in <b>My profile</b> (under your name, top left) so Nathan knows what you like.</p>
+      <div class="modal-actions"><button class="btn ghost" id="friendsClose" type="button">Got it</button></div>
     </div>
   </div>
 
@@ -1990,7 +2012,7 @@
       setMenu(accountMenu.hidden);
     });
     document.addEventListener('click', (e) => { if (!accountMenu.hidden && !e.target.closest('.account')) setMenu(false); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
     document.getElementById('menuSignOut').addEventListener('click', () => {
       setMenu(false);
       if (gisReady) google.accounts.id.disableAutoSelect();
@@ -2065,6 +2087,12 @@
         btn.disabled = false;
       }
     });
+
+    // ---------- Friends (placeholder until the database move) ----------
+    const friendsModal = document.getElementById('friendsModal');
+    document.getElementById('friendsBtn').addEventListener('click', () => friendsModal.classList.add('open'));
+    document.getElementById('friendsClose').addEventListener('click', () => friendsModal.classList.remove('open'));
+    friendsModal.addEventListener('click', (e) => { if (e.target === friendsModal) friendsModal.classList.remove('open'); });
 
     // ---------- Tip jar ----------
     // Set TIP_URL to the Ko-fi page (e.g. https://ko-fi.com/yourname); until then only the owner sees the button, with a reminder

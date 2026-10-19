@@ -40,7 +40,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - First testers: Aaron Wiesinger (email on his card), Keith McKimmy, Matt Kruse (still need emails); BGG usernames for all three
 
 - [x] Tip jar: ☕ in the top bar opens a thank-you panel linking to ko-fi.com/dandehaan
-- [ ] Friends menu icon in the top bar (comes with Phase 3)
+- [x] Friends icon in the top bar (members only); a "coming soon" panel until Phase 3 makes it real
 
 ## 3. Protection against another wipe
 - [x] Nightly backup of the new database to a private GitHub repo (restore tested)
