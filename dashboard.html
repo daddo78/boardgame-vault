@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Dashboard · Board Game Curator</title>
+<link rel="icon" href="assets/nathan-avatar.png">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+  :root {
+    --brand: #c9342a; --brand-dark: #93231b; --navy: #24365a; --orange: #ffa726; --green: #a3d977; --green-ink: #2f5a12;
+    --yellow: #ffd166; --sky: #8ac4f5; --purple: #b384dc; --bg: #f5eee1; --card: #ffffff; --ink: #2b3445; --muted: #7b8494;
+    --line: #e6e0d4; --soft: #f1f4f8; --accent: #0041c2; --shadow: 0 6px 20px rgba(31,63,143,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { overflow-x: clip; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Outfit', sans-serif; line-height: 1.45; padding: 0 0 4rem; }
+  a { color: var(--accent); }
+  .bar { background: #f7f1e6; border-bottom: 1px solid #eadfcb; height: 3.6rem; display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; position: sticky; top: 0; z-index: 5; }
+  .bar a.back { font-weight: 700; text-decoration: none; color: var(--ink); display: inline-flex; gap: 0.45rem; align-items: center; }
+  .bar .who { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+  main { max-width: 1240px; margin: 0 auto; padding: 1.2rem 1rem 0; }
+  h1 { font-size: 1.9rem; display: flex; align-items: center; gap: 0.55rem; }
+  h1 i { color: var(--brand); }
+  .sub { color: var(--muted); font-size: 0.9rem; margin-top: 0.15rem; }
+  h2 { font-size: 1.15rem; margin: 1.8rem 0 0.7rem; display: flex; align-items: center; gap: 0.5rem; }
+  h2 i { color: var(--brand); font-size: 1rem; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; margin-top: 1rem; }
+  .tile { background: var(--card); border-radius: 1rem; padding: 0.8rem 0.9rem; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.7rem; color: var(--brand); line-height: 1.1; }
+  .tile span { font-size: 0.72rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+  .tile small { display: block; font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 0.8rem; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.8rem; }
+  .card { background: var(--card); border-radius: 1rem; padding: 1rem; box-shadow: var(--shadow); min-width: 0; }
+  .card h3 { font-size: 0.95rem; margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+  .card h3 small { font-weight: 600; color: var(--muted); font-size: 0.78rem; }
+  .chart { position: relative; height: 240px; }
+  .chart.sm { height: 200px; }
+  .seg { display: inline-flex; background: var(--soft); border-radius: 999px; padding: 0.2rem; }
+  .seg button { border: none; background: none; border-radius: 999px; padding: 0.25rem 0.7rem; font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; color: var(--ink); }
+  .seg button.on { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .table-wrap { overflow-x: auto; background: var(--card); border-radius: 1rem; box-shadow: var(--shadow); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; min-width: 900px; }
+  th, td { text-align: right; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { position: sticky; top: 0; background: #fbf8f2; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--muted); cursor: pointer; user-select: none; }
+  th:first-child, td:first-child { text-align: left; }
+  th.on { color: var(--brand-dark); }
+  tr:last-child td { border-bottom: none; }
+  td .name { font-weight: 700; }
+  .badge { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; border-radius: 999px; padding: 0.08rem 0.45rem; margin-left: 0.3rem; background: var(--soft); color: var(--brand-dark); }
+  .rank { display: inline-block; min-width: 1.5rem; font-weight: 800; color: var(--brand); }
+  .meter { height: 0.55rem; background: var(--soft); border-radius: 999px; overflow: hidden; margin-top: 0.25rem; }
+  .meter div { height: 100%; background: var(--brand); border-radius: 999px; }
+  .adopt { display: grid; gap: 0.6rem; }
+  .adopt .row { font-size: 0.88rem; }
+  .adopt .row b { float: right; }
+  .games { display: grid; gap: 0.4rem; }
+  .g { display: flex; align-items: center; gap: 0.6rem; font-size: 0.86rem; }
+  .g img, .g .ph { width: 2.4rem; height: 2.4rem; border-radius: 0.5rem; object-fit: cover; background: var(--soft); flex: none; }
+  .g .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .g .t small { display: block; font-weight: 500; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .g .n { font-weight: 800; color: var(--brand); }
+  .empty { color: var(--muted); font-size: 0.85rem; }
+  .gate { max-width: 460px; margin: 4rem auto; background: var(--card); border-radius: 1.25rem; padding: 2rem 1.5rem; text-align: center; box-shadow: var(--shadow); }
+  .gate h1 { justify-content: center; font-size: 1.5rem; }
+  .gate p { color: var(--muted); margin: 0.8rem 0 1.2rem; }
+  .gate .gbtn { display: flex; justify-content: center; }
+  .note { font-size: 0.78rem; color: var(--muted); margin-top: 0.5rem; }
+  .spinner { width: 2rem; height: 2rem; border: 3px solid var(--soft); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 3rem auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 640px) {
+    h1 { font-size: 1.5rem; }
+    .grid2, .grid3 { grid-template-columns: 1fr; }
+    .tile b { font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+  <div class="bar"><a class="back" href="./"><i class="fa-solid fa-arrow-left"></i> Back to the shelf</a><span class="who" id="who"></span></div>
+  <main id="app"><div class="spinner"></div></main>
+
+<script>
+  const N8N = 'https://n8n.ondorilabo.com/webhook/vault';
+  const CLIENT_ID = '91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com';
+  const LS_TOKEN = 'vault_id_token'; // shared with the shelf, so being signed in there signs you in here
+  const app = document.getElementById('app');
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const claims = (t) => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { return null; } };
+  const fresh = (t) => { const c = t && claims(t); return !!(c && c.exp * 1000 > Date.now() + 30000); };
+  const token = () => { try { return localStorage.getItem(LS_TOKEN); } catch (e) { return null; } };
+  const ago = (iso) => { if (!iso) return 'never'; const m = (Date.now() - Date.parse(iso)) / 60000; return m < 2 ? 'just now' : m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
+  const num = (n) => n == null ? '–' : Number(n).toLocaleString();
+  const KIND = { recommend: 'What to play', browse: 'Lists & top tens', person: 'About people', game: 'About a game', buy: 'Buy ideas', rules: 'Rules', 'off-topic': 'Off-topic', other: 'Other' };
+  const COLORS = ['#c9342a', '#0041c2', '#ffa726', '#a3d977', '#b384dc', '#8ac4f5', '#ffd166', '#7b8494'];
+
+  // ---- Signing in (only when the shelf's sign-in has expired)
+  function gate(msg, withButton) {
+    app.innerHTML = '<div class="gate"><h1><i class="fa-solid fa-chart-line"></i> Dashboard</h1><p>' + msg + '</p>' + (withButton ? '<div class="gbtn" id="gbtn"></div>' : '') +
+      '<p style="margin:1rem 0 0;"><a href="./">Back to the shelf</a></p></div>';
+    if (!withButton) return;
+    const draw = () => {
+      if (!(window.google && google.accounts)) return setTimeout(draw, 300);
+      google.accounts.id.initialize({ client_id: CLIENT_ID, callback: (r) => { try { localStorage.setItem(LS_TOKEN, r.credential); } catch (e) {} load(); }, auto_select: true, use_fedcm_for_prompt: true });
+      google.accounts.id.renderButton(document.getElementById('gbtn'), { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with' });
+      google.accounts.id.prompt();
+    };
+    draw();
+  }
+
+  async function load() {
+    const t = token();
+    if (!fresh(t)) return gate('Sign in with your Google account to see the dashboard. It’s for admins only.', true);
+    const c = claims(t);
+    document.getElementById('who').textContent = c.name || c.email || '';
+    app.innerHTML = '<div class="spinner"></div>';
+    let res;
+    try { res = await fetch(N8N + '/dashboard', { headers: { Authorization: 'Bearer ' + t } }); }
+    catch (e) { return gate('Couldn’t reach the server. Check your connection and refresh.', false); }
+    if (res.status === 401) { try { localStorage.removeItem(LS_TOKEN); } catch (e) {} return gate('Your sign-in expired. Sign in again to see the dashboard.', true); }
+    if (res.status === 403) return gate('The dashboard is for admins only.', false);
+    if (!res.ok) return gate('Something went wrong loading the dashboard (' + res.status + '). Try again in a moment.', false);
+    render(await res.json());
+  }
+
+  // ---- The page
+  let D = null, days = 30, sortKey = 'score', sortDir = -1;
+  const charts = {};
+  function render(d) {
+    D = d;
+    const k = d.kpis;
+    const tile = (n, label, small) => '<div class="tile"><b>' + n + '</b><span>' + label + '</span>' + (small ? '<small>' + small + '</small>' : '') + '</div>';
+    app.innerHTML =
+      '<h1><i class="fa-solid fa-chart-line"></i> Dashboard</h1>' +
+      '<div class="sub">How people use Board Game Curator · updated ' + esc(new Date(d.generatedAt).toLocaleString()) + ' · times are Eastern</div>' +
+      '<div class="tiles">' +
+        tile(num(k.members), 'Members') + tile(num(k.activeToday), 'Active today') + tile(num(k.active7), 'Active this week') + tile(num(k.active30), 'Active this month', 'avg ' + num(k.avgDaily30) + ' a day') +
+        tile(num(k.questions7), 'Questions this week') + tile(num(k.questions30), 'Questions this month', num(k.questionsAll) + ' all time') +
+        tile(k.answerSec7 != null ? k.answerSec7 + 's' : '–', 'Avg answer time', 'last 7 days') + tile(k.answerOk30 != null ? k.answerOk30 + '%' : '–', 'Answers that worked', 'last 30 days') +
+        tile(num(k.uniqueGames), 'Different games', num(k.games) + ' copies on shelves') + tile(num(k.gamesAdded30), 'Games added', 'last 30 days') +
+        tile(num(k.ratings30), 'Ratings given', 'last 30 days · ' + num(k.ratings) + ' total') + tile(num(k.wishlist), 'Wishlist items') +
+        tile(num(k.friendships), 'Friendships') + tile(num(k.rulebooks), 'Rulebooks') + tile(num(k.plays), 'Plays logged') +
+      '</div>' +
+
+      '<h2><i class="fa-solid fa-users"></i> Activity <span class="seg" id="range"><button data-days="30" class="on">30 days</button><button data-days="90">90 days</button></span></h2>' +
+      '<div class="grid2">' +
+        '<div class="card"><h3>People and questions <small>members active each day, questions to Nathan</small></h3><div class="chart"><canvas id="cActivity"></canvas></div></div>' +
+        '<div class="card"><h3>Shelf activity <small>games added, ratings, wishlist adds, new friends</small></h3><div class="chart"><canvas id="cShelf"></canvas></div></div>' +
+      '</div>' +
+
+      '<h2><i class="fa-solid fa-comments"></i> Nathan</h2>' +
+      '<div class="grid3">' +
+        '<div class="card"><h3>What people ask <small>last 30 days</small></h3><div class="chart sm"><canvas id="cKinds"></canvas></div><div class="note">Kinds of questions only. The questions themselves aren’t kept.</div></div>' +
+        '<div class="card"><h3>When people ask <small>by hour, last 30 days</small></h3><div class="chart sm"><canvas id="cHours"></canvas></div></div>' +
+        '<div class="card"><h3>Which days <small>last 30 days</small></h3><div class="chart sm"><canvas id="cDays"></canvas></div></div>' +
+        '<div class="card"><h3>Answer speed <small>average seconds per day</small></h3><div class="chart sm"><canvas id="cSpeed"></canvas></div></div>' +
+        '<div class="card"><h3>Questions with friends <small>last 30 days</small></h3>' + socialHtml(d) + '</div>' +
+        '<div class="card"><h3>Daily limit</h3><div style="font-size:2rem; font-weight:800; color:var(--brand);">' + d.askLimit + '</div><div class="note">questions per member per day (change it in Admin → Nathan)</div></div>' +
+      '</div>' +
+
+      '<h2><i class="fa-solid fa-trophy"></i> Top users</h2>' +
+      '<div class="table-wrap"><table id="users"></table></div>' +
+      '<div class="note">Ranked by an overall activity score: days active ×3, questions ×2, games added and ratings in the last 30 days. Click a column to sort.</div>' +
+
+      '<h2><i class="fa-solid fa-seedling"></i> Getting started</h2>' +
+      '<div class="card adopt" id="adopt"></div>' +
+
+      '<h2><i class="fa-solid fa-dice"></i> The games</h2>' +
+      '<div class="grid3">' +
+        gamesCard('On the most shelves', d.mostOwned, (g) => g.n + ' shelves', (g) => g.who) +
+        gamesCard('Most played', d.mostPlayed, (g) => num(g.n) + ' plays') +
+        gamesCard('Highest rated by members', d.topRated, (g) => Number(g.avg).toFixed(1) + '★', (g) => g.n + ' ratings') +
+        gamesCard('Most wished for', d.mostWished, (g) => g.n + (g.n === 1 ? ' wish' : ' wishes')) +
+        gamesCard('Recently added', d.recentlyAdded, (g) => '', (g) => g.who + ' · ' + ago(g.at)) +
+      '</div>';
+    document.getElementById('range').addEventListener('click', (e) => { const b = e.target.closest('[data-days]'); if (b) { days = Number(b.dataset.days); document.querySelectorAll('#range button').forEach((x) => x.classList.toggle('on', x === b)); drawActivity(); } });
+    drawActivity();
+    drawNathan();
+    renderUsers();
+    renderAdoption();
+  }
+  function socialHtml(d) {
+    const s = d.askSocial || {};
+    const total = Object.values(d.askKinds || {}).reduce((a, b) => a + b, 0);
+    const row = (label, n) => '<div class="adopt"><div class="row">' + label + ' <b>' + num(n) + '</b><div class="meter"><div style="width:' + (total ? Math.round(n / total * 100) : 0) + '%"></div></div></div></div>';
+    return total ? row('Across friends’ shelves ("who has…")', s.friends || 0) + '<div style="height:0.5rem"></div>' + row('At a friend’s place', s.visit || 0) : '<p class="empty">No questions yet.</p>';
+  }
+  function gamesCard(title, list, right, sub) {
+    return '<div class="card"><h3>' + title + '</h3>' + ((list || []).length ? '<div class="games">' + list.map((g, i) => '<div class="g"><span class="rank">' + (i + 1) + '</span>' +
+      (g.cover ? '<img src="' + esc(g.cover) + '" alt="" loading="lazy">' : '<span class="ph"></span>') +
+      '<span class="t">' + esc(g.title) + (sub ? '<small>' + esc(sub(g) || '') + '</small>' : '') + '</span><span class="n">' + esc(right(g)) + '</span></div>').join('') + '</div>'
+      : '<p class="empty">Nothing yet.</p>') + '</div>';
+  }
+
+  // ---- Charts
+  const base = (extra) => ({ responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Outfit' } } }, tooltip: { titleFont: { family: 'Outfit' }, bodyFont: { family: 'Outfit' } } },
+    scales: { x: { grid: { display: false }, ticks: { font: { family: 'Outfit' }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }, y: { beginAtZero: true, ticks: { precision: 0, font: { family: 'Outfit' } } } }, ...extra });
+  const make = (id, cfg) => { if (charts[id]) charts[id].destroy(); charts[id] = new Chart(document.getElementById(id), cfg); };
+  const label = (day) => new Date(day + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  function drawActivity() {
+    const s = D.daily.slice(-days);
+    const x = s.map((d) => label(d.day));
+    make('cActivity', { type: 'bar', data: { labels: x, datasets: [
+      { type: 'line', label: 'Members active', data: s.map((d) => d.active), borderColor: COLORS[1], backgroundColor: COLORS[1], tension: 0.3, pointRadius: 0, yAxisID: 'y' },
+      { type: 'bar', label: 'Questions', data: s.map((d) => d.questions), backgroundColor: 'rgba(201,52,42,0.75)', borderRadius: 3, yAxisID: 'y' },
+    ] }, options: base() });
+    make('cShelf', { type: 'bar', data: { labels: x, datasets: [
+      { label: 'Games added', data: s.map((d) => d.gamesAdded), backgroundColor: COLORS[0], stack: 'a', borderRadius: 2 },
+      { label: 'Ratings', data: s.map((d) => d.ratings), backgroundColor: COLORS[2], stack: 'a', borderRadius: 2 },
+      { label: 'Wishlist adds', data: s.map((d) => d.wishes), backgroundColor: COLORS[4], stack: 'a', borderRadius: 2 },
+      { label: 'New friends', data: s.map((d) => d.friendships), backgroundColor: COLORS[3], stack: 'a', borderRadius: 2 },
+    ] }, options: base({ scales: { x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } }) });
+  }
+  function drawNathan() {
+    const kinds = Object.entries(D.askKinds || {}).sort((a, b) => b[1] - a[1]);
+    make('cKinds', { type: 'doughnut', data: { labels: kinds.length ? kinds.map(([k]) => KIND[k] || k) : ['No questions yet'], datasets: [{ data: kinds.length ? kinds.map(([, n]) => n) : [1],
+      backgroundColor: kinds.length ? COLORS : ['#e6e0d4'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Outfit' } } } } } });
+    const hours = Array.from({ length: 24 }, (_, h) => (h % 12 || 12) + (h < 12 ? 'a' : 'p'));
+    make('cHours', { type: 'bar', data: { labels: hours, datasets: [{ label: 'Questions', data: D.askHours, backgroundColor: COLORS[1], borderRadius: 2 }] }, options: base({ plugins: { legend: { display: false } } }) });
+    make('cDays', { type: 'bar', data: { labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], datasets: [{ label: 'Questions', data: D.askWeekdays, backgroundColor: COLORS[2], borderRadius: 3 }] }, options: base({ plugins: { legend: { display: false } } }) });
+    const s = D.daily.slice(-30);
+    make('cSpeed', { type: 'line', data: { labels: s.map((d) => label(d.day)), datasets: [{ label: 'Seconds', data: s.map((d) => d.answerSec), borderColor: COLORS[0], backgroundColor: 'rgba(201,52,42,0.12)', fill: true, tension: 0.3, spanGaps: true, pointRadius: 2 }] },
+      options: base({ plugins: { legend: { display: false } } }) });
+  }
+
+  // ---- Top users (sortable)
+  const COLS = [
+    ['name', 'Member'], ['score', 'Activity'], ['lastSeen', 'Last seen'], ['activeDays30', 'Days active (30d)'], ['visits30', 'Visits (30d)'],
+    ['questions30', 'Questions (30d)'], ['questionsAll', 'Questions (all)'], ['favoriteKind', 'Asks most about'], ['games', 'Games'], ['gamesAdded30', 'Added (30d)'],
+    ['plays', 'Plays'], ['ratings', 'Ratings'], ['wishlist', 'Wishlist'], ['friends', 'Friends'], ['top10', 'Top 10'], ['profile', 'Profile'],
+  ];
+  function renderUsers() {
+    const list = [...D.users].sort((a, b) => {
+      const x = a[sortKey], y = b[sortKey];
+      if (sortKey === 'lastSeen') return ((Date.parse(x || 0) || 0) - (Date.parse(y || 0) || 0)) * sortDir;
+      if (typeof x === 'string' || typeof y === 'string') return String(x || '').localeCompare(String(y || '')) * sortDir;
+      return ((x || 0) - (y || 0)) * sortDir;
+    });
+    const cell = (u, k) => {
+      if (k === 'name') return '<span class="name">' + esc(u.name) + '</span>' + (u.isAdmin ? '<span class="badge">Admin</span>' : '') + (u.demo ? '<span class="badge">Demo</span>' : '') + (u.bgg ? '<span class="badge">BGG</span>' : '');
+      if (k === 'lastSeen') return esc(ago(u.lastSeen));
+      if (k === 'favoriteKind') return esc(u.favoriteKind ? (KIND[u.favoriteKind] || u.favoriteKind) : '–');
+      if (k === 'profile') return u.profile + '/4';
+      if (k === 'top10') return u.top10 + '/10';
+      return num(u[k]);
+    };
+    document.getElementById('users').innerHTML = '<thead><tr>' + COLS.map(([k, l]) => '<th data-k="' + k + '" class="' + (k === sortKey ? 'on' : '') + '">' + l + (k === sortKey ? (sortDir < 0 ? ' ↓' : ' ↑') : '') + '</th>').join('') + '</tr></thead>' +
+      '<tbody>' + list.map((u) => '<tr>' + COLS.map(([k]) => '<td>' + cell(u, k) + '</td>').join('') + '</tr>').join('') + '</tbody>';
+  }
+  document.addEventListener('click', (e) => {
+    const th = e.target.closest('#users th[data-k]');
+    if (!th) return;
+    const k = th.dataset.k;
+    sortDir = k === sortKey ? -sortDir : (k === 'name' || k === 'favoriteKind' ? 1 : -1);
+    sortKey = k;
+    renderUsers();
+  });
+  function renderAdoption() {
+    const a = D.adoption, n = a.members || 1;
+    const row = (label, v) => '<div class="row">' + label + ' <b>' + v + ' of ' + a.members + '</b><div class="meter"><div style="width:' + Math.round(v / n * 100) + '%"></div></div></div>';
+    document.getElementById('adopt').innerHTML = row('Have games on their shelf', a.withGames) + row('Brought in their BGG plays', a.withPlays) + row('Asked Nathan something', a.askedNathan) +
+      row('Rated games', a.withRatings) + row('Filled in their profile', a.withProfile) + row('Picked a Top 10', a.withTop10) + row('Started a wishlist', a.withWishlist) + row('Connected with a friend', a.withFriends);
+  }
+
+  load();
+</script>
+</body>
+</html>

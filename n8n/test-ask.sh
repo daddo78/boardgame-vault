@@ -34,6 +34,9 @@ w.connections['Auth: Role'] = { main: [[{ node: 'Validate', type: 'main', index:
 // Test questions don't use up anyone's daily allowance
 const use = w.nodes.find((n) => n.name === 'Use Allowance');
 Object.assign(use, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode: 'return [{ json: { questions: 0 } }];' } }); delete use.credentials;
+// ...and aren't counted in the admin dashboard
+const log = w.nodes.find((n) => n.name === 'Log Answer');
+if (log) { Object.assign(log, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode: 'return $input.all();' } }); delete log.credentials; }
 for (const n of w.nodes) if (n.type === 'n8n-nodes-base.respondToWebhook') Object.assign(n, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode: 'return $input.all();' } });
 require('fs').writeFileSync(out, JSON.stringify([w]));
 NODE

@@ -58,6 +58,7 @@ const ID = {
   adminAction: 'BGVaultAdminSet1',
   rulebookUpload: 'BGVaultRulesUp01',
   rulebookGet: 'BGVaultRulesGet1',
+  dashboard: 'BGVaultDashbrd01',
   shelfAdd: 'BGVaultShelfAdd1',
   shelfIdentify: 'BGVaultShelfPic1',
   friends: 'BGVaultFriends01',
@@ -1615,7 +1616,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     } : null;
     const mentioned = Array.isArray(b.mentioned) ? b.mentioned.map(String).filter((x) => x.length < 40).slice(0, 100) : [];
     const auth = $input.first().json._auth;
-    return [{ json: { ok: true, question, playerIds, previous: prev, mentioned, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
+    return [{ json: { ok: true, t0: Date.now(), question, playerIds, previous: prev, mentioned, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
       shelf: /^friend:\d+$/.test(String(b.shelf || '')) ? String(b.shelf) : b.shelf === 'mine' ? 'mine' : 'main' } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
@@ -2242,7 +2243,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       const highlights = (Array.isArray(a.highlights) ? a.highlights : []).map((x) => entry(x, false)).filter(Boolean).slice(0, 5);
       if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });
       const summary = str(a.summary, s.mode === 'rules' ? 3500 : 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');
-      return [{ json: { ok: true, intent: 'browse', mode: s.mode || null, ...(s.rulebooks ? { rulebooks: s.rulebooks } : {}), understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
+      return [{ json: { ok: true, intent: 'browse', mode: s.mode || null, person: !!s.person, social: s.across ? 'friends' : s.visiting ? 'visit' : null, ...(s.rulebooks ? { rulebooks: s.rulebooks } : {}), understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
         matchIds: s.matchIds, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}), signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];
     }
     let pick = entry(a.pick, true);
@@ -2251,7 +2252,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const alternative = entry(a.alternative, true);
     const avoid = entry(a.avoid, false);
     const gap = gapOf();
-    return [{ json: { ok: true, intent: 'recommend', matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}),
+    return [{ json: { ok: true, intent: 'recommend', social: s.across ? 'friends' : s.visiting ? 'visit' : null, matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}),
       signoff: str(a.signoff, 200), pickIds: [pick, alternative].filter(Boolean).map((x) => x.id), model: $input.first().json.model || null } }];
   }),
   code('No Candidates', function () {
@@ -2264,8 +2265,13 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     return [{ json: { ok: true, offTopic: true, pick: null, note: $input.first().json.reply } }];
   }),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  // For the admin dashboard: what kind of question it was and how long it took (never the question itself)
+  { ...pg('Log Answer', 'SELECT bgc.log_ask($1, $2, $3::int, $4::boolean, $5)',
+    "={{ [$('Validate').first().json.email, $json.offTopic ? 'off-topic' : ($json.mode || ($json.person ? 'person' : $json.intent) || 'other'), String(Date.now() - $('Validate').first().json.t0), String($json.ok !== false), $json.social || ''] }}"),
+    onError: 'continueRegularOutput' },
   respondError(),
 ], [
+  ['Respond OK', 'Log Answer'],
   ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Use Allowance', 0], ['Valid?', 'Respond Error', 1],
   ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'Shelf View', 0], ['Allowed?', 'Respond Error', 1], ['Shelf View', 'List Games'],
   ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'One More Item'], ['One More Item', 'List Ratings'],
@@ -2962,8 +2968,21 @@ const rulebookGet = wf(ID.rulebookGet, 'Vault — Rulebook (info / open)', [
   ['File', 'Found?'], ['Found?', 'Have File?'], ['Have File?', 'To File', 0], ['Have File?', 'Respond Error', 1], ['To File', 'Respond PDF']]);
 addMemberAuth(rulebookGet, { failTo: 'Respond Error' });
 
+// =====================================================================
+// 33. Dashboard  GET /webhook/vault/dashboard  (admins): everything about how people use the site, for dashboard.html
+// =====================================================================
+const dashboard = wf(ID.dashboard, 'Vault — Dashboard', [
+  webhook('Webhook', 'GET', 'vault/dashboard'),
+  pg('Read', 'SELECT bgc.dashboard($1) AS r', '={{ [$json._auth.email] }}'),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Read'], ['Read', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(dashboard, { failTo: 'Respond Error' });
+
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
