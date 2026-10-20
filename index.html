@@ -103,6 +103,10 @@
   .adm-tabs button.on { background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
   .adm-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr)); gap: 0.5rem; }
   .adm-tiles div { background: var(--exp-bg); border-radius: 0.8rem; padding: 0.6rem; text-align: left; }
+  .adm-tiles.compact { grid-template-columns: repeat(3, 1fr); }
+  .adm-tiles.compact div { padding: 0.5rem 0.55rem; }
+  .adm-tiles.compact b { font-size: 1.2rem; }
+  .adm-tiles.compact span { font-size: 0.64rem; }
   .adm-tiles b { display: block; font-size: 1.35rem; color: var(--brand); line-height: 1.1; }
   .adm-tiles span { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
   .adm-chart { display: flex; align-items: flex-end; gap: 2px; height: 5.5rem; margin-top: 0.5rem; padding: 0.4rem; background: var(--exp-bg); border-radius: 0.8rem; }
@@ -2961,10 +2965,10 @@
         const chart = (key, max, label) => '<div class="section-label" style="margin-top:1rem;">' + label + ' · last 30 days</div><div class="adm-chart">' +
           days.map(d => '<div class="' + (d[key] ? '' : 'zero') + '" style="height:' + Math.max(3, Math.round(d[key] / max * 100)) + '%" title="' + esc(d.day) + ': ' + d[key] + '"></div>').join('') + '</div>' +
           '<div class="adm-axis"><span>' + esc((days[0] || {}).day || '') + '</span><span>today</span></div>';
-        body.innerHTML = '<div class="adm-tiles">' + tile(t.members, 'Members') + tile(t.activeToday, 'Active today') + tile(t.active7, 'Active 7 days') + tile(t.active30, 'Active 30 days') +
-          tile(t.questionsToday, 'Questions today') + tile(t.questions7, 'Questions 7 days') + tile(t.questions30, 'Questions 30 days') + tile(t.games, 'Games on shelves') +
-          tile(t.gamesAdded7, 'Games added 7 days') + tile(t.ratings, 'Ratings') + tile(t.wishlist, 'Wishlist items') + tile(t.friendships, 'Friendships') + tile(t.plays, 'Plays logged') + '</div>' +
-          chart('active', maxA, 'Members active') + chart('questions', maxQ, 'Questions to Nathan');
+        // Just the headline numbers; charts and everything else are on the full dashboard
+        body.innerHTML = '<div class="adm-tiles compact">' + tile(t.members, 'Members') + tile(t.activeToday, 'Active today') + tile(t.active7, 'Active this week') +
+          tile(t.questionsToday, 'Questions today') + tile(t.questions7, 'Questions this week') + tile(t.friendships, 'Friendships') + '</div>' +
+          '<p class="hint" style="margin:0.6rem 0 0; text-align:center;">Charts, top users and the games are on the full dashboard.</p>';
         return;
       }
       if (admTab === 'members') {
