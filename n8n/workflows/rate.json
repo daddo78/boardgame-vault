@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "1b1c814d-2f1c-4bfe-ba6b-2e956206926a",
+      "id": "2062c542-4701-4b1d-bb7d-e987493b86cf",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "1d14cd92-e26e-4c7d-a8d6-2f0403b584a0"
+      "webhookId": "0c992cf3-39e8-4889-8d5a-b889bc0f6a91"
     },
     {
-      "id": "a3bb1495-0da9-46fa-813a-ac4927d9c77a",
+      "id": "3211f4f9-6bac-4a6b-8bda-cae85ac62a2a",
       "name": "Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -37,7 +37,7 @@
       }
     },
     {
-      "id": "1936fd48-0ef4-4d59-bc13-88cb96d78122",
+      "id": "b518be82-5f6f-4181-aeff-b2189f035a41",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "f7ab1d45-d6a5-4d99-98e7-ef24c802a2c2",
+              "id": "64eceb37-8b05-46a2-aed4-7c3777d916d3",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,7 +70,7 @@
       }
     },
     {
-      "id": "d1923bcd-2b6d-4364-b1c4-8fb90708721b",
+      "id": "b27d988a-f64f-4cc2-80fc-8f03798bb470",
       "name": "Find Existing",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -97,7 +97,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "ffb56da2-44cf-4cd2-9a92-077a27d641bd",
+      "id": "db1af7c9-0475-43eb-ac5f-ec140d061bae",
       "name": "Plan Write",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -110,7 +110,7 @@
       }
     },
     {
-      "id": "6af3cc90-e901-408c-8905-9a30ce834484",
+      "id": "2b19bd7e-cd9a-4901-93b8-a9b2e436e71a",
       "name": "Upsert?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -127,7 +127,7 @@
           },
           "conditions": [
             {
-              "id": "592d5f10-865a-4f4d-b50f-fbf8972df58c",
+              "id": "a288a2c6-4689-43b0-9a80-d0d6ccc58749",
               "leftValue": "={{ $json.action === 'upsert' }}",
               "rightValue": "",
               "operator": {
@@ -143,7 +143,7 @@
       }
     },
     {
-      "id": "459757b3-7fe1-4750-8918-2870fea26e47",
+      "id": "7d7fffc1-7431-46f6-8a6e-08707fd71e95",
       "name": "Upsert Rating",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -170,7 +170,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "ddb2ab11-1b43-4994-b754-bebe47a9815d",
+      "id": "f39e05da-a73a-4583-9079-f01b4f363695",
       "name": "Delete?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -187,7 +187,7 @@
           },
           "conditions": [
             {
-              "id": "49d39a12-6966-48c7-8e5b-26cf5806bf96",
+              "id": "8f8dc1b7-4514-4e5f-b3c8-f07cd208e675",
               "leftValue": "={{ $json.action === 'delete' }}",
               "rightValue": "",
               "operator": {
@@ -203,7 +203,7 @@
       }
     },
     {
-      "id": "34b8d5b2-eb46-49fd-8f3d-34136ad142db",
+      "id": "24bd7727-d574-4a54-b818-ab0ed7b19680",
       "name": "Delete Rating",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -230,7 +230,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "5a3285a7-185a-4f48-8a46-480ed9876e4d",
+      "id": "d33ee98b-4dfc-4b34-8578-66c40da54415",
       "name": "Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -243,7 +243,7 @@
       }
     },
     {
-      "id": "956e49d2-119a-44a8-a434-2f820b4374e6",
+      "id": "a7e1d04a-a86f-46e2-afdc-21f4d5c451ca",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -260,7 +260,7 @@
       }
     },
     {
-      "id": "31f9fdb9-2497-44ca-81f4-c0d0eab3a6cc",
+      "id": "0748f2b6-8e7d-42fe-9e82-e96dcfca95a9",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -277,7 +277,7 @@
       }
     },
     {
-      "id": "a1fcffd8-c348-4e61-a969-3c27e4b0270f",
+      "id": "c3ab0bcc-7599-469c-b986-ef3582b5e7b2",
       "name": "Auth: Read Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -290,7 +290,7 @@
       }
     },
     {
-      "id": "612b50e7-133a-4878-821a-ee2d1c3b67ae",
+      "id": "6528a97f-437e-44bc-912d-c9c2e5345865",
       "name": "Auth: Verify With Google",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -317,7 +317,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "2b0285ee-3423-4582-8a70-6009427612c2",
+      "id": "f3057dcb-7028-4ef7-892f-0de0b757495d",
       "name": "Auth: Check Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -330,7 +330,7 @@
       }
     },
     {
-      "id": "885ffabb-3e0c-4996-b94a-2cd03c35b149",
+      "id": "d7fd27e0-3667-4cb2-bf42-1edc05a1fe0c",
       "name": "Token Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -347,7 +347,7 @@
           },
           "conditions": [
             {
-              "id": "ca35a615-9abf-41d2-96ba-dcb74afdf743",
+              "id": "8f6f3de4-6b1b-40f2-bd4a-07825246f83d",
               "leftValue": "={{ $json.ok === true }}",
               "rightValue": "",
               "operator": {
@@ -363,7 +363,7 @@
       }
     },
     {
-      "id": "8cf4729a-2b5b-4721-b0c0-7e363d8ddcbd",
+      "id": "4ccb662e-be5e-4368-956f-ede98dbaffc7",
       "name": "Auth: Find Player",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -390,7 +390,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "3316e836-7a9d-4d40-b8f2-39ea1611be39",
+      "id": "b15e6124-f1f1-4261-8586-73ccc03e18bd",
       "name": "Auth: Role",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -403,7 +403,7 @@
       }
     },
     {
-      "id": "8c99fbab-9b8f-4f24-a224-042cd35d4884",
+      "id": "fabcffd1-a518-437c-af56-4dc31a6549b3",
       "name": "Member?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -420,7 +420,7 @@
           },
           "conditions": [
             {
-              "id": "9b897b86-69ed-4230-9801-7cd001c2c16c",
+              "id": "4d6e5de1-770c-4520-a77e-89060fa44f66",
               "leftValue": "={{ $json._authOk === true }}",
               "rightValue": "",
               "operator": {

@@ -1441,11 +1441,12 @@
       }
     }
 
-    function saveRating(id, rank) {
-      const g = collection.find(x => x.id === id);
-      const newRank = (g && g.desireToPlay === rank) ? 0 : rank;
-      updateGame(id, { desireToPlay: newRank });
+    // The stars on a card: the shelf owner's own rating (yours on your shelf, a friend's on theirs)
+    function ownerStars(g) {
+      const key = (people && (people.owner || people.me)) || null;
+      return key ? ((((people.ratings || {})[g.id] || {})[key] || {}).stars || 0) : 0;
     }
+    function saveRating(id, rank) { savePlayerRating(id, rank); }
 
     function toggleThinning(id) {
       const g = collection.find(x => x.id === id);
@@ -1498,7 +1499,7 @@
     function starsHtml(g) {
       let s = '';
       for (let i = 1; i <= 5; i++) {
-        s += '<button class="star-btn ' + (i <= (g.desireToPlay || 0) ? 'active' : '') + '" data-id="' + esc(g.id) + '" data-rank="' + i + '" title="Desire to play: ' + i + '"><i class="fa-solid fa-star"></i></button>';
+        s += '<button class="star-btn ' + (i <= Math.round(ownerStars(g)) ? 'active' : '') + '" data-id="' + esc(g.id) + '" data-rank="' + i + '" title="' + (canEdit() ? 'Rate it ' + i : 'Rated ' + ownerStars(g)) + '"><i class="fa-solid fa-star"></i></button>';
       }
       return '<div class="stars">' + s + '</div>';
     }
@@ -1587,7 +1588,7 @@
 
       let filtered = askIds ? askIds.map(id => collection.find(g => g.id === id)).filter(Boolean) : collection.filter(g => {
         if (genre !== 'ALL' && !(g.genre || '').includes(genre)) return false;
-        if (ratingFilter !== 'ALL' && (g.desireToPlay || 0) !== Number(ratingFilter)) return false;
+        if (ratingFilter !== 'ALL' && Math.round(ownerStars(g)) !== Number(ratingFilter)) return false;
         if (thinOnly && !g.thinningCandidate) return false;
         if (favOnly && !g.favorite) return false;
         if (players !== 'ALL') {
@@ -1609,7 +1610,7 @@
 
       const lastTs = (g) => g.lastPlayed ? new Date(g.lastPlayed).getTime() : 0;
       if (!askIds) filtered.sort((a, b) => {
-        const rA = a.desireToPlay || 0, rB = b.desireToPlay || 0;
+        const rA = ownerStars(a), rB = ownerStars(b);
         const nA = a.num || 0, nB = b.num || 0;
         const pA = a.playCount || 0, pB = b.playCount || 0;
         switch (sortBy) {
@@ -1720,9 +1721,8 @@
               '<div class="sub">' + (g.lastPlayed ? 'Last played ' + esc(g.lastPlayed) + ' (' + agoText(g.lastPlayed) + ')' : 'No plays logged on BGG yet') + '</div></div>' +
             '<button class="btn primary edit-only" data-logplay="' + esc(g.id) + '"><i class="ti ti-player-play"></i> Log play</button>' +
           '</div>' +
-          '<div class="detail-row">' + starsHtml(g) +
-            '<span class="sub" style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Desire to play</span>' +
-            '<span class="edit-only" style="display:flex; gap:0.5rem; margin-left:auto;">' + favButton(g, 'btn') +
+          '<div class="detail-row edit-only">' +
+            '<span style="display:flex; gap:0.5rem; margin-left:auto;">' + favButton(g, 'btn') +
             '<button class="btn' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" style="flex:0 0 auto;"><i class="ti ti-scale"></i> ' + (g.thinningCandidate ? 'Thinning candidate' : 'Mark for thinning') + '</button></span>' +
           '</div>' +
           (stats.length ? '<div class="stat-grid">' + stats.join('') + '</div>' : '') +
@@ -2184,7 +2184,7 @@
       const bgg = Object.entries(byPlayer).filter(([, r]) => r.bgg).sort((x, y) => y[1].bgg - x[1].bgg);
       const others = bgc.filter(([pid]) => pid !== me);
       const avg = bgc.length ? bgc.reduce((n, [, r]) => n + r.stars, 0) / bgc.length : 0;
-      return '<div class="ratings-block"><div class="section-label" style="margin:0;">BGC ratings' + (bgc.length ? ' · ' + avg.toFixed(1) + '★ from ' + bgc.length + (bgc.length === 1 ? ' person' : ' people') : '') + '</div>' +
+      return '<div class="ratings-block"><div class="section-label" style="margin:0;">Ratings' + (bgc.length ? ' · ' + avg.toFixed(1) + '★ from ' + bgc.length + (bgc.length === 1 ? ' person' : ' people') : '') + '</div>' +
         rows.join('') +
         (others.length ? '<div class="rate-list">' + others.map(([pid, r]) => '<span class="rate-chip">' + esc(firstName(name(pid))) + ' ' + r.stars + ' <i class="fa-solid fa-star"></i></span>').join('') + '</div>'
           : (!rows.length ? '<p class="hint" style="margin:0;">No ratings yet.</p>' : '')) +
@@ -2199,12 +2199,14 @@
       const next = clear ? 0 : stars;
       const keep = prev && prev.bgg ? { bgg: prev.bgg } : {};
       if (next) byPlayer[pid] = { ...keep, stars: next }; else if (keep.bgg) byPlayer[pid] = keep; else delete byPlayer[pid];
-      renderDetail();
+      if (detailId) renderDetail();
+      render(); // the card's stars are the same rating
       try {
         await n8nFetch('/rate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId, stars: next }) });
       } catch (e) {
         if (prev) byPlayer[pid] = prev; else delete byPlayer[pid];
-        renderDetail();
+        if (detailId) renderDetail();
+        render();
         toast('Couldn’t save that rating: ' + e.message, true);
       }
     }
@@ -2296,6 +2298,7 @@
       try { people = await n8nFetch('/people' + (currentShelf() !== 'main' ? '?shelf=' + encodeURIComponent(currentShelf()) : ''), { method: 'GET' }); } catch (e) { /* Ask still works without the roster */ }
       if (people && people.asks) { asks = people.asks; renderAskMeter(); }
       renderAskPlayers();
+      render(); // the cards' stars come with the people data
       if (detailId) renderDetail();
     }
     const askSelected = new Set(); // people at the table for this conversation
@@ -2578,7 +2581,10 @@
         turn.querySelector('.np-body').innerHTML = nathanAnswerHtml(r);
         if (asks) { asks.left = Math.max(0, asks.left - 1); renderAskMeter(); }
       } catch (err) {
-        const msg = String(err.message || '').replace(/^n8n request failed \(\d+\) /, '');
+        const raw = String(err.message || '');
+        // The AI service busy or down: say so kindly instead of showing the raw error
+        const busy = /too many requests|rate.?limit|overloaded|temporarily|\((5\d\d)\)/i.test(raw) && !/questions for today/i.test(raw);
+        const msg = busy ? 'Nathan’s a little swamped at the shelves right now. Give him a moment and ask again!' : raw.replace(/^n8n request failed \(\d+\) /, '');
         if (/\(429\)/.test(String(err.message)) && asks) { asks.left = 0; renderAskMeter(); }
         turn.querySelector('.np-body').innerHTML = '<p class="ask-note" style="margin:0;">' + esc(msg || 'Nathan couldn’t answer that one. Try again in a moment.') + '</p>';
       } finally {

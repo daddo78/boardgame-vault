@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs a member-gated workflow as a given member (no Google sign-in) and prints what it would answer.
 #   run-as.sh <workflow> <email> [queryJSON] [bodyJSON]     e.g. run-as.sh shelf nathan.schmidt@curator.invalid
+#   PID=<their player card id> run-as.sh rate ...   (for workflows that need the signed-in player card)
 set -euo pipefail
 cd "/g/My Drive/GitHub/boardgame-vault/n8n"
 WF="$1"; EMAIL="$2"; QUERY="${3:-{\}}"; BODY="${4:-{\}}"
@@ -19,7 +20,7 @@ for (const k of Object.keys(w.connections)) if (drop(k)) delete w.connections[k]
 const wh = w.nodes.find((n) => n.name === 'Webhook');
 Object.assign(wh, { type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, parameters: {} }); delete wh.webhookId;
 const role = w.nodes.find((n) => n.name === 'Auth: Role');
-role.parameters = { jsCode: `return [{ json: { query: ${query}, body: ${body}, headers: {}, _authOk: true, _auth: { role: 'friend', email: ${JSON.stringify(email)}, playerId: null, playerName: '' } } }];` };
+role.parameters = { jsCode: `return [{ json: { query: ${query}, body: ${body}, headers: {}, _authOk: true, _auth: { role: 'friend', email: ${JSON.stringify(email)}, playerId: ${JSON.stringify(process.env.PID || null)}, playerName: '' } } }];` };
 w.connections.Webhook = { main: [[{ node: 'Auth: Role', type: 'main', index: 0 }]] };
 w.connections['Auth: Role'] = { main: [[{ node: target, type: 'main', index: 0 }]] };
 for (const n of w.nodes) if (n.type === 'n8n-nodes-base.respondToWebhook') {

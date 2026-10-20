@@ -1288,7 +1288,8 @@ const people = wf(ID.people, 'Vault — People', [
     const sv = $('Shelf View').first().json.v;
     // me: the signed-in member's card in this list (their own BGC stars show under "Your rating")
     const used = Number($('Asks Used').first().json.used) || 0;
-    return [{ json: { players, ratings: best, me: sv.askerKey || null, shelf: sv.shelf, asks: { limit: __ASK_PER_MEMBER__, left: Math.max(0, __ASK_PER_MEMBER__ - used) } } }];
+    // owner: the shelf owner's card, whose stars show on the game cards
+    return [{ json: { players, ratings: best, me: sv.askerKey || null, owner: sv.ownerKey || null, shelf: sv.shelf, asks: { limit: __ASK_PER_MEMBER__, left: Math.max(0, __ASK_PER_MEMBER__ - used) } } }];
   }),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
@@ -1662,10 +1663,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'Extract what they want. Reply with JSON only:',
       '{',
       '  "onTopic": true if this is about board games (any game, owned or not), choosing or playing them, buying them, the games on this shelf, or the people who play here (their tastes, profile, play history), else false,',
-      '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"); "game" if they ask about one or more specific games themselves, owned or not (e.g. "what genre is Terraforming Mars", "how long is Brass", "would I like Ark Nova", "is Spirit Island good for 2", "should I buy Cascadia"); "buy" if they want ideas for games to buy or get next (e.g. "what should I buy next", "what game should I add to my collection", "a co-op I don\'t own yet"),',
+      '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"); "game" if they ask about one or more specific games themselves, owned or not (e.g. "what genre is Terraforming Mars", "how long is Brass", "would I like Ark Nova", "is Spirit Island good for 2", "should I buy Cascadia", "does Dan own Spirit Island", "who has Brass"); "buy" if they want ideas for games to buy or get next (e.g. "what should I buy next", "what game should I add to my collection", "a co-op I don\'t own yet"),',
       '  "games": [for intent "game": the official BoardGameGeek titles of the games they name, spelling corrected (e.g. "Teraforming Mars" -> "Terraforming Mars")],',
       '  "personIds": [for intent "person": ids from ROSTER of who they ask about; "me", "I" and "my" mean the ASKER],',
-      '  "sort": for a ranked list only: "plays" (most played), "leastPlays", "recent" (most recently played), "stale" (longest since played), "rating" (BGG rating), "rank" (BGG rank), "want" (wants-to-play stars), "weight" (heaviest), "newest" (latest added); else null,',
+      '  "sort": for a ranked list only: "plays" (most played), "leastPlays", "recent" (most recently played), "stale" (longest since played), "stars" (their own star ratings: "my highest rated", "games I rated best", "my top rated"), "rating" (BGG rating, only when they say BGG or "the community"), "rank" (BGG rank), "weight" (heaviest), "newest" (latest added); else null,',
       '  "limit": how many games they asked for ("top ten" = 10, "my 5 heaviest" = 5), else null,',
       '  "reply": "only if onTopic is false: one friendly, lightly punny sentence from Nathan, the collection curator, steering back to board games",',
       '  "playerIds": [ids from ROSTER for people playing, named or clearly meant (first names, nicknames); when they include themselves ("for me and Brittany", "something I would like") add the ASKER id],',
@@ -1686,6 +1687,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'Also add "fromPrevious": true when the new message is about the games in the PREVIOUS answer ("those", "these", "of them", "which one", "the first one", "out of my top ten", "of those, which is heaviest"), else false.',
       '',
       'ROSTER (id | name):', roster || '(none)',
+      // Nathan the curator is a member too (Nathan Schmidt): questions to him about himself are about that person
+      (() => { const me = players.find((p) => p.name === 'Nathan Schmidt'); return me && askerName !== 'Nathan Schmidt'
+        ? 'You are talking to Nathan, the curator: "you", "your" and "yourself" addressed to him, or "Nathan" ("what do you like to play?", "what\'s your favorite game?", "what does Nathan like?"), mean the roster person ' + me.id + ' | Nathan Schmidt (intent "person").' : ''; })(),
       askerId ? 'ASKER (the person typing): ' + askerId + ' | ' + (askerName || 'unknown') : '',
       'SHELF OPEN: ' + (sv.ownerName || '__OWNER_NAME__') + '\'s' + (sv.shelf === 'mine' || (sv.shelf === 'main' && $('Auth: Role').first().json._auth.role === 'owner') ? ' (the asker\'s own)' : ' (not the asker\'s)'),
       selected.length ? `Already selected as playing: ${selected.join(', ')}` : '',
@@ -1694,7 +1698,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'REQUEST: ' + v.question,
     ].filter((l) => l !== '').join('\n');
     return [{ json: { requestBody: {
-      model: '__VISION_MODEL__', max_tokens: 1500, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
+      model: '__VISION_MODEL__', models: ['__VISION_MODEL__', '__ASK_MODEL__'], max_tokens: 1500, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
       messages: [{ role: 'user', content: prompt }],
     } } }];
   }),
@@ -1722,7 +1726,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   pg('Own Shelf', 'SELECT CASE WHEN $2::boolean THEN bgc.shelf_view($1, \'mine\', NULL) END AS own',
     "={{ [$('Validate').first().json.email, String($json.useOwn)] }}"),
   // Games asked about (from the shared catalog, with which friends own them), and ideas to buy
-  pg('Game Lookup', 'SELECT bgc.lookup_games($1, $2::jsonb) AS games, CASE WHEN $3::boolean THEN bgc.buy_pool($1) END AS pool',
+  pg('Game Lookup', 'SELECT bgc.lookup_games($1, $2::jsonb) AS games, CASE WHEN $3::boolean THEN bgc.buy_pool($1) END AS pool, bgc.curator_card() AS curator',
     "={{ [$('Validate').first().json.email, JSON.stringify($('Scope').first().json.titles), String($('Scope').first().json.buy)] }}"),
   code('Lookup Queries', function () {
     const missing = ($input.first().json.games || []).filter((l) => !l.game).map((l) => l.asked);
@@ -1781,6 +1785,12 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const players = (sv.players || []).map(toPlayer);
     const ratings = (sv.ratings || []).map(toRating);
     const byId = Object.fromEntries(players.map((p) => [p.id, p]));
+    // "What do you like to play?" / "What's your favorite game?" asked of Nathan: a question about Nathan Schmidt, the curator
+    const curator = players.find((p) => p.name === 'Nathan Schmidt');
+    const toNathan = curator && sv.askerName !== 'Nathan Schmidt' && c.intent !== 'game' && c.intent !== 'buy'
+      && /\b(you|your|yours|yourself)\b[^?]*\b(like|love|enjoy|favou?rites?|prefer|own|shelf|collection|rate|rated|played|taste|top)\b/i.test(v.question)
+      && !/\b(i|me|my|mine|i'm|i've|we|us|our)\b|\b(would|should|could|can) you\b|\b(recommend|suggest|pick)\b/i.test(v.question);
+    if (toNathan) { c.intent = 'person'; c.personIds = [curator.id]; }
     // People picked from the open shelf's list, found on the asker's shelf by name when the answer comes from there
     const openNames = Object.fromEntries((open.players || []).map(toPlayer).map((p) => [p.id, p.name.toLowerCase()]));
     const byName = Object.fromEntries(players.map((p) => [p.name.toLowerCase(), p]));
@@ -1807,6 +1817,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const exclude = new Set(c.intent !== 'browse' && Array.isArray(c.excludeIds) ? c.excludeIds : []); // previous picks, when they want different games (a browse lists everything)
     // each person's own BGC stars and their BGG rating, kept apart
     const rate = ratingsByPlayerGame(ratings);
+    // One set of stars: each game's stars are the shelf owner's own rating (kept on desireToPlay so ranking and scoring use it)
+    for (const g of games) g.desireToPlay = ((rate[(sv.ownerKey || '') + '|' + g.id] || {}).stars) || 0;
     const fit = (r) => r ? (r.stars ? r.stars : r.bgg ? r.bgg / 2 : null) : null; // 1-5 for scoring; their BGC stars win over BGG
     const hay = (g) => [g.title, g.genre, g.type, g.desc, ...g.categories, ...g.mechanics].join(' ').toLowerCase();
     const isCoop = (g) => g.mechanics.some((m) => /cooperative/i.test(m)) || /co-?op/i.test(g.type);
@@ -1826,6 +1838,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       if (wMax && (!g.weight || g.weight > wMax + 0.3)) continue;
       if (wMin && (!g.weight || g.weight < wMin - 0.3)) continue;
       if (c.freshness === 'stale' && daysSince(g.lastPlayed) < 183) continue; // "haven't played in a while": not in the last ~6 months
+      if (c.freshness === 'unplayed' && c.intent === 'browse' && g.playCount) continue; // "my shelf of shame": only the never-played ones
       if (c.coop === true && !isCoop(g)) continue;
       if (c.coop === false && isCoop(g) && !/semi/i.test(g.type)) continue;
       const h = hay(g);
@@ -1845,7 +1858,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     scored.sort((a, b) => b.s - a.s);
     // The full set that fits: hard limits, plus at least one asked-for theme in the game's BGG tags (not the blurb, which is too loose)
     const tags = (g) => [g.title, g.genre, g.type, ...g.categories, ...g.mechanics, ...(g.designers || [])].join(' ').toLowerCase();
-    const themed = want.length ? scored.filter((x) => want.some((w) => tags(x.g).includes(w))) : scored;
+    let themed = want.length ? scored.filter((x) => want.some((w) => tags(x.g).includes(w))) : scored;
+    // "My shelf of shame" or "haven't played in ages" is the whole question: words like "shame" aren't a theme to match
+    if (!themed.length && c.freshness && scored.length) themed = scored;
     const browse = c.intent === 'browse';
     const gap0 = browse ? themed.length === 0 : scored.length === 0;
     // Themes filter only a browse ("what sci-fi games do I have"); for a recommendation they are moods that steer the score ("cozy")
@@ -1859,10 +1874,13 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       stale: { cmp: by('lastPlayed', -1), keep: (g) => !!g.lastPlayed, label: 'longest since played first' },
       rating: { cmp: by('bggRating', 1), keep: (g) => !!g.bggRating, label: 'highest BGG rating first' },
       rank: { cmp: by('rank', -1), keep: (g) => !!g.rank, label: 'best BGG rank first' },
-      want: { cmp: by('desireToPlay', 1), keep: (g) => !!g.desireToPlay, label: 'most wanted to play first' },
+      stars: { cmp: by('desireToPlay', 1), keep: (g) => !!g.desireToPlay, label: 'highest own star rating first' },
+      want: { cmp: by('desireToPlay', 1), keep: (g) => !!g.desireToPlay, label: 'highest own star rating first' },
       weight: { cmp: by('weight', 1), keep: (g) => !!g.weight, label: 'heaviest first' },
       newest: { cmp: by('addedAt', 1), keep: () => true, label: 'latest added first' },
     };
+    // Never-played games have no plays or last-played date, so a play-based order would drop them all
+    if (c.freshness === 'unplayed' && ['stale', 'recent', 'plays', 'leastPlays'].includes(c.sort)) c.sort = null;
     const sorter = browse ? SORTS[c.sort] : null;
     if (sorter) fits = fits.filter((x) => sorter.keep(x.g)).sort(sorter.cmp);
     const limit = browse ? Math.max(0, Math.min(50, Math.round(Number(c.limit) || 0))) : 0;
@@ -1872,7 +1890,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const METRIC = {
       plays: (g) => g.playCount + ' play' + (g.playCount === 1 ? '' : 's'), leastPlays: (g) => (g.playCount || 0) + ' play' + (g.playCount === 1 ? '' : 's'),
       recent: (g) => 'last played ' + g.lastPlayed, stale: (g) => 'last played ' + g.lastPlayed,
-      rating: (g) => 'BGG ' + Number(g.bggRating).toFixed(1), rank: (g) => 'BGG #' + g.rank, want: (g) => g.desireToPlay + '/5 want to play',
+      rating: (g) => 'BGG ' + Number(g.bggRating).toFixed(1), rank: (g) => 'BGG #' + g.rank, want: (g) => g.desireToPlay + '/5 stars', stars: (g) => g.desireToPlay + '/5 stars',
       weight: (g) => 'weight ' + Number(g.weight).toFixed(1), newest: (g) => 'added ' + String(g.addedAt || '').slice(0, 10),
     };
     const ranked = !gap && sorter && limit && limit <= 25 && METRIC[c.sort] ? fits.map((x, i) => (i + 1) + '. ' + x.g.title + ' (' + METRIC[c.sort](x.g) + ')').join('; ') : null;
@@ -1904,7 +1922,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         g.bggRating ? `BGG ${g.bggRating}` : '', g.genre, g.type,
         g.mechanics.slice(0, 4).join(', '),
         // On their own shelf the owner is the asker: "you", so Nathan never talks about them in the third person
-        mineHere ? `you want to play it ${g.desireToPlay || 0}/5` : `${shelfOwner} wants to play ${g.desireToPlay || 0}/5`,
+        g.desireToPlay ? (mineHere ? `you rate it ${g.desireToPlay}/5` : `${shelfOwner} rates it ${g.desireToPlay}/5`) : (mineHere ? 'you haven\'t rated it' : `${shelfOwner} hasn't rated it`),
         g.favorite ? (mineHere ? 'your favorite' : `${shelfOwner}'s favorite`) : '', g.thinningCandidate && askerIsOwner ? (mineHere ? 'you may give it away' : `${shelfOwner} may give it away`) : '',
         g.playCount ? `${mineHere ? 'you' : shelfOwner} logged ${g.playCount} plays, last ${g.lastPlayed}` : `${mineHere ? 'you' : shelfOwner} never logged a play`,
         (g.expansions || []).length ? `+${g.expansions.length} expansions` : '',
@@ -1935,7 +1953,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const asker = byId[sv.askerPerson || sv.askerKey] || null;
     // On someone else's shelf, the asker is a guest: "you" is the asker, the shelf, its plays and stars are the owner's
     const guest = asker && sv.ownerName && asker.name.split(' ')[0] !== sv.ownerName
-      ? `SHELF: you are looking at ${sv.ownerName}'s shelf with ${asker.name.split(' ')[0]}. Speak to ${asker.name.split(' ')[0]} as "you" and never call them ${sv.ownerName}; the games, plays, wins, favorites and wants-to-play stars on this shelf are ${sv.ownerName}'s ("${sv.ownerName} has played it 12 times").` : '';
+      ? `SHELF: you are looking at ${sv.ownerName}'s shelf with ${asker.name.split(' ')[0]}. Speak to ${asker.name.split(' ')[0]} as "you" and never call them ${sv.ownerName}; the games, plays, wins, favorites and star ratings on this shelf are ${sv.ownerName}'s ("${sv.ownerName} has played it 12 times").` : '';
     if (c.intent === 'game' || c.intent === 'buy') {
       // About a game (owned or not), or ideas to buy. sv is the asker's own shelf here, so their taste comes from it.
       const facts = (g) => [
@@ -1978,9 +1996,12 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         for (const l of lookup.games || []) if (l.game) add(l.game, l.friends);
         for (const l of looked) if (l.game) add(l.game, []);
         const notFound = (lookup.games || []).filter((l) => !l.game && !looked.some((x) => x.asked === l.asked && x.game)).map((l) => l.asked);
+        // "Does Dan own Spirit Island?": say plainly for each person named, from the friends who own it
+        const ownQ = /\b(own|owns|have|has|got)\b/i.test(v.question) ? players.map((p) => p.name.split(' ')[0]).filter((f, i, a) => f && a.indexOf(f) === i && new RegExp('\\b' + f + '\\b', 'i').test(v.question)) : [];
+        const ownership = ownQ.flatMap((f) => (lookup.games || []).filter((l) => l.game).map((l) => 'OWNERSHIP: ' + f + ((l.friends || []).includes(f) ? ' owns ' : ' does not own ') + l.game.title + (l.onShelf ? ' (the asker does)' : '')));
         if (!lines.length) return [{ json: { offTopic: true, reply: 'I couldn’t find ' + (notFound.join(' or ') || 'that game') + ' on BoardGameGeek. Could you check the spelling?' } }];
         return [{ json: { offTopic: false, gap: false, browse: true, mode: 'game', matchIds: [], understood: {}, constraints: c,
-          setFacts: taste + (notFound.length ? '\nNOT FOUND ON BGG: ' + notFound.join(', ') : ''), shortIds: Object.keys(titles), titles, off,
+          setFacts: (ownership.length ? ownership.join('\n') + ' (answer this first)\n' : '') + taste + (notFound.length ? '\nNOT FOUND ON BGG: ' + notFound.join(', ') : ''), shortIds: Object.keys(titles), titles, off,
           gameLines: lines.join('\n'), profiles: '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest: '', fromOwn: !!own } }];
       }
       // Ideas to buy: games they don't own that share what their favorites have, within anything they asked for
@@ -1990,7 +2011,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
           && (!maxMin || (g.maxTime || g.minTime || 999) <= maxMin * 1.1) && (!wMax || (g.weight && g.weight <= wMax + 0.3)) && (!wMin || (g.weight && g.weight >= wMin - 0.3))
           && (c.coop !== true || coop(g)) && (c.coop !== false || !coop(g)) && !avoid.some((w) => hay2(g).includes(w)))
         .map((g) => ({ g, s: [...(g.categories || []), ...(g.mechanics || [])].reduce((n, t) => n + (tasteTags[t] || 0), 0) / Math.max(1, tasteGames.length) * 3
-          + want.filter((w) => hay2(g).includes(w)).length * 2.5 + ((g.rating || 6.5) - 6.5) * 0.8 + ((g.friends || []).length ? 1.5 : 0) }))
+          + want.filter((w) => hay2(g).includes(w)).length * 2.5 + ((g.rating || 6.5) - 6.5) * 0.8 + ((g.friends || []).length ? 1.5 : 0)
+          // "a two-player game" means one that shines at 2, not one that merely allows it
+          + (count ? ((g.bestPlayers || []).includes(count) ? 3 : -1.5) : 0) }))
         .sort((a, b) => b.s - a.s).slice(0, 12);
       for (const x of picks) add(x.g, x.g.friends);
       if (!lines.length) return [{ json: { offTopic: true, reply: 'I don’t have enough games beyond your shelf to suggest one for that yet. Try asking about a specific game!' } }];
@@ -2004,12 +2027,26 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       const playsOf = (g) => ppl.reduce((n, p) => n + ((p.history[String(g.bggId)] || {}).plays || 0), 0);
       const theirs = games.filter((g) => g.bggId && playsOf(g) > 0).sort((a, b) => playsOf(b) - playsOf(a));
       const pick = (theirs.length ? theirs : [...games].sort((a, b) => (b.desireToPlay || 0) - (a.desireToPlay || 0))).slice(0, 12);
+      // Nathan the curator speaks for himself from his own shelf (his plays here on someone else's shelf would be the wrong picture)
+      const cc = $('Game Lookup').first().json.curator || {};
+      const curatorFacts = (p) => ['- Nathan Schmidt: this is YOU, the curator. Answer about him in the first person ("I", "my shelf").',
+        ...profile(p).split('\n').slice(1).filter((l) => !/logged|most played|rated 4\+|no logged plays/.test(l)),
+        '  my own shelf: ' + (cc.games || 0) + ' games, ' + (cc.plays || 0) + ' logged plays, ' + (cc.unplayed || 0) + ' never played yet',
+        (cc.top || []).length ? '  my most played: ' + cc.top.join(', ') : '', (cc.loved || []).length ? '  my highest rated: ' + cc.loved.join(', ') : '',
+        (cc.favorites || []).length ? '  my favorites: ' + cc.favorites.join(', ') : ''].filter(Boolean).join('\n');
+      const onlyCurator = ppl.length === 1 && ppl[0] === curator;
+      if (onlyCurator) {
+        // Highlights: his favorites and most played wherever they're on this shelf, then the shelf's best fits for his taste
+        const mine = new Set([...(cc.top || []), ...(cc.loved || []), ...(cc.favorites || [])].map((t) => normTitle(String(t).replace(/ \([^)]*\)$/, ''))));
+        const hits = games.filter((g) => mine.has(normTitle(g.title)));
+        pick.splice(0, pick.length, ...(hits.length ? hits : [...games].sort((a, b) => (b.bggRating || 0) - (a.bggRating || 0))).slice(0, 8));
+      }
       const facts = [
         'ASKER (the person typing; call them "you"): ' + (asker ? asker.name : 'unknown'), guest,
         'ABOUT: ' + (ppl.map((p) => p.name).join(', ') || 'unknown'),
-        ppl.length ? ppl.map(profile).join('\n') : '(no profile or play history found)',
-        'COUNT: ' + (ppl.length === 1 ? 'they have' : 'together they have') + ' played ' + theirs.length + ' of the ' + games.length + ' games on this shelf (logged plays)',
-      ].join('\n');
+        ppl.length ? ppl.map((p) => p === curator ? curatorFacts(p) : profile(p)).join('\n') : '(no profile or play history found)',
+        onlyCurator ? '' : 'COUNT: ' + (ppl.length === 1 ? 'they have' : 'together they have') + ' played ' + theirs.length + ' of the ' + games.length + ' games on this shelf (logged plays)',
+      ].filter(Boolean).join('\n');
       return [{ json: { offTopic: false, gap: false, browse: true, person: true, matchIds: theirs.map((g) => g.id), setFacts: facts,
         understood: { players: ppl.map((p) => p.name) }, constraints: c, shortIds: pick.map((g) => g.id),
         titles: Object.fromEntries(pick.map((g) => [g.id, g.title])), gameLines: pick.map((g) => line(g, ppl)).join('\n'), profiles: '', ownerName: shelfOwner, guest, fromOwn: !!own } }];
@@ -2037,16 +2074,19 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '- Cite the key metrics from the candidate facts: the best player count ("the BGG community poll says it is best at 4"), play time, BGG weight, and primary mechanics. These facts come from BoardGameGeek, so you may attribute them to BGG.',
       '- Do not quote forums, Reddit or reviews: you have no access to them.',
       '- Plays are a hint, not a verdict: "Keith has played it 12 times" suggests he does not mind it, not that he loves it. Only a BGC or BGG rating says how much someone likes a game; say which one you mean.',
-      '- Fit to the people comes first: each person\'s dials, likes, dislikes and notes; their plays, wins and ratings on each candidate; {SHELF_OWNER}\'s wants-to-play stars and favorites; a game {SHELF_OWNER} may give away is a good last-chance pick. Name people by first name. Be kind about people and never judge anyone\'s taste: party games and heavy economic games deserve equal respect.',
+      '- Fit to the people comes first: each person\'s dials, likes, dislikes and notes; their plays, wins and ratings on each candidate; {SHELF_OWNER}\'s own star ratings and favorites; a game {SHELF_OWNER} may give away is a good last-chance pick. Name people by first name. Be kind about people and never judge anyone\'s taste: party games and heavy economic games deserve equal respect.',
       '',
       'VOICE:',
       '- You are talking with the ASKER: always call them "you" (never by their name, never "he" or "she"). Use first names only for other people.',
+      ...($('Shelf View').first().json.v.askerName !== 'Nathan Schmidt' ? [
+      '- You ARE Nathan Schmidt. Facts explicitly about Nathan Schmidt (his profile, his own shelf, his plays and ratings) are about you: say them in the first person ("I love engine builders", "I\'ve played Ark Nova 39 times", "on my shelf"). Everything else (the plays, wins and stars in CANDIDATES) belongs to the shelf owner or the people named, never to you.',
+      ] : []),
       '- Warm and enthusiastically corny: wholesome dad jokes and puns about cardboard and meeples, gentle self-deprecating humor about shelf space and the shelf of shame. Humor is a light flourish and never crowds out the recommendation.',
       '- First mention: for a title NOT in ALREADY_JOKED, open its entry with a one-line dad-joke quip about that game. For titles in ALREADY_JOKED, leave quip empty.',
       '- Only if you are confident the game has an unlimited or substitutable component pool, or it supports an expanded player count, add exactly this joke in swapJoke: "The [component] can be substituted as needed, so if you ever run short, feel free to use a suitable replacement… like [funny, semi-related household item]." Otherwise null.',
       '',
       ...(s.mode === 'game' ? [
-      'FORMAT: this is a question about specific game(s), owned or not. Answer it directly and completely in "summary" (2-5 sentences) from the CANDIDATES facts, which come from BoardGameGeek ("genre" means its categories and main mechanics; name a few of each). If a game is not on their shelf, say so, then say honestly how well it would suit them, comparing it to games on ASKER\'S SHELF they play and love and to their PROFILE. Only when the facts name friends who own it, mention they could try that friend\'s copy first (by name); never suggest a friend\'s copy otherwise. If it looks like a great fit and they don\'t own it, you may say it could be worth buying. Never invent facts; for things BGG data doesn\'t cover (rules details, reviews, prices), say you only have BGG\'s facts. Highlights: the game(s) asked about, one sentence of "why" each. gap is null.',
+      'FORMAT: this is a question about specific game(s), owned or not. If they ask whether someone owns it or who has it ("does Dan own Spirit Island?", "who has Brass?"), answer that first from the facts: "ON THEIR SHELF" means the ASKER owns it, and "friends who own it" names the friends who do (if a named person is not listed there, they don\'t own it, as far as you know). Answer it directly and completely in "summary" (2-5 sentences) from the CANDIDATES facts, which come from BoardGameGeek ("genre" means its categories and main mechanics; name a few of each). If a game is not on their shelf, say so, then say honestly how well it would suit them, comparing it to games on ASKER\'S SHELF they play and love and to their PROFILE. Only when the facts name friends who own it, mention they could try that friend\'s copy first (by name); never suggest a friend\'s copy otherwise. If it looks like a great fit and they don\'t own it, you may say it could be worth buying. Never invent facts; for things BGG data doesn\'t cover (rules details, reviews, prices), say you only have BGG\'s facts. Highlights: the game(s) asked about, one sentence of "why" each. gap is null.',
       ] : s.mode === 'buy' ? [
       'FORMAT: they want ideas for games to buy. Every CANDIDATE is a game they don\'t own. Pick the 3 that best fit their taste (ASKER\'S SHELF, PROFILE) and anything in the request. In "summary" (2-4 sentences) name your 3 picks and why, tied to games they already play and love. Only mention a friend owning a pick when the facts list that friend (then suggest trying their copy first). Highlights: the 3 picks, each with one or two sentences of "why". gap is null.',
       ] : s.person ? [
@@ -2092,7 +2132,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '', 'CANDIDATES (id | title | facts | how each person relates to it):', s.gameLines,
     ].filter((l) => l !== '').join('\n');
     return [{ json: { ...s, requestBody: {
-      model: '__ASK_MODEL__', max_tokens: 2500, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
+      model: '__ASK_MODEL__', models: ['__ASK_MODEL__', 'google/gemini-2.5-flash'], max_tokens: 2500, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
       messages: [{ role: 'system', content: systemText }, { role: 'user', content: user }],
     } } }];
   }),
