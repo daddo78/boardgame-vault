@@ -1622,6 +1622,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       question: String(b.previous.question || '').slice(0, 500),
       constraints: b.previous.constraints && typeof b.previous.constraints === 'object' ? b.previous.constraints : null,
       pickIds: Array.isArray(b.previous.pickIds) ? b.previous.pickIds.map(String).slice(0, 6) : [],
+      setIds: Array.isArray(b.previous.setIds) ? b.previous.setIds.map(String).filter((x) => x.length < 40).slice(0, 60) : [],
+      fromOwn: b.previous.fromOwn === true,
     } : null;
     const mentioned = Array.isArray(b.mentioned) ? b.mentioned.map(String).filter((x) => x.length < 40).slice(0, 100) : [];
     const auth = $input.first().json._auth;
@@ -1681,12 +1683,13 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '  "excludeIds": []',
       '}',
       'If PREVIOUS is given, this is a follow-up ("shorter", "something else"): start from its constraints and change only what the new message changes. Only when they want different games ("something else", "another one") put the previous picks in excludeIds; when they narrow it down ("which of those are quick") keep excludeIds empty.',
+      'Also add "fromPrevious": true when the new message is about the games in the PREVIOUS answer ("those", "these", "of them", "which one", "the first one", "out of my top ten", "of those, which is heaviest"), else false.',
       '',
       'ROSTER (id | name):', roster || '(none)',
       askerId ? 'ASKER (the person typing): ' + askerId + ' | ' + (askerName || 'unknown') : '',
       'SHELF OPEN: ' + (sv.ownerName || '__OWNER_NAME__') + '\'s' + (sv.shelf === 'mine' || (sv.shelf === 'main' && $('Auth: Role').first().json._auth.role === 'owner') ? ' (the asker\'s own)' : ' (not the asker\'s)'),
       selected.length ? `Already selected as playing: ${selected.join(', ')}` : '',
-      v.previous ? 'PREVIOUS: ' + JSON.stringify(v.previous) : '',
+      v.previous ? 'PREVIOUS: ' + JSON.stringify({ question: v.previous.question, constraints: v.previous.constraints }) + ' (its answer had ' + (v.previous.setIds || []).length + ' games)' : '',
       '',
       'REQUEST: ' + v.question,
     ].filter((l) => l !== '').join('\n');
@@ -1712,7 +1715,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     // A question about a game or what to buy is about the asker: their shelf and taste, wherever they are
     const forMe = c.intent === 'game' || c.intent === 'buy';
     const titles = c.intent === 'game' && Array.isArray(c.games) ? c.games.map((t) => String(t).trim()).filter(Boolean).slice(0, 3) : [];
-    return [{ json: { useOwn: !onOwn && (forMe || (!aboutOpen && (/"scope"\s*:\s*"mine"/.test(text) || aboutMine))), titles, buy: c.intent === 'buy' } }];
+    const prev = $('Validate').first().json.previous;
+    const followsOwn = !!(prev && prev.fromOwn && (prev.setIds || []).length); // "which of those…" after an answer from their own shelf
+    return [{ json: { useOwn: !onOwn && (forMe || followsOwn || (!aboutOpen && (/"scope"\s*:\s*"mine"/.test(text) || aboutMine))), titles, buy: c.intent === 'buy' } }];
   }),
   pg('Own Shelf', 'SELECT CASE WHEN $2::boolean THEN bgc.shelf_view($1, \'mine\', NULL) END AS own',
     "={{ [$('Validate').first().json.email, String($json.useOwn)] }}"),
@@ -1768,7 +1773,11 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const open = $('Shelf View').first().json.v;
     const own = $('Own Shelf').first().json.own || null;
     const sv = own || open; // the shelf this answer is about
-    const games = (sv.games || []).map(toGame);
+    // A follow-up about the last answer ("which of those are co-op?") works within that answer's games
+    const prevSet = new Set((v.previous && v.previous.setIds) || []);
+    const narrow = prevSet.size > 0 && c.intent !== 'game' && c.intent !== 'buy'
+      && (c.fromPrevious === true || /\b(those|these|them|that list|which one|the first|the last|out of (my|the|those|these))\b/i.test(v.question));
+    const games = (sv.games || []).map(toGame).filter((g) => !narrow || prevSet.has(g.id));
     const players = (sv.players || []).map(toPlayer);
     const ratings = (sv.ratings || []).map(toRating);
     const byId = Object.fromEntries(players.map((p) => [p.id, p]));
@@ -1874,15 +1883,19 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const set = fits.map((x) => x.g);
     const weights = set.map((g) => g.weight).filter(Boolean);
     const setFacts = gap ? '' : [
-      'COUNT: ' + set.length + ' of ' + games.length + ' games on the shelf match everything asked, including any limits like time or players (say it naturally, never mention matching, e.g. "17 sci-fi games under an hour")',
-      weights.length ? 'weights: ' + weights.filter((w) => w < 2).length + ' light (<2), ' + weights.filter((w) => w >= 2 && w < 3).length + ' medium, ' + weights.filter((w) => w >= 3).length + ' heavy (3+)' : '',
-      'played: ' + set.filter((g) => g.playCount).length + ', never played: ' + set.filter((g) => !g.playCount).length + ', favorites: ' + set.filter((g) => g.favorite).length,
-      'top categories: ' + tally(set.flatMap((g) => g.categories)),
-      'top mechanics: ' + tally(set.flatMap((g) => g.mechanics)),
+      set.length === 1 ? 'THE ANSWER: ' + set[0].title + ' (lead with it; no need to count)' : 'COUNT: ' + set.length + ' of ' + games.length + (narrow ? ' games in the previous answer' : ' games on the shelf') + ' match everything asked, including any limits like time or players (say it naturally, never mention matching, e.g. "17 sci-fi games under an hour")',
+      weights.length > 1 ? 'weights: ' + weights.filter((w) => w < 2).length + ' light (<2), ' + weights.filter((w) => w >= 2 && w < 3).length + ' medium, ' + weights.filter((w) => w >= 3).length + ' heavy (3+)' : '',
+      set.length < 2 ? '' : 'played: ' + set.filter((g) => g.playCount).length + ', never played: ' + set.filter((g) => !g.playCount).length + ', favorites: ' + set.filter((g) => g.favorite).length,
+      set.length < 2 ? '' : 'top categories: ' + tally(set.flatMap((g) => g.categories)),
+      set.length < 2 ? '' : 'top mechanics: ' + tally(set.flatMap((g) => g.mechanics)),
       sorter ? 'ORDER: the CANDIDATES are ranked, ' + sorter.label + (limit ? ', top ' + limit : '') : '',
+      // A follow-up picks from the last answer: show that whole set (in the order asked), so "the heaviest" can be put in context
+      narrow && sorter && METRIC[c.sort] ? 'ALL ' + games.length + ' GAMES FROM THE PREVIOUS ANSWER, ' + sorter.label + ': ' +
+        games.filter((g) => sorter.keep(g)).map((g) => ({ g })).sort(sorter.cmp).map((x) => x.g.title + ' (' + METRIC[c.sort](x.g) + ')').join('; ') : '',
     ].filter(Boolean).join('\n');
     const shelfOwner = sv.ownerName || '__OWNER_NAME__';
     const askerIsOwner = sv.shelf === 'mine' || $('Auth: Role').first().json._auth.role === 'owner';
+    const mineHere = sv.shelf === 'mine' || (sv.shelf === 'main' && $('Auth: Role').first().json._auth.role === 'owner'); // the asker's own shelf
     const line = (g, ppl = group) => {
       const facts = [
         g.minPlayers ? `${g.minPlayers}-${g.maxPlayers}p` + (g.bestPlayers.length ? ` best ${g.bestPlayers.join('/')}` : '') : '',
@@ -1890,8 +1903,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         g.weight ? `weight ${Number(g.weight).toFixed(1)}` : '', g.minAge ? `age ${g.minAge}+` : '',
         g.bggRating ? `BGG ${g.bggRating}` : '', g.genre, g.type,
         g.mechanics.slice(0, 4).join(', '),
-        `${shelfOwner} wants to play ${g.desireToPlay || 0}/5`, g.favorite ? `${shelfOwner}'s favorite` : '', g.thinningCandidate && askerIsOwner ? `${shelfOwner} may give it away` : '',
-        g.playCount ? `${shelfOwner} logged ${g.playCount} plays, last ${g.lastPlayed}` : `${shelfOwner} never logged a play`,
+        // On their own shelf the owner is the asker: "you", so Nathan never talks about them in the third person
+        mineHere ? `you want to play it ${g.desireToPlay || 0}/5` : `${shelfOwner} wants to play ${g.desireToPlay || 0}/5`,
+        g.favorite ? (mineHere ? 'your favorite' : `${shelfOwner}'s favorite`) : '', g.thinningCandidate && askerIsOwner ? (mineHere ? 'you may give it away' : `${shelfOwner} may give it away`) : '',
+        g.playCount ? `${mineHere ? 'you' : shelfOwner} logged ${g.playCount} plays, last ${g.lastPlayed}` : `${mineHere ? 'you' : shelfOwner} never logged a play`,
         (g.expansions || []).length ? `+${g.expansions.length} expansions` : '',
       ].filter(Boolean).join('; ');
       const people = ppl.map((p) => {

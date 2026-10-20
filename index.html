@@ -2571,7 +2571,8 @@
         const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], shelf: currentShelf() }) });
         if (r.pick || (r.highlights || []).length) {
-          askLast = { question, constraints: r.constraints, pickIds: r.pickIds };
+          // The whole answer (all ten of a top ten), so "which of those…" narrows it instead of starting over
+          askLast = { question, constraints: r.constraints, pickIds: r.pickIds, setIds: (r.matchIds && r.matchIds.length ? r.matchIds : r.pickIds || []).slice(0, 60), fromOwn: !!r.fromOwn };
           rememberJoked(r.pickIds || []);
         }
         turn.querySelector('.np-body').innerHTML = nathanAnswerHtml(r);

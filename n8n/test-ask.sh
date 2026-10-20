@@ -22,7 +22,7 @@ for (const k of Object.keys(w.connections)) if (drop(k)) delete w.connections[k]
 const wh = w.nodes.find((n) => n.name === 'Webhook');
 Object.assign(wh, { type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, parameters: {} }); delete wh.webhookId;
 const roleNode = w.nodes.find((n) => n.name === 'Auth: Role');
-roleNode.parameters = { jsCode: `return [{ json: { body: { question: ${JSON.stringify(q)}, playerIds: [], shelf: ${JSON.stringify(shelf)} }, _authOk: true, _auth: { role: ${JSON.stringify(role)}, email: ${JSON.stringify(email)}, playerId: $('Who').first().json.playerId, playerName: $('Who').first().json.playerName } } }];` };
+roleNode.parameters = { jsCode: `return [{ json: { body: { question: ${JSON.stringify(q)}, playerIds: [], shelf: ${JSON.stringify(shelf)}, previous: ${process.env.PREV || "null"} }, _authOk: true, _auth: { role: ${JSON.stringify(role)}, email: ${JSON.stringify(email)}, playerId: $('Who').first().json.playerId, playerName: $('Who').first().json.playerName } } }];` };
 // Look up the member's player card the same way sign-in does
 w.nodes.push({ id: 'who', name: 'Who', type: 'n8n-nodes-base.postgres', typeVersion: 2.6, position: [0, 200],
   parameters: { operation: 'executeQuery', options: {},
