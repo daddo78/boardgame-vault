@@ -2241,9 +2241,8 @@
     function renderPlayers() {
       const body = document.getElementById('playersBody');
       if (editing) { body.innerHTML = playerFormHtml(editing); return; }
-      body.innerHTML = '<p class="hint" style="margin-top:0;">People who’ve played 3+ logged games are added automatically each night. Active players show first when asking Nathan.</p>' +
-        '<button class="btn primary" type="button" id="addPlayerBtn" style="margin-top:0.4rem;"><i class="ti ti-plus"></i> Add player</button>' +
-        '<div class="pl-list">' + adminPlayers.map(p => '<button type="button" class="pl-row" data-edit-player="' + esc(p.id) + '">' +
+      body.innerHTML = '<p class="hint" style="margin-top:0;">People who’ve played 3+ logged games with you are added automatically each night. Friends you connect with by code are known to Nathan too. Active players show first when asking Nathan.</p>' +
+                '<div class="pl-list">' + adminPlayers.map(p => '<button type="button" class="pl-row" data-edit-player="' + esc(p.id) + '">' +
           '<span class="dot' + (p.active ? ' on' : '') + '" title="' + (p.active ? 'Active' : 'Inactive') + '"></span>' +
           '<span class="n">' + esc(p.name) + '</span>' +
           (p.googleEmail ? '<span class="pl-badge" title="Can sign in and rate">Google</span>' : '') +
@@ -2264,7 +2263,6 @@
     document.getElementById('openPlayersBtn').addEventListener('click', openPlayers);
     document.getElementById('playersClose').addEventListener('click', () => playersModal.classList.remove('open'));
     document.getElementById('playersBody').addEventListener('click', (e) => {
-      if (e.target.closest('#addPlayerBtn')) { editing = { name: '', aliases: [], active: true }; renderPlayers(); return; }
       const row = e.target.closest('[data-edit-player]');
       if (row) { editing = { ...adminPlayers.find(p => p.id === row.dataset.editPlayer) }; renderPlayers(); playersModal.querySelector('.modal').scrollTop = 0; return; }
       if (e.target.closest('#playerBack')) { editing = null; renderPlayers(); return; }
@@ -2485,8 +2483,10 @@
         (r.gap.consider ? ' Not on your shelf, but worth a look: <a href="https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=' + encodeURIComponent(r.gap.consider) + '" target="_blank" rel="noopener">' + esc(r.gap.consider) + '</a>.' : '') + '</div>' : '';
       const n = (r.matchIds || []).length;
       let seeAll = '';
-      if (n && n < collection.length && (n > 1 || r.intent === 'browse')) {
-        nathanSets.push({ ids: orderedIds(r), shelf: currentShelf() });
+      // An answer about your own shelf ("my top ten" asked from someone else's) opens your shelf
+      const answerShelf = r.fromOwn ? (isOwner() ? 'main' : 'mine') : currentShelf();
+      if (n && (r.fromOwn || n < collection.length) && (n > 1 || r.intent === 'browse')) {
+        nathanSets.push({ ids: orderedIds(r), shelf: answerShelf });
         seeAll = '<button type="button" class="n-seeall" data-see-all="' + (nathanSets.length - 1) + '"><i class="ti ti-layout-grid"></i> ' + (n === 1 ? 'See it in the library' : 'See all ' + n + ' games') + '</button>';
       }
       // What Nathan understood and the "See all" button share the first row, so the filter is one click away without opening the chat

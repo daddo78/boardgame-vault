@@ -1664,6 +1664,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '  "youngestAge": age of the youngest player if stated, else null,',
       '  "weight": {"min": 1-5, "max": 1-5} complexity if they hint at it ("light" max 2.2, "brain burner" min 3.2), else null,',
       '  "coop": true for cooperative only, false for competitive only, null if either,',
+      '  "scope": "mine" if they ask about the ASKER\'s own games, collection, shelf or plays ("my top ten most played", "do I own Azul", "what have I played most", "my co-ops") rather than the SHELF OPEN; "here" if about the open shelf ("on this shelf", "here", "Matt\'s games") or when unsure. If the SHELF OPEN is the asker\'s own, use "here",',
       '  "themes": ["genres, themes or mechanisms they want, as BoardGameGeek category or mechanic words plus common synonyms, e.g. sci-fi: science fiction, space exploration; dice: dice rolling; worker placement. Also any game titles or designer names they name, as written. Leave empty for a plain ranking like most played"],',
       '  "avoid": ["themes, mechanisms or titles to avoid"],',
       '  "freshness": "unplayed" | "stale" (not played in a long time) | "favorite" | null,',
@@ -1674,6 +1675,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '',
       'ROSTER (id | name):', roster || '(none)',
       askerId ? 'ASKER (the person typing): ' + askerId + ' | ' + (askerName || 'unknown') : '',
+      'SHELF OPEN: ' + (sv.ownerName || '__OWNER_NAME__') + '\'s' + (sv.shelf === 'mine' || (sv.shelf === 'main' && $('Auth: Role').first().json._auth.role === 'owner') ? ' (the asker\'s own)' : ' (not the asker\'s)'),
       selected.length ? `Already selected as playing: ${selected.join(', ')}` : '',
       v.previous ? 'PREVIOUS: ' + JSON.stringify(v.previous) : '',
       '',
@@ -1685,17 +1687,39 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     } } }];
   }),
   openrouter('Understand Request'),
+  // "My top ten" while looking at someone else's shelf: answer from the asker's own shelf instead
+  code('Scope', function () {
+    const text = $input.first().json.choices?.[0]?.message?.content || '';
+    const sv = $('Shelf View').first().json.v;
+    const onOwn = sv.shelf === 'mine' || (sv.shelf === 'main' && $('Auth: Role').first().json._auth.role === 'owner');
+    // The model's call, backed by the words: "my games", "do I own", "have I played" are about the asker's own shelf,
+    // unless the question names the open shelf ("here", "this shelf", "Matt's")
+    const q = String($('Validate').first().json.question || '');
+    const first = String(sv.ownerName || '').toLowerCase();
+    const aboutMine = /\b(my|mine)\b|\b(do|did) i (own|have)\b|\bi(?:'ve|’ve| have)? (played|own|got)\b/i.test(q);
+    const aboutOpen = /\b(here|this shelf|this collection|on (his|her|their) shelf)\b/i.test(q) || (first && q.toLowerCase().includes(first));
+    return [{ json: { useOwn: !onOwn && !aboutOpen && (/"scope"\s*:\s*"mine"/.test(text) || aboutMine) } }];
+  }),
+  pg('Own Shelf', 'SELECT CASE WHEN $2::boolean THEN bgc.shelf_view($1, \'mine\', NULL) END AS own',
+    "={{ [$('Validate').first().json.email, String($json.useOwn)] }}"),
   code('Shortlist', function () {
     const v = $('Validate').first().json;
-    const text = $input.first().json.choices?.[0]?.message?.content || '';
+    const text = $('Understand Request').first().json.choices?.[0]?.message?.content || '';
     let c = {};
     try { c = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
     if (c.onTopic === false) return [{ json: { offTopic: true, reply: String(c.reply || 'I can only help pick board games from this shelf.') } }];
-    const games = $('List Games').all().flatMap((i) => i.json.records || []).map(toGame);
-    const players = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer);
-    const ratings = $('List Ratings').all().flatMap((i) => i.json.records || []).map(toRating);
+    const open = $('Shelf View').first().json.v;
+    const own = $('Own Shelf').first().json.own || null;
+    const sv = own || open; // the shelf this answer is about
+    const games = (sv.games || []).map(toGame);
+    const players = (sv.players || []).map(toPlayer);
+    const ratings = (sv.ratings || []).map(toRating);
     const byId = Object.fromEntries(players.map((p) => [p.id, p]));
-    const group = [...new Set([...(v.playerIds || []), ...(Array.isArray(c.playerIds) ? c.playerIds : [])])].map((id) => byId[id]).filter(Boolean);
+    // People picked from the open shelf's list, found on the asker's shelf by name when the answer comes from there
+    const openNames = Object.fromEntries((open.players || []).map(toPlayer).map((p) => [p.id, p.name.toLowerCase()]));
+    const byName = Object.fromEntries(players.map((p) => [p.name.toLowerCase(), p]));
+    const group = [...new Set([...(v.playerIds || []), ...(Array.isArray(c.playerIds) ? c.playerIds : [])])]
+      .map((id) => byId[id] || (own && openNames[id] ? byName[openNames[id]] : null)).filter(Boolean);
     const count = c.intent === 'browse' ? (Number(c.playerCount) || null)
       : Math.max(Number(c.playerCount) || 0, group.length + (Number(c.unknownPeople) || 0)) || null;
     const ages = [Number(c.youngestAge) || null, ...group.map((p) => p.age)].filter((a) => a > 0);
@@ -1792,7 +1816,6 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'top mechanics: ' + tally(set.flatMap((g) => g.mechanics)),
       sorter ? 'ORDER: the CANDIDATES are ranked, ' + sorter.label + (limit ? ', top ' + limit : '') : '',
     ].filter(Boolean).join('\n');
-    const sv = $('Shelf View').first().json.v;
     const shelfOwner = sv.ownerName || '__OWNER_NAME__';
     const askerIsOwner = sv.shelf === 'mine' || $('Auth: Role').first().json._auth.role === 'owner';
     const line = (g, ppl = group) => {
@@ -1848,14 +1871,14 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       ].join('\n');
       return [{ json: { offTopic: false, gap: false, browse: true, person: true, matchIds: theirs.map((g) => g.id), setFacts: facts,
         understood: { players: ppl.map((p) => p.name) }, constraints: c, shortIds: pick.map((g) => g.id),
-        titles: Object.fromEntries(pick.map((g) => [g.id, g.title])), gameLines: pick.map((g) => line(g, ppl)).join('\n'), profiles: '', ownerName: shelfOwner, guest } }];
+        titles: Object.fromEntries(pick.map((g) => [g.id, g.title])), gameLines: pick.map((g) => line(g, ppl)).join('\n'), profiles: '', ownerName: shelfOwner, guest, fromOwn: !!own } }];
     }
     const understood = { players: group.map((p) => p.name), playerCount: count, maxMinutes: maxMin, youngestAge: youngest,
       weight: c.weight || null, coop: c.coop ?? null, themes: want, avoid, freshness: c.freshness || null, mood: c.mood || '' };
     return [{ json: { offTopic: false, gap, browse, matchIds, setFacts, understood, constraints: c, shortIds: short.map((g) => g.id),
       titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
       gameLines: short.map((g) => line(g)).join('\n'), profiles: group.map(profile).join('\n'),
-      askerProfile: asker && !group.includes(asker) ? profile(asker) : '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest } }];
+      askerProfile: asker && !group.includes(asker) ? profile(asker) : '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest, fromOwn: !!own } }];
   }),
   ifTrue('On Topic?', '={{ !$json.offTopic }}'),
   ifTrue('Any Candidates?', '={{ $json.shortIds.length > 0 }}'),
@@ -1943,7 +1966,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });
       const summary = str(a.summary, 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');
       return [{ json: { ok: true, intent: 'browse', understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
-        matchIds: s.matchIds, signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];
+        matchIds: s.matchIds, fromOwn: !!s.fromOwn, signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];
     }
     let pick = entry(a.pick, true);
     // Model failed or went off-list: fall back to the top of the scored shortlist
@@ -1951,13 +1974,14 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const alternative = entry(a.alternative, true);
     const avoid = entry(a.avoid, false);
     const gap = gapOf();
-    return [{ json: { ok: true, intent: 'recommend', matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap,
+    return [{ json: { ok: true, intent: 'recommend', matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, fromOwn: !!s.fromOwn,
       signoff: str(a.signoff, 200), pickIds: [pick, alternative].filter(Boolean).map((x) => x.id), model: $input.first().json.model || null } }];
   }),
   code('No Candidates', function () {
     const s = $input.first().json;
-    return [{ json: { ok: true, matchIds: [], understood: s.understood, constraints: s.constraints, pick: null, alternative: null, avoid: null,
-      gap: { missing: 'The shelf is empty, so there is nothing to pick from yet.', consider: null }, signoff: '', pickIds: [] } }];
+    return [{ json: { ok: true, fromOwn: !!s.fromOwn, matchIds: [], understood: s.understood, constraints: s.constraints, pick: null, alternative: null, avoid: null,
+      gap: { missing: s.fromOwn ? 'Your shelf doesn’t have any games yet. Add some under My shelf and ask me again!'
+        : (s.ownerName ? s.ownerName + '’s' : 'This') + ' shelf is empty, so there is nothing to pick from yet.', consider: null }, signoff: '', pickIds: [] } }];
   }),
   code('Off Topic', function () {
     return [{ json: { ok: true, offTopic: true, pick: null, note: $input.first().json.reply } }];
@@ -1968,7 +1992,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Use Allowance', 0], ['Valid?', 'Respond Error', 1],
   ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'Shelf View', 0], ['Allowed?', 'Respond Error', 1], ['Shelf View', 'List Games'],
   ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'One More Item'], ['One More Item', 'List Ratings'],
-  ['List Ratings', 'Build Understand Request'], ['Build Understand Request', 'Understand Request'], ['Understand Request', 'Shortlist'],
+  ['List Ratings', 'Build Understand Request'], ['Build Understand Request', 'Understand Request'], ['Understand Request', 'Scope'], ['Scope', 'Own Shelf'], ['Own Shelf', 'Shortlist'],
   ['Shortlist', 'On Topic?'], ['On Topic?', 'Any Candidates?', 0], ['On Topic?', 'Off Topic', 1],
   ['Any Candidates?', 'Build Recommend Request', 0], ['Any Candidates?', 'No Candidates', 1],
   ['Build Recommend Request', 'Recommend'], ['Recommend', 'Check Answer'],

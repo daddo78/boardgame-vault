@@ -45,11 +45,13 @@ fs.rmSync(process.argv[2], { force: true });
 const start = raw.indexOf('{');
 let ex;
 try { ex = JSON.parse(raw.slice(start, raw.lastIndexOf('}') + 1)); } catch (e) { console.log(String(e).slice(0, 300), raw.length, raw.slice(-400)); process.exit(1); }
-const run = (ex.data || ex).resultData.runData;
+const rd = (ex.data || ex).resultData; if (rd.error) console.log('ERROR in ' + (rd.lastNodeExecuted || '?') + ': ' + (rd.error.message || JSON.stringify(rd.error)).slice(0, 400));
+const run = rd.runData;
 const steps = Object.entries(run).map(([n, r]) => [n, r.reduce((t, x) => t + (x.executionTime || 0), 0)]).filter(([, t]) => t >= 50).sort((a, b) => b[1] - a[1]);
 const total = Object.values(run).flat().reduce((t, x) => t + (x.executionTime || 0), 0);
 console.log('TIMING (ms): total ' + total);
 for (const [n, t] of steps) console.log('  ' + String(t).padStart(6) + '  ' + n);
+if (process.env.SHOW) for (const n of process.env.SHOW.split(',')) if (run[n]) console.log(n + ': ' + JSON.stringify(run[n][0].data.main[0].map((i) => i.json.choices ? i.json.choices[0].message.content : i.json)).slice(0, 1500));
 const last = run['Respond OK'] ? run['Respond OK'][0].data.main[0][0].json : null;
 if (last) {
   console.log('\nANSWER: ' + (last.intent || '') + ' matchIds=' + ((last.matchIds || []).length));
