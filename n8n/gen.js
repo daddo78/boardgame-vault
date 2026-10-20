@@ -2144,7 +2144,13 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     try { a = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
     const allowed = new Set(s.shortIds);
     const seen = new Set();
-    const str = (v, n) => String(v || '').trim().slice(0, n);
+    // Nathan talks to the asker as "you": drop their name when he addresses them with it ("Yes, Dan, …", "Good news, Nathan:", "…, Dan.")
+    const askerFirst = String($('Shelf View').first().json.v.askerName || '').split(' ')[0].replace(/[^\p{L}'-]/gu, '');
+    const unname = (t) => !askerFirst ? t : t
+      .replace(new RegExp('(^|[.!?]\\s+)((?:Yes|No|Good news|Great news|Well|So|Okay|Ok|Alright|Hey|Ah|Oh)\\s*)?,?\\s*' + askerFirst + '\\s*[,:]\\s*', 'g'), (m, lead, word) => lead + (word ? word.trim() + ', ' : ''))
+      .replace(new RegExp(',\\s*' + askerFirst + '(?=[.!?,:;])', 'g'), '')
+      .replace(/(^|[.!?]\s+)([a-z])/g, (m, lead, ch) => lead + ch.toUpperCase());
+    const str = (v, n) => unname(String(v || '').trim()).slice(0, n);
     const entry = (x, withFeel) => {
       if (!x || !allowed.has(String(x.id)) || seen.has(String(x.id))) return null;
       seen.add(String(x.id));

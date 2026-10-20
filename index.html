@@ -1718,7 +1718,7 @@
           '<div class="play-panel">' +
             '<div class="big">' + c + '</div>' +
             '<div style="flex:1; min-width:9rem;"><div class="section-label" style="margin:0;">' + (c === 1 ? 'Play' : 'Plays') + '</div>' +
-              '<div class="sub">' + (g.lastPlayed ? 'Last played ' + esc(g.lastPlayed) + ' (' + agoText(g.lastPlayed) + ')' : 'No plays logged on BGG yet') + '</div></div>' +
+              '<div class="sub">' + (g.lastPlayed ? 'Last played ' + esc(g.lastPlayed) + ' (' + agoText(g.lastPlayed) + ')' : viewingFriend() ? esc(firstName(friendShelfName) || 'They') + ' hasn’t logged a play yet' : 'No plays logged yet') + '</div></div>' +
             '<button class="btn primary edit-only" data-logplay="' + esc(g.id) + '"><i class="ti ti-player-play"></i> Log play</button>' +
           '</div>' +
           '<div class="detail-row edit-only">' +
