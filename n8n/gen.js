@@ -1638,10 +1638,12 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   code('List Ratings', function () { return [{ json: { records: $('Shelf View').first().json.v.ratings } }]; }),
   code('Build Understand Request', function () {
     const v = $('Validate').first().json;
-    const askerId = $('Shelf View').first().json.v.askerKey || null;
+    const sv = $('Shelf View').first().json.v;
+    const askerId = sv.askerPerson || sv.askerKey || null;
     const players = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer);
-    const askerName = (players.find((p) => p.id === askerId) || {}).name || v.askerName;
-    const roster = players.filter((p) => p.active || v.playerIds.includes(p.id) || p.id === askerId)
+    const askerName = (players.find((p) => p.id === askerId) || {}).name || sv.askerName || v.askerName;
+    // Regulars on this shelf, anyone @-mentioned, the asker, and the asker's friends (recMember…)
+    const roster = players.filter((p) => p.active || v.playerIds.includes(p.id) || p.id === askerId || p.id.startsWith('recMember'))
       .map((p) => `${p.id} | ${p.name}${p.aliases.length ? ' (also: ' + p.aliases.join(', ') + ')' : ''}`).join('\n');
     const selected = players.filter((p) => v.playerIds.includes(p.id)).map((p) => p.name);
     const prompt = [
@@ -1693,7 +1695,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const ratings = $('List Ratings').all().flatMap((i) => i.json.records || []).map(toRating);
     const byId = Object.fromEntries(players.map((p) => [p.id, p]));
     const group = [...new Set([...(v.playerIds || []), ...(Array.isArray(c.playerIds) ? c.playerIds : [])])].map((id) => byId[id]).filter(Boolean);
-    const count = Math.max(Number(c.playerCount) || 0, group.length + (Number(c.unknownPeople) || 0)) || null;
+    const count = c.intent === 'browse' ? (Number(c.playerCount) || null)
+      : Math.max(Number(c.playerCount) || 0, group.length + (Number(c.unknownPeople) || 0)) || null;
     const ages = [Number(c.youngestAge) || null, ...group.map((p) => p.age)].filter((a) => a > 0);
     const youngest = ages.length ? Math.min(...ages) : null;
     const maxMin = Number(c.maxMinutes) || null;
@@ -1799,7 +1802,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         g.bggRating ? `BGG ${g.bggRating}` : '', g.genre, g.type,
         g.mechanics.slice(0, 4).join(', '),
         `${shelfOwner} wants to play ${g.desireToPlay || 0}/5`, g.favorite ? `${shelfOwner}'s favorite` : '', g.thinningCandidate && askerIsOwner ? `${shelfOwner} may give it away` : '',
-        g.playCount ? `${g.playCount} plays, last ${g.lastPlayed}` : 'never played',
+        g.playCount ? `${shelfOwner} logged ${g.playCount} plays, last ${g.lastPlayed}` : `${shelfOwner} never logged a play`,
         (g.expansions || []).length ? `+${g.expansions.length} expansions` : '',
       ].filter(Boolean).join('; ');
       const people = ppl.map((p) => {
@@ -1825,7 +1828,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         top.length ? `most played: ${top.join(', ')}` : '', loved.length ? `rated 4+: ${loved.join(', ')}` : '',
       ].filter(Boolean).join('\n  ');
     };
-    const asker = byId[sv.askerKey] || null;
+    const asker = byId[sv.askerPerson || sv.askerKey] || null;
+    // On someone else's shelf, the asker is a guest: "you" is the asker, the shelf, its plays and stars are the owner's
+    const guest = asker && sv.ownerName && asker.name.split(' ')[0] !== sv.ownerName
+      ? `SHELF: you are looking at ${sv.ownerName}'s shelf with ${asker.name.split(' ')[0]}. Speak to ${asker.name.split(' ')[0]} as "you" and never call them ${sv.ownerName}; the games, plays, wins, favorites and wants-to-play stars on this shelf are ${sv.ownerName}'s ("${sv.ownerName} has played it 12 times").` : '';
     if (c.intent === 'person') {
       // "What do you know about me?": their own words, their play history here, and the games that show their taste
       const who = [...new Set(Array.isArray(c.personIds) ? c.personIds : [])].map((id) => byId[id]).filter(Boolean);
@@ -1834,21 +1840,21 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       const theirs = games.filter((g) => g.bggId && playsOf(g) > 0).sort((a, b) => playsOf(b) - playsOf(a));
       const pick = (theirs.length ? theirs : [...games].sort((a, b) => (b.desireToPlay || 0) - (a.desireToPlay || 0))).slice(0, 12);
       const facts = [
-        'ASKER (the person typing; call them "you"): ' + (asker ? asker.name : 'unknown'),
+        'ASKER (the person typing; call them "you"): ' + (asker ? asker.name : 'unknown'), guest,
         'ABOUT: ' + (ppl.map((p) => p.name).join(', ') || 'unknown'),
         ppl.length ? ppl.map(profile).join('\n') : '(no profile or play history found)',
         'COUNT: ' + (ppl.length === 1 ? 'they have' : 'together they have') + ' played ' + theirs.length + ' of the ' + games.length + ' games on this shelf (logged plays)',
       ].join('\n');
       return [{ json: { offTopic: false, gap: false, browse: true, person: true, matchIds: theirs.map((g) => g.id), setFacts: facts,
         understood: { players: ppl.map((p) => p.name) }, constraints: c, shortIds: pick.map((g) => g.id),
-        titles: Object.fromEntries(pick.map((g) => [g.id, g.title])), gameLines: pick.map((g) => line(g, ppl)).join('\n'), profiles: '', ownerName: shelfOwner } }];
+        titles: Object.fromEntries(pick.map((g) => [g.id, g.title])), gameLines: pick.map((g) => line(g, ppl)).join('\n'), profiles: '', ownerName: shelfOwner, guest } }];
     }
     const understood = { players: group.map((p) => p.name), playerCount: count, maxMinutes: maxMin, youngestAge: youngest,
       weight: c.weight || null, coop: c.coop ?? null, themes: want, avoid, freshness: c.freshness || null, mood: c.mood || '' };
     return [{ json: { offTopic: false, gap, browse, matchIds, setFacts, understood, constraints: c, shortIds: short.map((g) => g.id),
       titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
       gameLines: short.map((g) => line(g)).join('\n'), profiles: group.map(profile).join('\n'),
-      askerProfile: asker && !group.includes(asker) ? profile(asker) : '', askerName: asker ? asker.name : '', ownerName: shelfOwner } }];
+      askerProfile: asker && !group.includes(asker) ? profile(asker) : '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest } }];
   }),
   ifTrue('On Topic?', '={{ !$json.offTopic }}'),
   ifTrue('Any Candidates?', '={{ $json.shortIds.length > 0 }}'),
@@ -1868,13 +1874,14 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '- Fit to the people comes first: each person\'s dials, likes, dislikes and notes; their plays, wins and ratings on each candidate; {SHELF_OWNER}\'s wants-to-play stars and favorites; a game {SHELF_OWNER} may give away is a good last-chance pick. Name people by first name. Be kind about people and never judge anyone\'s taste: party games and heavy economic games deserve equal respect.',
       '',
       'VOICE:',
+      '- You are talking with the ASKER: always call them "you" (never by their name, never "he" or "she"). Use first names only for other people.',
       '- Warm and enthusiastically corny: wholesome dad jokes and puns about cardboard and meeples, gentle self-deprecating humor about shelf space and the shelf of shame. Humor is a light flourish and never crowds out the recommendation.',
       '- First mention: for a title NOT in ALREADY_JOKED, open its entry with a one-line dad-joke quip about that game. For titles in ALREADY_JOKED, leave quip empty.',
       '- Only if you are confident the game has an unlimited or substitutable component pool, or it supports an expanded player count, add exactly this joke in swapJoke: "The [component] can be substituted as needed, so if you ever run short, feel free to use a suitable replacement… like [funny, semi-related household item]." Otherwise null.',
       '',
       ...(s.person ? [
       'FORMAT: this is a question about a person, not a request for a game. In "summary" (3-6 sentences) tell them what you know, warmly and specifically: their own words first (likes, dislikes, dials, about), then their play history here (plays, wins, most played, rated 4+), and what that says about their taste. Speak to the ASKER as "you" when the question is about them; use first names for anyone else.',
-      'Use only the facts in SET FACTS. If the profile is empty, say so kindly and suggest filling in My profile (under their name, top left of the site) so you can do better. Then pick 3 to 5 highlights from CANDIDATES that best show their taste (most played or rated highest), each with one sentence of "why". gap is null.',
+      'Use only the facts in SET FACTS. If the profile is empty, say so kindly: when it is the ASKER\'s own, suggest filling in My profile (under their name, top left of the site) so you can do better; for anyone else, suggest nudging that person to fill in theirs. Then pick 3 to 5 highlights from CANDIDATES that best show their taste (most played or rated highest), each with one sentence of "why". gap is null.',
       ] : s.browse ? [
       'FORMAT: this is a question about what is on the shelf, not a request for one game. Sum up the matching games in "summary" (2-4 sentences): use the exact COUNT from SET FACTS, then what kinds they are (weights, lengths, mechanics, sub-themes) and any pattern in plays or favorites. Then pick 3 to 5 varied highlights from CANDIDATES that show the range (for example a favorite, a light one, a heavy one, one that is never played), each with one sentence of "why".',
       'If SET FACTS has an ORDER, it is a ranked list: in the summary name the top three in order with their numbers (e.g. "The Crew leads with 21 plays"), and make the highlights the top 3 to 5 in that same order.',
@@ -1904,7 +1911,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'GAP: ' + (s.gap ? 'true' : 'false'),
       s.setFacts ? (s.person ? 'SET FACTS (about the people asked about):\n' : 'SET FACTS (all games that match):\n') + s.setFacts : '',
       'ALREADY_JOKED: ' + (s.shortIds.filter((id) => mentioned.has(id)).join(', ') || '(none)'),
-      s.askerName ? 'ASKER (the person typing; call them "you"): ' + s.askerName : '',
+      s.askerName ? 'ASKER (the person typing; call them "you"): ' + s.askerName : '', s.guest || '',
       s.askerProfile ? 'ASKER PROFILE (use it when they ask for something they would like, even if they are not listed as playing):\n' + s.askerProfile : '',
       '', 'PEOPLE PLAYING:', s.profiles || '(not specified; recommend for the group described in the request)',
       '', 'CANDIDATES (id | title | facts | how each person relates to it):', s.gameLines,

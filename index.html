@@ -501,6 +501,7 @@
   .player-chip.win { background: var(--gold); color: var(--ink); }
   .fab { position: fixed; bottom: 1.75rem; right: 1.75rem; width: 3.6rem; height: 3.6rem; border-radius: 50%; background: var(--orange); color: #fff; border: none; font-size: 1.8rem; font-weight: 700; cursor: pointer; box-shadow: var(--shadow); z-index: 60; }
   .fab:hover { background: #e58e08; }
+  body.chatting #addFab { display: none !important; } /* out of the way of the reply box */
   .modal-overlay { position: fixed; inset: 0; background: rgba(20,40,90,0.45); display: none; align-items: center; justify-content: center; z-index: 100; padding: 1.5rem; }
   .modal-overlay.open { display: flex; }
   .modal { background: var(--card-bg); border-radius: 1.25rem; padding: 1.75rem; max-width: 460px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(20,40,90,0.25); }
@@ -1171,7 +1172,7 @@
       const box = document.getElementById('shelfSwitch');
       if (!isMember()) { box.hidden = true; return; }
       const btn = (key, icon, label) => '<button type="button" role="tab" data-shelf="' + key + '"><i class="fa-solid ' + icon + '"></i> ' + esc(label) + '</button>';
-      const others = (friendsData.friends || []).filter(f => !f.isAdmin);
+      const others = (friendsData.friends || []).filter(f => !f.isAdmin && f.id === viewingFriend());
       const html = (isOwner() ? btn('main', 'fa-house', 'My shelf') : btn('main', 'fa-book-open', 'Dan’s shelf') + btn('mine', 'fa-house', 'My shelf')) +
         others.map(f => btn('friend:' + f.id, 'fa-user', f.firstName + '’s')).join('');
       if (box.dataset.html !== html) { box.innerHTML = html; box.dataset.html = html; }
@@ -2093,9 +2094,10 @@
     // collapsed: the latest answer as an overview with "Chat more"; expanded: the whole conversation with a reply box
     function setPanel(mode) {
       panel.hidden = mode === 'hidden';
-      if (mode === 'hidden') return;
+      if (mode === 'hidden') { document.body.classList.remove('chatting'); return; }
       panel.classList.toggle('collapsed', mode === 'collapsed');
       panel.classList.toggle('expanded', mode === 'expanded');
+      document.body.classList.toggle('chatting', mode === 'expanded');
       const hide = document.getElementById('npHide');
       hide.innerHTML = mode === 'expanded' ? '<i class="ti ti-chevron-up"></i>' : '<i class="ti ti-x"></i>';
       hide.title = hide.ariaLabel = mode === 'expanded' ? 'Back to the overview' : 'Close';
@@ -2109,7 +2111,7 @@
       thread.classList.toggle('clamped', tall);
       document.getElementById('npMore').hidden = !collapsed || !thread.children.length || askBusy;
     }
-    document.getElementById('npMore').addEventListener('click', () => { setPanel('expanded'); npInput.focus({ preventScroll: true }); });
+    document.getElementById('npMore').addEventListener('click', () => setPanel('expanded'));
     document.getElementById('npHide').addEventListener('click', () => {
       if (panel.classList.contains('expanded')) { setPanel('collapsed'); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
       else setPanel('hidden');
@@ -2306,11 +2308,11 @@
       askBusy = true;
       closeBarMentions(); closeNpMentions();
       input.value = '';
+      input.blur(); // put the phone keyboard away while Nathan answers
       if (!followUp) {
         // A new question from the top bar is a fresh overview, like a new search
         thread.innerHTML = '';
         askLast = null;
-        bar.blur();
       }
       setPanel(followUp ? 'expanded' : 'collapsed');
       thread.insertAdjacentHTML('beforeend', '<div class="np-turn me"><div class="np-bubble">' + bubbleHtml(question) + '</div></div>');
@@ -2455,7 +2457,7 @@
       const list = friendsData.friends || [];
       document.getElementById('friendsList').innerHTML = list.length ? list.map(f =>
         '<div class="fr-row"><div class="who"><b>' + esc(f.name) + '</b><span>' + (f.isAdmin ? 'Dan’s collection is the main shelf' : f.games + (f.games === 1 ? ' game' : ' games')) + '</span></div>' +
-        (f.isAdmin ? '' : '<button type="button" class="btn ghost" data-view-friend="' + f.id + '">View shelf</button>') +
+        (f.isAdmin ? '' : '<button type="button" class="btn ghost" data-view-friend="' + f.id + '">View library</button>') +
         '<button type="button" class="mini-btn" data-remove-friend="' + f.id + '" data-name="' + esc(f.firstName) + '" title="Remove ' + esc(f.firstName) + '" aria-label="Remove ' + esc(f.firstName) + '"><i class="fa-solid fa-xmark"></i></button></div>'
       ).join('') : '<p class="hint" style="margin:0;">No friends yet. Share your code!</p>';
     }

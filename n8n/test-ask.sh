@@ -3,16 +3,17 @@
 # Runs a temporary copy of the Ask workflow on the server (manual trigger, sign-in replaced by a fixed member).
 #   ./test-ask.sh "What do you know about me?"                 (as Dan)
 #   ./test-ask.sh "something quick for 4" friend@example.com    (as another member; pass a role with ROLE=friend)
+#   SHELF=mine ./test-ask.sh "my top ten most played" friend@example.com   (on their own shelf; or SHELF=friend:3)
 # Leaves an inactive "TEMP test: ask" workflow in n8n (archive it in the UI when done testing).
 set -euo pipefail
 cd "$(dirname "$0")"
-Q="${1:?question}"; EMAIL="${2:-dandehaan@gmail.com}"; ROLE="${ROLE:-owner}"
+Q="${1:?question}"; EMAIL="${2:-dandehaan@gmail.com}"; ROLE="${ROLE:-owner}"; SHELF="${SHELF:-main}"
 SSH="ssh -i $HOME/.ssh/claude_hostinger claude-ops@148.230.83.130"
 CONTAINER=n8n-ckq4-n8n-1
 TMP="${TEMP:-/tmp}/tmpask-$$.json"
 OUT="${TEMP:-/tmp}/tmpask-out-$$.json"
-node - "$Q" "$EMAIL" "$ROLE" "$TMP" <<'NODE'
-const [q, email, role, out] = process.argv.slice(2);
+node - "$Q" "$EMAIL" "$ROLE" "$TMP" "$SHELF" <<'NODE'
+const [q, email, role, out, shelf] = process.argv.slice(2);
 const w = JSON.parse(require('fs').readFileSync('workflows/ask.json', 'utf8'));
 w.id = 'BGVaultTmpAsk001'; w.name = 'TEMP test: ask'; delete w.settings.errorWorkflow;
 const drop = (n) => /^Auth: (Read Token|Verify With Google|Check Token|Find Player)$/.test(n) || n === 'Token Valid?' || n === 'Member?';
@@ -21,7 +22,7 @@ for (const k of Object.keys(w.connections)) if (drop(k)) delete w.connections[k]
 const wh = w.nodes.find((n) => n.name === 'Webhook');
 Object.assign(wh, { type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, parameters: {} }); delete wh.webhookId;
 const roleNode = w.nodes.find((n) => n.name === 'Auth: Role');
-roleNode.parameters = { jsCode: `return [{ json: { body: { question: ${JSON.stringify(q)}, playerIds: [] }, _authOk: true, _auth: { role: ${JSON.stringify(role)}, email: ${JSON.stringify(email)}, playerId: $('Who').first().json.playerId, playerName: $('Who').first().json.playerName } } }];` };
+roleNode.parameters = { jsCode: `return [{ json: { body: { question: ${JSON.stringify(q)}, playerIds: [], shelf: ${JSON.stringify(shelf)} }, _authOk: true, _auth: { role: ${JSON.stringify(role)}, email: ${JSON.stringify(email)}, playerId: $('Who').first().json.playerId, playerName: $('Who').first().json.playerName } } }];` };
 // Look up the member's player card the same way sign-in does
 w.nodes.push({ id: 'who', name: 'Who', type: 'n8n-nodes-base.postgres', typeVersion: 2.6, position: [0, 200],
   parameters: { operation: 'executeQuery', options: {},
@@ -36,14 +37,14 @@ NODE
 NAME="tmpask-$(date +%s).json"
 scp -q -i "$HOME/.ssh/claude_hostinger" "$TMP" "claude-ops@148.230.83.130:/tmp/$NAME"; rm -f "$TMP"
 $SSH "cat /tmp/$NAME | docker exec -i $CONTAINER sh -c 'cat > /tmp/$NAME'; rm -f /tmp/$NAME; docker exec $CONTAINER n8n import:workflow --input=/tmp/$NAME >/dev/null 2>&1; docker exec $CONTAINER rm -f /tmp/$NAME;
-  docker exec -e N8N_RUNNERS_BROKER_PORT=5691 -e N8N_PORT=5699 -e QUEUE_HEALTH_CHECK_PORT=5698 $CONTAINER n8n execute --id=BGVaultTmpAsk001 --rawOutput 2>/dev/null" > "$OUT" || true
+  docker exec -e N8N_RUNNERS_BROKER_PORT=5691 -e N8N_PORT=5699 -e QUEUE_HEALTH_CHECK_PORT=5698 $CONTAINER sh -c 'n8n execute --id=BGVaultTmpAsk001 --rawOutput > /tmp/tmpask-out.json 2>/dev/null; cat /tmp/tmpask-out.json; rm -f /tmp/tmpask-out.json'" > "$OUT" || true
 node - "$OUT" <<'NODE'
 const fs = require('fs');
 const raw = fs.readFileSync(process.argv[2], 'utf8');
 fs.rmSync(process.argv[2], { force: true });
 const start = raw.indexOf('{');
 let ex;
-try { ex = JSON.parse(raw.slice(start)); } catch (e) { console.log(raw.slice(0, 1500)); process.exit(1); }
+try { ex = JSON.parse(raw.slice(start, raw.lastIndexOf('}') + 1)); } catch (e) { console.log(String(e).slice(0, 300), raw.length, raw.slice(-400)); process.exit(1); }
 const run = (ex.data || ex).resultData.runData;
 const steps = Object.entries(run).map(([n, r]) => [n, r.reduce((t, x) => t + (x.executionTime || 0), 0)]).filter(([, t]) => t >= 50).sort((a, b) => b[1] - a[1]);
 const total = Object.values(run).flat().reduce((t, x) => t + (x.executionTime || 0), 0);
