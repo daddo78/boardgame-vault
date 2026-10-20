@@ -54,6 +54,8 @@ const ID = {
   wishlist: 'BGVaultWishGet01',
   wishChange: 'BGVaultWishSet01',
   profilePage: 'BGVaultProfile01',
+  admin: 'BGVaultAdminGet1',
+  adminAction: 'BGVaultAdminSet1',
   shelfAdd: 'BGVaultShelfAdd1',
   shelfIdentify: 'BGVaultShelfPic1',
   friends: 'BGVaultFriends01',
@@ -1231,15 +1233,14 @@ function addMemberAuth(w, { failTo }) {
     "return [{ json: { ok: true, email, owner: owners.includes(email) } }];",
   ].join('\n') });
   const tokenOk = ifTrue('Token Valid?', '={{ $json.ok === true }}');
-  const findPlayer = airtable('Auth: Find Player', 'GET', '', qs({
-    filterByFormula: `={{ "LOWER({GoogleEmail})='" + $json.email.replace(/'/g, '') + "'" }}`, returnFieldsByFieldId: 'true', maxRecords: '1',
-  }), {}, PLAYERS_TABLE);
+  // Members are the people on the invite list; their card in Dan's people (if he plays with them) links their ratings there
+  const findPlayer = pg('Auth: Find Player', 'SELECT bgc.sign_in($1) AS r', '={{ [$json.email] }}');
   const role = code('Auth: Role', function () {
     const t = $('Auth: Check Token').first().json;
-    const rec = ($input.first().json.records || [])[0];
-    const role = t.owner ? 'owner' : rec ? 'friend' : null;
+    const m = $input.first().json.r || {};
+    const role = t.owner ? 'owner' : m.member ? 'friend' : null;
     if (!role) return [{ json: { ok: false, status: 401, message: 'This account can view only' } }];
-    const auth = { role, email: t.email, playerId: rec ? rec.id : null, playerName: rec ? (rec.fields[PF.name] || '') : null };
+    const auth = { role, email: t.email, memberId: m.id || null, admin: !!m.isAdmin || !!t.owner, playerId: m.playerId || null, playerName: m.playerName || null };
     return $('Webhook').all().map((i) => ({ ...i, json: { ...i.json, _authOk: true, _auth: auth } }));
   });
   const member = ifTrue('Member?', '={{ $json._authOk === true }}');
@@ -1263,7 +1264,7 @@ function addMemberAuth(w, { failTo }) {
 // =====================================================================
 const whoAmI = wf(ID.whoAmI, 'Vault — Who Am I', [
   webhook('Webhook', 'GET', 'vault/whoami'),
-  respond('Respond OK', "={{ JSON.stringify({ ok: true, role: $json._auth.role, owner: $json._auth.role === 'owner', playerId: $json._auth.playerId, playerName: $json._auth.playerName }) }}"),
+  respond('Respond OK', "={{ JSON.stringify({ ok: true, role: $json._auth.role, owner: $json._auth.role === 'owner', playerId: $json._auth.playerId, playerName: $json._auth.playerName, admin: !!$json._auth.admin }) }}"),
   respondError(),
 ], [['Webhook', 'Respond OK']]);
 addMemberAuth(whoAmI, { failTo: 'Respond Error' });
@@ -1280,7 +1281,7 @@ const people = wf(ID.people, 'Vault — People', [
   code('List Players', function () { return [{ json: { records: $input.first().json.v.players } }]; }),
   code('One Item', function () { return [{ json: {} }]; }),
   code('List Ratings', function () { return [{ json: { records: $('Shelf View').first().json.v.ratings } }]; }),
-  pg('Asks Used', 'SELECT bgc.asks_used($1) AS used', "={{ [$('Auth: Role').first().json._auth.email] }}"),
+  pg('Asks Used', 'SELECT bgc.asks_used($1) AS used, bgc.ask_limit() AS lim', "={{ [$('Auth: Role').first().json._auth.email] }}"),
   code('Shape People', function () {
     const players = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer).map(publicPlayer)
       .sort((a, b) => (b.active - a.active) || a.name.localeCompare(b.name));
@@ -1291,9 +1292,10 @@ const people = wf(ID.people, 'Vault — People', [
     const sv = $('Shelf View').first().json.v;
     // me: the signed-in member's card in this list (their own BGC stars show under "Your rating")
     const used = Number($('Asks Used').first().json.used) || 0;
+    const lim = Number($('Asks Used').first().json.lim) || __ASK_PER_MEMBER__;
     // owner: the shelf owner's card, whose stars show on the game cards
     // mine: your own stars for this shelf's games (yours wherever the copy sits)
-    return [{ json: { players, ratings: best, me: sv.askerKey || null, owner: sv.ownerKey || null, mine: $('Shelf View').first().json.mine || {}, shelf: sv.shelf, asks: { limit: __ASK_PER_MEMBER__, left: Math.max(0, __ASK_PER_MEMBER__ - used) } } }];
+    return [{ json: { players, ratings: best, me: sv.askerKey || null, owner: sv.ownerKey || null, mine: $('Shelf View').first().json.mine || {}, shelf: sv.shelf, asks: { limit: lim, left: Math.max(0, lim - used) } } }];
   }),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
@@ -1615,11 +1617,12 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       shelf: /^friend:\d+$/.test(String(b.shelf || '')) ? String(b.shelf) : b.shelf === 'mine' ? 'mine' : 'main' } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
-  pg('Use Allowance', 'SELECT bgc.use_ask($1) AS questions',
+  pg('Use Allowance', 'SELECT bgc.use_ask($1) AS questions, bgc.ask_limit() AS lim',
     '={{ [$json.email] }}'),
   code('Allowance Left?', function () {
     const used = Number($input.first().json.questions) || 0;
-    if (used > __ASK_PER_MEMBER__) return [{ json: { ok: false, status: 429, message: 'Nathan has answered your ' + __ASK_PER_MEMBER__ + ' questions for today. He’ll be back at the shelves tomorrow!' } }];
+    const lim = Number($input.first().json.lim) || __ASK_PER_MEMBER__;
+    if (used > lim) return [{ json: { ok: false, status: 429, message: 'Nathan has answered your ' + lim + ' questions for today. He’ll be back at the shelves tomorrow!' } }];
     return [{ json: { ok: true, used } }];
   }),
   ifTrue('Allowed?', '={{ $json.ok }}'),
@@ -2818,8 +2821,41 @@ const profilePage = wf(ID.profilePage, 'Vault — Profile Page', [
 ], [['Webhook', 'Read'], ['Read', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
 addMemberAuth(profilePage, { failTo: 'Respond Error' });
 
+// =====================================================================
+// 31. Admin  GET /webhook/vault/admin (admins): site-wide usage, the last 30 days, and every member
+//     POST /webhook/vault/admin { action: invite|remove|admin|resetAsks|askLimit, target, email, name, on, value }
+// =====================================================================
+const admin = wf(ID.admin, 'Vault — Admin', [
+  webhook('Webhook', 'GET', 'vault/admin'),
+  pg('Overview', 'SELECT bgc.admin_overview($1) AS r', '={{ [$json._auth.email] }}'),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Overview'], ['Overview', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(admin, { failTo: 'Respond Error' });
+
+const adminAction = wf(ID.adminAction, 'Vault — Admin (actions)', [
+  webhook('Webhook', 'POST', 'vault/admin'),
+  code('Validate', function () {
+    const j = $input.first().json;
+    const b = j.body || {};
+    const action = String(b.action || '');
+    if (!['invite', 'remove', 'admin', 'resetAsks', 'askLimit'].includes(action)) return [{ json: { ok: false, status: 400, message: 'Unknown action' } }];
+    const v = { email: String(b.email || '').trim().slice(0, 200), name: String(b.name || '').trim().slice(0, 80), on: b.on === true, value: Number(b.value) || null };
+    return [{ json: { ok: true, email: j._auth.email, action, target: String(Number(b.target) || ''), v } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  pg('Act', "SELECT bgc.admin_action($1, $2, nullif($3, '')::bigint, $4::jsonb) AS r", '={{ [$json.email, $json.action, $json.target, JSON.stringify($json.v)] }}'),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Act', 0], ['Valid?', 'Respond Error', 1], ['Act', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(adminAction, { failTo: 'Respond Error' });
+
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

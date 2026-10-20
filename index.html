@@ -96,6 +96,32 @@
   .auth-btn .out { color: var(--text-muted); font-weight: 600; font-size: 0.8rem; border-left: 1px solid #eadfcb; padding-left: 0.5rem; margin-left: 0.15rem; }
   /* Visitors browse read-only: editing controls only appear for a signed-in owner */
   body:not(.owner) .owner-only { display: none !important; }
+  body:not(.admin) .admin-only { display: none !important; }
+  /* Admin page */
+  .adm-tabs { display: flex; gap: 0.3rem; background: var(--exp-bg); border-radius: 999px; padding: 0.25rem; margin: 0.6rem 0 0.9rem; }
+  .adm-tabs button { flex: 1; border: none; background: none; border-radius: 999px; padding: 0.45rem 0.6rem; font: inherit; font-weight: 700; font-size: 0.88rem; cursor: pointer; color: var(--ink); }
+  .adm-tabs button.on { background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+  .adm-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr)); gap: 0.5rem; }
+  .adm-tiles div { background: var(--exp-bg); border-radius: 0.8rem; padding: 0.6rem; text-align: left; }
+  .adm-tiles b { display: block; font-size: 1.35rem; color: var(--brand); line-height: 1.1; }
+  .adm-tiles span { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+  .adm-chart { display: flex; align-items: flex-end; gap: 2px; height: 5.5rem; margin-top: 0.5rem; padding: 0.4rem; background: var(--exp-bg); border-radius: 0.8rem; }
+  .adm-chart div { flex: 1; background: var(--brand); border-radius: 2px 2px 0 0; min-height: 2px; opacity: 0.85; }
+  .adm-chart div.zero { background: var(--line, #d9dee8); }
+  .adm-axis { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; }
+  .adm-member { background: var(--exp-bg); border-radius: 0.9rem; padding: 0.7rem 0.8rem; text-align: left; }
+  .adm-member + .adm-member { margin-top: 0.5rem; }
+  .adm-member .top { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+  .adm-member .top b { font-size: 0.98rem; }
+  .adm-member .sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.15rem; word-break: break-all; }
+  .adm-member .nums { font-size: 0.8rem; margin-top: 0.35rem; color: var(--ink); }
+  .adm-member .acts { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.5rem; }
+  .adm-member .acts .btn { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
+  .adm-badge { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; background: #fff; color: var(--brand-dark); border-radius: 999px; padding: 0.1rem 0.45rem; }
+  .adm-form { display: grid; gap: 0.4rem; margin-bottom: 0.9rem; text-align: left; }
+  .adm-form .row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .adm-form input { flex: 1 1 10rem; min-width: 0; background: var(--exp-bg); border: none; border-radius: 999px; padding: 0.65rem 1rem; font-family: var(--font-body); font-size: 0.95rem; color: var(--ink); outline: none; }
+  .adm-form input:focus { box-shadow: 0 0 0 2px var(--teal) inset; }
   body:not(.can-edit) .edit-only { display: none !important; }
   /* Visitors (not signed in as a member) see only the welcome page */
   .landing { display: none; }
@@ -704,7 +730,7 @@
       <button class="icon-btn friends-btn member-only" id="friendsBtn" type="button" title="Friends" aria-label="Friends"><i class="fa-solid fa-user-group"></i></button>
       <button class="icon-btn tip-btn" id="tipBtn" type="button" title="Tip jar" aria-label="Tip jar" hidden><i class="fa-solid fa-mug-hot"></i></button>
       <span class="total-badge" id="totalBadge" title="Games in the collection"><span id="badgeStatus"><span class="badge-spin"></span> Loading…</span><span id="badgeTotal" hidden><i class="fa-solid fa-dice"></i> <b id="totalCount"></b> games</span></span>
-      <button class="icon-btn owner-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
+      <button class="icon-btn admin-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
     </div>
   </div>
   <header class="hero">
@@ -924,9 +950,28 @@
         <p class="hint" style="margin-top:0;">Names and aliases from BG Stats. A Google email lets that friend sign in, rate games and fill in their own profile.</p>
         <button class="btn" id="openPlayersBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-users"></i> Players</button>
       </div>
+      <div class="admin-only">
+        <label>Admin</label>
+        <p class="hint" style="margin-top:0;">Who's using the site and how, members and invites, admin rights, and Nathan's daily question limit.</p>
+        <button class="btn" id="openAdminBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="fa-solid fa-shield-halved"></i> Admin</button>
+      </div>
       <div class="modal-actions">
         <button class="btn ghost" id="settingsCancel">Close</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Admin: usage, members, Nathan -->
+  <div class="modal-overlay" id="adminModal">
+    <div class="modal">
+      <h2 style="margin-bottom:0;"><i class="fa-solid fa-shield-halved" style="color:var(--brand);"></i> Admin</h2>
+      <div class="adm-tabs" role="tablist">
+        <button type="button" class="on" data-adm-tab="overview">Overview</button>
+        <button type="button" data-adm-tab="members">Members</button>
+        <button type="button" data-adm-tab="nathan">Nathan</button>
+      </div>
+      <div id="adminBody"><div class="spinner"></div></div>
+      <div class="modal-actions"><button class="btn ghost" type="button" data-close-modal>Close</button></div>
     </div>
   </div>
 
@@ -1058,6 +1103,7 @@
     // Owner: everything. Friend (Google email on a player card): can rate games for themselves. Others: view-only.
     const isOwner = () => (myRole() || {}).role === 'owner';
     const isMember = () => !!myRole();
+    const isAdmin = () => isOwner() || !!(myRole() || {}).admin;
     const myPlayerId = () => (myRole() || {}).playerId || null;
     function setToken(t) {
       try { profile = t ? decodeJwt(t) : null; idToken = t || null; } catch (e) { profile = null; idToken = null; }
@@ -1067,6 +1113,7 @@
     function updateAuthUi() {
       document.body.classList.toggle('owner', isOwner());
       document.body.classList.toggle('member', isMember());
+      document.body.classList.toggle('admin', isAdmin());
       document.body.classList.toggle('guest', !isMember());
       if (typeof renderLandingSignIn === 'function') renderLandingSignIn();
       if (typeof updateShelfUi === 'function') updateShelfUi();
@@ -1101,7 +1148,7 @@
       if (res.ok) {
         const w = await res.json().catch(() => ({}));
         try {
-          localStorage.setItem(LS_ROLE, JSON.stringify({ sub: profile.sub, role: w.role === 'owner' ? 'owner' : 'friend', playerId: w.playerId || null, playerName: w.playerName || null }));
+          localStorage.setItem(LS_ROLE, JSON.stringify({ sub: profile.sub, role: w.role === 'owner' ? 'owner' : 'friend', admin: !!w.admin, playerId: w.playerId || null, playerName: w.playerName || null }));
           localStorage.removeItem(LS_OWNER);
         } catch (e) {}
         updateAuthUi();
@@ -2669,7 +2716,7 @@
       setMenu(accountMenu.hidden);
     });
     document.addEventListener('click', (e) => { if (!accountMenu.hidden && !e.target.closest('.account')) setMenu(false); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal', 'adminModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
     document.getElementById('menuSignOut').addEventListener('click', () => {
       setMenu(false);
       if (gisReady) google.accounts.id.disableAutoSelect();
@@ -2791,6 +2838,95 @@
         toast(err.message, true);
         btn.disabled = false;
       }
+    });
+
+    // ---------- Admin ----------
+    const adminModal = document.getElementById('adminModal');
+    let adm = null, admTab = 'overview';
+    const ago = (iso) => { if (!iso) return 'never'; const m = (Date.now() - Date.parse(iso)) / 60000; return m < 2 ? 'just now' : m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
+    async function openAdmin() {
+      settingsModal.classList.remove('open');
+      adminModal.classList.add('open');
+      await loadAdmin();
+    }
+    async function loadAdmin() {
+      const body = document.getElementById('adminBody');
+      body.innerHTML = '<div class="spinner"></div>';
+      try { adm = await n8nFetch('/admin', { method: 'GET' }); renderAdmin(); }
+      catch (e) { body.innerHTML = '<p class="hint">' + esc(e.message) + '</p>'; }
+    }
+    function renderAdmin() {
+      document.querySelectorAll('[data-adm-tab]').forEach(b => b.classList.toggle('on', b.dataset.admTab === admTab));
+      const body = document.getElementById('adminBody');
+      if (!adm) return;
+      const t = adm.totals;
+      if (admTab === 'overview') {
+        const tile = (n, label) => '<div><b>' + n + '</b><span>' + label + '</span></div>';
+        const days = adm.daily || [];
+        const maxQ = Math.max(1, ...days.map(d => d.questions)), maxA = Math.max(1, ...days.map(d => d.active));
+        const chart = (key, max, label) => '<div class="section-label" style="margin-top:1rem;">' + label + ' · last 30 days</div><div class="adm-chart">' +
+          days.map(d => '<div class="' + (d[key] ? '' : 'zero') + '" style="height:' + Math.max(3, Math.round(d[key] / max * 100)) + '%" title="' + esc(d.day) + ': ' + d[key] + '"></div>').join('') + '</div>' +
+          '<div class="adm-axis"><span>' + esc((days[0] || {}).day || '') + '</span><span>today</span></div>';
+        body.innerHTML = '<div class="adm-tiles">' + tile(t.members, 'Members') + tile(t.activeToday, 'Active today') + tile(t.active7, 'Active 7 days') + tile(t.active30, 'Active 30 days') +
+          tile(t.questionsToday, 'Questions today') + tile(t.questions7, 'Questions 7 days') + tile(t.questions30, 'Questions 30 days') + tile(t.games, 'Games on shelves') +
+          tile(t.gamesAdded7, 'Games added 7 days') + tile(t.ratings, 'Ratings') + tile(t.wishlist, 'Wishlist items') + tile(t.friendships, 'Friendships') + tile(t.plays, 'Plays logged') + '</div>' +
+          chart('active', maxA, 'Members active') + chart('questions', maxQ, 'Questions to Nathan');
+        return;
+      }
+      if (admTab === 'members') {
+        body.innerHTML = '<form class="adm-form" id="admInvite"><div class="section-label" style="margin:0;">Invite someone</div>' +
+          '<div class="row"><input id="admName" placeholder="Their name" maxlength="80" autocomplete="off"><input id="admEmail" type="email" placeholder="Their Google email" maxlength="200" autocomplete="off"></div>' +
+          '<button class="btn primary" type="submit">Add to the invite list</button></form>' +
+          (adm.members || []).map(m => {
+            const me = profile && profile.email && m.email.toLowerCase() === String(profile.email).toLowerCase();
+            const badges = [m.isOwner ? 'Owner' : m.isAdmin ? 'Admin' : '', me ? 'You' : '', m.demo ? 'Demo' : ''].filter(Boolean).map(b => '<span class="adm-badge">' + b + '</span>').join('');
+            return '<div class="adm-member"><div class="top"><b>' + esc(m.name) + '</b>' + badges + '</div>' +
+              '<div class="sub">' + esc(m.email) + ' · last seen ' + esc(ago(m.lastSeen)) + ' · active ' + m.activeDays30 + ' of the last 30 days' + (m.bgg ? ' · BGG ' + esc(m.bgg) : '') + '</div>' +
+              '<div class="nums">' + [m.games + ' games' + (m.gamesAdded30 ? ' (' + m.gamesAdded30 + ' new this month)' : ''), m.plays + ' plays', m.ratings + ' ratings', m.friends + (m.friends === 1 ? ' friend' : ' friends'), m.wishlist + ' on wishlist',
+                'questions: ' + m.questionsToday + ' today, ' + m.questions7 + ' this week, ' + m.questionsAll + ' total'].join(' · ') + '</div>' +
+              '<div class="acts">' +
+                (m.isOwner ? '' : '<button type="button" class="btn ghost" data-adm-admin="' + m.id + '" data-on="' + (!m.isAdmin) + '">' + (m.isAdmin ? 'Remove admin' : 'Make admin') + '</button>') +
+                (m.questionsToday ? '<button type="button" class="btn ghost" data-adm-reset="' + m.id + '">Reset today’s questions</button>' : '') +
+                (m.isOwner || me ? '' : '<button type="button" class="btn ghost" data-adm-remove="' + m.id + '" data-name="' + esc(m.name) + '" style="color:var(--brand-dark);">Remove</button>') +
+              '</div></div>';
+          }).join('');
+        return;
+      }
+      const busy = (adm.members || []).filter(m => m.questionsToday).sort((a, b) => b.questionsToday - a.questionsToday);
+      body.innerHTML = '<form class="adm-form" id="admLimit"><div class="section-label" style="margin:0;">Questions per member per day</div>' +
+        '<p class="hint" style="margin:0;">Resets at midnight Eastern. Each question costs a little on the AI service.</p>' +
+        '<div class="row"><input id="admLimitValue" type="number" min="1" max="500" value="' + adm.askLimit + '"><button class="btn primary" type="submit">Save</button></div></form>' +
+        '<div class="section-label">Asked today</div>' + (busy.length ? busy.map(m => '<div class="adm-member"><div class="top"><b>' + esc(m.name) + '</b><span class="adm-badge">' + m.questionsToday + ' of ' + adm.askLimit + '</span></div>' +
+          '<div class="acts"><button type="button" class="btn ghost" data-adm-reset="' + m.id + '">Reset today’s questions</button></div></div>').join('')
+          : '<p class="hint" style="margin:0;">Nobody has asked Nathan anything yet today.</p>') +
+        '<div class="section-label" style="margin-top:0.8rem;">This week: ' + t.questions7 + ' questions · this month: ' + t.questions30 + '</div>';
+    }
+    async function admAct(payload, okNote) {
+      try {
+        const r = await n8nFetch('/admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        toast(r.message || okNote || 'Done.');
+        await loadAdmin();
+      } catch (err) { toast(err.message.replace(/^n8n request failed \(\d+\) /, ''), true); }
+    }
+    document.getElementById('openAdminBtn').addEventListener('click', openAdmin);
+    adminModal.addEventListener('click', (e) => {
+      if (e.target === adminModal || e.target.closest('[data-close-modal]')) { adminModal.classList.remove('open'); return; }
+      const tab = e.target.closest('[data-adm-tab]');
+      if (tab) { admTab = tab.dataset.admTab; renderAdmin(); return; }
+      const a = e.target.closest('[data-adm-admin]');
+      if (a) { admAct({ action: 'admin', target: Number(a.dataset.admAdmin), on: a.dataset.on === 'true' }); return; }
+      const rs = e.target.closest('[data-adm-reset]');
+      if (rs) { admAct({ action: 'resetAsks', target: Number(rs.dataset.admReset) }); return; }
+      const rm = e.target.closest('[data-adm-remove]');
+      if (rm) {
+        const name = rm.dataset.name;
+        if (confirm('Remove ' + name + '? Their shelf, plays, ratings, wishlist and friendships are deleted. This can’t be undone.')) admAct({ action: 'remove', target: Number(rm.dataset.admRemove) });
+      }
+    });
+    adminModal.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (e.target.id === 'admInvite') admAct({ action: 'invite', name: document.getElementById('admName').value, email: document.getElementById('admEmail').value });
+      if (e.target.id === 'admLimit') admAct({ action: 'askLimit', value: Number(document.getElementById('admLimitValue').value) });
     });
 
     // ---------- Wishlist ----------
