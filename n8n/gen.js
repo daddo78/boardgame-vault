@@ -56,6 +56,8 @@ const ID = {
   profilePage: 'BGVaultProfile01',
   admin: 'BGVaultAdminGet1',
   adminAction: 'BGVaultAdminSet1',
+  rulebookUpload: 'BGVaultRulesUp01',
+  rulebookGet: 'BGVaultRulesGet1',
   shelfAdd: 'BGVaultShelfAdd1',
   shelfIdentify: 'BGVaultShelfPic1',
   friends: 'BGVaultFriends01',
@@ -1649,10 +1651,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'Extract what they want. Reply with JSON only:',
       '{',
       '  "onTopic": true if this is about board games (any game, owned or not), choosing or playing them, buying them, the games on this shelf, or the people who play here (their tastes, profile, play history), else false,',
-      '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"); "game" if they ask about one or more specific games themselves, owned or not (e.g. "what genre is Terraforming Mars", "how long is Brass", "would I like Ark Nova", "is Spirit Island good for 2", "should I buy Cascadia", "does Dan own Spirit Island", "who has Brass"); "buy" if they want ideas for games to buy or get next (e.g. "what should I buy next", "what game should I add to my collection", "a co-op I don\'t own yet"),',
+      '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"); "game" if they ask about one or more specific games themselves, owned or not (e.g. "what genre is Terraforming Mars", "how long is Brass", "would I like Ark Nova", "is Spirit Island good for 2", "should I buy Cascadia", "does Dan own Spirit Island", "who has Brass"); "rules" if they ask how to play a game or about its rules (e.g. "how do I set up Brass", "how does combat work in Spirit Island", "can you trade in Catan on someone else\'s turn", "how many cards do you draw in Wingspan"); "buy" if they want ideas for games to buy or get next (e.g. "what should I buy next", "what game should I add to my collection", "a co-op I don\'t own yet"),',
       '  "atFriend": the first name of a friend if they are playing at that friend\'s place or ask about that friend\'s shelf or collection ("what can we play at Keith\'s", "anything good on Matt\'s shelf for 4"), else null,',
       '  "acrossFriends": true if they ask which friend owns something or want games from any of their friends\' shelves ("who has a co-op for 6", "can anyone lend me a party game", "which of my friends owns Brass"), else false,',
-      '  "games": [for intent "game": the official BoardGameGeek titles of the games they name, spelling corrected (e.g. "Teraforming Mars" -> "Terraforming Mars")],',
+      '  "games": [for intent "game" or "rules": the official BoardGameGeek titles of the games they name, spelling corrected (e.g. "Teraforming Mars" -> "Terraforming Mars")],',
       '  "personIds": [for intent "person": ids from ROSTER of who they ask about; "me", "I" and "my" mean the ASKER],',
       '  "sort": for a ranked list only: "plays" (most played), "leastPlays", "recent" (most recently played), "stale" (longest since played), "stars" (their own star ratings: "my highest rated", "games I rated best", "my top rated"), "rating" (BGG rating, only when they say BGG or "the community"), "rank" (BGG rank), "weight" (heaviest), "newest" (latest added); else null,',
       '  "limit": how many games they asked for ("top ten" = 10, "my 5 heaviest" = 5), else null,',
@@ -1705,8 +1707,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     let c = {};
     try { c = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
     // A question about a game or what to buy is about the asker: their shelf and taste, wherever they are
-    const forMe = c.intent === 'game' || c.intent === 'buy';
-    const titles = c.intent === 'game' && Array.isArray(c.games) ? c.games.map((t) => String(t).trim()).filter(Boolean).slice(0, 3) : [];
+    const forMe = c.intent === 'game' || c.intent === 'buy' || c.intent === 'rules';
+    const titles = (c.intent === 'game' || c.intent === 'rules') && Array.isArray(c.games) ? c.games.map((t) => String(t).trim()).filter(Boolean).slice(0, 3) : [];
     const prev = $('Validate').first().json.previous;
     const followsOwn = !!(prev && prev.fromOwn && (prev.setIds || []).length); // "which of those…" after an answer from their own shelf
     // Social: "at Keith's" plays from that friend's shelf; "who has…" / "can anyone lend me…" looks across all friends' shelves
@@ -1714,15 +1716,15 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const across = !atFriend && (c.acrossFriends === true || /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q))
       && c.intent !== 'person';
     return [{ json: { useOwn: !onOwn && !atFriend && (forMe || followsOwn || (!aboutOpen && (/"scope"\s*:\s*"mine"/.test(text) || aboutMine))), titles, buy: c.intent === 'buy',
-      atFriend, across, forFriends: c.intent === 'game' && /\b(friends?|who would|anyone)\b/i.test(q) } }];
+      atFriend, across, rules: c.intent === 'rules', forFriends: c.intent === 'game' && /\b(friends?|who would|anyone)\b/i.test(q) } }];
   }),
   pg('Own Shelf', "SELECT CASE WHEN $2::boolean THEN bgc.shelf_view($1, 'mine', NULL) END AS own, bgc.friend_by_name($1, $3) AS fid, " +
     "CASE WHEN bgc.friend_by_name($1, $3) IS NOT NULL THEN bgc.shelf_view($1, 'friend:' || bgc.friend_by_name($1, $3), NULL) END AS visit",
     "={{ [$('Validate').first().json.email, String($json.useOwn), $json.atFriend] }}"),
   // Games asked about (from the shared catalog, with which friends own them), ideas to buy, friends' shelves, and the asker's Top 10 and wishlist
   pg('Game Lookup', 'SELECT bgc.lookup_games($1, $2::jsonb) AS games, CASE WHEN $3::boolean THEN bgc.buy_pool($1) END AS pool, bgc.curator_card() AS curator, ' +
-    'CASE WHEN $4::boolean THEN bgc.friends_pool($1) END AS fpool, bgc.asker_extras($1) AS extras',
-    "={{ [$('Validate').first().json.email, JSON.stringify($('Scope').first().json.titles), String($('Scope').first().json.buy), String($('Scope').first().json.across)] }}"),
+    'CASE WHEN $4::boolean THEN bgc.friends_pool($1) END AS fpool, bgc.asker_extras($1) AS extras, CASE WHEN $5::boolean THEN bgc.rulebooks_for($2::jsonb) END AS rules',
+    "={{ [$('Validate').first().json.email, JSON.stringify($('Scope').first().json.titles), String($('Scope').first().json.buy), String($('Scope').first().json.across), String(!!$('Scope').first().json.rules)] }}"),
   code('Lookup Queries', function () {
     const missing = ($input.first().json.games || []).filter((l) => !l.game).map((l) => l.asked);
     return missing.length ? missing.map((t) => ({ json: { title: t, query: t.replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim() } })) : [{ json: { none: true } }];
@@ -1979,6 +1981,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     // On someone else's shelf, the asker is a guest: "you" is the asker, the shelf, its plays and stars are the owner's
     const guest = asker && sv.ownerName && asker.name.split(' ')[0] !== sv.ownerName
       ? `SHELF: you are looking at ${sv.ownerName}'s shelf with ${asker.name.split(' ')[0]}. Speak to ${asker.name.split(' ')[0]} as "you" and never call them ${sv.ownerName}; the games, plays, wins, favorites and star ratings on this shelf are ${sv.ownerName}'s ("${sv.ownerName} has played it 12 times").` : '';
+    if (c.intent === 'rules') c.intent = 'game', c.rulesQuestion = true;
     if (c.intent === 'game' || c.intent === 'buy') {
       // About a game (owned or not), or ideas to buy. sv is the asker's own shelf here, so their taste comes from it.
       const facts = (g) => [
@@ -2024,7 +2027,35 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         // "Does Dan own Spirit Island?": say plainly for each person named, from the friends who own it
         const ownQ = /\b(own|owns|have|has|got)\b/i.test(v.question) ? players.map((p) => p.name.split(' ')[0]).filter((f, i, a) => f && a.indexOf(f) === i && new RegExp('\\b' + f + '\\b', 'i').test(v.question)) : [];
         const ownership = ownQ.flatMap((f) => (lookup.games || []).filter((l) => l.game).map((l) => 'OWNERSHIP: ' + f + ((l.friends || []).includes(f) ? ' owns ' : ' does not own ') + l.game.title + (l.onShelf ? ' (the asker does)' : '')));
+        // A rules question about a game we have a rulebook for counts even if BGG doesn't know it
+        if (c.rulesQuestion) for (const b of $('Game Lookup').first().json.rules || []) {
+          const id = 'bgg:' + b.bggId;
+          if (!Object.values(titles).includes(b.title) && !titles[id]) { titles[id] = b.title; lines.push(id + ' | ' + b.title + ' | rulebook uploaded'); }
+        }
         if (!lines.length) return [{ json: { offTopic: true, reply: 'I couldn’t find ' + (notFound.join(' or ') || 'that game') + ' on BoardGameGeek. Could you check the spelling?' } }];
+        if (c.rulesQuestion) {
+          // The parts of the rulebook that match the question (plus its opening, which usually covers the goal and setup)
+          const books = $('Game Lookup').first().json.rules || [];
+          const stop = new Set('the and for with you your how what when does can are this that from have will into than then them they their there game games play playing rules rule turn'.split(' '));
+          const words = (String(v.question).toLowerCase().match(/[a-z0-9]+/g) || []).filter((w) => w.length > 2 && !stop.has(w)).map((w) => w.slice(0, 6));
+          const excerpt = (text) => {
+            const paras = String(text || '').split(/\n\s*\n|\n(?=[A-Z][A-Z ]{3,}\n)/).map((p) => p.replace(/\s+/g, ' ').trim()).filter((p) => p.length > 30);
+            const chunks = [];
+            for (const p of paras) { const last = chunks[chunks.length - 1]; if (last && last.length + p.length < 1400) chunks[chunks.length - 1] = last + ' ' + p; else chunks.push(p); }
+            const scored = chunks.map((t, i) => ({ i, t, s: words.reduce((n, w) => n + (t.toLowerCase().split(w).length - 1), 0) }));
+            const keep = new Set([0, 1]);
+            let size = (chunks[0] || '').length + (chunks[1] || '').length;
+            for (const x of [...scored].sort((a, b) => b.s - a.s)) { if (!x.s || size > 14000) break; keep.add(x.i); size += x.t.length; }
+            return [...keep].sort((a, b) => a - b).map((i) => chunks[i]).filter(Boolean).join('\n[...]\n');
+          };
+          const named = (lookup.games || []).filter((l) => l.game).map((l) => l.game);
+          const rb = books.map((b) => 'RULEBOOK EXCERPTS for ' + b.title + ' (from the rulebook a member uploaded' + (b.pages ? ', ' + b.pages + ' pages' : '') + '):\n' + excerpt(b.text)).join('\n\n');
+          const missing = named.filter((g) => !books.some((b) => Number(b.bggId) === Number(g.bggId)));
+          return [{ json: { offTopic: false, gap: false, browse: true, mode: 'rules', matchIds: [], understood: {}, constraints: c,
+            setFacts: (rb || '') + (missing.length ? (rb ? '\n\n' : '') + 'NO RULEBOOK UPLOADED for: ' + missing.map((g) => g.title).join(', ') : ''),
+            shortIds: Object.keys(titles), titles, off, gameLines: lines.join('\n'), profiles: '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest: '', fromOwn: !!own,
+            rulebooks: named.map((g) => ({ bggId: g.bggId, title: g.title, has: books.some((b) => Number(b.bggId) === Number(g.bggId)) })) } }];
+        }
         return [{ json: { offTopic: false, gap: false, browse: true, mode: 'game', matchIds: [], understood: {}, constraints: c,
           setFacts: (ownership.length ? ownership.join('\n') + ' (answer this first)\n' : '') + taste + (notFound.length ? '\nNOT FOUND ON BGG: ' + notFound.join(', ') : '') +
             // "Which of my friends would love Ark Nova?": their friends' own profiles, to match the game against
@@ -2114,7 +2145,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       // Social answers: across friends' shelves say who owns each pick; at a friend's place it's their shelf
       ...(s.across ? ['SOCIAL: the CANDIDATES come from the asker\'s friends\' shelves. For every game you mention, say which friend owns it ("Matt has it, so ask him to bring it"), and note when the asker owns it too.'] : []),
       ...(s.visiting ? ['SOCIAL: they are playing at ' + s.visiting + '\'s place, so the CANDIDATES are ' + s.visiting + '\'s shelf. Say so naturally ("at ' + s.visiting + '\'s, I\'d pull down…").'] : []),
-      ...(s.mode === 'game' ? [
+      ...(s.mode === 'rules' ? [
+      'FORMAT: this is a rules question. Answer it clearly and correctly in "summary": short paragraphs or numbered steps (use line breaks), no fluff, no quips. For RULEBOOK EXCERPTS: answer only from the excerpts and say "per the rulebook"; if the excerpts don\'t cover the question, say so plainly and suggest which section of the rulebook to check. For a game with NO RULEBOOK UPLOADED: start with "From memory:" and answer from what you reliably know about the game; say when you\'re not sure of a detail, never invent specifics, and suggest checking the official rulebook. Highlights: just the game asked about, with an empty or one-line "why". gap is null.',
+      ] : s.mode === 'game' ? [
       'FORMAT: this is a question about specific game(s), owned or not. If they ask whether someone owns it or who has it ("does Dan own Spirit Island?", "who has Brass?"), answer that first from the facts: "ON THEIR SHELF" means the ASKER owns it, and "friends who own it" names the friends who do (if a named person is not listed there, they don\'t own it, as far as you know). Answer it directly and completely in "summary" (2-5 sentences) from the CANDIDATES facts, which come from BoardGameGeek ("genre" means its categories and main mechanics; name a few of each). If a game is not on their shelf, say so, then say honestly how well it would suit them, comparing it to games on ASKER\'S SHELF they play and love and to their PROFILE. Only when the facts name friends who own it, mention they could try that friend\'s copy first (by name); never suggest a friend\'s copy otherwise. If it looks like a great fit and they don\'t own it, you may say it could be worth buying. Never invent facts; for things BGG data doesn\'t cover (rules details, reviews, prices), say you only have BGG\'s facts. Highlights: the game(s) asked about, one sentence of "why" each. gap is null.',
       ] : s.mode === 'buy' ? [
       'FORMAT: they want ideas for games to buy. Every CANDIDATE is a game they don\'t own. Pick the 3 that best fit their taste (ASKER\'S SHELF, PROFILE) and anything in the request. In "summary" (2-4 sentences) name your 3 picks and why, tied to games they already play and love. Only mention a friend owning a pick when the facts list that friend (then suggest trying their copy first). Highlights: the 3 picks, each with one or two sentences of "why". gap is null.',
@@ -2153,7 +2186,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       v.previous ? 'This follows up on: ' + v.previous.question : '',
       'UNDERSTOOD: ' + JSON.stringify(s.understood),
       'GAP: ' + (s.gap ? 'true' : 'false'),
-      s.setFacts ? (s.person ? 'SET FACTS (about the people asked about):\n' : s.mode ? 'ABOUT THE ASKER:\n' : 'SET FACTS (all games that match):\n') + s.setFacts : '',
+      s.setFacts ? (s.person ? 'SET FACTS (about the people asked about):\n' : s.mode === 'rules' ? '' : s.mode ? 'ABOUT THE ASKER:\n' : 'SET FACTS (all games that match):\n') + s.setFacts : '',
       'ALREADY_JOKED: ' + (s.shortIds.filter((id) => mentioned.has(id)).join(', ') || '(none)'),
       s.askerName ? 'ASKER (the person typing; call them "you"): ' + s.askerName : '', s.guest || '',
       s.askerProfile ? 'ASKER PROFILE (use it when they ask for something they would like, even if they are not listed as playing):\n' + s.askerProfile : '',
@@ -2191,8 +2224,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     if (s.browse) {
       const highlights = (Array.isArray(a.highlights) ? a.highlights : []).map((x) => entry(x, false)).filter(Boolean).slice(0, 5);
       if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });
-      const summary = str(a.summary, 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');
-      return [{ json: { ok: true, intent: 'browse', mode: s.mode || null, understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
+      const summary = str(a.summary, s.mode === 'rules' ? 3500 : 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');
+      return [{ json: { ok: true, intent: 'browse', mode: s.mode || null, ...(s.rulebooks ? { rulebooks: s.rulebooks } : {}), understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
         matchIds: s.matchIds, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}), signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];
     }
     let pick = entry(a.pick, true);
@@ -2854,8 +2887,66 @@ const adminAction = wf(ID.adminAction, 'Vault — Admin (actions)', [
 ], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Act', 0], ['Valid?', 'Respond Error', 1], ['Act', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
 addMemberAuth(adminAction, { failTo: 'Respond Error' });
 
+// =====================================================================
+// 32. Rulebook  POST /webhook/vault/rulebook  multipart { file (PDF), bggId, title }  (member gate)
+//     Saves a game's rulebook for every member, with its text for Nathan to answer rules questions from.
+//     GET /webhook/vault/rulebook?bgg=<id>            -> { has, filename, pages, uploadedBy, ... }
+//     GET /webhook/vault/rulebook?bgg=<id>&download=1 -> the PDF
+// =====================================================================
+const rulebookUpload = wf(ID.rulebookUpload, 'Vault — Rulebook (upload)', [
+  webhook('Webhook', 'POST', 'vault/rulebook'),
+  code('Validate', function () {
+    const item = $input.first();
+    const b = item.json.body || {};
+    const key = Object.keys(item.binary || {})[0];
+    const err = (status, message) => [{ json: { ok: false, status, message } }];
+    if (!key) return err(400, 'Choose a PDF to upload');
+    const f = item.binary[key];
+    if (!/pdf/i.test(f.mimeType || '') && !/\.pdf$/i.test(f.fileName || '')) return err(400, 'Rulebooks need to be PDFs');
+    const bggId = Number(b.bggId) || 0;
+    if (!bggId) return err(400, 'Which game is this rulebook for?');
+    // Pass the file along under a fixed name for the PDF reader
+    return [{ json: { ok: true, email: item.json._auth.email, bggId, title: String(b.title || '').slice(0, 200), filename: String(f.fileName || 'rulebook.pdf').slice(0, 200) },
+      binary: { pdf: f } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  { ...node('Read PDF Text', 'n8n-nodes-base.extractFromFile', 1, { operation: 'pdf', binaryPropertyName: 'pdf', options: { keepSource: 'both', joinPages: true } }),
+    onError: 'continueRegularOutput' },
+  node('PDF To Base64', 'n8n-nodes-base.extractFromFile', 1, { operation: 'binaryToPropery', binaryPropertyName: 'pdf', destinationKey: 'b64', options: {} }),
+  pg('Save', 'SELECT bgc.rulebook_save($1, $2::int, $3, $4, $5, $6, nullif($7, \'\')::int) AS r',
+    "={{ [$('Validate').first().json.email, String($('Validate').first().json.bggId), $('Validate').first().json.title, $('Validate').first().json.filename, $json.b64, String($('Read PDF Text').first().json.text || '').replace(/\\u0000/g, '').slice(0, 600000), String($('Read PDF Text').first().json.numpages || '')] }}"),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('Saved?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Read PDF Text', 0], ['Valid?', 'Respond Error', 1], ['Read PDF Text', 'PDF To Base64'],
+  ['PDF To Base64', 'Save'], ['Save', 'Result'], ['Result', 'Saved?'], ['Saved?', 'Respond OK', 0], ['Saved?', 'Respond Error', 1]]);
+addMemberAuth(rulebookUpload, { failTo: 'Respond Error' });
+
+const rulebookGet = wf(ID.rulebookGet, 'Vault — Rulebook (info / open)', [
+  webhook('Webhook', 'GET', 'vault/rulebook'),
+  ifTrue('Download?', "={{ String(($json.query || {}).download || '') === '1' }}"),
+  pg('Info', 'SELECT bgc.rulebook_info($1, $2::int) AS r', "={{ [$json._auth.email, String(Number(($json.query || {}).bgg) || 0)] }}"),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  { ...pg('File', 'SELECT * FROM bgc.rulebook_file($1, $2::int)', "={{ [$json._auth.email, String(Number(($json.query || {}).bgg) || 0)] }}"), alwaysOutputData: true },
+  code('Found?', function () {
+    const f = $input.first().json;
+    return [{ json: f && f.b64 ? { ok: true, filename: f.filename, b64: f.b64 } : { ok: false, status: 404, message: 'No rulebook for that game yet' } }];
+  }),
+  ifTrue('Have File?', '={{ $json.ok }}'),
+  node('To File', 'n8n-nodes-base.convertToFile', 1.1, { operation: 'toBinary', sourceProperty: 'b64', binaryPropertyName: 'data',
+    options: { fileName: '={{ $json.filename }}', mimeType: 'application/pdf' } }),
+  node('Respond PDF', 'n8n-nodes-base.respondToWebhook', 1.1, { respondWith: 'binary', inputDataFieldName: 'data',
+    options: { responseHeaders: { entries: [{ name: 'Content-Type', value: 'application/pdf' }, { name: 'Content-Disposition', value: '=inline; filename="{{ $(\'Found?\').first().json.filename.replace(/"/g, \'\') }}"' }] } } }),
+  respondError(),
+], [['Webhook', 'Download?'], ['Download?', 'File', 0], ['Download?', 'Info', 1], ['Info', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1],
+  ['File', 'Found?'], ['Found?', 'Have File?'], ['Have File?', 'To File', 0], ['Have File?', 'Respond Error', 1], ['To File', 'Respond PDF']]);
+addMemberAuth(rulebookGet, { failTo: 'Respond Error' });
+
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

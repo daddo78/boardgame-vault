@@ -39,12 +39,17 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [ ] Per-shelf game names: a shelf can call a game something else (today names live in the shared catalog, so "Splendor Series" shows for everyone)
 - [x] Phase 3: friends by code: entering a friend's code connects you both right away (no request step); the Friends panel shows your code, adds and removes friends; friends' shelves sit in the shelf switcher, view only with thinning hidden; Nathan and the @ list follow the shelf
 - [x] My profile: signed-in members fill in their own card (dials, likes, dislikes, about me, BGG username) from the account menu; the Players screen keeps only names, aliases, email and BGG username
-- [ ] Phase 4: friend takes (private); BG Stats players link to members; friend profile pages
-- [ ] Phase 5: social Nathan: "what can we play at Keith's?", "who owns Spirit Island?"
+- [x] Friend profile pages: their words, dials, all-time Top 10, most played and wishlist (Friends > Profile)
+- [ ] Phase 4: friend takes (private); BG Stats players link to members
+- [x] Phase 5: social Nathan: "what can we play at Keith's?", "who has a co-op for 2?", "which of my friends would love Brass?"
 - First testers: Aaron Wiesinger and Matt Kruse (emails on their cards, added as Google test users), Keith McKimmy (still need his email); BGG usernames for all three
 
 - [x] Tip jar: ☕ in the top bar opens a thank-you panel linking to ko-fi.com/dandehaan
 - [x] Friends icon in the top bar (members only); a "coming soon" panel until Phase 3 makes it real
+
+## 2b. Admin
+- [x] Settings > Admin: usage tiles and 30-day charts, per-member usage, invite, remove, admin rights, daily question limit, reset someone's questions
+- [x] Sign-in by membership (the invite list), so invitees who aren't in Dan's plays can get in
 
 ## 3. Protection against another wipe
 - [x] Nightly backup of the new database to a private GitHub repo (restore tested)
@@ -59,7 +64,9 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [x] Nathan answers "my …" questions from your own shelf, wherever you're looking; answers the whole question in his paragraph
 - [x] Games beyond the shelf: facts about any game (our catalog, else BGG), "would I like it?", and buy ideas from games you don't own. Who owns a game is only mentioned for your friends
 - [ ] Buy ideas beyond our catalog: Nathan proposes titles from his own knowledge, checked against BGG before he mentions them
-- [ ] **Wishlists**: "Save to my wishlist" on Nathan's buy ideas and game answers; a wishlist per member, kept apart from the shelf (never shown as owned). Ideas: friends can see each other's wishlists (gift ideas), Nathan skips wishlisted games in buy ideas, "Got it!" moves a game onto the shelf
+- [x] Wishlists: add from Nathan's ideas or a friend's library; friends see each other's; Nathan skips wishlisted games in buy ideas; "Got it!" moves a game onto the shelf
+- [x] Rules: members upload a game's rulebook PDF once; Nathan answers from it ("per the rulebook"), or from memory (labelled) with a link to BGG's files
+- [ ] Rules from memory are often wrong on details: consider a stronger model for those, or nudging people to add the rulebook
 
 ## 5. Data cleanup
 - [x] Count plays logged under other editions: games can list extra BGG ids (`ExtraBGGIds`); Catan counts Catan: 3D Edition, and Camel Up is re-linked to the Second Edition you own. Most unmatched plays (~330) turned out to be games not in the collection.

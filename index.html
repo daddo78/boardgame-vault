@@ -219,6 +219,11 @@
   .pp-words { text-align: left; margin-top: 0.6rem; font-size: 0.92rem; }
   .pp-words p { margin: 0.25rem 0; }
   .n-wish { margin: 0.5rem 0 0; }
+  .rb-block { background: var(--exp-bg); border-radius: 0.9rem; padding: 0.7rem 0.8rem; margin-top: 0.9rem; }
+  .rb-block .row { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-top: 0.4rem; }
+  .rb-block .btn { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+  .n-summary.rules { white-space: pre-line; }
+  .n-rules-links { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 0.2rem 0 0.6rem; }
   .fr-row { display: flex; align-items: center; gap: 0.6rem; background: var(--exp-bg); border-radius: 0.9rem; padding: 0.55rem 0.7rem; }
   .fr-row .who { flex: 1; min-width: 0; }
   .fr-row .who b { display: block; }
@@ -1778,9 +1783,63 @@
       detailModal.classList.add('open');
     }
     function closeDetail() { detailModal.classList.remove('open'); detailId = null; }
+    // Rulebooks: one per game, shared by every member; Nathan answers rules questions from it
+    const rbCache = {};
+    function rbHtml(info, g) {
+      const files = 'https://boardgamegeek.com/boardgame/' + Number(g.bggId) + '/files';
+      const upload = '<label class="btn ghost" style="cursor:pointer;"><i class="fa-solid fa-upload"></i> ' + (info.has ? 'Replace' : 'Add the rulebook (PDF)') +
+        '<input type="file" accept="application/pdf,.pdf" data-rb-upload="' + Number(g.bggId) + '" data-title="' + esc(g.title) + '" hidden></label>';
+      return '<div class="section-label" style="margin:0;"><i class="fa-solid fa-book-open"></i> Rulebook</div>' +
+        (info.has
+          ? '<div class="hint" style="margin:0.2rem 0 0;">' + esc(info.filename) + (info.pages ? ' · ' + info.pages + ' pages' : '') + (info.uploadedBy ? ' · added by ' + esc(info.uploadedBy) : '') +
+            (info.readable ? '. Ask Nathan anything about the rules.' : '. (Nathan couldn’t read its text, so he’ll answer from memory.)') + '</div>' +
+            '<div class="row"><button type="button" class="btn primary" data-rb-open="' + Number(g.bggId) + '"><i class="fa-solid fa-book-open"></i> Open</button>' + upload + '</div>'
+          : '<div class="hint" style="margin:0.2rem 0 0;">No rulebook yet. Most publishers post theirs free as a PDF; add it once and every member (and Nathan) can use it.</div>' +
+            '<div class="row">' + upload + '<a class="btn ghost" href="' + files + '" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Find it on BGG</a></div>');
+    }
+    async function loadRulebook(g) {
+      const box = document.getElementById('rbBlock');
+      if (!box || !g.bggId) return;
+      try {
+        const info = rbCache[g.bggId] || (rbCache[g.bggId] = await n8nFetch('/rulebook?bgg=' + Number(g.bggId), { method: 'GET' }));
+        if (document.getElementById('rbBlock') === box) box.innerHTML = rbHtml(info, g);
+      } catch (e) { box.innerHTML = '<div class="hint" style="margin:0;">' + esc(e.message) + '</div>'; }
+    }
+    async function openRulebook(bggId) {
+      const w = window.open('', '_blank');
+      try {
+        const res = await fetch(n8nBase() + '/rulebook?download=1&bgg=' + Number(bggId), { headers: { Authorization: 'Bearer ' + await ensureToken() } });
+        if (!res.ok) throw new Error('Couldn’t open the rulebook (' + res.status + ')');
+        const url = URL.createObjectURL(new Blob([await res.blob()], { type: 'application/pdf' }));
+        if (w) w.location = url; else window.location = url;
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (e) { if (w) w.close(); toast(e.message, true); }
+    }
+    async function uploadRulebook(input) {
+      const f = input.files[0];
+      if (!f) return;
+      if (f.size > 25 * 1024 * 1024) { toast('That PDF is over 25 MB. Try the publisher\'s smaller version.', true); return; }
+      const bggId = Number(input.dataset.rbUpload);
+      const box = input.closest('.rb-block');
+      if (box) box.querySelector('.hint').textContent = 'Uploading and reading "' + f.name + '"…';
+      const fd = new FormData();
+      fd.append('file', f, f.name); fd.append('bggId', String(bggId)); fd.append('title', input.dataset.title || '');
+      try {
+        const res = await fetch(n8nBase() + '/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + await ensureToken() }, body: fd });
+        const r = await res.json().catch(() => ({}));
+        if (!res.ok || !r.ok) throw new Error(r.message || 'Upload failed (' + res.status + ')');
+        rbCache[bggId] = r.rulebook;
+        toast('Rulebook added. Nathan can answer rules questions now.');
+        const g = collection.find(x => Number(x.bggId) === bggId);
+        if (box && g) box.innerHTML = rbHtml(r.rulebook, g);
+      } catch (e) { toast(e.message, true); if (box) box.querySelector('.hint').textContent = e.message; }
+    }
+    document.addEventListener('change', (e) => { if (e.target.matches('[data-rb-upload]')) uploadRulebook(e.target); });
+    document.addEventListener('click', (e) => { const b = e.target.closest('[data-rb-open]'); if (b) { e.preventDefault(); openRulebook(b.dataset.rbOpen); } });
     function renderDetail() {
       const g = collection.find(x => x.id === detailId);
       if (!g) { closeDetail(); return; }
+      setTimeout(() => loadRulebook(g), 0);
       const stats = [];
       const stat = (value, label) => { if (value) stats.push('<div class="stat"><b>' + esc(value) + '</b><span>' + label + '</span></div>'); };
       stat(playersText(g), 'Players');
@@ -1813,6 +1872,7 @@
           '</div>' +
           (stats.length ? '<div class="stat-grid">' + stats.join('') + '</div>' : '') +
           ratingsHtml(g) +
+          (isMember() && g.bggId ? '<div class="rb-block" id="rbBlock" data-bgg="' + Number(g.bggId) + '"><div class="section-label" style="margin:0;"><i class="fa-solid fa-book-open"></i> Rulebook</div><div class="hint" style="margin:0.2rem 0 0;">Checking…</div></div>' : '') +
           '<div class="tags">' +
             (g.genre ? '<span class="tag tag-genre">' + esc(g.genre) + '</span>' : '') +
             (g.type ? '<span class="tag tag-type">' + esc(g.type) + '</span>' : '') +
@@ -2585,6 +2645,12 @@
       if (u.mood) bits.push(esc(u.mood));
       return bits.length ? '<div class="ask-understood">' + bits.map(b => '<span class="fact">' + b + '</span>').join('') + '</div>' : '';
     }
+    function rulesLinks(r) {
+      if (r.mode !== 'rules' || !(r.rulebooks || []).length) return '';
+      return '<div class="n-rules-links">' + r.rulebooks.map(b => b.has
+        ? '<button type="button" class="btn ghost" data-rb-open="' + Number(b.bggId) + '"><i class="fa-solid fa-book-open"></i> Open the ' + esc(b.title) + ' rulebook</button>'
+        : '<a class="btn ghost" href="https://boardgamegeek.com/boardgame/' + Number(b.bggId) + '/files" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Find the ' + esc(b.title) + ' rulebook on BGG</a>').join('') + '</div>';
+    }
     function nathanAnswerHtml(r) {
       if (r.offTopic || (!r.pick && !(r.highlights || []).length)) return '<p class="ask-note" style="margin:0;">' + esc(r.note || (r.gap && r.gap.missing) || 'Nathan came up empty on that one.') + '</p>';
       const gap = r.gap ? '<div class="n-gap">' + esc(r.gap.missing) +
@@ -2602,7 +2668,7 @@
       const top = (r.intent === 'browse' ? '' : understoodHtml(r.understood)) + seeAll;
       const head = top ? '<div class="n-toprow">' + top + '</div>' : '';
       const body = r.intent === 'browse'
-        ? head + '<p class="n-summary">' + esc(r.summary || '') + '</p>' + gap + r.highlights.map(h => nathanCard(h, 'highlight')).join('')
+        ? head + '<p class="n-summary' + (r.mode === 'rules' ? ' rules' : '') + '">' + esc(r.summary || '') + '</p>' + rulesLinks(r) + gap + (r.mode === 'rules' ? '' : r.highlights.map(h => nathanCard(h, 'highlight')).join(''))
         : head + gap + nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid');
       return body + (r.signoff ? '<div class="n-sign">' + (r.intent === 'browse' ? '' : 'And that’s what’s hitting the table!') + '<span>' + esc(r.signoff) + '</span></div>' : '');
     }
