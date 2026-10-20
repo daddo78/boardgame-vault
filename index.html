@@ -172,6 +172,27 @@
   .fr-add input:focus { box-shadow: 0 0 0 2px var(--teal) inset; }
   .fr-add .btn { flex: 0 0 auto; }
   .fr-list { display: grid; gap: 0.5rem; margin-top: 0.5rem; text-align: left; }
+  /* Wishlists, Top 10 and profile pages */
+  .wl-list { display: grid; gap: 0.5rem; margin-top: 0.6rem; text-align: left; }
+  .wl-row { display: flex; align-items: center; gap: 0.7rem; background: var(--exp-bg); border-radius: 0.9rem; padding: 0.5rem 0.6rem; }
+  .wl-row img, .wl-row .ph { width: 3rem; height: 3rem; border-radius: 0.6rem; object-fit: cover; flex: none; background: #fff; display: grid; place-items: center; color: var(--text-muted); }
+  .wl-row .t { flex: 1; min-width: 0; }
+  .wl-row .t b { display: block; overflow: hidden; text-overflow: ellipsis; }
+  .wl-row .t span { font-size: 0.8rem; color: var(--text-muted); }
+  .wl-row .rank { font-weight: 800; color: var(--brand); min-width: 1.4rem; text-align: right; }
+  .wl-row .btn { flex: none; padding: 0.4rem 0.75rem; font-size: 0.82rem; }
+  .top-search { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+  .top-search input { flex: 1; min-width: 0; }
+  .top-search .btn { flex: none; width: auto; }
+  .pp-head { display: flex; gap: 0.8rem; align-items: center; text-align: left; }
+  .pp-head .ph { width: 3.4rem; height: 3.4rem; border-radius: 50%; background: var(--exp-bg); display: grid; place-items: center; font-size: 1.4rem; color: var(--brand); flex: none; }
+  .pp-stats { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
+  .pp-stats div { flex: 1; background: var(--exp-bg); border-radius: 0.8rem; padding: 0.5rem; text-align: center; }
+  .pp-stats b { display: block; font-size: 1.3rem; color: var(--brand); }
+  .pp-stats span { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+  .pp-words { text-align: left; margin-top: 0.6rem; font-size: 0.92rem; }
+  .pp-words p { margin: 0.25rem 0; }
+  .n-wish { margin: 0.5rem 0 0; }
   .fr-row { display: flex; align-items: center; gap: 0.6rem; background: var(--exp-bg); border-radius: 0.9rem; padding: 0.55rem 0.7rem; }
   .fr-row .who { flex: 1; min-width: 0; }
   .fr-row .who b { display: block; }
@@ -675,6 +696,7 @@
       <button class="auth-btn" id="authBtn" type="button" aria-haspopup="menu" aria-expanded="false"><i class="fa-solid fa-right-to-bracket"></i> <span>Sign in</span></button>
       <div class="account-menu" id="accountMenu" role="menu" hidden>
         <button type="button" role="menuitem" id="menuProfile"><i class="fa-solid fa-id-badge"></i> My profile</button>
+        <button type="button" role="menuitem" id="menuWishlist"><i class="fa-solid fa-heart"></i> My wishlist</button>
         <button type="button" role="menuitem" id="menuSignOut"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
       </div>
     </div>
@@ -842,6 +864,23 @@
   <div class="modal-overlay" id="profileModal">
     <div class="modal">
       <div id="profileBody"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- Wishlist: games you'd like, kept apart from your shelf -->
+  <div class="modal-overlay" id="wishModal">
+    <div class="modal" style="text-align:center;">
+      <h2 style="margin-bottom:0.3rem;"><i class="fa-solid fa-heart" style="color:var(--brand);"></i> My wishlist</h2>
+      <p class="hint" style="margin-top:0;">Games you'd like to own. Your friends can see it (gift ideas!), and Nathan won't suggest these again. Got one? Tap "Got it!" and it moves onto your shelf.</p>
+      <div id="wishBody"><div class="spinner"></div></div>
+      <div class="modal-actions"><button class="btn ghost" type="button" data-close-modal>Close</button></div>
+    </div>
+  </div>
+  <!-- A friend's profile page (or your own, as friends see it) -->
+  <div class="modal-overlay" id="pageModal">
+    <div class="modal" style="text-align:center;">
+      <div id="pageBody"><div class="spinner"></div></div>
+      <div class="modal-actions"><button class="btn ghost" type="button" data-close-modal>Close</button></div>
     </div>
   </div>
 
@@ -1737,6 +1776,7 @@
           ((g.categories || []).length ? '<div><div class="section-label">Categories</div><div class="tags">' + chips(g.categories) + '</div></div>' : '') +
           '<div class="detail-actions">' +
             (g.bggId ? '<a class="btn" href="https://boardgamegeek.com/boardgame/' + Number(g.bggId) + '" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> BoardGameGeek</a>' : '') +
+            (viewingFriend() && g.bggId ? '<button class="btn" data-wish-add="' + Number(g.bggId) + '" data-title="' + esc(g.title) + '" data-cover="' + esc(g.coverCard || '') + '"><i class="fa-regular fa-heart"></i> Add to my wishlist</button>' : '') +
             '<button class="btn danger edit-only" data-delete="' + esc(g.id) + '"><i class="ti ti-trash"></i> Delete</button>' +
           '</div>' +
         '</div>';
@@ -2468,6 +2508,7 @@
             '<div><div class="n-kind">Not on your shelf' + esc(who) + '</div><div class="n-title">' + esc(x.title || o.title || '') + ' <i class="ti ti-external-link" style="font-size:0.8em;"></i></div>' +
             (x.quip ? '<div class="n-quip">' + esc(x.quip) + '</div>' : '') + '</div></a>' +
           (x.why ? '<div class="n-why">' + esc(x.why) + '</div>' : '') +
+          '<button type="button" class="btn ghost n-wish" data-wish-add="' + Number(o.bggId) + '" data-title="' + esc(x.title || o.title || '') + '" data-cover="' + esc(o.cover || '') + '"><i class="fa-regular fa-heart"></i> Add to my wishlist</button>' +
         '</div>';
       }
       const g = collection.find(y => y.id === x.id) || {};
@@ -2627,7 +2668,7 @@
       setMenu(accountMenu.hidden);
     });
     document.addEventListener('click', (e) => { if (!accountMenu.hidden && !e.target.closest('.account')) setMenu(false); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
     document.getElementById('menuSignOut').addEventListener('click', () => {
       setMenu(false);
       if (gisReady) google.accounts.id.disableAutoSelect();
@@ -2672,12 +2713,58 @@
         DIALS.map(dial).join('') +
         '<div class="pl-two"><div><label for="meLikes">I like</label><textarea id="meLikes" rows="2" maxlength="600" placeholder="engine builders, anything with animals, co-ops">' + esc(p.likes || '') + '</textarea></div>' +
         '<div><label for="meDislikes">Not for me</label><textarea id="meDislikes" rows="2" maxlength="600" placeholder="trivia, take-that, 3-hour rules explanations">' + esc(p.dislikes || '') + '</textarea></div></div>' +
+        '<div class="section-label" style="margin-top:1rem;">My Top 10 games of all time</div>' +
+        '<p class="hint" style="margin-top:0;">Best first. Any game counts, owned or not. Your friends see this on your profile, and Nathan uses it.</p>' +
+        '<div class="wl-list" id="topList"></div>' +
+        '<div class="top-search"><input type="text" id="topQuery" placeholder="Add a game, e.g. Brass: Birmingham" autocomplete="off"><button type="button" class="btn" id="topFind"><i class="ti ti-search"></i></button></div>' +
+        '<div class="wl-list" id="topResults"></div>' +
         '<label for="meNotes">About me <span style="font-weight:600;">(favorite games, what I’d recommend, anything Nathan should know)</span></label><textarea id="meNotes" rows="3" maxlength="600">' + esc(p.notes || '') + '</textarea>' +
         '<div class="pl-two"><div><label for="meBgg">BGG username <span style="font-weight:600;">(optional)</span></label><input type="text" id="meBgg" maxlength="60" value="' + esc(p.bggUsername || '') + '"></div>' +
         '<div><label for="meAge">Age <span style="font-weight:600;">(optional)</span></label><input type="number" id="meAge" min="1" max="120" value="' + (p.age || '') + '"></div></div>' +
         '<div class="modal-actions"><button type="button" class="btn ghost" data-profile-close>Cancel</button><button type="submit" class="btn primary" id="profileSave">Save</button></div>' +
       '</form>';
+      renderTop();
     }
+    function renderTop() {
+      const list = document.getElementById('topList');
+      if (!list || !myProfile) return;
+      const top = myProfile.topGames || [];
+      list.innerHTML = top.length ? top.map((g, i) => '<div class="wl-row"><span class="rank">' + (i + 1) + '</span>' +
+        (g.cover ? '<img src="' + esc(g.cover) + '" alt="" loading="lazy">' : '<span class="ph"><i class="ti ti-' + esc(DEFAULT_ICON) + '"></i></span>') +
+        '<div class="t"><b>' + esc(g.title) + '</b></div>' +
+        '<button type="button" class="mini-btn" data-top-move="' + i + '" data-dir="-1" title="Move up" aria-label="Move up"' + (i ? '' : ' disabled') + '><i class="fa-solid fa-arrow-up"></i></button>' +
+        '<button type="button" class="mini-btn" data-top-move="' + i + '" data-dir="1" title="Move down" aria-label="Move down"' + (i < top.length - 1 ? '' : ' disabled') + '><i class="fa-solid fa-arrow-down"></i></button>' +
+        '<button type="button" class="mini-btn" data-top-remove="' + i + '" title="Remove" aria-label="Remove"><i class="fa-solid fa-xmark"></i></button></div>').join('')
+        : '<p class="hint" style="margin:0;">Nothing yet. Search below to add your all-time favorites.</p>';
+      const q = document.getElementById('topQuery');
+      if (q) { q.disabled = top.length >= 10; q.placeholder = top.length >= 10 ? 'Your Top 10 is full' : 'Add a game, e.g. Brass: Birmingham'; }
+    }
+    async function findTop() {
+      const q = document.getElementById('topQuery').value.trim();
+      const box = document.getElementById('topResults');
+      if (q.length < 2) return;
+      box.innerHTML = '<div class="spinner"></div>';
+      try {
+        const { results } = await n8nFetch('/bgg-search?q=' + encodeURIComponent(q), { method: 'GET' });
+        const have = new Set((myProfile.topGames || []).map(g => g.bggId));
+        box.innerHTML = results.filter(x => x.kind !== 'expansion' && !have.has(x.bggId)).slice(0, 6).map(x => '<div class="wl-row">' +
+          (x.thumbnail ? '<img src="' + esc(x.thumbnail) + '" alt="" loading="lazy">' : '<span class="ph"><i class="ti ti-' + esc(DEFAULT_ICON) + '"></i></span>') +
+          '<div class="t"><b>' + esc(x.title) + '</b><span>' + esc([x.year, x.rating ? 'BGG ' + x.rating.toFixed(1) : ''].filter(Boolean).join(' · ')) + '</span></div>' +
+          '<button type="button" class="btn primary" data-top-add="' + x.bggId + '" data-title="' + esc(x.title) + '" data-cover="' + esc(x.thumbnail || '') + '">Add</button></div>').join('') || '<p class="hint" style="margin:0;">No matches.</p>';
+      } catch (err) { box.innerHTML = '<p class="hint" style="margin:0;">' + esc(err.message) + '</p>'; }
+    }
+    profileModal.addEventListener('keydown', (e) => { if (e.target.id === 'topQuery' && e.key === 'Enter') { e.preventDefault(); findTop(); } });
+    profileModal.addEventListener('click', (e) => {
+      if (!myProfile) return;
+      const top = (myProfile.topGames ||= []);
+      if (e.target.closest('#topFind')) { findTop(); return; }
+      const add = e.target.closest('[data-top-add]');
+      if (add && top.length < 10) { top.push({ bggId: Number(add.dataset.topAdd), title: add.dataset.title, cover: add.dataset.cover || null }); document.getElementById('topResults').innerHTML = ''; document.getElementById('topQuery').value = ''; renderTop(); return; }
+      const mv = e.target.closest('[data-top-move]');
+      if (mv) { const i = Number(mv.dataset.topMove), j = i + Number(mv.dataset.dir); if (top[j]) { [top[i], top[j]] = [top[j], top[i]]; renderTop(); } return; }
+      const rm = e.target.closest('[data-top-remove]');
+      if (rm) { top.splice(Number(rm.dataset.topRemove), 1); renderTop(); }
+    });
     profileModal.addEventListener('click', (e) => {
       if (e.target === profileModal || e.target.closest('[data-profile-close]')) { profileModal.classList.remove('open'); return; }
       const d = e.target.closest('[data-me-dial]');
@@ -2692,7 +2779,7 @@
       e.preventDefault();
       const val = (id) => document.getElementById(id).value;
       const payload = { likes: val('meLikes'), dislikes: val('meDislikes'), notes: val('meNotes'), bggUsername: val('meBgg').trim(), age: val('meAge'),
-        ...Object.fromEntries(DIALS.map(d => [d.key, myProfile[d.key] ?? null])) };
+        ...Object.fromEntries(DIALS.map(d => [d.key, myProfile[d.key] ?? null])), topGames: myProfile.topGames || [] };
       const btn = document.getElementById('profileSave');
       btn.disabled = true;
       try {
@@ -2705,6 +2792,92 @@
       }
     });
 
+    // ---------- Wishlist ----------
+    const wishModal = document.getElementById('wishModal');
+    let myWishes = [];
+    const wishRow = (g, own) => '<div class="wl-row">' +
+      (g.cover ? '<img src="' + esc(g.cover) + '" alt="" loading="lazy">' : '<span class="ph"><i class="ti ti-' + esc(DEFAULT_ICON) + '"></i></span>') +
+      '<div class="t"><b><a href="https://boardgamegeek.com/boardgame/' + Number(g.bggId) + '" target="_blank" rel="noopener" style="color:inherit;">' + esc(g.title) + '</a></b>' +
+      '<span>' + esc([g.year, g.minPlayers ? g.minPlayers + (g.maxPlayers && g.maxPlayers !== g.minPlayers ? '–' + g.maxPlayers : '') + ' players' : '', g.rating ? 'BGG ' + Number(g.rating).toFixed(1) : ''].filter(Boolean).join(' · ')) + '</span></div>' +
+      (own ? '<button type="button" class="btn primary" data-wish-got="' + Number(g.bggId) + '">Got it!</button>' +
+        '<button type="button" class="mini-btn" data-wish-remove="' + Number(g.bggId) + '" title="Remove" aria-label="Remove ' + esc(g.title) + '"><i class="fa-solid fa-xmark"></i></button>' : '') + '</div>';
+    function renderWishes() {
+      document.getElementById('wishBody').innerHTML = myWishes.length ? '<div class="wl-list">' + myWishes.map(g => wishRow(g, true)).join('') + '</div>'
+        : '<p class="hint">Nothing yet. Tap "Add to my wishlist" on one of Nathan\'s ideas, or on a game in a friend\'s library.</p>';
+    }
+    async function openWishlist() {
+      setMenu(false);
+      wishModal.classList.add('open');
+      document.getElementById('wishBody').innerHTML = '<div class="spinner"></div>';
+      try { myWishes = (await n8nFetch('/wishlist', { method: 'GET' })).items || []; renderWishes(); }
+      catch (e) { document.getElementById('wishBody').innerHTML = '<p class="hint">' + esc(e.message) + '</p>'; }
+    }
+    document.getElementById('menuWishlist').addEventListener('click', openWishlist);
+    async function changeWish(action, bggId, title, cover) {
+      const r = await n8nFetch('/wishlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, bggId, title, cover }) });
+      myWishes = r.items || [];
+      return r;
+    }
+    wishModal.addEventListener('click', async (e) => {
+      if (e.target === wishModal || e.target.closest('[data-close-modal]')) { wishModal.classList.remove('open'); return; }
+      const rm = e.target.closest('[data-wish-remove]');
+      if (rm) { try { await changeWish('remove', Number(rm.dataset.wishRemove)); renderWishes(); } catch (err) { toast(err.message, true); } return; }
+      const got = e.target.closest('[data-wish-got]');
+      if (got) {
+        const id = Number(got.dataset.wishGot);
+        const g = myWishes.find(x => x.bggId === id) || {};
+        got.disabled = true; got.textContent = 'Adding…';
+        try {
+          await n8nFetch(isOwner() ? '/add' : '/shelf-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bggId: id }) });
+          await changeWish('remove', id);
+          renderWishes();
+          toast('"' + (g.title || 'That game') + '" is on your shelf now. Enjoy!');
+          if (currentShelf() === homeShelf()) loadCollection();
+        } catch (err) { toast(err.message, true); got.disabled = false; got.textContent = 'Got it!'; }
+      }
+    });
+    // "Add to my wishlist" on Nathan's ideas and on games in a friend's library
+    document.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-wish-add]');
+      if (!b || b.disabled) return;
+      e.preventDefault(); e.stopPropagation();
+      b.disabled = true;
+      try {
+        await changeWish('add', Number(b.dataset.wishAdd), b.dataset.title, b.dataset.cover || '');
+        b.innerHTML = '<i class="fa-solid fa-heart"></i> On your wishlist';
+        toast('Added "' + b.dataset.title + '" to your wishlist.');
+      } catch (err) { b.disabled = false; toast(err.message, true); }
+    }, true);
+
+    // ---------- Profile pages (a friend's, from Friends) ----------
+    const pageModal = document.getElementById('pageModal');
+    async function openPage(friendId) {
+      pageModal.classList.add('open');
+      const body = document.getElementById('pageBody');
+      body.innerHTML = '<div class="spinner"></div>';
+      try {
+        const p = await n8nFetch('/profile' + (friendId ? '?friend=' + Number(friendId) : ''), { method: 'GET' });
+        const first = firstName(p.name);
+        const dials = DIALS.filter(d => p.dials && p.dials[d.key]).map(d => '<span class="tag">' + esc(d.label) + ' ' + p.dials[d.key] + '/5</span>').join('');
+        const words = [p.likes ? '<p><b>Likes:</b> ' + esc(p.likes) + '</p>' : '', p.dislikes ? '<p><b>Not for ' + (p.self ? 'me' : first) + ':</b> ' + esc(p.dislikes) + '</p>' : '', p.about ? '<p>' + esc(p.about) + '</p>' : ''].join('');
+        const top = (p.topGames || []);
+        body.innerHTML = '<div class="pp-head"><span class="ph"><i class="fa-solid fa-user"></i></span><div><h2 style="margin:0;">' + esc(p.name) + '</h2>' +
+            (p.stats.friendsSince ? '<span class="hint">Friends since ' + esc(String(p.stats.friendsSince).slice(0, 10)) + '</span>' : '') + '</div></div>' +
+          '<div class="pp-stats"><div><b>' + p.stats.games + '</b><span>Games</span></div><div><b>' + p.stats.plays + '</b><span>Plays</span></div><div><b>' + top.length + '</b><span>Top 10</span></div></div>' +
+          (words ? '<div class="pp-words">' + words + '</div>' : '') + (dials ? '<div class="tags" style="justify-content:center; margin-top:0.4rem;">' + dials + '</div>' : '') +
+          '<div class="section-label" style="margin-top:1rem;">' + (p.self ? 'My' : esc(first) + '’s') + ' Top 10 games of all time</div>' +
+          (top.length ? '<div class="wl-list">' + top.map((g, i) => '<div class="wl-row"><span class="rank">' + (i + 1) + '</span>' +
+            (g.cover ? '<img src="' + esc(g.cover) + '" alt="" loading="lazy">' : '<span class="ph"><i class="ti ti-' + esc(DEFAULT_ICON) + '"></i></span>') +
+            '<div class="t"><b>' + esc(g.title) + '</b></div></div>').join('') + '</div>' : '<p class="hint" style="margin:0;">' + esc(first) + ' hasn’t picked a Top 10 yet.</p>') +
+          ((p.stats.mostPlayed || []).length ? '<div class="section-label" style="margin-top:1rem;">Most played</div><div class="wl-list">' + p.stats.mostPlayed.map(g => '<div class="wl-row">' +
+            (g.cover ? '<img src="' + esc(g.cover) + '" alt="" loading="lazy">' : '<span class="ph"><i class="ti ti-' + esc(DEFAULT_ICON) + '"></i></span>') +
+            '<div class="t"><b>' + esc(g.title) + '</b><span>' + g.plays + ' plays</span></div></div>').join('') + '</div>' : '') +
+          '<div class="section-label" style="margin-top:1rem;">' + (p.self ? 'My' : esc(first) + '’s') + ' wishlist</div>' +
+          ((p.wishlist || []).length ? '<div class="wl-list">' + p.wishlist.map(g => wishRow(g, false)).join('') + '</div>' : '<p class="hint" style="margin:0;">Nothing on it yet.</p>');
+      } catch (err) { body.innerHTML = '<p class="hint">' + esc(err.message) + '</p>'; }
+    }
+    pageModal.addEventListener('click', (e) => { if (e.target === pageModal || e.target.closest('[data-close-modal]')) pageModal.classList.remove('open'); });
+
     // ---------- Friends: your code, add by code, your friends ----------
     const friendsModal = document.getElementById('friendsModal');
     function renderFriendsPanel() {
@@ -2715,6 +2888,7 @@
       const list = friendsData.friends || [];
       document.getElementById('friendsList').innerHTML = list.length ? list.map(f =>
         '<div class="fr-row"><div class="who"><b>' + esc(f.name) + '</b><span>' + f.games + (f.games === 1 ? ' game' : ' games') + '</span></div>' +
+        '<button type="button" class="btn ghost" data-friend-page="' + f.id + '">Profile</button>' +
         '<button type="button" class="btn ghost" data-view-friend="' + f.id + '">View library</button>' +
         '<button type="button" class="mini-btn" data-remove-friend="' + f.id + '" data-name="' + esc(f.firstName) + '" title="Remove ' + esc(f.firstName) + '" aria-label="Remove ' + esc(f.firstName) + '"><i class="fa-solid fa-xmark"></i></button></div>'
       ).join('') : '<p class="hint" style="margin:0;">No friends yet. Share your code!</p>';
@@ -2737,6 +2911,10 @@
         toast(r.already ? 'You and ' + r.friend.name.split(' ')[0] + ' are already friends.' : 'You and ' + r.friend.name.split(' ')[0] + ' are now friends!');
         await loadFriends();
       } catch (err) { toast(err.message.replace(/^n8n request failed \(\d+\) /, ''), true); }
+    });
+    document.getElementById('friendsList').addEventListener('click', (e) => {
+      const pg = e.target.closest('[data-friend-page]');
+      if (pg) { friendsModal.classList.remove('open'); openPage(pg.dataset.friendPage); }
     });
     document.getElementById('friendsList').addEventListener('click', async (e) => {
       const view = e.target.closest('[data-view-friend]');

@@ -51,6 +51,9 @@ const ID = {
   shelfRemove: 'BGVaultShelfRem1',
   importBgg: 'BGVaultImport001',
   shelfCsv: 'BGVaultShelfCsv1',
+  wishlist: 'BGVaultWishGet01',
+  wishChange: 'BGVaultWishSet01',
+  profilePage: 'BGVaultProfile01',
   shelfAdd: 'BGVaultShelfAdd1',
   shelfIdentify: 'BGVaultShelfPic1',
   friends: 'BGVaultFriends01',
@@ -2211,6 +2214,10 @@ const meSave = wf(ID.meSave, 'Vault — Save My Profile', [
       age: b.age === '' || b.age == null ? null : Math.max(1, Math.min(120, Math.round(Number(b.age)))) || null,
       complexity: dial(b.complexity), conflict: dial(b.conflict), luck: dial(b.luck), tableTalk: dial(b.tableTalk), theme: dial(b.theme),
       likes: text(b.likes), dislikes: text(b.dislikes), notes: text(b.notes),
+      // Top 10 of all time, best first: BGG games only
+      ...(Array.isArray(b.topGames) ? { topGames: b.topGames.map((g) => ({ bggId: Number(g && g.bggId) || 0, title: text(g && g.title, 200),
+        cover: /^https:\/\/cf\.geekdo-images\.com\//.test(String((g && g.cover) || '')) ? String(g.cover) : null }))
+        .filter((g, i, a) => g.bggId && g.title && a.findIndex((x) => x.bggId === g.bggId) === i).slice(0, 10) } : {}),
     };
     return [{ json: { ok: true, email: j._auth.email, profile } }];
   }),
@@ -2719,8 +2726,57 @@ const friendsChange = wf(ID.friendsChange, 'Vault — Friends (add / remove)', [
 ], [['Webhook', 'Change'], ['Change', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
 addMemberAuth(friendsChange, { failTo: 'Respond Error' });
 
+// =====================================================================
+// 29. Wishlist  GET /webhook/vault/wishlist[?friend=<memberId>]  (member gate): yours, or a friend's (gift ideas)
+//     POST /webhook/vault/wishlist { action: add|remove, bggId, title, cover }: change your own
+// =====================================================================
+const wishlist = wf(ID.wishlist, 'Vault — Wishlist', [
+  webhook('Webhook', 'GET', 'vault/wishlist'),
+  pg('Read', "SELECT bgc.wishlist($1, nullif($2, '')::bigint) AS r",
+    "={{ [$json._auth.email, String(Number(($json.query || {}).friend) || '')] }}"),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Read'], ['Read', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(wishlist, { failTo: 'Respond Error' });
+
+const wishChange = wf(ID.wishChange, 'Vault — Wishlist (add / remove)', [
+  webhook('Webhook', 'POST', 'vault/wishlist'),
+  code('Validate', function () {
+    const j = $input.first().json;
+    const b = j.body || {};
+    const bggId = Number(b.bggId) || 0;
+    if (!bggId) return [{ json: { ok: false, status: 400, message: 'Pick a game from BoardGameGeek' } }];
+    const cover = /^https:\/\/cf\.geekdo-images\.com\//.test(String(b.cover || '')) ? String(b.cover) : '';
+    return [{ json: { ok: true, email: j._auth.email, action: b.action === 'remove' ? 'remove' : 'add', bggId, title: String(b.title || '').trim().slice(0, 200), cover } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  pg('Change', 'SELECT bgc.wish_change($1, $2, $3::int, $4, $5) AS r', '={{ [$json.email, $json.action, String($json.bggId), $json.title, $json.cover] }}'),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Change', 0], ['Valid?', 'Respond Error', 1], ['Change', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(wishChange, { failTo: 'Respond Error' });
+
+// =====================================================================
+// 30. Profile Page  GET /webhook/vault/profile[?friend=<memberId>]  (member gate): yours or a friend's
+//     Their own words, Top 10 of all time, wishlist and a few numbers from their shelf.
+// =====================================================================
+const profilePage = wf(ID.profilePage, 'Vault — Profile Page', [
+  webhook('Webhook', 'GET', 'vault/profile'),
+  pg('Read', "SELECT bgc.profile_page($1, nullif($2, '')::bigint) AS r",
+    "={{ [$json._auth.email, String(Number(($json.query || {}).friend) || '')] }}"),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Read'], ['Read', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(profilePage, { failTo: 'Respond Error' });
+
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
