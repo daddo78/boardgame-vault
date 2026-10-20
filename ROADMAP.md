@@ -56,6 +56,10 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [x] Nathan knows who is asking, and answers questions about people ("what do you know about me?")
 - [ ] "Games like this" with embeddings (pgvector on our own Postgres), alongside "What's like this?"
 - [ ] "What's like this?" (Ask Nathan from a game's detail view)
+- [x] Nathan answers "my …" questions from your own shelf, wherever you're looking; answers the whole question in his paragraph
+- [x] Games beyond the shelf: facts about any game (our catalog, else BGG), "would I like it?", and buy ideas from games you don't own. Who owns a game is only mentioned for your friends
+- [ ] Buy ideas beyond our catalog: Nathan proposes titles from his own knowledge, checked against BGG before he mentions them
+- [ ] **Wishlists**: "Save to my wishlist" on Nathan's buy ideas and game answers; a wishlist per member, kept apart from the shelf (never shown as owned). Ideas: friends can see each other's wishlists (gift ideas), Nathan skips wishlisted games in buy ideas, "Got it!" moves a game onto the shelf
 
 ## 5. Data cleanup
 - [x] Count plays logged under other editions: games can list extra BGG ids (`ExtraBGGIds`); Catan counts Catan: 3D Edition, and Camel Up is re-linked to the Second Edition you own. Most unmatched plays (~330) turned out to be games not in the collection.

@@ -172,6 +172,7 @@ function prelude() {
         designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),
         // An expansion's inbound links point at the base game(s) it expands
         baseIds: [...s.matchAll(/<link type="boardgameexpansion" id="(\d+)"[^>]*inbound="true"/g)].map((x) => Number(x[1])),
+        description: decode(decode((s.match(/<description>([\s\S]*?)<\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\d+;/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 700) || null,
         picId: (s.match(/<image>[^<]*\/pic(\d+)\.[a-z]+<\/image>/) || [])[1] || null };
     });
   };
@@ -1658,8 +1659,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'You read requests for a board game night recommender that only knows one family\'s board game shelf.',
       'Extract what they want. Reply with JSON only:',
       '{',
-      '  "onTopic": true if this is about choosing or playing board games, the games on this shelf, or the people who play here (their tastes, profile, play history), else false,',
-      '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"),',
+      '  "onTopic": true if this is about board games (any game, owned or not), choosing or playing them, buying them, the games on this shelf, or the people who play here (their tastes, profile, play history), else false,',
+      '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"); "game" if they ask about one or more specific games themselves, owned or not (e.g. "what genre is Terraforming Mars", "how long is Brass", "would I like Ark Nova", "is Spirit Island good for 2", "should I buy Cascadia"); "buy" if they want ideas for games to buy or get next (e.g. "what should I buy next", "what game should I add to my collection", "a co-op I don\'t own yet"),',
+      '  "games": [for intent "game": the official BoardGameGeek titles of the games they name, spelling corrected (e.g. "Teraforming Mars" -> "Terraforming Mars")],',
       '  "personIds": [for intent "person": ids from ROSTER of who they ask about; "me", "I" and "my" mean the ASKER],',
       '  "sort": for a ranked list only: "plays" (most played), "leastPlays", "recent" (most recently played), "stale" (longest since played), "rating" (BGG rating), "rank" (BGG rank), "want" (wants-to-play stars), "weight" (heaviest), "newest" (latest added); else null,',
       '  "limit": how many games they asked for ("top ten" = 10, "my 5 heaviest" = 5), else null,',
@@ -1705,10 +1707,58 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const first = String(sv.ownerName || '').toLowerCase();
     const aboutMine = /\b(my|mine)\b|\b(do|did) i (own|have)\b|\bi(?:'ve|’ve| have)? (played|own|got)\b/i.test(q);
     const aboutOpen = /\b(here|this shelf|this collection|on (his|her|their) shelf)\b/i.test(q) || (first && q.toLowerCase().includes(first));
-    return [{ json: { useOwn: !onOwn && !aboutOpen && (/"scope"\s*:\s*"mine"/.test(text) || aboutMine) } }];
+    let c = {};
+    try { c = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
+    // A question about a game or what to buy is about the asker: their shelf and taste, wherever they are
+    const forMe = c.intent === 'game' || c.intent === 'buy';
+    const titles = c.intent === 'game' && Array.isArray(c.games) ? c.games.map((t) => String(t).trim()).filter(Boolean).slice(0, 3) : [];
+    return [{ json: { useOwn: !onOwn && (forMe || (!aboutOpen && (/"scope"\s*:\s*"mine"/.test(text) || aboutMine))), titles, buy: c.intent === 'buy' } }];
   }),
   pg('Own Shelf', 'SELECT CASE WHEN $2::boolean THEN bgc.shelf_view($1, \'mine\', NULL) END AS own',
     "={{ [$('Validate').first().json.email, String($json.useOwn)] }}"),
+  // Games asked about (from the shared catalog, with which friends own them), and ideas to buy
+  pg('Game Lookup', 'SELECT bgc.lookup_games($1, $2::jsonb) AS games, CASE WHEN $3::boolean THEN bgc.buy_pool($1) END AS pool',
+    "={{ [$('Validate').first().json.email, JSON.stringify($('Scope').first().json.titles), String($('Scope').first().json.buy)] }}"),
+  code('Lookup Queries', function () {
+    const missing = ($input.first().json.games || []).filter((l) => !l.game).map((l) => l.asked);
+    return missing.length ? missing.map((t) => ({ json: { title: t, query: t.replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim() } })) : [{ json: { none: true } }];
+  }),
+  ifTrue('Ask BGG?', '={{ !$json.none }}'),
+  // Not in our catalog: BGG's most-rated exact match
+  { ...node('Game Search', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/search',
+    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    ...qs({ query: '={{ $json.query }}', type: 'boardgame,boardgameexpansion' }),
+    options: { timeout: 20000, batching: { batch: { batchSize: 1, batchInterval: 600 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
+  }, { credentials: CRED.bgg }), onError: 'continueRegularOutput' },
+  code('Game Candidates', function () {
+    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    const asked = $('Lookup Queries').all().map((i) => i.json);
+    return $input.all().map((res, i) => {
+      const t = normTitle(asked[i].title);
+      const items = [...String(res.json.data || '').matchAll(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/g)]
+        .map((m) => ({ id: m[2], name: decode((m[3].match(/<name type="[^"]+" value="([^"]*)"/) || [])[1] || '') }));
+      let pool = items.filter((x) => normTitle(x.name) === t);
+      if (!pool.length) pool = items.filter((x) => { const n = normTitle(x.name); return n && (n.startsWith(t + ' ') || t.startsWith(n + ' ')); });
+      return { json: { ids: [...new Set(pool.map((x) => x.id))].slice(0, 15).join(',') } };
+    });
+  }),
+  { ...node('Game Thing', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/thing',
+    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    ...qs({ id: '={{ $json.ids || 0 }}', stats: '1' }),
+    options: { timeout: 20000, batching: { batch: { batchSize: 1, batchInterval: 600 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
+  }, { credentials: CRED.bgg }), onError: 'continueRegularOutput' },
+  code('Game Choose', function () {
+    const asked = $('Lookup Queries').all().map((i) => i.json);
+    return $input.all().map((res, i) => {
+      const usersRated = (id) => Number(((String(res.json.data || '').match(new RegExp('<item type="[^"]+" id="' + id + '">[\\s\\S]*?<usersrated value="(\\d+)"')) || [])[1]) || 0);
+      const t = parseThingXml(res.json.data).sort((a, b) => ((b.type === 'boardgame') - (a.type === 'boardgame')) || (usersRated(b.id) - usersRated(a.id)))[0];
+      return { json: { asked: asked[i].title, game: t ? { bggId: t.id, title: t.name, year: t.year, minPlayers: t.minPlayers, maxPlayers: t.maxPlayers, bestPlayers: t.bestPlayers,
+        minTime: t.minTime, maxTime: t.maxTime, weight: t.weight, minAge: t.minAge, rating: t.rating, rank: t.rank, designers: t.designers,
+        categories: t.categories, mechanics: t.mechanics, description: t.description, expansion: t.type === 'boardgameexpansion' } : null } };
+    });
+  }),
   code('Shortlist', function () {
     const v = $('Validate').first().json;
     const text = $('Understand Request').first().json.choices?.[0]?.message?.content || '';
@@ -1871,6 +1921,67 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     // On someone else's shelf, the asker is a guest: "you" is the asker, the shelf, its plays and stars are the owner's
     const guest = asker && sv.ownerName && asker.name.split(' ')[0] !== sv.ownerName
       ? `SHELF: you are looking at ${sv.ownerName}'s shelf with ${asker.name.split(' ')[0]}. Speak to ${asker.name.split(' ')[0]} as "you" and never call them ${sv.ownerName}; the games, plays, wins, favorites and wants-to-play stars on this shelf are ${sv.ownerName}'s ("${sv.ownerName} has played it 12 times").` : '';
+    if (c.intent === 'game' || c.intent === 'buy') {
+      // About a game (owned or not), or ideas to buy. sv is the asker's own shelf here, so their taste comes from it.
+      const facts = (g) => [
+        g.year ? 'published ' + g.year : '',
+        g.minPlayers ? g.minPlayers + '-' + g.maxPlayers + ' players' + ((g.bestPlayers || []).length ? ', best at ' + g.bestPlayers.join('/') + ' (BGG community poll)' : '') : '',
+        g.minTime ? (g.minTime === g.maxTime || !g.maxTime ? g.minTime : g.minTime + '-' + g.maxTime) + ' min' : '',
+        g.weight ? 'BGG weight ' + Number(g.weight).toFixed(1) + '/5' : '', g.minAge ? 'age ' + g.minAge + '+' : '',
+        g.rating ? 'BGG rating ' + Number(g.rating).toFixed(1) + '/10' : '', g.rank ? 'BGG rank #' + g.rank : '',
+        (g.designers || []).length ? 'designed by ' + g.designers.join(', ') : '',
+        (g.categories || []).length ? 'categories: ' + g.categories.join(', ') : '',
+        (g.mechanics || []).length ? 'mechanics: ' + g.mechanics.slice(0, 8).join(', ') : '',
+        g.expansion ? 'this is an expansion, not a standalone game' : '',
+      ].filter(Boolean).join('; ');
+      const topPlayed = games.filter((g) => g.playCount).sort((a, b) => b.playCount - a.playCount).slice(0, 8);
+      const loved = asker ? Object.values(rate).filter((r) => r.playerId === asker.id && fit(r) >= 4).map((r) => games.find((g) => g.id === r.gameId)).filter(Boolean) : [];
+      const tasteGames = [...new Set([...topPlayed, ...loved, ...games.filter((g) => g.favorite)])];
+      const tasteTags = {};
+      for (const g of tasteGames) for (const t of [...g.categories, ...g.mechanics]) tasteTags[t] = (tasteTags[t] || 0) + 1;
+      const taste = [
+        'ASKER\'S SHELF: ' + games.length + ' games' + (topPlayed.length ? '; most played: ' + topPlayed.map((g) => g.title + ' (' + g.playCount + ')').join(', ') : ''),
+        loved.length ? 'rated 4+ by them: ' + loved.slice(0, 8).map((g) => g.title).join(', ') : '',
+        Object.keys(tasteTags).length ? 'what their favorites have in common: ' + Object.entries(tasteTags).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k]) => k).join(', ') : '',
+        asker ? 'PROFILE:\n' + profile(asker) : '',
+      ].filter(Boolean).join('\n');
+      const lookup = $('Game Lookup').first().json;
+      const owners = (list) => (list || []).length ? 'friends who own it: ' + list.join(', ') : 'none of their friends own it';
+      const off = [], lines = [], titles = {};
+      const add = (g, friends) => {
+        const shelfGame = games.find((x) => x.bggId && Number(x.bggId) === Number(g.bggId));
+        const id = shelfGame ? shelfGame.id : 'bgg:' + g.bggId;
+        if (titles[id]) return;
+        titles[id] = shelfGame ? shelfGame.title : g.title;
+        if (!shelfGame) off.push({ id, title: g.title, bggId: g.bggId, cover: g.cover || null, friends: friends || [] });
+        lines.push(id + ' | ' + titles[id] + ' | ' + (shelfGame ? 'ON THEIR SHELF, ' + (shelfGame.playCount || 0) + ' logged plays' : 'not on their shelf') + ' | ' + facts(g) +
+          (owners(friends) ? ' | ' + owners(friends) : '') + (c.intent === 'game' && g.description ? ' | BGG description: ' + g.description : ''));
+      };
+      if (c.intent === 'game') {
+        let looked = [];
+        try { looked = $('Game Choose').all().map((i) => i.json); } catch (e) { looked = []; }
+        for (const l of lookup.games || []) if (l.game) add(l.game, l.friends);
+        for (const l of looked) if (l.game) add(l.game, []);
+        const notFound = (lookup.games || []).filter((l) => !l.game && !looked.some((x) => x.asked === l.asked && x.game)).map((l) => l.asked);
+        if (!lines.length) return [{ json: { offTopic: true, reply: 'I couldn’t find ' + (notFound.join(' or ') || 'that game') + ' on BoardGameGeek. Could you check the spelling?' } }];
+        return [{ json: { offTopic: false, gap: false, browse: true, mode: 'game', matchIds: [], understood: {}, constraints: c,
+          setFacts: taste + (notFound.length ? '\nNOT FOUND ON BGG: ' + notFound.join(', ') : ''), shortIds: Object.keys(titles), titles, off,
+          gameLines: lines.join('\n'), profiles: '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest: '', fromOwn: !!own } }];
+      }
+      // Ideas to buy: games they don't own that share what their favorites have, within anything they asked for
+      const hay2 = (g) => [g.title, ...(g.categories || []), ...(g.mechanics || [])].join(' ').toLowerCase();
+      const coop = (g) => (g.mechanics || []).some((m) => /cooperative/i.test(m));
+      const picks = (lookup.pool || []).filter((g) => (!count || (g.minPlayers <= count && count <= (g.maxPlayers || 99)))
+          && (!maxMin || (g.maxTime || g.minTime || 999) <= maxMin * 1.1) && (!wMax || (g.weight && g.weight <= wMax + 0.3)) && (!wMin || (g.weight && g.weight >= wMin - 0.3))
+          && (c.coop !== true || coop(g)) && (c.coop !== false || !coop(g)) && !avoid.some((w) => hay2(g).includes(w)))
+        .map((g) => ({ g, s: [...(g.categories || []), ...(g.mechanics || [])].reduce((n, t) => n + (tasteTags[t] || 0), 0) / Math.max(1, tasteGames.length) * 3
+          + want.filter((w) => hay2(g).includes(w)).length * 2.5 + ((g.rating || 6.5) - 6.5) * 0.8 + ((g.friends || []).length ? 1.5 : 0) }))
+        .sort((a, b) => b.s - a.s).slice(0, 12);
+      for (const x of picks) add(x.g, x.g.friends);
+      if (!lines.length) return [{ json: { offTopic: true, reply: 'I don’t have enough games beyond your shelf to suggest one for that yet. Try asking about a specific game!' } }];
+      return [{ json: { offTopic: false, gap: false, browse: true, mode: 'buy', matchIds: [], understood: { themes: want, coop: c.coop ?? null, playerCount: count, maxMinutes: maxMin }, constraints: c,
+        setFacts: taste, shortIds: Object.keys(titles), titles, off, gameLines: lines.join('\n'), profiles: '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest: '', fromOwn: !!own } }];
+    }
     if (c.intent === 'person') {
       // "What do you know about me?": their own words, their play history here, and the games that show their taste
       const who = [...new Set(Array.isArray(c.personIds) ? c.personIds : [])].map((id) => byId[id]).filter(Boolean);
@@ -1919,7 +2030,11 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '- First mention: for a title NOT in ALREADY_JOKED, open its entry with a one-line dad-joke quip about that game. For titles in ALREADY_JOKED, leave quip empty.',
       '- Only if you are confident the game has an unlimited or substitutable component pool, or it supports an expanded player count, add exactly this joke in swapJoke: "The [component] can be substituted as needed, so if you ever run short, feel free to use a suitable replacement… like [funny, semi-related household item]." Otherwise null.',
       '',
-      ...(s.person ? [
+      ...(s.mode === 'game' ? [
+      'FORMAT: this is a question about specific game(s), owned or not. Answer it directly and completely in "summary" (2-5 sentences) from the CANDIDATES facts, which come from BoardGameGeek ("genre" means its categories and main mechanics; name a few of each). If a game is not on their shelf, say so, then say honestly how well it would suit them, comparing it to games on ASKER\'S SHELF they play and love and to their PROFILE. Only when the facts name friends who own it, mention they could try that friend\'s copy first (by name); never suggest a friend\'s copy otherwise. If it looks like a great fit and they don\'t own it, you may say it could be worth buying. Never invent facts; for things BGG data doesn\'t cover (rules details, reviews, prices), say you only have BGG\'s facts. Highlights: the game(s) asked about, one sentence of "why" each. gap is null.',
+      ] : s.mode === 'buy' ? [
+      'FORMAT: they want ideas for games to buy. Every CANDIDATE is a game they don\'t own. Pick the 3 that best fit their taste (ASKER\'S SHELF, PROFILE) and anything in the request. In "summary" (2-4 sentences) name your 3 picks and why, tied to games they already play and love. Only mention a friend owning a pick when the facts list that friend (then suggest trying their copy first). Highlights: the 3 picks, each with one or two sentences of "why". gap is null.',
+      ] : s.person ? [
       'FORMAT: this is a question about a person, not a request for a game. In "summary" (3-6 sentences) tell them what you know, warmly and specifically: their own words first (likes, dislikes, dials, about), then their play history here (plays, wins, most played, rated 4+), and what that says about their taste. Speak to the ASKER as "you" when the question is about them; use first names for anyone else.',
       'Use only the facts in SET FACTS. If the profile is empty, say so kindly: when it is the ASKER\'s own, suggest filling in My profile (under their name, top left of the site) so you can do better; for anyone else, suggest nudging that person to fill in theirs. Then pick 3 to 5 highlights from CANDIDATES that best show their taste (most played or rated highest), each with one sentence of "why". gap is null.',
       ] : s.browse ? [
@@ -1954,7 +2069,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       v.previous ? 'This follows up on: ' + v.previous.question : '',
       'UNDERSTOOD: ' + JSON.stringify(s.understood),
       'GAP: ' + (s.gap ? 'true' : 'false'),
-      s.setFacts ? (s.person ? 'SET FACTS (about the people asked about):\n' : 'SET FACTS (all games that match):\n') + s.setFacts : '',
+      s.setFacts ? (s.person ? 'SET FACTS (about the people asked about):\n' : s.mode ? 'ABOUT THE ASKER:\n' : 'SET FACTS (all games that match):\n') + s.setFacts : '',
       'ALREADY_JOKED: ' + (s.shortIds.filter((id) => mentioned.has(id)).join(', ') || '(none)'),
       s.askerName ? 'ASKER (the person typing; call them "you"): ' + s.askerName : '', s.guest || '',
       s.askerProfile ? 'ASKER PROFILE (use it when they ask for something they would like, even if they are not listed as playing):\n' + s.askerProfile : '',
@@ -1978,15 +2093,16 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const entry = (x, withFeel) => {
       if (!x || !allowed.has(String(x.id)) || seen.has(String(x.id))) return null;
       seen.add(String(x.id));
+      const off = (s.off || []).find((o) => o.id === String(x.id)); // a game not on their shelf: BGG link, cover, friends who have it
       return { id: String(x.id), title: s.titles[x.id], quip: str(x.quip, 200), why: str(x.why, 700),
-        ...(withFeel ? { tableFeel: str(x.tableFeel, 400) } : {}), ...(x.swapJoke ? { swapJoke: str(x.swapJoke, 300) } : {}) };
+        ...(withFeel ? { tableFeel: str(x.tableFeel, 400) } : {}), ...(x.swapJoke ? { swapJoke: str(x.swapJoke, 300) } : {}), ...(off ? { off } : {}) };
     };
     const gapOf = () => (s.gap || (a.gap && a.gap.missing)) ? { missing: str(a.gap && a.gap.missing, 300) || 'Nothing on the shelf matches every part of that.', consider: str(a.gap && a.gap.consider, 80) || null } : null;
     if (s.browse) {
       const highlights = (Array.isArray(a.highlights) ? a.highlights : []).map((x) => entry(x, false)).filter(Boolean).slice(0, 5);
       if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });
       const summary = str(a.summary, 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');
-      return [{ json: { ok: true, intent: 'browse', understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
+      return [{ json: { ok: true, intent: 'browse', mode: s.mode || null, understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
         matchIds: s.matchIds, fromOwn: !!s.fromOwn, signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];
     }
     let pick = entry(a.pick, true);
@@ -2013,7 +2129,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Use Allowance', 0], ['Valid?', 'Respond Error', 1],
   ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'Shelf View', 0], ['Allowed?', 'Respond Error', 1], ['Shelf View', 'List Games'],
   ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'One More Item'], ['One More Item', 'List Ratings'],
-  ['List Ratings', 'Build Understand Request'], ['Build Understand Request', 'Understand Request'], ['Understand Request', 'Scope'], ['Scope', 'Own Shelf'], ['Own Shelf', 'Shortlist'],
+  ['List Ratings', 'Build Understand Request'], ['Build Understand Request', 'Understand Request'], ['Understand Request', 'Scope'], ['Scope', 'Own Shelf'], ['Own Shelf', 'Game Lookup'], ['Game Lookup', 'Lookup Queries'], ['Lookup Queries', 'Ask BGG?'],
+  ['Ask BGG?', 'Game Search', 0], ['Ask BGG?', 'Shortlist', 1], ['Game Search', 'Game Candidates'], ['Game Candidates', 'Game Thing'], ['Game Thing', 'Game Choose'], ['Game Choose', 'Shortlist'],
   ['Shortlist', 'On Topic?'], ['On Topic?', 'Any Candidates?', 0], ['On Topic?', 'Off Topic', 1],
   ['Any Candidates?', 'Build Recommend Request', 0], ['Any Candidates?', 'No Candidates', 1],
   ['Build Recommend Request', 'Recommend'], ['Recommend', 'Check Answer'],

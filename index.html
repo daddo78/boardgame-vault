@@ -2448,6 +2448,18 @@
     }
     function nathanCard(x, kind) {
       if (!x) return '';
+      if (x.off) {
+        // A game that isn't on their shelf: its BGG page, and which friends have it
+        const o = x.off;
+        const who = (o.friends || []).length ? ' · ' + o.friends.join(' & ') + (o.friends.length === 1 ? ' has it' : ' have it') : '';
+        return '<div class="n-card ' + kind + '">' +
+          '<a class="n-top" href="https://boardgamegeek.com/boardgame/' + Number(o.bggId) + '" target="_blank" rel="noopener">' +
+            (o.cover ? '<img src="' + esc(o.cover) + '" alt="" loading="lazy">' : '<div class="game-icon"><i class="ti ti-' + esc(DEFAULT_ICON) + '"></i></div>') +
+            '<div><div class="n-kind">Not on your shelf' + esc(who) + '</div><div class="n-title">' + esc(x.title || o.title || '') + ' <i class="ti ti-external-link" style="font-size:0.8em;"></i></div>' +
+            (x.quip ? '<div class="n-quip">' + esc(x.quip) + '</div>' : '') + '</div></a>' +
+          (x.why ? '<div class="n-why">' + esc(x.why) + '</div>' : '') +
+        '</div>';
+      }
       const g = collection.find(y => y.id === x.id) || {};
       const img = g.coverCard ? '<img src="' + esc(g.coverCard) + '" alt="" loading="lazy">' : '<div class="game-icon"><i class="ti ti-' + esc(g.icon || DEFAULT_ICON) + '"></i></div>';
       const label = { headline: 'Tonight’s pick', alternative: 'Or, for something different', avoid: 'Maybe not tonight', highlight: 'On your shelf' }[kind];
