@@ -2179,7 +2179,6 @@
       const me = people.me || myPlayerId();
       const rows = [];
       if (isMember() && me) rows.push('<div class="rate-row"><span class="who">Your rating</span>' + starsPicker('data-rate-self', g.id, (byPlayer[me] || {}).stars || 0) + '</div>');
-      if (isMember() && !me) rows.push('<p class="hint" style="margin:0;">Link your Google email to your player card to rate games.</p>');
       const bgc = Object.entries(byPlayer).filter(([, r]) => r.stars).sort((x, y) => y[1].stars - x[1].stars);
       const bgg = Object.entries(byPlayer).filter(([, r]) => r.bgg).sort((x, y) => y[1].bgg - x[1].bgg);
       const others = bgc.filter(([pid]) => pid !== me);
@@ -2297,6 +2296,14 @@
       if (!isMember()) return;
       try { people = await n8nFetch('/people' + (currentShelf() !== 'main' ? '?shelf=' + encodeURIComponent(currentShelf()) : ''), { method: 'GET' }); } catch (e) { /* Ask still works without the roster */ }
       if (people && people.asks) { asks = people.asks; renderAskMeter(); }
+      // Your own stars belong to your account: show them on any shelf, even where you're not in the people list
+      if (people && people.ratings) {
+        people.me = people.me || 'self';
+        for (const [gid, stars] of Object.entries(people.mine || {})) {
+          const byPlayer = (people.ratings[gid] ||= {});
+          byPlayer[people.me] = { ...(byPlayer[people.me] || {}), stars: Number(stars) };
+        }
+      }
       renderAskPlayers();
       render(); // the cards' stars come with the people data
       if (detailId) renderDetail();

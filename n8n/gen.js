@@ -1272,7 +1272,7 @@ addMemberAuth(whoAmI, { failTo: 'Respond Error' });
 // =====================================================================
 const people = wf(ID.people, 'Vault — People', [
   webhook('Webhook', 'GET', 'vault/people'),
-  pg('Shelf View', 'SELECT bgc.shelf_view($1, $2, $3) AS v',
+  pg('Shelf View', "SELECT v, bgc.my_ratings_on($1, (v ->> 'ownerId')::bigint) AS mine FROM (SELECT bgc.shelf_view($1, $2, $3) AS v) q",
     "={{ [$json._auth.email, /^(mine|friend:\\d+)$/.test(String(($json.query || {}).shelf || '')) ? String($json.query.shelf) : 'main', $json._auth.playerId] }}"),
   code('List Players', function () { return [{ json: { records: $input.first().json.v.players } }]; }),
   code('One Item', function () { return [{ json: {} }]; }),
@@ -1289,7 +1289,8 @@ const people = wf(ID.people, 'Vault — People', [
     // me: the signed-in member's card in this list (their own BGC stars show under "Your rating")
     const used = Number($('Asks Used').first().json.used) || 0;
     // owner: the shelf owner's card, whose stars show on the game cards
-    return [{ json: { players, ratings: best, me: sv.askerKey || null, owner: sv.ownerKey || null, shelf: sv.shelf, asks: { limit: __ASK_PER_MEMBER__, left: Math.max(0, __ASK_PER_MEMBER__ - used) } } }];
+    // mine: your own stars for this shelf's games (yours wherever the copy sits)
+    return [{ json: { players, ratings: best, me: sv.askerKey || null, owner: sv.ownerKey || null, mine: $('Shelf View').first().json.mine || {}, shelf: sv.shelf, asks: { limit: __ASK_PER_MEMBER__, left: Math.max(0, __ASK_PER_MEMBER__ - used) } } }];
   }),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
@@ -1305,44 +1306,23 @@ const rate = wf(ID.rate, 'Vault — Rate Game', [
   code('Validate', function () {
     const j = $input.first().json;
     const b = j.body || {};
-    const auth = j._auth;
     const err = (status, message) => [{ json: { ok: false, status, message } }];
     const gameId = String(b.gameId || '').trim();
     const stars = Math.round(Number(b.stars) * 2) / 2;
     if (!gameId) return err(400, 'Missing gameId');
     if (!(stars >= 0 && stars <= 5)) return err(400, 'stars must be 0-5 (0 clears your rating)');
-    const target = auth.playerId;
-    if (!target) return err(400, 'Link your Google email to your player card to rate games');
-    if (b.playerId && String(b.playerId) !== target) return err(403, 'You can only rate games for yourself');
-    const source = 'site';
-    const key = `${target}|${gameId}|${source}`;
-    return [{ json: { ok: true, key, playerId: target, gameId, stars, source, formula: `{Key}='${key.replace(/'/g, '')}'` } }];
+    // Everyone rates only for themselves: the rating belongs to the signed-in member's own account
+    return [{ json: { ok: true, email: j._auth.email, gameId, stars } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
-  pg('Find Existing', 'SELECT at.find_rating($1) AS records', '={{ [$json.key] }}'),
-  code('Plan Write', function () {
-    const v = $('Validate').first().json;
-    const existing = ($input.first().json.records || [])[0];
-    if (v.stars === 0) return [{ json: { ...v, action: existing ? 'delete' : 'none', recordId: existing ? existing.id : null } }];
-    return [{ json: { ...v, action: 'upsert', records: [{ fields: {
-      [RF.key]: v.key, [RF.playerId]: v.playerId, [RF.gameId]: v.gameId, [RF.stars]: v.stars, [RF.source]: v.source, [RF.updatedAt]: new Date().toISOString(),
-    } }] } }];
-  }),
-  ifTrue('Upsert?', "={{ $json.action === 'upsert' }}"),
-  airtable('Upsert Rating', 'PATCH', '', jsonBody("={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['" + 'fldSVVMwQygNrpyBm' + "'] }, records: $json.records, typecast: true }) }}"), {}, RATINGS_TABLE),
-  ifTrue('Delete?', "={{ $json.action === 'delete' }}"),
-  airtable('Delete Rating', 'DELETE', '/{{ $json.recordId }}', {}, {}, RATINGS_TABLE),
-  code('Result', function () {
-    const v = $('Validate').first().json;
-    return [{ json: { ok: true, gameId: v.gameId, playerId: v.playerId, stars: v.stars, source: v.source } }];
-  }),
+  pg('Save Rating', 'SELECT bgc.rate($1, $2, $3::numeric) AS r', '={{ [$json.email, $json.gameId, String($json.stars)] }}'),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('Saved?', '={{ $json.ok }}'),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
 ], [
-  ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Find Existing', 0], ['Valid?', 'Respond Error', 1],
-  ['Find Existing', 'Plan Write'], ['Plan Write', 'Upsert?'], ['Upsert?', 'Upsert Rating', 0], ['Upsert?', 'Delete?', 1],
-  ['Delete?', 'Delete Rating', 0], ['Delete?', 'Result', 1], ['Upsert Rating', 'Result'], ['Delete Rating', 'Result'],
-  ['Result', 'Respond OK'],
+  ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Save Rating', 0], ['Valid?', 'Respond Error', 1],
+  ['Save Rating', 'Result'], ['Result', 'Saved?'], ['Saved?', 'Respond OK', 0], ['Saved?', 'Respond Error', 1],
 ]);
 addMemberAuth(rate, { failTo: 'Respond Error' });
 
@@ -1489,7 +1469,7 @@ const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
   code('Plan New Players', function () {
     const { people } = $('Tally People').first().json;
     const known = new Set($input.all().flatMap((i) => i.json.records || []).map(toPlayer).flatMap(playerNames));
-    const creates = Object.values(people).filter((p) => p.total >= 3 && !known.has(p.name.toLowerCase()))
+    const creates = Object.values(people).filter((p) => p.total >= 1 && !known.has(p.name.toLowerCase())) // everyone you've played with
       .map((p) => ({ fields: { [PF.name]: p.name, [PF.active]: p.total >= 10, [PF.updatedAt]: new Date().toISOString() } }));
     const batches = [];
     for (let i = 0; i < creates.length; i += 10) batches.push({ json: { records: creates.slice(i, i + 10) } });
@@ -2204,13 +2184,11 @@ addMemberAuth(ask, { failTo: 'Respond Error' });
 // =====================================================================
 const me = wf(ID.me, 'Vault — My Profile', [
   webhook('Webhook', 'GET', 'vault/me'),
-  ifTrue('Linked?', '={{ !!$json._auth.playerId }}'),
-  airtable('Get Player', 'GET', '/{{ $json._auth.playerId }}', qs({ returnFieldsByFieldId: 'true' }), {}, PLAYERS_TABLE),
-  code('Shape Profile', function () { return [{ json: { ok: true, profile: ownProfile(toPlayer($input.first().json)) } }]; }),
-  code('Not Linked', function () { return [{ json: { ok: true, profile: null } }]; }),
+  pg('Get Profile', 'SELECT bgc.my_profile($1) AS profile', '={{ [$json._auth.email] }}'),
+  code('Shape Profile', function () { return [{ json: { ok: true, profile: $input.first().json.profile || null } }]; }),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
-], [['Webhook', 'Linked?'], ['Linked?', 'Get Player', 0], ['Linked?', 'Not Linked', 1], ['Get Player', 'Shape Profile'], ['Shape Profile', 'Respond OK'], ['Not Linked', 'Respond OK']]);
+], [['Webhook', 'Get Profile'], ['Get Profile', 'Shape Profile'], ['Shape Profile', 'Respond OK']]);
 addMemberAuth(me, { failTo: 'Respond Error' });
 
 // =====================================================================
@@ -2223,27 +2201,26 @@ const meSave = wf(ID.meSave, 'Vault — Save My Profile', [
     const j = $input.first().json;
     const b = j.body || {};
     const err = (status, message) => [{ json: { ok: false, status, message } }];
-    if (!j._auth.playerId) return err(400, 'Your Google account isn’t linked to a player card yet. Ask Dan to add your email.');
     const dial = (v) => (v === null || v === '' || v === undefined) ? null : Math.min(5, Math.max(1, Math.round(Number(v))));
     const text = (v, n = 600) => String(v ?? '').trim().slice(0, n);
     const bgg = text(b.bggUsername, 60);
     if (bgg && !/^[A-Za-z0-9_ .-]+$/.test(bgg)) return err(400, 'That BGG username doesn’t look right');
-    const fields = {
-      [PF.bggUsername]: bgg || null,
-      [PF.age]: b.age === '' || b.age == null ? null : Math.max(1, Math.min(120, Math.round(Number(b.age)))) || null,
-      [PF.complexity]: dial(b.complexity), [PF.conflict]: dial(b.conflict), [PF.luck]: dial(b.luck),
-      [PF.tableTalk]: dial(b.tableTalk), [PF.theme]: dial(b.theme),
-      [PF.likes]: text(b.likes), [PF.dislikes]: text(b.dislikes), [PF.notes]: text(b.notes),
-      [PF.updatedAt]: new Date().toISOString(),
+    // Saved on the member's own account (not a card on someone's shelf)
+    const profile = {
+      bggUsername: bgg || null,
+      age: b.age === '' || b.age == null ? null : Math.max(1, Math.min(120, Math.round(Number(b.age)))) || null,
+      complexity: dial(b.complexity), conflict: dial(b.conflict), luck: dial(b.luck), tableTalk: dial(b.tableTalk), theme: dial(b.theme),
+      likes: text(b.likes), dislikes: text(b.dislikes), notes: text(b.notes),
     };
-    return [{ json: { ok: true, id: j._auth.playerId, fields } }];
+    return [{ json: { ok: true, email: j._auth.email, profile } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
-  airtable('Update Player', 'PATCH', '/{{ $json.id }}', jsonBody('={{ JSON.stringify({ fields: $json.fields, typecast: true, returnFieldsByFieldId: true }) }}'), {}, PLAYERS_TABLE),
-  code('Shape Profile', function () { return [{ json: { ok: true, profile: ownProfile(toPlayer($input.first().json)) } }]; }),
+  pg('Save Profile', 'SELECT bgc.save_profile($1, $2::jsonb) AS r', '={{ [$json.email, JSON.stringify($json.profile)] }}'),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('Saved?', '={{ $json.ok }}'),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
-], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Update Player', 0], ['Valid?', 'Respond Error', 1], ['Update Player', 'Shape Profile'], ['Shape Profile', 'Respond OK']]);
+], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Save Profile', 0], ['Valid?', 'Respond Error', 1], ['Save Profile', 'Result'], ['Result', 'Saved?'], ['Saved?', 'Respond OK', 0], ['Saved?', 'Respond Error', 1]]);
 addMemberAuth(meSave, { failTo: 'Respond Error' });
 
 // =====================================================================
