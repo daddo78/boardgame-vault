@@ -2545,8 +2545,9 @@
       const n = (r.matchIds || []).length;
       let seeAll = '';
       // An answer about your own shelf ("my top ten" asked from someone else's) opens your shelf
-      const answerShelf = r.fromOwn ? (isOwner() ? 'main' : 'mine') : currentShelf();
-      if (n && (r.fromOwn || n < collection.length) && (n > 1 || r.intent === 'browse')) {
+      const answerShelf = r.visitShelf || (r.fromOwn ? (isOwner() ? 'main' : 'mine') : currentShelf());
+      const spansFriends = String((r.matchIds || [])[0] || '').startsWith('bgg:'); // games from several friends' shelves: no single shelf to filter
+      if (n && !spansFriends && (r.fromOwn || r.visitShelf || n < collection.length) && (n > 1 || r.intent === 'browse')) {
         nathanSets.push({ ids: orderedIds(r), shelf: answerShelf });
         seeAll = '<button type="button" class="n-seeall" data-see-all="' + (nathanSets.length - 1) + '"><i class="ti ti-layout-grid"></i> ' + (n === 1 ? 'See it in the library' : 'See all ' + n + ' games') + '</button>';
       }

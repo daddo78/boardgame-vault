@@ -1647,6 +1647,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '{',
       '  "onTopic": true if this is about board games (any game, owned or not), choosing or playing them, buying them, the games on this shelf, or the people who play here (their tastes, profile, play history), else false,',
       '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"); "game" if they ask about one or more specific games themselves, owned or not (e.g. "what genre is Terraforming Mars", "how long is Brass", "would I like Ark Nova", "is Spirit Island good for 2", "should I buy Cascadia", "does Dan own Spirit Island", "who has Brass"); "buy" if they want ideas for games to buy or get next (e.g. "what should I buy next", "what game should I add to my collection", "a co-op I don\'t own yet"),',
+      '  "atFriend": the first name of a friend if they are playing at that friend\'s place or ask about that friend\'s shelf or collection ("what can we play at Keith\'s", "anything good on Matt\'s shelf for 4"), else null,',
+      '  "acrossFriends": true if they ask which friend owns something or want games from any of their friends\' shelves ("who has a co-op for 6", "can anyone lend me a party game", "which of my friends owns Brass"), else false,',
       '  "games": [for intent "game": the official BoardGameGeek titles of the games they name, spelling corrected (e.g. "Teraforming Mars" -> "Terraforming Mars")],',
       '  "personIds": [for intent "person": ids from ROSTER of who they ask about; "me", "I" and "my" mean the ASKER],',
       '  "sort": for a ranked list only: "plays" (most played), "leastPlays", "recent" (most recently played), "stale" (longest since played), "stars" (their own star ratings: "my highest rated", "games I rated best", "my top rated"), "rating" (BGG rating, only when they say BGG or "the community"), "rank" (BGG rank), "weight" (heaviest), "newest" (latest added); else null,',
@@ -1704,13 +1706,20 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const titles = c.intent === 'game' && Array.isArray(c.games) ? c.games.map((t) => String(t).trim()).filter(Boolean).slice(0, 3) : [];
     const prev = $('Validate').first().json.previous;
     const followsOwn = !!(prev && prev.fromOwn && (prev.setIds || []).length); // "which of those…" after an answer from their own shelf
-    return [{ json: { useOwn: !onOwn && (forMe || followsOwn || (!aboutOpen && (/"scope"\s*:\s*"mine"/.test(text) || aboutMine))), titles, buy: c.intent === 'buy' } }];
+    // Social: "at Keith's" plays from that friend's shelf; "who has…" / "can anyone lend me…" looks across all friends' shelves
+    const atFriend = typeof c.atFriend === 'string' && c.atFriend.trim() && !/^(me|my|mine|you)$/i.test(c.atFriend.trim()) ? c.atFriend.replace(/\(.*$/, '').trim().split(/\s+/)[0].slice(0, 40) : '';
+    const across = !atFriend && (c.acrossFriends === true || /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q))
+      && c.intent !== 'person';
+    return [{ json: { useOwn: !onOwn && !atFriend && (forMe || followsOwn || (!aboutOpen && (/"scope"\s*:\s*"mine"/.test(text) || aboutMine))), titles, buy: c.intent === 'buy',
+      atFriend, across, forFriends: c.intent === 'game' && /\b(friends?|who would|anyone)\b/i.test(q) } }];
   }),
-  pg('Own Shelf', 'SELECT CASE WHEN $2::boolean THEN bgc.shelf_view($1, \'mine\', NULL) END AS own',
-    "={{ [$('Validate').first().json.email, String($json.useOwn)] }}"),
-  // Games asked about (from the shared catalog, with which friends own them), and ideas to buy
-  pg('Game Lookup', 'SELECT bgc.lookup_games($1, $2::jsonb) AS games, CASE WHEN $3::boolean THEN bgc.buy_pool($1) END AS pool, bgc.curator_card() AS curator',
-    "={{ [$('Validate').first().json.email, JSON.stringify($('Scope').first().json.titles), String($('Scope').first().json.buy)] }}"),
+  pg('Own Shelf', "SELECT CASE WHEN $2::boolean THEN bgc.shelf_view($1, 'mine', NULL) END AS own, bgc.friend_by_name($1, $3) AS fid, " +
+    "CASE WHEN bgc.friend_by_name($1, $3) IS NOT NULL THEN bgc.shelf_view($1, 'friend:' || bgc.friend_by_name($1, $3), NULL) END AS visit",
+    "={{ [$('Validate').first().json.email, String($json.useOwn), $json.atFriend] }}"),
+  // Games asked about (from the shared catalog, with which friends own them), ideas to buy, friends' shelves, and the asker's Top 10 and wishlist
+  pg('Game Lookup', 'SELECT bgc.lookup_games($1, $2::jsonb) AS games, CASE WHEN $3::boolean THEN bgc.buy_pool($1) END AS pool, bgc.curator_card() AS curator, ' +
+    'CASE WHEN $4::boolean THEN bgc.friends_pool($1) END AS fpool, bgc.asker_extras($1) AS extras',
+    "={{ [$('Validate').first().json.email, JSON.stringify($('Scope').first().json.titles), String($('Scope').first().json.buy), String($('Scope').first().json.across)] }}"),
   code('Lookup Queries', function () {
     const missing = ($input.first().json.games || []).filter((l) => !l.game).map((l) => l.asked);
     return missing.length ? missing.map((t) => ({ json: { title: t, query: t.replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim() } })) : [{ json: { none: true } }];
@@ -1758,13 +1767,23 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     try { c = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
     if (c.onTopic === false) return [{ json: { offTopic: true, reply: String(c.reply || 'I can only help pick board games from this shelf.') } }];
     const open = $('Shelf View').first().json.v;
-    const own = $('Own Shelf').first().json.own || null;
-    const sv = own || open; // the shelf this answer is about
+    const scope = $('Scope').first().json;
+    const visit = $('Own Shelf').first().json.visit || null; // "at Keith's": that friend's shelf
+    const own = visit ? null : ($('Own Shelf').first().json.own || null);
+    const sv = visit || own || open; // the shelf this answer is about
+    if (scope.atFriend && !visit) return [{ json: { offTopic: true, reply: scope.atFriend + ' isn’t on your friends list yet, so I can’t see their shelf. Swap friend codes under Friends and ask me again!' } }];
+    const fpool = scope.across ? ($('Game Lookup').first().json.fpool || []) : null; // every game on your friends' shelves
     // A follow-up about the last answer ("which of those are co-op?") works within that answer's games
     const prevSet = new Set((v.previous && v.previous.setIds) || []);
     const narrow = prevSet.size > 0 && c.intent !== 'game' && c.intent !== 'buy'
       && (c.fromPrevious === true || /\b(those|these|them|that list|which one|the first|the last|out of (my|the|those|these))\b/i.test(v.question));
-    const games = (sv.games || []).map(toGame).filter((g) => !narrow || prevSet.has(g.id));
+    let games = (sv.games || []).map(toGame).filter((g) => !narrow || prevSet.has(g.id));
+    // Across friends: the games on all their shelves, each with who owns it (ids "bgg:<id>"; cards link to BGG)
+    if (fpool) games = fpool.map((x) => ({ id: 'bgg:' + x.bggId, recordId: null, bggId: x.bggId, num: null, title: x.title, genre: '', type: '', desc: '', expansions: [],
+      desireToPlay: 0, thinningCandidate: false, bggRating: x.rating || null, icon: 'meeple', minPlayers: x.minPlayers || null, maxPlayers: x.maxPlayers || null,
+      bestPlayers: x.bestPlayers || [], minTime: x.minTime || null, maxTime: x.maxTime || null, weight: x.weight || null, year: x.year || null, minAge: x.minAge || null,
+      designers: x.designers || [], rank: x.rank || null, categories: x.categories || [], mechanics: x.mechanics || [], favorite: false, coverCard: x.cover || null,
+      coverLarge: null, playCount: x.ownerPlays || 0, lastPlayed: null, addedAt: null, extraBggIds: [], owners: x.owners || [], mine: !!x.mine }));
     const players = (sv.players || []).map(toPlayer);
     const ratings = (sv.ratings || []).map(toRating);
     const byId = Object.fromEntries(players.map((p) => [p.id, p]));
@@ -1774,6 +1793,14 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       && /\b(you|your|yours|yourself)\b[^?]*\b(like|love|enjoy|favou?rites?|prefer|own|shelf|collection|rate|rated|played|taste|top)\b/i.test(v.question)
       && !/\b(i|me|my|mine|i'm|i've|we|us|our)\b|\b(would|should|could|can) you\b|\b(recommend|suggest|pick)\b/i.test(v.question);
     if (toNathan) { c.intent = 'person'; c.personIds = [curator.id]; }
+    // Nathan the curator speaks for himself from his own shelf (his plays on someone else's shelf would be the wrong picture)
+    const cc = $('Game Lookup').first().json.curator || {};
+    const curatorFacts = (p) => ['- Nathan Schmidt: this is YOU, the curator. Answer about him in the first person ("I", "my shelf").',
+      ...profile(p).split('\n').slice(1).filter((l) => !/logged|most played|rated 4\+|no logged plays/.test(l)),
+      '  my own shelf: ' + (cc.games || 0) + ' games, ' + (cc.plays || 0) + ' logged plays, ' + (cc.unplayed || 0) + ' never played yet',
+      (cc.top || []).length ? '  my most played: ' + cc.top.join(', ') : '', (cc.loved || []).length ? '  my highest rated: ' + cc.loved.join(', ') : '',
+      (cc.favorites || []).length ? '  my favorites: ' + cc.favorites.join(', ') : ''].filter(Boolean).join('\n');
+
     // People picked from the open shelf's list, found on the asker's shelf by name when the answer comes from there
     const openNames = Object.fromEntries((open.players || []).map(toPlayer).map((p) => [p.id, p.name.toLowerCase()]));
     const byName = Object.fromEntries(players.map((p) => [p.name.toLowerCase(), p]));
@@ -1884,7 +1911,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const set = fits.map((x) => x.g);
     const weights = set.map((g) => g.weight).filter(Boolean);
     const setFacts = gap ? '' : [
-      set.length === 1 ? 'THE ANSWER: ' + set[0].title + ' (lead with it; no need to count)' : 'COUNT: ' + set.length + ' of ' + games.length + (narrow ? ' games in the previous answer' : ' games on the shelf') + ' match everything asked, including any limits like time or players (say it naturally, never mention matching, e.g. "17 sci-fi games under an hour")',
+      set.length === 1 ? 'THE ANSWER: ' + set[0].title + ' (lead with it; no need to count)' : 'COUNT: ' + set.length + ' of ' + games.length + (narrow ? ' games in the previous answer' : fpool ? ' games on their friends\' shelves' : ' games on the shelf') + ' match everything asked, including any limits like time or players (say it naturally, never mention matching, e.g. "17 sci-fi games under an hour")',
       weights.length > 1 ? 'weights: ' + weights.filter((w) => w < 2).length + ' light (<2), ' + weights.filter((w) => w >= 2 && w < 3).length + ' medium, ' + weights.filter((w) => w >= 3).length + ' heavy (3+)' : '',
       set.length < 2 ? '' : 'played: ' + set.filter((g) => g.playCount).length + ', never played: ' + set.filter((g) => !g.playCount).length + ', favorites: ' + set.filter((g) => g.favorite).length,
       set.length < 2 ? '' : 'top categories: ' + tally(set.flatMap((g) => g.categories)),
@@ -1894,10 +1921,19 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       narrow && sorter && METRIC[c.sort] ? 'ALL ' + games.length + ' GAMES FROM THE PREVIOUS ANSWER, ' + sorter.label + ': ' +
         games.filter((g) => sorter.keep(g)).map((g) => ({ g })).sort(sorter.cmp).map((x) => x.g.title + ' (' + METRIC[c.sort](x.g) + ')').join('; ') : '',
     ].filter(Boolean).join('\n');
-    const shelfOwner = sv.ownerName || '__OWNER_NAME__';
-    const askerIsOwner = sv.shelf === 'mine' || $('Auth: Role').first().json._auth.role === 'owner';
-    const mineHere = sv.shelf === 'mine' || (sv.shelf === 'main' && $('Auth: Role').first().json._auth.role === 'owner'); // the asker's own shelf
+    const shelfOwner = fpool ? 'your friends' : sv.ownerName || '__OWNER_NAME__';
+    const askerIsOwner = !fpool && (sv.shelf === 'mine' || $('Auth: Role').first().json._auth.role === 'owner');
+    const mineHere = !fpool && (sv.shelf === 'mine' || (sv.shelf === 'main' && $('Auth: Role').first().json._auth.role === 'owner')); // the asker's own shelf
+    const curatorShelf = !mineHere && !fpool && curator && sv.ownerKey && sv.ownerKey === curator.id; // at Nathan's: his own shelf, so "I"
     const line = (g, ppl = group) => {
+      if (g.owners) {
+        // Across friends' shelves: who owns it, and whether the asker does too
+        const f = [g.minPlayers ? `${g.minPlayers}-${g.maxPlayers}p` + (g.bestPlayers.length ? ` best ${g.bestPlayers.join('/')}` : '') : '',
+          g.minTime ? `${g.minTime === g.maxTime ? g.minTime : g.minTime + '-' + g.maxTime}min` : '', g.weight ? `weight ${Number(g.weight).toFixed(1)}` : '',
+          g.minAge ? `age ${g.minAge}+` : '', g.bggRating ? `BGG ${g.bggRating}` : '', g.mechanics.slice(0, 4).join(', '),
+          'owned by ' + g.owners.join(', '), g.mine ? 'the asker owns it too' : 'the asker does not own it', g.playCount ? `${g.playCount} logged plays between them` : ''].filter(Boolean).join('; ');
+        return `${g.id} | ${g.title} | ${f}`;
+      }
       const facts = [
         g.minPlayers ? `${g.minPlayers}-${g.maxPlayers}p` + (g.bestPlayers.length ? ` best ${g.bestPlayers.join('/')}` : '') : '',
         g.minTime ? `${g.minTime === g.maxTime ? g.minTime : g.minTime + '-' + g.maxTime}min` : '',
@@ -1905,9 +1941,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         g.bggRating ? `BGG ${g.bggRating}` : '', g.genre, g.type,
         g.mechanics.slice(0, 4).join(', '),
         // On their own shelf the owner is the asker: "you", so Nathan never talks about them in the third person
-        g.desireToPlay ? (mineHere ? `you rate it ${g.desireToPlay}/5` : `${shelfOwner} rates it ${g.desireToPlay}/5`) : (mineHere ? 'you haven\'t rated it' : `${shelfOwner} hasn't rated it`),
+        g.desireToPlay ? (mineHere ? `you rate it ${g.desireToPlay}/5` : curatorShelf ? `I (Nathan) rate it ${g.desireToPlay}/5` : `${shelfOwner} rates it ${g.desireToPlay}/5`) : (mineHere ? 'you haven\'t rated it' : curatorShelf ? 'I haven\'t rated it' : `${shelfOwner} hasn't rated it`),
         g.favorite ? (mineHere ? 'your favorite' : `${shelfOwner}'s favorite`) : '', g.thinningCandidate && askerIsOwner ? (mineHere ? 'you may give it away' : `${shelfOwner} may give it away`) : '',
-        g.playCount ? `${mineHere ? 'you' : shelfOwner} logged ${g.playCount} plays, last ${g.lastPlayed}` : `${mineHere ? 'you' : shelfOwner} never logged a play`,
+        g.playCount ? `${mineHere ? 'you' : curatorShelf ? 'I (Nathan)' : shelfOwner} logged ${g.playCount} plays, last ${g.lastPlayed}` : `${mineHere ? 'you' : curatorShelf ? 'I' : shelfOwner} never logged a play`,
         (g.expansions || []).length ? `+${g.expansions.length} expansions` : '',
       ].filter(Boolean).join('; ');
       const people = ppl.map((p) => {
@@ -1931,6 +1967,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         p.likes ? `in their own words, likes: ${p.likes}` : '', p.dislikes ? `in their own words, dislikes: ${p.dislikes}` : '', p.notes ? `about themselves: ${p.notes}` : '',
         totals.plays ? `logged ${totals.plays} plays, won ${totals.wins}` : 'no logged plays',
         top.length ? `most played: ${top.join(', ')}` : '', loved.length ? `rated 4+: ${loved.join(', ')}` : '',
+        // The asker's own picks: their all-time Top 10 and their wishlist
+        ...(p.name === sv.askerName || p.name === open.askerName ? (() => { const x = $('Game Lookup').first().json.extras || {};
+          return [(x.top || []).length ? `all-time Top 10 (their own pick, best first): ${x.top.join(', ')}` : '', (x.wishlist || []).length ? `on their wishlist: ${x.wishlist.join(', ')}` : '']; })() : []),
       ].filter(Boolean).join('\n  ');
     };
     const asker = byId[sv.askerPerson || sv.askerKey] || null;
@@ -1984,7 +2023,11 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         const ownership = ownQ.flatMap((f) => (lookup.games || []).filter((l) => l.game).map((l) => 'OWNERSHIP: ' + f + ((l.friends || []).includes(f) ? ' owns ' : ' does not own ') + l.game.title + (l.onShelf ? ' (the asker does)' : '')));
         if (!lines.length) return [{ json: { offTopic: true, reply: 'I couldn’t find ' + (notFound.join(' or ') || 'that game') + ' on BoardGameGeek. Could you check the spelling?' } }];
         return [{ json: { offTopic: false, gap: false, browse: true, mode: 'game', matchIds: [], understood: {}, constraints: c,
-          setFacts: (ownership.length ? ownership.join('\n') + ' (answer this first)\n' : '') + taste + (notFound.length ? '\nNOT FOUND ON BGG: ' + notFound.join(', ') : ''), shortIds: Object.keys(titles), titles, off,
+          setFacts: (ownership.length ? ownership.join('\n') + ' (answer this first)\n' : '') + taste + (notFound.length ? '\nNOT FOUND ON BGG: ' + notFound.join(', ') : '') +
+            // "Which of my friends would love Ark Nova?": their friends' own profiles, to match the game against
+            (scope.forFriends ? '\nTHEIR FRIENDS (match the game to each one; say who would love it and who might not, and why):\n' +
+              players.filter((p) => p.googleEmail && p.name !== sv.askerName).map((p) => p === curator ? curatorFacts(p) : profile(p)).join('\n') : ''),
+          shortIds: Object.keys(titles), titles, off,
           gameLines: lines.join('\n'), profiles: '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest: '', fromOwn: !!own } }];
       }
       // Ideas to buy: games they don't own that share what their favorites have, within anything they asked for
@@ -2011,12 +2054,6 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       const theirs = games.filter((g) => g.bggId && playsOf(g) > 0).sort((a, b) => playsOf(b) - playsOf(a));
       const pick = (theirs.length ? theirs : [...games].sort((a, b) => (b.desireToPlay || 0) - (a.desireToPlay || 0))).slice(0, 12);
       // Nathan the curator speaks for himself from his own shelf (his plays here on someone else's shelf would be the wrong picture)
-      const cc = $('Game Lookup').first().json.curator || {};
-      const curatorFacts = (p) => ['- Nathan Schmidt: this is YOU, the curator. Answer about him in the first person ("I", "my shelf").',
-        ...profile(p).split('\n').slice(1).filter((l) => !/logged|most played|rated 4\+|no logged plays/.test(l)),
-        '  my own shelf: ' + (cc.games || 0) + ' games, ' + (cc.plays || 0) + ' logged plays, ' + (cc.unplayed || 0) + ' never played yet',
-        (cc.top || []).length ? '  my most played: ' + cc.top.join(', ') : '', (cc.loved || []).length ? '  my highest rated: ' + cc.loved.join(', ') : '',
-        (cc.favorites || []).length ? '  my favorites: ' + cc.favorites.join(', ') : ''].filter(Boolean).join('\n');
       const onlyCurator = ppl.length === 1 && ppl[0] === curator;
       if (onlyCurator) {
         // Highlights: his favorites and most played wherever they're on this shelf, then the shelf's best fits for his taste
@@ -2040,7 +2077,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
       // A browse is about the shelf: its own play counts only, unless they named people (one set of numbers, no mix-ups)
       gameLines: short.map((g) => line(g, browse && !(v.playerIds || []).length ? [] : group)).join('\n'), profiles: group.map(profile).join('\n'), ranked,
-      askerProfile: asker && !group.includes(asker) ? profile(asker) : '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest, fromOwn: !!own } }];
+      askerProfile: asker && !group.includes(asker) ? profile(asker) : '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest, fromOwn: !!own,
+      // Across friends' shelves: cards link to BGG and say who has each game; "at Keith's": whose shelf
+      ...(fpool ? { across: true, off: short.map((g) => ({ id: g.id, title: g.title, bggId: g.bggId, cover: g.coverCard, friends: g.owners })) } : {}),
+      ...(visit ? { visiting: sv.ownerName, visitShelf: 'friend:' + $('Own Shelf').first().json.fid } : {}) } }];
   }),
   ifTrue('On Topic?', '={{ !$json.offTopic }}'),
   ifTrue('Any Candidates?', '={{ $json.shortIds.length > 0 }}'),
@@ -2068,6 +2108,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '- First mention: for a title NOT in ALREADY_JOKED, open its entry with a one-line dad-joke quip about that game. For titles in ALREADY_JOKED, leave quip empty.',
       '- Only if you are confident the game has an unlimited or substitutable component pool, or it supports an expanded player count, add exactly this joke in swapJoke: "The [component] can be substituted as needed, so if you ever run short, feel free to use a suitable replacement… like [funny, semi-related household item]." Otherwise null.',
       '',
+      // Social answers: across friends' shelves say who owns each pick; at a friend's place it's their shelf
+      ...(s.across ? ['SOCIAL: the CANDIDATES come from the asker\'s friends\' shelves. For every game you mention, say which friend owns it ("Matt has it, so ask him to bring it"), and note when the asker owns it too.'] : []),
+      ...(s.visiting ? ['SOCIAL: they are playing at ' + s.visiting + '\'s place, so the CANDIDATES are ' + s.visiting + '\'s shelf. Say so naturally ("at ' + s.visiting + '\'s, I\'d pull down…").'] : []),
       ...(s.mode === 'game' ? [
       'FORMAT: this is a question about specific game(s), owned or not. If they ask whether someone owns it or who has it ("does Dan own Spirit Island?", "who has Brass?"), answer that first from the facts: "ON THEIR SHELF" means the ASKER owns it, and "friends who own it" names the friends who do (if a named person is not listed there, they don\'t own it, as far as you know). Answer it directly and completely in "summary" (2-5 sentences) from the CANDIDATES facts, which come from BoardGameGeek ("genre" means its categories and main mechanics; name a few of each). If a game is not on their shelf, say so, then say honestly how well it would suit them, comparing it to games on ASKER\'S SHELF they play and love and to their PROFILE. Only when the facts name friends who own it, mention they could try that friend\'s copy first (by name); never suggest a friend\'s copy otherwise. If it looks like a great fit and they don\'t own it, you may say it could be worth buying. Never invent facts; for things BGG data doesn\'t cover (rules details, reviews, prices), say you only have BGG\'s facts. Highlights: the game(s) asked about, one sentence of "why" each. gap is null.',
       ] : s.mode === 'buy' ? [
@@ -2147,7 +2190,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });
       const summary = str(a.summary, 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');
       return [{ json: { ok: true, intent: 'browse', mode: s.mode || null, understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
-        matchIds: s.matchIds, fromOwn: !!s.fromOwn, signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];
+        matchIds: s.matchIds, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}), signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];
     }
     let pick = entry(a.pick, true);
     // Model failed or went off-list: fall back to the top of the scored shortlist
@@ -2155,7 +2198,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const alternative = entry(a.alternative, true);
     const avoid = entry(a.avoid, false);
     const gap = gapOf();
-    return [{ json: { ok: true, intent: 'recommend', matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, fromOwn: !!s.fromOwn,
+    return [{ json: { ok: true, intent: 'recommend', matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}),
       signoff: str(a.signoff, 200), pickIds: [pick, alternative].filter(Boolean).map((x) => x.id), model: $input.first().json.model || null } }];
   }),
   code('No Candidates', function () {
