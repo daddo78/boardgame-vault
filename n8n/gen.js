@@ -59,6 +59,8 @@ const ID = {
   rulebookUpload: 'BGVaultRulesUp01',
   rulebookGet: 'BGVaultRulesGet1',
   dashboard: 'BGVaultDashbrd01',
+  askTest: 'BGVaultAskTest01',
+  selfTest: 'BGVaultSelfTest1',
   shelfAdd: 'BGVaultShelfAdd1',
   shelfIdentify: 'BGVaultShelfPic1',
   friends: 'BGVaultFriends01',
@@ -2973,7 +2975,7 @@ addMemberAuth(rulebookGet, { failTo: 'Respond Error' });
 // =====================================================================
 const dashboard = wf(ID.dashboard, 'Vault — Dashboard', [
   webhook('Webhook', 'GET', 'vault/dashboard'),
-  pg('Read', 'SELECT bgc.dashboard($1) AS r', '={{ [$json._auth.email] }}'),
+  pg('Read', "SELECT CASE WHEN (d ->> 'ok')::boolean THEN d || jsonb_build_object('selfTest', (SELECT value FROM settings WHERE key = 'self_test')) ELSE d END AS r FROM (SELECT bgc.dashboard($1) AS d) q", '={{ [$json._auth.email] }}'),
   code('Result', function () { return [{ json: $input.first().json.r }]; }),
   ifTrue('OK?', '={{ $json.ok }}'),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
@@ -2981,14 +2983,107 @@ const dashboard = wf(ID.dashboard, 'Vault — Dashboard', [
 ], [['Webhook', 'Read'], ['Read', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
 addMemberAuth(dashboard, { failTo: 'Respond Error' });
 
+// =====================================================================
+// 34. Ask (nightly self-test)  internal only, no webhook: the real Ask workflow, called by the nightly self-test as a
+//     given member. It doesn't use anyone's question allowance, isn't counted on the dashboard, and doesn't log a visit.
+// =====================================================================
+const askTest = (() => {
+  const w = JSON.parse(JSON.stringify(ask));
+  w.id = ID.askTest; w.name = 'Vault — Ask (nightly self-test, internal)';
+  const drop = (n) => /^Auth: (Read Token|Verify With Google|Check Token)$/.test(n) || n === 'Token Valid?';
+  w.nodes = w.nodes.filter((n) => !drop(n.name));
+  for (const k of Object.keys(w.connections)) if (drop(k)) delete w.connections[k];
+  const start = w.nodes.find((n) => n.name === 'Webhook');
+  Object.assign(start, { type: 'n8n-nodes-base.executeWorkflowTrigger', typeVersion: 1.1, parameters: { inputSource: 'passthrough' } });
+  delete start.webhookId;
+  // Who they are, without signing in (and without counting a visit)
+  const who = w.nodes.find((n) => n.name === 'Auth: Find Player');
+  who.parameters.query = "SELECT jsonb_build_object('member', true, 'id', m.id, 'name', m.display_name, 'isAdmin', m.is_admin, " +
+    "'playerId', (SELECT legacy_id FROM players WHERE owner_id = at.admin_id() AND linked_member_id = m.id LIMIT 1), 'playerName', m.display_name) AS r FROM members m WHERE m.google_email = $1";
+  who.parameters.options.queryReplacement = "={{ [$('Webhook').first().json.email] }}";
+  const role = w.nodes.find((n) => n.name === 'Auth: Role');
+  role.parameters.jsCode = PRELUDE + '\n' + body(function () {
+    const i = $('Webhook').first().json;
+    const m = $input.first().json.r || {};
+    // A short pause first, so the nightly questions are spaced out for the AI service
+    return [{ json: { body: { question: i.question, playerIds: [], shelf: i.shelf || 'main', previous: i.previous || null }, _authOk: true,
+      _auth: { role: i.role || 'friend', email: i.email, memberId: m.id || null, admin: false, playerId: m.playerId || null, playerName: m.playerName || '' } } }];
+  });
+  w.connections.Webhook = { main: [[{ node: 'Pause', type: 'main', index: 0 }]] };
+  w.connections.Pause = { main: [[{ node: 'Auth: Find Player', type: 'main', index: 0 }]] };
+  w.nodes.push({ ...wait('Pause', 6), position: [0, 400] });
+  const quiet = (name, jsCode) => { const n = w.nodes.find((x) => x.name === name); Object.assign(n, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode } }); delete n.credentials; delete n.webhookId; };
+  quiet('Use Allowance', 'return [{ json: { questions: 0, lim: 999 } }];');
+  quiet('Log Answer', 'return $input.all();');
+  for (const n of w.nodes.filter((x) => x.type === 'n8n-nodes-base.respondToWebhook')) quiet(n.name, 'return $input.all();');
+  return w;
+})();
+
+// =====================================================================
+// 35. Nightly Self-Test  every night: the database checks, then Nathan's question set (n8n/tests/nathan.json).
+//     Emails Dan only if something fails; the latest result shows on the dashboard.
+// =====================================================================
+const NATHAN_TESTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'tests', 'nathan.json'), 'utf8'));
+const selfTest = wf(ID.selfTest, 'Vault — Nightly Self-Test', [
+  node('Nightly', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ triggerAtHour: 5, triggerAtMinute: 40 }] } }),
+  node('Run Now', 'n8n-nodes-base.manualTrigger', 1, {}),
+  { ...pg('Database Checks', 'SELECT bgc.self_check() AS results', null), onError: 'continueRegularOutput', alwaysOutputData: true },
+  code('Questions', function () {
+    const WHO = { dan: { email: '__OWNER_EMAIL__', role: 'owner', shelf: 'main' }, nathan: { email: 'nathan.schmidt@curator.invalid', role: 'friend', shelf: 'mine' } };
+    return __NATHAN_TESTS__.map((t) => ({ json: { test: t, email: WHO[t.as].email, role: WHO[t.as].role, shelf: t.shelf || WHO[t.as].shelf, question: t.q, previous: t.prev || null } }));
+  }),
+  { ...node('Ask Nathan', 'n8n-nodes-base.executeWorkflow', 1.2, {
+    source: 'database', workflowId: { __rl: true, value: ID.askTest, mode: 'id' }, mode: 'each', options: { waitForSubWorkflow: true },
+  }), onError: 'continueRegularOutput' },
+  code('Score', function () {
+    const db = ($('Database Checks').first().json.results) || [{ what: 'the database checks didn’t run: ' + ($('Database Checks').first().json.error || 'no result'), ok: false }];
+    const asked = $('Questions').all().map((i) => i.json.test);
+    const answers = $input.all().map((i) => i.json);
+    const textOf = (a) => [a.summary, a.note, a.message, a.error, a.pick && [a.pick.title, a.pick.why, a.pick.tableFeel], a.alternative && [a.alternative.title, a.alternative.why],
+      ...(a.highlights || []).map((h) => [h.title, h.why]), a.gap && a.gap.missing,
+      ...[a.pick, a.alternative, ...(a.highlights || [])].filter((x) => x && x.off && (x.off.friends || []).length).map((x) => x.off.friends.join(' & ') + ' has it')].flat(3).filter(Boolean).join(' \n ');
+    const nathan = asked.map((t, i) => {
+      const a = answers[i] || { error: 'no answer' };
+      const low = textOf(a).toLowerCase();
+      const p = [];
+      if (a.error) p.push('error: ' + String(a.error).slice(0, 120));
+      if (a.ok === false && a.message) p.push(String(a.message).slice(0, 120));
+      for (const x of t.includes || []) if (!low.includes(x.toLowerCase())) p.push('missing "' + x + '"');
+      if (t.includesAny && !t.includesAny.some((x) => low.includes(x.toLowerCase()))) p.push('none of ' + t.includesAny.join(' / '));
+      for (const x of t.excludes || []) if (low.includes(x.toLowerCase())) p.push('should not say "' + x + '"');
+      const n = (a.matchIds || []).length;
+      if (t.matchMin != null && n < t.matchMin) p.push(n + ' games, expected at least ' + t.matchMin);
+      if (t.matchMax != null && n > t.matchMax) p.push(n + ' games, expected at most ' + t.matchMax);
+      if (t.intent && a.intent !== t.intent) p.push('answered as ' + a.intent + ', expected ' + t.intent);
+      if (t.mode && a.mode !== t.mode) p.push('answered as ' + a.mode + ', expected ' + t.mode);
+      if (t.offTopic && !a.offTopic) p.push('expected an off-topic redirect');
+      return { what: t.name, ok: !p.length, problems: p };
+    });
+    const failed = [...db.filter((x) => !x.ok), ...nathan.filter((x) => !x.ok)];
+    const summary = { at: new Date().toISOString(), dbPassed: db.filter((x) => x.ok).length, dbTotal: db.length, nathanPassed: nathan.filter((x) => x.ok).length, nathanTotal: nathan.length,
+      failures: failed.map((x) => ({ what: x.what, problems: x.problems || [] })) };
+    const lines = failed.map((x) => '• ' + x.what + ((x.problems || []).length ? '\n    ' + x.problems.join('; ') : ''));
+    return [{ json: { summary, send: failed.length > 0, subject: 'Board Game Curator nightly check: ' + failed.length + ' problem' + (failed.length === 1 ? '' : 's'),
+      text: 'The nightly self-test found ' + failed.length + ' problem' + (failed.length === 1 ? '' : 's') + '.\n\n' +
+        'Database checks: ' + summary.dbPassed + ' of ' + summary.dbTotal + ' passed\nNathan questions: ' + summary.nathanPassed + ' of ' + summary.nathanTotal + ' passed\n\n' + lines.join('\n') +
+        '\n\nRun it again any time from n8n (Vault — Nightly Self-Test, "Run Now"), or locally with node n8n/test-nathan.js.' } }];
+  }),
+  pg('Save Result', "INSERT INTO settings (key, value, updated_at) VALUES ('self_test', $1::jsonb, now()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()",
+    '={{ [JSON.stringify($json.summary)] }}'),
+  code('Pass Along', function () { return [{ json: $('Score').first().json }]; }),
+  ifTrue('Problems?', '={{ $json.send }}'),
+  email('Email Dan', '={{ $json.subject }}', '={{ $json.text }}'),
+], [['Nightly', 'Database Checks'], ['Run Now', 'Database Checks'], ['Database Checks', 'Questions'], ['Questions', 'Ask Nathan'], ['Ask Nathan', 'Score'],
+  ['Score', 'Save Result'], ['Save Result', 'Pass Along'], ['Pass Along', 'Problems?'], ['Problems?', 'Email Dan', 0]]);
+
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
   let s = JSON.stringify(w, null, 2).replace(/__ICON_MODEL__/g, ICON_MODEL).replace(/__VISION_MODEL__/g, VISION_MODEL)
     .replace(/__BGG_USERNAME__/g, BGG_USERNAME)
-    .replace(/__ASK_MODEL__/g, ASK_MODEL).replace(/__ASK_DAILY_CAP__/g, String(ASK_DAILY_CAP)).replace(/__ASK_PER_MEMBER__/g, String(ASK_PER_MEMBER)).replace(/__OWNER_NAME__/g, OWNER_NAME).replace(/__OWNER_EMAIL__/g, OWNER_EMAILS[0]);
+    .replace(/__ASK_MODEL__/g, ASK_MODEL).replace(/__ASK_DAILY_CAP__/g, String(ASK_DAILY_CAP)).replace(/__ASK_PER_MEMBER__/g, String(ASK_PER_MEMBER)).replace(/__OWNER_NAME__/g, OWNER_NAME).replace(/__OWNER_EMAIL__/g, OWNER_EMAILS[0]).replace(/__NATHAN_TESTS__/g, () => JSON.stringify(NATHAN_TESTS).replace(/\\/g, '\\\\').replace(/"/g, '\\"'));
   fs.writeFileSync(path.join(outDir, `${k}.json`), s);
   console.log(k, w.id, w.nodes.length, 'nodes');
 }

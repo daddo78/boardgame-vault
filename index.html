@@ -2738,6 +2738,41 @@
       document.getElementById('askSend').disabled = out;
       document.getElementById('npSend').disabled = out;
     }
+    // What Nathan is up to while he thinks: matched to the question, rotating every couple of seconds
+    function thinkingLines(q, names) {
+      const t = String(q || '').toLowerCase();
+      const forWho = names.length ? ' for ' + names.join(', ') : '';
+      const pick = (...sets) => sets.find(([re]) => re.test(t)) || sets[sets.length - 1];
+      const [, lines] = pick(
+        [/\b(who (has|owns)|anyone|any of my friends|lend|at [a-z]+'s|at [a-z]+’s|friends?'? shelves?)\b/, [
+          'Peeking at your friends’ shelves…', 'Checking who has it (no snooping, promise)…', 'Texting the group chat…', 'Counting meeples at your friends’ places…']],
+        [/\b(rules?|how (do|does|to) (i |you |we )?(play|set ?up|score|win)|set ?up|setup|on (someone else'?s|someone else’s|my|your|their) turn|allowed to|is it legal|how many (cards|dice|actions|turns)|what happens (if|when))\b/, [
+          'Flipping to the rulebook…', 'Squinting at the tiny print in the rulebook…', 'Checking the FAQ (there’s always an FAQ)…', 'Settling a rules argument before it starts…', 'Finding the page someone always loses…']],
+        [/\b(buy|purchase|get next|add to my (collection|shelf)|wishlist|(don'?t|don’t|do not) (own|have)|new game)\b/, [
+          'Browsing the game store aisles…', 'Sniffing new shrink wrap…', 'Checking what isn’t on your shelf yet…', 'Weighing it against your shelf space…', 'Asking my wallet if it’s okay…']],
+        [/\b(what do you (like|love|play)|your favou?rite|about yourself|nathan)\b/, [
+          'Thinking about my favorites…', 'Picking my all-time favorite (this is hard)…', 'Dusting off my own shelf…']],
+        [/\b(what (do|does) .+ like|about me|know about|who wins|win rate|how (do|does) .+ do at|profile)\b/, [
+          'Reading the play logs…', 'Tallying the wins and losses…', 'Checking who rage-quit last time…', 'Looking through the scoresheets…']],
+        [/\b(shelf of shame|never played|haven'?t played|haven’t played|unplayed)\b/, [
+          'Blowing the dust off the shelf of shame…', 'Finding the games still in shrink wrap…', 'Judging nobody (okay, a little)…', 'Peeking under the pile of unplayed games…']],
+        [/\b(top ?\d+|top (ten|five|three)|most played|least played|highest rated|heaviest|lightest|longest|list|show me|which of (those|these)|shelf of shame|haven'?t played|how many)\b/, [
+          'Counting plays and sharpening my pencil…', 'Lining up the boxes in order…', 'Doing some very serious math…', 'Alphabetizing the chaos…', 'Blowing the dust off the shelf of shame…']],
+        [/\b(genre|weight|how long|is .+ good|would i like|what is|what's|tell me about|like .+\?)\b/, [
+          'Looking it up on BoardGameGeek…', 'Reading the back of the box…', 'Checking the community poll…', 'Weighing the box (scientifically)…']],
+        [/./, [
+          'Checking the shelves' + forWho + '…', 'Pulling boxes off the shelf' + forWho + '…', 'Shuffling through the options…', 'Rolling for initiative…',
+          'Consulting the meeples…', 'Sorting out who sits where…', 'Making sure nobody gets a game they hate…']]);
+      return lines;
+    }
+    function startThinking(el, q, names) {
+      const lines = thinkingLines(q, names);
+      let i = Math.floor(Math.random() * lines.length);
+      const show = () => { el.textContent = lines[i % lines.length]; i++; };
+      show();
+      const timer = setInterval(show, 2400);
+      return () => clearInterval(timer);
+    }
     async function askNathan(text, followUp) {
       if (asks && asks.left <= 0) { renderAskMeter(); return; }
       const question = String(text || '').trim();
@@ -2760,8 +2795,9 @@
       const names = people.players.filter(p => askSelected.has(p.id)).map(p => firstName(p.name));
       const turn = document.createElement('div');
       turn.className = 'np-turn nathan';
-      turn.innerHTML = '<div class="nathan-avatar sm" aria-hidden="true"></div><div class="np-body"><div class="ask-thinking" style="margin:0.4rem 0 0;"><div class="spinner"></div>Nathan is checking the shelves' + (names.length ? ' for ' + esc(names.join(', ')) : '') + '…</div></div>';
+      turn.innerHTML = '<div class="nathan-avatar sm" aria-hidden="true"></div><div class="np-body"><div class="ask-thinking" style="margin:0.4rem 0 0;"><div class="spinner"></div><span class="think-line"></span></div></div>';
       thread.appendChild(turn);
+      const stopThinking = startThinking(turn.querySelector('.think-line'), question, names);
       refreshClamp();
       (followUp ? turn : panel).scrollIntoView({ behavior: 'smooth', block: followUp ? 'nearest' : 'start' });
       try {
@@ -2782,6 +2818,7 @@
         if (/\(429\)/.test(String(err.message)) && asks) { asks.left = 0; renderAskMeter(); }
         turn.querySelector('.np-body').innerHTML = '<p class="ask-note" style="margin:0;">' + esc(msg || 'Nathan couldn’t answer that one. Try again in a moment.') + '</p>';
       } finally {
+        stopThinking();
         askBusy = false;
         refreshClamp();
       }

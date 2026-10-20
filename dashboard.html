@@ -137,7 +137,7 @@
     const tile = (n, label, small) => '<div class="tile"><b>' + n + '</b><span>' + label + '</span>' + (small ? '<small>' + small + '</small>' : '') + '</div>';
     app.innerHTML =
       '<h1><i class="fa-solid fa-chart-line"></i> Dashboard</h1>' +
-      '<div class="sub">How people use Board Game Curator · updated ' + esc(new Date(d.generatedAt).toLocaleString()) + ' · times are Eastern</div>' +
+      '<div class="sub">How people use Board Game Curator · updated ' + esc(new Date(d.generatedAt).toLocaleString()) + ' · times are Eastern</div>' + selfTestHtml(d.selfTest) +
       '<div class="tiles">' +
         tile(num(k.members), 'Members') + tile(num(k.activeToday), 'Active today') + tile(num(k.active7), 'Active this week') + tile(num(k.active30), 'Active this month', 'avg ' + num(k.avgDaily30) + ' a day') +
         tile(num(k.questions7), 'Questions this week') + tile(num(k.questions30), 'Questions this month', num(k.questionsAll) + ' all time') +
@@ -183,6 +183,15 @@
     drawNathan();
     renderUsers();
     renderAdoption();
+  }
+  // The nightly self-test: the site's rules and Nathan's question set
+  function selfTestHtml(t) {
+    if (!t) return '';
+    const bad = (t.failures || []).length;
+    return '<div class="card" style="margin-top:0.9rem; display:flex; gap:0.7rem; align-items:center; border-left:5px solid ' + (bad ? 'var(--brand)' : '#5aa02c') + ';">' +
+      '<i class="fa-solid ' + (bad ? 'fa-triangle-exclamation' : 'fa-circle-check') + '" style="font-size:1.4rem; color:' + (bad ? 'var(--brand)' : '#5aa02c') + ';"></i>' +
+      '<div><b>Nightly check ' + (bad ? 'found ' + bad + ' problem' + (bad === 1 ? '' : 's') : 'passed') + '</b><div class="note" style="margin:0;">' + esc(ago(t.at)) + ' · site rules ' + t.dbPassed + '/' + t.dbTotal + ' · Nathan questions ' + t.nathanPassed + '/' + t.nathanTotal + '</div>' +
+      (bad ? '<div class="note" style="margin:0.3rem 0 0;">' + t.failures.map((f) => esc(f.what) + (f.problems && f.problems.length ? ': ' + esc(f.problems.join('; ')) : '')).join('<br>') + '</div>' : '') + '</div></div>';
   }
   function socialHtml(d) {
     const s = d.askSocial || {};
