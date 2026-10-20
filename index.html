@@ -727,7 +727,7 @@
       <button class="auth-btn" id="authBtn" type="button" aria-haspopup="menu" aria-expanded="false"><i class="fa-solid fa-right-to-bracket"></i> <span>Sign in</span></button>
       <div class="account-menu" id="accountMenu" role="menu" hidden>
         <button type="button" role="menuitem" id="menuProfile"><i class="fa-solid fa-id-badge"></i> My profile</button>
-        <button type="button" role="menuitem" id="menuWishlist"><i class="fa-solid fa-heart"></i> My wishlist</button>
+        <button type="button" role="menuitem" id="menuWishlist"><i class="fa-solid fa-gift"></i> My wishlist</button>
         <button type="button" role="menuitem" id="menuSignOut"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
       </div>
     </div>
@@ -901,7 +901,7 @@
   <!-- Wishlist: games you'd like, kept apart from your shelf -->
   <div class="modal-overlay" id="wishModal">
     <div class="modal" style="text-align:center;">
-      <h2 style="margin-bottom:0.3rem;"><i class="fa-solid fa-heart" style="color:var(--brand);"></i> My wishlist</h2>
+      <h2 style="margin-bottom:0.3rem;"><i class="fa-solid fa-gift" style="color:var(--brand);"></i> My wishlist</h2>
       <p class="hint" style="margin-top:0;">Games you'd like to own. Your friends can see it (gift ideas!), and Nathan won't suggest these again. Got one? Tap "Got it!" and it moves onto your shelf.</p>
       <div id="wishBody"><div class="spinner"></div></div>
       <div class="modal-actions"><button class="btn ghost" type="button" data-close-modal>Close</button></div>
@@ -1885,7 +1885,7 @@
           ((g.categories || []).length ? '<div><div class="section-label">Categories</div><div class="tags">' + chips(g.categories) + '</div></div>' : '') +
           '<div class="detail-actions">' +
             (g.bggId ? '<a class="btn" href="https://boardgamegeek.com/boardgame/' + Number(g.bggId) + '" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> BoardGameGeek</a>' : '') +
-            (viewingFriend() && g.bggId ? '<button class="btn" data-wish-add="' + Number(g.bggId) + '" data-title="' + esc(g.title) + '" data-cover="' + esc(g.coverCard || '') + '"><i class="fa-regular fa-heart"></i> Add to my wishlist</button>' : '') +
+            (viewingFriend() && g.bggId ? '<button class="btn" data-wish-add="' + Number(g.bggId) + '" data-title="' + esc(g.title) + '" data-cover="' + esc(g.coverCard || '') + '"><i class="fa-solid fa-gift"></i> Add to my wishlist</button>' : '') +
             '<button class="btn danger edit-only" data-delete="' + esc(g.id) + '"><i class="ti ti-trash"></i> Delete</button>' +
           '</div>' +
         '</div>';
@@ -2617,7 +2617,7 @@
             '<div><div class="n-kind">Not on your shelf' + esc(who) + '</div><div class="n-title">' + esc(x.title || o.title || '') + ' <i class="ti ti-external-link" style="font-size:0.8em;"></i></div>' +
             (x.quip ? '<div class="n-quip">' + esc(x.quip) + '</div>' : '') + '</div></a>' +
           (x.why ? '<div class="n-why">' + esc(x.why) + '</div>' : '') +
-          '<button type="button" class="btn ghost n-wish" data-wish-add="' + Number(o.bggId) + '" data-title="' + esc(x.title || o.title || '') + '" data-cover="' + esc(o.cover || '') + '"><i class="fa-regular fa-heart"></i> Add to my wishlist</button>' +
+          '<button type="button" class="btn ghost n-wish" data-wish-add="' + Number(o.bggId) + '" data-title="' + esc(x.title || o.title || '') + '" data-cover="' + esc(o.cover || '') + '"><i class="fa-solid fa-gift"></i> Add to my wishlist</button>' +
         '</div>';
       }
       const g = collection.find(y => y.id === x.id) || {};
@@ -3049,7 +3049,7 @@
       b.disabled = true;
       try {
         await changeWish('add', Number(b.dataset.wishAdd), b.dataset.title, b.dataset.cover || '');
-        b.innerHTML = '<i class="fa-solid fa-heart"></i> On your wishlist';
+        b.innerHTML = '<i class="fa-solid fa-check"></i> On your wishlist';
         toast('Added "' + b.dataset.title + '" to your wishlist.');
       } catch (err) { b.disabled = false; toast(err.message, true); }
     }, true);

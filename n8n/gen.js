@@ -1654,7 +1654,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"); "game" if they ask about one or more specific games themselves, owned or not (e.g. "what genre is Terraforming Mars", "how long is Brass", "would I like Ark Nova", "is Spirit Island good for 2", "should I buy Cascadia", "does Dan own Spirit Island", "who has Brass"); "rules" if they ask how to play a game or about its rules (e.g. "how do I set up Brass", "how does combat work in Spirit Island", "can you trade in Catan on someone else\'s turn", "how many cards do you draw in Wingspan"); "buy" if they want ideas for games to buy or get next (e.g. "what should I buy next", "what game should I add to my collection", "a co-op I don\'t own yet"),',
       '  "atFriend": the first name of a friend if they are playing at that friend\'s place or ask about that friend\'s shelf or collection ("what can we play at Keith\'s", "anything good on Matt\'s shelf for 4"), else null,',
       '  "acrossFriends": true if they ask which friend owns something or want games from any of their friends\' shelves ("who has a co-op for 6", "can anyone lend me a party game", "which of my friends owns Brass"), else false,',
-      '  "games": [for intent "game" or "rules": the official BoardGameGeek titles of the games they name, spelling corrected (e.g. "Teraforming Mars" -> "Terraforming Mars")],',
+      '  "games": [for intent "game" or "rules": the official BoardGameGeek titles of the games they name, spelling corrected and completed (e.g. "Teraforming Mars" -> "Terraforming Mars", "Tanares Adventures" -> "Arena: The Contest – Tanares Adventures"). If they describe a game without naming it ("that Viking game by Uwe Rosenberg", "the trick-taking game in space"), always 2 or 3 different guesses of its official title, most likely first, so the right one is among them],',
+      '  "guessed": true if "games" are your guesses from a description rather than names they typed, else false,',
       '  "personIds": [for intent "person": ids from ROSTER of who they ask about; "me", "I" and "my" mean the ASKER],',
       '  "sort": for a ranked list only: "plays" (most played), "leastPlays", "recent" (most recently played), "stale" (longest since played), "stars" (their own star ratings: "my highest rated", "games I rated best", "my top rated"), "rating" (BGG rating, only when they say BGG or "the community"), "rank" (BGG rank), "weight" (heaviest), "newest" (latest added); else null,',
       '  "limit": how many games they asked for ("top ten" = 10, "my 5 heaviest" = 5), else null,',
@@ -1746,6 +1747,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         .map((m) => ({ id: m[2], name: decode((m[3].match(/<name type="[^"]+" value="([^"]*)"/) || [])[1] || '') }));
       let pool = items.filter((x) => normTitle(x.name) === t);
       if (!pool.length) pool = items.filter((x) => { const n = normTitle(x.name); return n && (n.startsWith(t + ' ') || t.startsWith(n + ' ')); });
+      // A partial name ("Tanares Adventures" for "Arena: The Contest – Tanares Adventures"): titles that contain it; the most-rated wins later
+      if (!pool.length && t.length >= 5) pool = items.filter((x) => normTitle(x.name).includes(t));
       return { json: { ids: [...new Set(pool.map((x) => x.id))].slice(0, 15).join(',') } };
     });
   }),
@@ -2057,7 +2060,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
             rulebooks: named.map((g) => ({ bggId: g.bggId, title: g.title, has: books.some((b) => Number(b.bggId) === Number(g.bggId)) })) } }];
         }
         return [{ json: { offTopic: false, gap: false, browse: true, mode: 'game', matchIds: [], understood: {}, constraints: c,
-          setFacts: (ownership.length ? ownership.join('\n') + ' (answer this first)\n' : '') + taste + (notFound.length ? '\nNOT FOUND ON BGG: ' + notFound.join(', ') : '') +
+          setFacts: (c.guessed ? 'GUESSED: they described a game without naming it; the CANDIDATES are your best guesses. Pick the candidate that best fits every detail of their description (theme, designer, mechanics) and lead with "Sounds like …"; mention another candidate only if it also fits, and ask them to say if you missed. Highlights: only the candidate(s) you think they mean.\n' : '') +
+            (ownership.length ? ownership.join('\n') + ' (answer this first)\n' : '') + taste + (notFound.length ? '\nNOT FOUND ON BGG: ' + notFound.join(', ') : '') +
             // "Which of my friends would love Ark Nova?": their friends' own profiles, to match the game against
             (scope.forFriends ? '\nTHEIR FRIENDS (match the game to each one; say who would love it and who might not, and why):\n' +
               players.filter((p) => p.googleEmail && p.name !== sv.askerName).map((p) => p === curator ? curatorFacts(p) : profile(p)).join('\n') : ''),
