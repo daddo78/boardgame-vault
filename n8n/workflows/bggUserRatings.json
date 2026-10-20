@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "15585565-3270-4755-aa1b-6f341f1a79ca",
+      "id": "6dba534c-8af2-48b4-8711-c1b460c2cc6a",
       "name": "When Called By Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -18,7 +18,7 @@
       }
     },
     {
-      "id": "464804b8-2c44-46e6-9803-6cb1538824c9",
+      "id": "699963da-f79c-4c6e-8c3b-770667f71daf",
       "name": "Fetch Collection",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -72,7 +72,7 @@
       }
     },
     {
-      "id": "5150dc20-732e-4acf-b9ea-0f617a17dddf",
+      "id": "ece480f8-294e-4629-b79d-b302fff156e9",
       "name": "Ready?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -89,7 +89,7 @@
           },
           "conditions": [
             {
-              "id": "203cff7d-9eca-45c4-bdf1-aa86ab81abf4",
+              "id": "cd6459ba-33a3-45f5-9ae7-92596efc8cd0",
               "leftValue": "={{ $json.statusCode === 200 && String($json.data || '').includes('<items') }}",
               "rightValue": "",
               "operator": {
@@ -105,7 +105,7 @@
       }
     },
     {
-      "id": "e8559d9c-c2b2-4eb1-9e4d-71eecddae241",
+      "id": "b17e752b-afdb-4286-9df3-9ca545c63374",
       "name": "Wait 8s",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
@@ -116,10 +116,10 @@
       "parameters": {
         "amount": 8
       },
-      "webhookId": "1dc036c5-0a8e-448c-9cc1-05ffaa4ac826"
+      "webhookId": "26670bff-e235-45ba-b1eb-72157e7c2c1b"
     },
     {
-      "id": "c4130326-3725-4e37-ab20-de24bce23c59",
+      "id": "fd1f65ad-720c-4e8e-ad2c-11d56ca8d760",
       "name": "Fetch Again",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -173,7 +173,7 @@
       }
     },
     {
-      "id": "9ad6a18f-0469-408f-854d-0844889d0d2f",
+      "id": "ac77a9a8-0b43-4ce1-afd2-bec3c6d328f2",
       "name": "Ready Now?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -190,7 +190,7 @@
           },
           "conditions": [
             {
-              "id": "9ccecaa0-3a1c-450b-8362-3acc7703346f",
+              "id": "9136277d-4fee-4856-9551-eb5cf7eff90b",
               "leftValue": "={{ $json.statusCode === 200 && String($json.data || '').includes('<items') }}",
               "rightValue": "",
               "operator": {
@@ -206,7 +206,7 @@
       }
     },
     {
-      "id": "23d1c612-126d-46f9-a5f4-ef047bd7ca57",
+      "id": "a820393e-27f5-4463-9a8e-2803bf912194",
       "name": "Wait 20s",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
@@ -217,10 +217,10 @@
       "parameters": {
         "amount": 20
       },
-      "webhookId": "bfcf73a2-e84c-4181-8781-3bc479c22c9f"
+      "webhookId": "5a0c920c-d41c-4712-951b-5f12ca157405"
     },
     {
-      "id": "94aafc9c-8cc1-41dd-b844-51e5dfa9d8d8",
+      "id": "9fef797b-e7f9-4460-8e6c-7f9e1bd9f268",
       "name": "Fetch Last Time",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -274,7 +274,7 @@
       }
     },
     {
-      "id": "88337ace-30a0-461f-985c-7369819b35ee",
+      "id": "4dc2f629-b0a6-4070-be90-c09923bc4a4d",
       "name": "Parse Ratings",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

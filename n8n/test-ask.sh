@@ -59,7 +59,9 @@ const last = run['Respond OK'] ? run['Respond OK'][0].data.main[0][0].json : nul
 if (last) {
   console.log('\nANSWER: ' + (last.intent || '') + ' matchIds=' + ((last.matchIds || []).length));
   if (last.summary) console.log(last.summary);
-  if (last.pick) console.log('pick: ' + last.pick.title + ' / alt: ' + (last.alternative || {}).title);
+  if (last.pick) { console.log('pick: ' + last.pick.title + ' -- ' + (last.pick.why || '')); console.log('alt: ' + (last.alternative || {}).title + ' -- ' + ((last.alternative || {}).why || '')); }
+  if (last.gap) console.log('gap: ' + JSON.stringify(last.gap));
+  if (last.understood) console.log('understood: ' + JSON.stringify(last.understood));
   if (last.highlights) console.log('highlights: ' + last.highlights.map((h) => h.title).join(', '));
   if (last.note || last.message) console.log(last.note || last.message);
 }
