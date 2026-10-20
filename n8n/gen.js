@@ -1707,6 +1707,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const aboutOpen = /\b(here|this shelf|this collection|on (his|her|their) shelf)\b/i.test(q) || (first && q.toLowerCase().includes(first));
     let c = {};
     try { c = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
+    // Firm rules on top of the model's reading: "a game I don't own / don't have / not on my shelf" means buy ideas
+    // (also as a follow-up), and a question about "a game" that names none is a recommendation, or a search of friends' shelves
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
     // A question about a game or what to buy is about the asker: their shelf and taste, wherever they are
     const forMe = c.intent === 'game' || c.intent === 'buy' || c.intent === 'rules';
     const titles = (c.intent === 'game' || c.intent === 'rules') && Array.isArray(c.games) ? c.games.map((t) => String(t).trim()).filter(Boolean).slice(0, 3) : [];
@@ -1774,6 +1778,12 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     let c = {};
     try { c = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
     if (c.onTopic === false) return [{ json: { offTopic: true, reply: String(c.reply || 'I can only help pick board games from this shelf.') } }];
+    { const q = String(v.question || '');
+    // Firm rules on top of the model's reading: "a game I don't own / don't have / not on my shelf" means buy ideas
+    // (also as a follow-up), and a question about "a game" that names none is a recommendation, or a search of friends' shelves
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    }
     const open = $('Shelf View').first().json.v;
     const scope = $('Scope').first().json;
     const visit = $('Own Shelf').first().json.visit || null; // "at Keith's": that friend's shelf
@@ -1783,7 +1793,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const fpool = scope.across ? ($('Game Lookup').first().json.fpool || []) : null; // every game on your friends' shelves
     // A follow-up about the last answer ("which of those are co-op?") works within that answer's games
     const prevSet = new Set((v.previous && v.previous.setIds) || []);
-    const narrow = prevSet.size > 0 && c.intent !== 'game' && c.intent !== 'buy'
+    const narrow = prevSet.size > 0 && c.intent !== 'game' && c.intent !== 'buy' && c.intent !== 'rules'
       && (c.fromPrevious === true || /\b(those|these|them|that list|which one|the first|the last|out of (my|the|those|these))\b/i.test(v.question));
     let games = (sv.games || []).map(toGame).filter((g) => !narrow || prevSet.has(g.id));
     // Across friends: the games on all their shelves, each with who owns it (ids "bgg:<id>"; cards link to BGG)
@@ -1792,6 +1802,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       bestPlayers: x.bestPlayers || [], minTime: x.minTime || null, maxTime: x.maxTime || null, weight: x.weight || null, year: x.year || null, minAge: x.minAge || null,
       designers: x.designers || [], rank: x.rank || null, categories: x.categories || [], mechanics: x.mechanics || [], favorite: false, coverCard: x.cover || null,
       coverLarge: null, playCount: x.ownerPlays || 0, lastPlayed: null, addedAt: null, extraBggIds: [], owners: x.owners || [], mine: !!x.mine }));
+    // 'Who has…' is about borrowing: leave out games the asker already owns (unless that's all there is)
+    if (fpool && games.some((g) => !g.mine)) games = games.filter((g) => !g.mine);
     const players = (sv.players || []).map(toPlayer);
     const ratings = (sv.ratings || []).map(toRating);
     const byId = Object.fromEntries(players.map((p) => [p.id, p]));
@@ -1866,6 +1878,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       s += want.filter((w) => h.includes(w)).length * 2.5;
       s += (g.desireToPlay || 0) * 0.4 + (g.favorite ? 1 : 0) - (g.thinningCandidate ? 0.5 : 0);
       s += ((g.bggRating || 6.5) - 6.5) * 0.5;
+      if (g.owners && g.mine) s -= 2.5; // "who has…": you're looking to borrow, so games you already own come last
       const groupStars = group.map((p) => fit(rate[p.id + '|' + g.id])).filter(Boolean);
       if (groupStars.length) s += (groupStars.reduce((a, b) => a + b, 0) / groupStars.length - 3) * 1.2;
       if (c.freshness === 'unplayed' && !g.playCount) s += 3;
@@ -1939,7 +1952,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         const f = [g.minPlayers ? `${g.minPlayers}-${g.maxPlayers}p` + (g.bestPlayers.length ? ` best ${g.bestPlayers.join('/')}` : '') : '',
           g.minTime ? `${g.minTime === g.maxTime ? g.minTime : g.minTime + '-' + g.maxTime}min` : '', g.weight ? `weight ${Number(g.weight).toFixed(1)}` : '',
           g.minAge ? `age ${g.minAge}+` : '', g.bggRating ? `BGG ${g.bggRating}` : '', g.mechanics.slice(0, 4).join(', '),
-          'owned by ' + g.owners.join(', '), g.mine ? 'the asker owns it too' : 'the asker does not own it', g.playCount ? `${g.playCount} logged plays between them` : ''].filter(Boolean).join('; ');
+          'owned by ' + g.owners.map((o) => o === 'Nathan' ? 'Nathan (that is you, the curator: say "my copy")' : o).join(', '), g.mine ? 'the asker owns it too' : 'the asker does not own it', g.playCount ? `${g.owners.join(' and ')} logged ${g.playCount} plays of it` : ''].filter(Boolean).join('; ');
         return `${g.id} | ${g.title} | ${f}`;
       }
       const facts = [
@@ -2147,7 +2160,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '- Only if you are confident the game has an unlimited or substitutable component pool, or it supports an expanded player count, add exactly this joke in swapJoke: "The [component] can be substituted as needed, so if you ever run short, feel free to use a suitable replacement… like [funny, semi-related household item]." Otherwise null.',
       '',
       // Social answers: across friends' shelves say who owns each pick; at a friend's place it's their shelf
-      ...(s.across ? ['SOCIAL: the CANDIDATES come from the asker\'s friends\' shelves. For every game you mention, say which friend owns it ("Matt has it, so ask him to bring it"), and note when the asker owns it too.'] : []),
+      ...(s.across ? ['SOCIAL: the CANDIDATES come from the asker\'s friends\' shelves, not the asker\'s own (never call them "your shelf"). Talk only about those friends\' copies: don\'t bring up the asker\'s own games or play counts, which are only there to show their taste. For every game you mention, say which friend owns it ("Matt has it, so ask him to bring it"), and note when the asker owns it too.'] : []),
       ...(s.visiting ? ['SOCIAL: they are playing at ' + s.visiting + '\'s place, so the CANDIDATES are ' + s.visiting + '\'s shelf. Say so naturally ("at ' + s.visiting + '\'s, I\'d pull down…").'] : []),
       ...(s.mode === 'rules' ? [
       'FORMAT: this is a rules question. Answer it clearly and correctly in "summary": short paragraphs or numbered steps (use line breaks), no fluff, no quips. For RULEBOOK EXCERPTS: answer only from the excerpts and say "per the rulebook"; if the excerpts don\'t cover the question, say so plainly and suggest which section of the rulebook to check. For a game with NO RULEBOOK UPLOADED: start with "From memory:" and answer from what you reliably know about the game; say when you\'re not sure of a detail, never invent specifics, and suggest checking the official rulebook. Highlights: just the game asked about, with an empty or one-line "why". gap is null.',

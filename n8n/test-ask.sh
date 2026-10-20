@@ -55,6 +55,7 @@ const total = Object.values(run).flat().reduce((t, x) => t + (x.executionTime ||
 console.log('TIMING (ms): total ' + total);
 for (const [n, t] of steps) console.log('  ' + String(t).padStart(6) + '  ' + n);
 if (process.env.SHOW) for (const n of process.env.SHOW.split(',')) if (run[n]) console.log(n + ': ' + JSON.stringify(run[n][0].data.main[0].map((i) => i.json.choices ? i.json.choices[0].message.content : process.env.KEY ? i.json[process.env.KEY] : i.json)).slice(0, 1500));
+if (process.env.JSON) { const o = run['Respond OK'] ? run['Respond OK'][0].data.main[0][0].json : { error: rd.error ? rd.error.message : 'no answer' }; console.log('@@JSON ' + JSON.stringify(o)); process.exit(0); }
 const last = run['Respond OK'] ? run['Respond OK'][0].data.main[0][0].json : null;
 if (last) {
   console.log('\nANSWER: ' + (last.intent || '') + ' matchIds=' + ((last.matchIds || []).length));

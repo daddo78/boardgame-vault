@@ -1,0 +1,194 @@
+[
+  {
+    "name": "Top ten names the real most-played games",
+    "as": "dan",
+    "q": "What are my top ten most played games?",
+    "includes": [
+      "The Crew",
+      "Quacks"
+    ]
+  },
+  {
+    "name": "\"My\" on a friend's shelf answers from your own",
+    "as": "dan",
+    "shelf": "friend:10",
+    "q": "What are my top ten most played games?",
+    "includes": [
+      "The Crew"
+    ],
+    "excludes": [
+      "Ark Nova (39"
+    ]
+  },
+  {
+    "name": "Shelf of shame lists only never-played games",
+    "as": "nathan",
+    "q": "What's on my shelf of shame?",
+    "matchMin": 15,
+    "matchMax": 60
+  },
+  {
+    "name": "\"My highest rated\" uses your own stars",
+    "as": "nathan",
+    "q": "What are my highest rated games?",
+    "includesAny": [
+      "Ark Nova",
+      "Dune",
+      "Castles of Burgundy",
+      "Agricola"
+    ]
+  },
+  {
+    "name": "Follow-up narrows the last answer",
+    "as": "dan",
+    "q": "Which of those are cooperative?",
+    "prev": {
+      "question": "What are my top ten most played games?",
+      "constraints": {
+        "intent": "browse",
+        "sort": "plays",
+        "limit": 10
+      },
+      "pickIds": [
+        "manual-g96"
+      ],
+      "setIds": [
+        "manual-g96",
+        "manual-g195",
+        "manual-g181",
+        "manual-g25",
+        "manual-g104",
+        "manual-g30",
+        "manual-g4",
+        "manual-g46",
+        "manual-g145",
+        "manual-g42"
+      ]
+    },
+    "includes": [
+      "The Crew"
+    ],
+    "matchMax": 10
+  },
+  {
+    "name": "A recommendation for a group",
+    "as": "dan",
+    "q": "There are 4 of us and we have about 90 minutes. What should we play?",
+    "intent": "recommend"
+  },
+  {
+    "name": "Misspelled game name",
+    "as": "dan",
+    "q": "What genre is Teraforming Mars?",
+    "includes": [
+      "Terraforming Mars"
+    ]
+  },
+  {
+    "name": "Partial game name",
+    "as": "dan",
+    "q": "tanares adventure",
+    "includes": [
+      "Tanares Adventures"
+    ]
+  },
+  {
+    "name": "Game described, not named",
+    "as": "dan",
+    "q": "What's that Viking game by Uwe Rosenberg where you fill your board with tiles?",
+    "includes": [
+      "Feast for Odin"
+    ]
+  },
+  {
+    "name": "Who owns it: a friend who doesn't",
+    "as": "nathan",
+    "q": "Does Dan own Spirit Island?",
+    "includesAny": [
+      "does not own",
+      "doesn't own",
+      "doesn’t own"
+    ]
+  },
+  {
+    "name": "At a friend's place (not a friend)",
+    "as": "dan",
+    "q": "What can we play at Keith's?",
+    "includes": [
+      "friends list"
+    ]
+  },
+  {
+    "name": "Across friends' shelves names the owner",
+    "as": "dan",
+    "q": "Who has a good co-op for 2 players?",
+    "includesAny": [
+      "Nathan",
+      "my shelf",
+      "my copy",
+      "I have",
+      "I own"
+    ],
+    "excludes": [
+      "you already own",
+      "your most-played"
+    ]
+  },
+  {
+    "name": "Nathan answers about himself in the first person",
+    "as": "dan",
+    "q": "What do you like to play?",
+    "includesAny": [
+      "I'm",
+      "I love",
+      "my "
+    ],
+    "includes": [
+      "Ark Nova"
+    ]
+  },
+  {
+    "name": "\"A game I don't own\" as a follow-up gives buy ideas",
+    "as": "dan",
+    "q": "a game I don't own",
+    "prev": {
+      "question": "What's a game I might like?",
+      "constraints": {
+        "intent": "recommend"
+      },
+      "pickIds": [
+        "manual-g96"
+      ],
+      "setIds": [
+        "manual-g96"
+      ]
+    },
+    "mode": "buy"
+  },
+  {
+    "name": "\"A game I don't own\" on its own gives buy ideas",
+    "as": "dan",
+    "q": "What's a co-op I don't own that I might like?",
+    "mode": "buy"
+  },
+  {
+    "name": "Buy ideas for two",
+    "as": "nathan",
+    "q": "What should I buy next? I want a good two-player game.",
+    "mode": "buy"
+  },
+  {
+    "name": "Rules without a rulebook are labelled",
+    "as": "dan",
+    "q": "How do I set up Wingspan?",
+    "includes": [
+      "From memory"
+    ]
+  },
+  {
+    "name": "Off-topic is redirected",
+    "as": "dan",
+    "q": "What's the weather like today?",
+    "offTopic": true
+  }
+]

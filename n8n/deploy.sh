@@ -31,6 +31,13 @@ for i in $(seq 1 30); do
   sleep 2
   code=$(curl -s -o /dev/null -w '%{http_code}' https://n8n.ondorilabo.com/webhook/vault/collection || true)
   # The collection is members-only, so a 401 ("sign in first") also means n8n is up and answering
-  { [ "$code" = 200 ] || [ "$code" = 401 ]; } && { echo "n8n back up (collection $code)"; exit 0; }
+  { [ "$code" = 200 ] || [ "$code" = 401 ]; } && { echo "n8n back up (collection $code)"; break; }
 done
-echo "n8n did not come back within 60s" >&2; exit 1
+{ [ "$code" = 200 ] || [ "$code" = 401 ]; } || { echo "n8n did not come back within 60s" >&2; exit 1; }
+
+# The rules that matter (membership, privacy, ratings, wishlists, admin, game matching): fast, and nothing is left behind
+out=$($SSH "docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 -q" < ../server/bgc-db/tests/checks.sql 2>&1 | sed "s/^psql:<stdin>:[0-9]*: //; s/NOTICE:  //")
+pass=$(echo "$out" | grep -c "^PASS")
+if echo "$out" | grep -qE "FAIL|ERROR"; then echo "$out" | grep -E "FAIL|ERROR" >&2; echo "checks: $pass passed, then a failure" >&2; exit 1; fi
+echo "checks: $pass passed"
+# Nathan's question set (real AI calls, ~5 min):  node test-nathan.js
