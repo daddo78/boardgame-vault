@@ -50,6 +50,7 @@ const ID = {
   shelfUpdate: 'BGVaultShelfUpd1',
   shelfRemove: 'BGVaultShelfRem1',
   importBgg: 'BGVaultImport001',
+  shelfCsv: 'BGVaultShelfCsv1',
   shelfAdd: 'BGVaultShelfAdd1',
   shelfIdentify: 'BGVaultShelfPic1',
   friends: 'BGVaultFriends01',
@@ -2064,27 +2065,12 @@ const shelfRemove = wf(ID.shelfRemove, 'Vault — Remove From My Shelf', [
 addMemberAuth(shelfRemove, { failTo: 'Respond Error' });
 
 // =====================================================================
-// 24. Import From BGG  POST /webhook/vault/import { bggUsername }  (member gate)
-//     Answers right away ("started"); the import keeps running and reports progress on /shelf:
-//     owned base games + expansions -> shared catalog and the member's shelf -> BGG details and box art for anything
-//     new to the catalog -> every play from their BGG account -> their player list and play counts.
+// 24. Connect BGG  POST /webhook/vault/import { bggUsername }  (member gate)
+//     The shelf is managed here, not on BGG, so this brings in plays only (no games): every play from their BGG
+//     account -> their player list. A game's plays count as soon as the game is on their shelf.
+//     Answers right away ("started"); progress shows on /shelf.
 // =====================================================================
-const importCollectionGet = (name, extraQuery) => node(name, 'n8n-nodes-base.httpRequest', 4.2, {
-  method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/collection',
-  authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
-  ...qs({ username: "={{ $('Validate').first().json.username }}", own: '1', ...extraQuery }),
-  options: { timeout: 60000, response: { response: { fullResponse: true, neverError: true, responseFormat: 'text', outputPropertyName: 'data' } } },
-}, { credentials: CRED.bgg });
-// BGG builds a collection in the background and answers 202 "accepted" until it's ready: check, wait, ask again
-const importReady = (name, fetchName) => code(name, new Function(`
-  const xml = String($('${fetchName}').first().json.data || '');
-  const err = (xml.match(/<error>\\s*<message>([^<]*)<\\/message>/) || [])[1];
-  if (err) return [{ json: { ready: true, error: err } }];
-  if ($('${fetchName}').first().json.statusCode === 200 && xml.includes('<items')) return [{ json: { ready: true } }];
-  if ($runIndex >= 15) return [{ json: { ready: true, error: 'BGG is still preparing this collection; try again in a few minutes' } }];
-  return [{ json: { ready: false } }];
-`));
-const importBgg = wf(ID.importBgg, 'Vault — Import From BGG', [
+const importBgg = wf(ID.importBgg, 'Vault — Connect BGG Plays', [
   webhook('Webhook', 'POST', 'vault/import'),
   code('Validate', function () {
     const j = $input.first().json;
@@ -2097,63 +2083,6 @@ const importBgg = wf(ID.importBgg, 'Vault — Import From BGG', [
   code('Started?', function () { return [{ json: { ...$input.first().json.r, status: 409 } }]; }),
   ifTrue('Can Start?', '={{ $json.ok }}'),
   respond('Respond Started', '={{ JSON.stringify({ ok: true, started: true }) }}'),
-  importCollectionGet('BGG Base Games', { excludesubtype: 'boardgameexpansion' }),
-  importReady('Base Games Ready?', 'BGG Base Games'),
-  ifTrue('Base Ready?', '={{ $json.ready }}'),
-  wait('Wait For BGG', 6),
-  importCollectionGet('BGG Expansions', { subtype: 'boardgameexpansion' }),
-  importReady('Expansions Ready?', 'BGG Expansions'),
-  ifTrue('Expansions Ready', '={{ $json.ready }}'),
-  wait('Wait For BGG Again', 6),
-  code('Parse Collection', function () {
-    const err = $('Base Games Ready?').last().json.error;
-    if (err) return [{ json: { ok: false, message: err } }];
-    const unxml = (v) => String(v || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    const parse = (xml, subtype) => [...String(xml || '').matchAll(/<item [^>]*objectid="(\d+)"[^>]*>([\s\S]*?)<\/item>/g)].map((m) => ({
-      bggId: Number(m[1]), subtype, name: unxml((m[2].match(/<name[^>]*>([^<]*)<\/name>/) || [])[1] || ''),
-      year: Number((m[2].match(/<yearpublished>(\d+)<\/yearpublished>/) || [])[1] || 0) }));
-    const base = parse($('BGG Base Games').last().json.data, 'boardgame');
-    const exp = $('Expansions Ready?').last().json.error ? [] : parse($('BGG Expansions').last().json.data, 'boardgameexpansion');
-    return [{ json: { ok: true, items: [...base, ...exp], base: base.length, expansions: exp.length } }];
-  }),
-  ifTrue('Collection OK?', '={{ $json.ok }}'),
-  pg('Save Collection', 'SELECT bgc.import_collection($1, $2::jsonb) AS r', "={{ [$('Validate').first().json.email, JSON.stringify($json.items)] }}"),
-  pg('Progress: Details', "SELECT bgc.set_import($1, jsonb_build_object('step', 'Getting game details and box art', 'games', $2::int, 'expansions', $3::int)) AS s",
-    "={{ [$('Validate').first().json.email, $('Parse Collection').first().json.base, $('Parse Collection').first().json.expansions] }}"),
-  code('Detail Batches', function () {
-    const ids = $('Save Collection').first().json.r.enrich || [];
-    const out = [];
-    for (let i = 0; i < ids.length; i += 20) out.push({ json: { ids: ids.slice(i, i + 20).join(',') } });
-    return out.length ? out : [{ json: { ids: '' } }];
-  }),
-  { ...node('BGG Thing', 'n8n-nodes-base.httpRequest', 4.2, {
-    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/thing',
-    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
-    ...qs({ id: '={{ $json.ids || 0 }}', stats: '1' }),
-    options: { timeout: 60000, batching: { batch: { batchSize: 1, batchInterval: 2500 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
-  }, { credentials: CRED.bgg, ...retry }), onError: 'continueRegularOutput' },
-  code('Parse Details', function () {
-    const things = $input.all().flatMap((page) => parseThingXml(page.json.data));
-    return things.length ? things.map((t) => ({ json: t })) : [{ json: { none: true } }];
-  }),
-  // In-between image sizes from BGG's image service (the XML only has a thumbnail and the huge original)
-  { ...node('BGG Image Sizes', 'n8n-nodes-base.httpRequest', 4.2, {
-    method: 'GET', url: '=https://api.geekdo.com/api/images/{{ $json.picId || 0 }}',
-    options: { timeout: 20000, batching: { batch: { batchSize: 1, batchInterval: 250 } } },
-  }, { retryOnFail: true, maxTries: 2, waitBetweenTries: 3000 }), onError: 'continueRegularOutput' },
-  code('Add Covers', function () {
-    const things = $('Parse Details').all().map((i) => i.json).filter((t) => !t.none);
-    const imgs = $input.all().map((i) => i.json.images || {});
-    const out = things.map((t, i) => {
-      const im = imgs[i] || {};
-      return { ...t, coverCard: im.medium?.url || im.itempage?.url || null, coverLarge: im.itempage?.url || im.medium?.url || null };
-    });
-    const owned = $('Parse Collection').first().json.items.filter((x) => x.subtype === 'boardgameexpansion').map((x) => x.bggId);
-    return [{ json: { things: out, ownedExpansions: owned } }];
-  }),
-  pg('Save Details', 'SELECT bgc.enrich_games($1, $2::jsonb, $3::jsonb) AS r',
-    "={{ [$('Validate').first().json.email, JSON.stringify($json.things), JSON.stringify($json.ownedExpansions)] }}"),
-  pg('Progress: Plays', "SELECT bgc.set_import($1, jsonb_build_object('step', 'Reading your plays')) AS s", "={{ [$('Validate').first().json.email] }}"),
   { ...node('BGG Plays', 'n8n-nodes-base.httpRequest', 4.2, {
     method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/plays',
     authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
@@ -2184,27 +2113,137 @@ const importBgg = wf(ID.importBgg, 'Vault — Import From BGG', [
             user: attr(t, 'username'), win: attr(t, 'win') === '1', score: attr(t, 'score'), isNew: attr(t, 'new') === '1' })) });
       }
     }
-    return [{ json: { plays: plays.filter((p) => p.id && p.bggId) } }];
+    const err = (String(($input.first() || { json: {} }).json.data || '').match(/<error>\s*<message>([^<]*)<\/message>/) || [])[1];
+    if (err && !plays.length) return [{ json: { ok: false, message: err } }];
+    return [{ json: { ok: true, plays: plays.filter((p) => p.id && p.bggId) } }];
   }),
+  ifTrue('Plays OK?', '={{ $json.ok }}'),
   pg('Save Plays', 'SELECT at.save_plays($1, $2::jsonb) AS saved', "={{ [$('Validate').first().json.email, JSON.stringify($json.plays)] }}"),
   pg('Players And Counts', 'SELECT bgc.refresh_member($1) AS r', "={{ [$('Validate').first().json.email] }}"),
-  pg('Done', "SELECT bgc.set_import($1, jsonb_build_object('state', 'done', 'step', 'Done', 'added', $2::int, 'plays', $3::int, 'players', $4::int, 'finished', at.iso(now()))) AS s",
-    "={{ [$('Validate').first().json.email, $('Save Collection').first().json.r.added, $('Save Plays').first().json.saved.plays, $json.r.players] }}"),
+  pg('Done', "SELECT bgc.set_import($1, jsonb_build_object('state', 'done', 'step', 'Done', 'plays', $2::int, 'players', $3::int, 'finished', at.iso(now()))) AS s",
+    "={{ [$('Validate').first().json.email, $('Save Plays').first().json.saved.plays, $json.r.players] }}"),
   pg('Failed', "SELECT bgc.set_import($1, jsonb_build_object('state', 'error', 'message', $2::text)) AS s", "={{ [$('Validate').first().json.email, $json.message] }}"),
   respondError(),
 ], [
   ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Start', 0], ['Valid?', 'Respond Error', 1],
   ['Start', 'Started?'], ['Started?', 'Can Start?'], ['Can Start?', 'Respond Started', 0], ['Can Start?', 'Respond Error', 1],
-  ['Respond Started', 'BGG Base Games'], ['BGG Base Games', 'Base Games Ready?'], ['Base Games Ready?', 'Base Ready?'],
-  ['Base Ready?', 'BGG Expansions', 0], ['Base Ready?', 'Wait For BGG', 1], ['Wait For BGG', 'BGG Base Games'],
-  ['BGG Expansions', 'Expansions Ready?'], ['Expansions Ready?', 'Expansions Ready'],
-  ['Expansions Ready', 'Parse Collection', 0], ['Expansions Ready', 'Wait For BGG Again', 1], ['Wait For BGG Again', 'BGG Expansions'],
-  ['Parse Collection', 'Collection OK?'], ['Collection OK?', 'Save Collection', 0], ['Collection OK?', 'Failed', 1],
-  ['Save Collection', 'Progress: Details'], ['Progress: Details', 'Detail Batches'], ['Detail Batches', 'BGG Thing'], ['BGG Thing', 'Parse Details'],
-  ['Parse Details', 'BGG Image Sizes'], ['BGG Image Sizes', 'Add Covers'], ['Add Covers', 'Save Details'], ['Save Details', 'Progress: Plays'],
-  ['Progress: Plays', 'BGG Plays'], ['BGG Plays', 'Parse Plays'], ['Parse Plays', 'Save Plays'], ['Save Plays', 'Players And Counts'], ['Players And Counts', 'Done'],
+  ['Respond Started', 'BGG Plays'], ['BGG Plays', 'Parse Plays'], ['Parse Plays', 'Plays OK?'], ['Plays OK?', 'Save Plays', 0], ['Plays OK?', 'Failed', 1],
+  ['Save Plays', 'Players And Counts'], ['Players And Counts', 'Done'],
 ]);
 addMemberAuth(importBgg, { failTo: 'Respond Error' });
+
+// =====================================================================
+// 24b. Add To My Shelf From CSV  POST /webhook/vault/shelf-csv { rows: [{ title, bggId, year }] }  (member gate)
+//      The fast way to fill a big shelf. Answers right away; progress and anything not found show on /shelf.
+//      Each row -> a BGG id (id column, their own logged plays, the shared catalog, else a BGG search: most-rated exact
+//      match) -> BGG details and box art -> added like Add To My Shelf (base games first, so expansions land under them).
+// =====================================================================
+const shelfCsv = wf(ID.shelfCsv, 'Vault — Add To My Shelf From CSV', [
+  webhook('Webhook', 'POST', 'vault/shelf-csv'),
+  code('Validate', function () {
+    const j = $input.first().json;
+    const rows = Array.isArray((j.body || {}).rows) ? j.body.rows : [];
+    if (rows.length > 2000) return [{ json: { ok: false, status: 400, message: 'That’s more than 2,000 games. Split the file in two.' } }];
+    const clean = rows.map((r) => ({ title: String((r && r.title) || '').trim().slice(0, 200), bggId: String((r && r.bggId) || '').replace(/\D/g, '').slice(0, 7),
+      year: String((r && r.year) || '').replace(/\D/g, '').slice(0, 4) })).filter((r) => r.title || r.bggId);
+    if (!clean.length) return [{ json: { ok: false, status: 400, message: 'No game names found in that file' } }];
+    return [{ json: { ok: true, email: j._auth.email, rows: clean } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  pg('Start', 'SELECT bgc.start_csv($1, $2::jsonb) AS r', '={{ [$json.email, JSON.stringify($json.rows)] }}'),
+  code('Started?', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('Can Start?', '={{ $json.ok }}'),
+  respond('Respond Started', '={{ JSON.stringify({ ok: true, started: true, matched: $json.ids.length, lookingUp: $json.search.length, alreadyHad: $json.alreadyHad }) }}'),
+  pg('Progress: Looking Up', "SELECT bgc.set_import($1, jsonb_build_object('step', $2::text)) AS s",
+    "={{ [$('Validate').first().json.email, $('Start').first().json.r.search.length ? 'Looking up ' + $('Start').first().json.r.search.length + ' games on BGG' : 'Getting game details and box art'] }}"),
+  code('One Item Per Title', function () {
+    const search = $('Start').first().json.r.search || [];
+    return search.length ? search.map((t) => ({ json: { title: t.title, year: t.year || null, query: String(t.title).replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim() } }))
+      : [{ json: { none: true } }];
+  }),
+  ifTrue('Anything To Look Up?', '={{ !$json.none }}'),
+  { ...node('BGG Search', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/search',
+    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    ...qs({ query: '={{ $json.query }}', type: 'boardgame,boardgameexpansion' }),
+    options: { timeout: 30000, batching: { batch: { batchSize: 1, batchInterval: 1200 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
+  }, { credentials: CRED.bgg, ...retry }), onError: 'continueRegularOutput' },
+  code('Candidates', function () {
+    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    const asked = $('One Item Per Title').all().map((i) => i.json);
+    return $input.all().map((res, i) => {
+      const t = normTitle(asked[i].title);
+      const items = [...String(res.json.data || '').matchAll(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/g)]
+        .map((m) => ({ id: m[2], name: decode((m[3].match(/<name type="[^"]+" value="([^"]*)"/) || [])[1] || ''), year: Number((m[3].match(/<yearpublished value="(\d+)"/) || [])[1]) || null }));
+      let pool = items.filter((x) => normTitle(x.name) === t);
+      if (asked[i].year && pool.some((x) => x.year === Number(asked[i].year))) pool = pool.filter((x) => x.year === Number(asked[i].year));
+      return { json: { ids: [...new Set(pool.map((x) => x.id))].slice(0, 20).join(',') } };
+    });
+  }),
+  { ...node('BGG Search Thing', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/thing',
+    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    ...qs({ id: '={{ $json.ids || 0 }}', stats: '1' }),
+    options: { timeout: 30000, batching: { batch: { batchSize: 1, batchInterval: 1200 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
+  }, { credentials: CRED.bgg, ...retry }), onError: 'continueRegularOutput' },
+  code('Choose', function () {
+    const asked = $('One Item Per Title').all().map((i) => i.json);
+    return $input.all().map((res, i) => {
+      const usersRated = (id) => Number(((String(res.json.data || '').match(new RegExp('<item type="[^"]+" id="' + id + '">[\\s\\S]*?<usersrated value="(\\d+)"')) || [])[1]) || 0);
+      const things = parseThingXml(res.json.data).sort((a, b) => ((b.type === 'boardgame') - (a.type === 'boardgame')) || (usersRated(b.id) - usersRated(a.id)));
+      return { json: { title: asked[i].title, id: things[0] ? Number(things[0].id) : null } };
+    });
+  }),
+  { ...pg('Progress: Details', "SELECT bgc.set_import($1, jsonb_build_object('step', 'Getting game details and box art')) AS s",
+    "={{ [$('Validate').first().json.email] }}"), executeOnce: true },
+  code('Detail Batches', function () {
+    const start = $('Start').first().json.r;
+    let chosen = [];
+    try { chosen = $('Choose').all().map((i) => i.json); } catch (e) { chosen = []; }
+    const ids = [...new Set([...(start.ids || []).map(Number), ...chosen.filter((c) => c.id).map((c) => c.id)])];
+    const out = [];
+    for (let i = 0; i < ids.length; i += 20) out.push({ json: { ids: ids.slice(i, i + 20).join(',') } });
+    return out.length ? out : [{ json: { ids: '' } }];
+  }),
+  { ...node('BGG Thing', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/thing',
+    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    ...qs({ id: '={{ $json.ids || 0 }}', stats: '1' }),
+    options: { timeout: 60000, batching: { batch: { batchSize: 1, batchInterval: 2500 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
+  }, { credentials: CRED.bgg, ...retry }), onError: 'continueRegularOutput' },
+  code('Parse Details', function () {
+    const things = $input.all().flatMap((page) => parseThingXml(page.json.data));
+    return things.length ? things.map((t) => ({ json: t })) : [{ json: { none: true } }];
+  }),
+  { ...node('BGG Image Sizes', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: '=https://api.geekdo.com/api/images/{{ $json.picId || 0 }}',
+    options: { timeout: 20000, batching: { batch: { batchSize: 1, batchInterval: 250 } } },
+  }, { retryOnFail: true, maxTries: 2, waitBetweenTries: 3000 }), onError: 'continueRegularOutput' },
+  code('Add Covers', function () {
+    const things = $('Parse Details').all().map((i) => i.json);
+    const imgs = $input.all().map((i) => i.json.images || {});
+    const out = things.map((t, i) => {
+      const im = imgs[i] || {};
+      return { ...t, coverCard: im.medium?.url || im.itempage?.url || null, coverLarge: im.itempage?.url || im.medium?.url || null };
+    }).filter((t) => !t.none);
+    let chosen = [];
+    try { chosen = $('Choose').all().map((i) => i.json); } catch (e) { chosen = []; }
+    const notFound = chosen.filter((c) => !c.id).map((c) => c.title);
+    return [{ json: { things: out, notFound } }];
+  }),
+  pg('Add All', 'SELECT bgc.csv_add($1, $2::jsonb, $3::jsonb, $4::int) AS r',
+    "={{ [$('Validate').first().json.email, JSON.stringify($json.things), JSON.stringify($json.notFound), $('Start').first().json.r.alreadyHad] }}"),
+  respondError(),
+], [
+  ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Start', 0], ['Valid?', 'Respond Error', 1],
+  ['Start', 'Started?'], ['Started?', 'Can Start?'], ['Can Start?', 'Respond Started', 0], ['Can Start?', 'Respond Error', 1],
+  ['Respond Started', 'Progress: Looking Up'], ['Progress: Looking Up', 'One Item Per Title'], ['One Item Per Title', 'Anything To Look Up?'],
+  ['Anything To Look Up?', 'BGG Search', 0], ['Anything To Look Up?', 'Progress: Details', 1],
+  ['BGG Search', 'Candidates'], ['Candidates', 'BGG Search Thing'], ['BGG Search Thing', 'Choose'], ['Choose', 'Progress: Details'],
+  ['Progress: Details', 'Detail Batches'], ['Detail Batches', 'BGG Thing'], ['BGG Thing', 'Parse Details'],
+  ['Parse Details', 'BGG Image Sizes'], ['BGG Image Sizes', 'Add Covers'], ['Add Covers', 'Add All'],
+]);
+addMemberAuth(shelfCsv, { failTo: 'Respond Error' });
 
 // =====================================================================
 // 25. Error Alert  (n8n error workflow for every Board Game Curator workflow): emails Dan when one fails.
@@ -2481,7 +2520,7 @@ const friendsChange = wf(ID.friendsChange, 'Vault — Friends (add / remove)', [
 addMemberAuth(friendsChange, { failTo: 'Respond Error' });
 
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

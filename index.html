@@ -184,6 +184,15 @@
   .import-progress { display: flex; align-items: center; gap: 0.7rem; margin-top: 0.8rem; font-weight: 600; }
   .import-progress .spinner { margin: 0; }
   .import-note { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 0.9rem; display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; align-items: center; }
+  .import-card .add-ways { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
+  .import-card .sub { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--exp-bg); }
+  .import-card .sub h3 { margin: 0 0 0.2rem; font-size: 1rem; }
+  .not-found { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.7rem; max-height: 14rem; overflow: auto; }
+  .not-found button { border: 1px solid var(--line, #d9dee8); background: #fff; border-radius: 999px; padding: 0.3rem 0.75rem; font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; color: var(--ink); }
+  .not-found button:hover { border-color: var(--brand); color: var(--brand-dark); }
+  .csv-preview { background: var(--exp-bg); border-radius: 0.9rem; padding: 0.8rem 1rem; margin-top: 0.75rem; font-size: 0.88rem; }
+  .csv-preview select { font: inherit; margin-left: 0.3rem; }
+  .csv-preview .sample { color: var(--text-muted); margin-top: 0.35rem; }
   .import-note button { border: none; background: none; color: var(--brand-dark); font: inherit; font-weight: 700; cursor: pointer; padding: 0; text-decoration: underline; }
   body:not(.owner) .star-btn { pointer-events: none; }
   .ask-btn { background: var(--brand) !important; color: #fff !important; display: inline-flex; align-items: center; gap: 0.3rem; }
@@ -521,6 +530,11 @@
   .candidate .cmeta { flex: 1; min-width: 0; }
   .candidate .btn { flex: 0 0 auto; padding: 0.4rem 0.8rem; font-size: 0.82rem; }
   .candidate.owned { opacity: 0.6; cursor: default; }
+  .candidate .pick { flex: 0 0 auto; width: 1.9rem; height: 1.9rem; border-radius: 0.5rem; border: 2px solid var(--line, #c9d0dc); background: #fff; color: #fff; display: grid; place-items: center; font-size: 0.95rem; pointer-events: none; }
+  .candidate.picked { background: var(--tag-bg); box-shadow: 0 0 0 2px var(--brand) inset; }
+  .candidate.picked .pick { background: var(--brand); border-color: var(--brand); }
+  .pick-bar { position: sticky; bottom: -1px; background: #fff; padding: 0.7rem 0 0.2rem; margin-top: 0.4rem; display: flex; gap: 0.5rem; align-items: center; }
+  .pick-bar .btn { flex: 1; }
   .add-asis { background: none; border: none; color: var(--teal-dark); font-weight: 700; font-size: 0.85rem; cursor: pointer; margin-top: 0.8rem; padding: 0; font-family: var(--font-body); text-align: left; }
   .candidate { display: flex; gap: 0.75rem; align-items: center; background: var(--exp-bg); border-radius: 0.6rem; padding: 0.6rem; margin-top: 0.6rem; cursor: pointer; }
   .candidate:hover { background: var(--tag-bg); }
@@ -587,9 +601,9 @@
   }
   /* Tablets and phones: a big Nathan, the title stacked word by word on his right */
   @media (max-width: 1180px) {
-    header.hero { min-height: 0; height: clamp(250px, 34vw, 380px); flex-direction: row; align-items: center; justify-content: center; gap: 1.8rem; padding: 0.8rem 1.5rem 2.6rem; background-position: 50% 50%; }
+    header.hero { min-height: 0; height: clamp(250px, 34vw, 380px); flex-direction: row; align-items: center; justify-content: center; gap: 0.6rem; padding: 0.8rem 1.5rem 2.6rem; background-position: 50% 50%; }
     .hero-nathan { position: relative; left: auto; bottom: auto; flex: none; align-self: flex-end; height: calc(100% + 2.2rem); max-height: none; margin-bottom: -2.6rem; }
-    .hero-copy { flex: 0 1 auto; min-width: 0; max-width: none; }
+    .hero-copy { flex: 0 1 auto; min-width: 0; max-width: max(32vw, 15rem); } /* a narrow title block keeps Nathan in, beside it */
     .hero-title { white-space: normal; font-size: clamp(1.8rem, 6.2vw, 4.2rem); line-height: 1; -webkit-text-stroke-width: 1.5px; text-shadow: 0 4px 0 #7a2416, 0 8px 16px rgba(60, 20, 10, 0.3); }
     .hero-title span { display: block; }
     .hero-tag { font-size: clamp(0.82rem, 2.1vw, 1.4rem); margin-top: 0.6rem; line-height: 1.15; text-wrap: balance; }
@@ -613,7 +627,7 @@
           <span class="landing-kicker"><i class="fa-solid fa-ticket"></i> Invite only, for friends who game together</span>
           <h1 class="hero-title"><span>Board</span> <span>Game</span> <span>Curator</span></h1>
           <p class="landing-tag">Your collection cataloged and cultivated with love.</p>
-          <p class="landing-pitch">Bring your shelf over from BoardGameGeek in a couple of minutes, then let Nathan, your board game librarian, pick the perfect game for whoever’s at the table tonight.</p>
+          <p class="landing-pitch">Catalog the games you actually own (by name, photo or spreadsheet), bring your plays over from BoardGameGeek, then let Nathan, your board game librarian, pick the perfect game for whoever’s at the table tonight.</p>
           <div class="landing-cta">
             <div class="gsi" id="landingSignIn"></div>
             <small>Invite only for now. Ask Dan to add you.</small>
@@ -873,8 +887,9 @@
     <div class="modal">
       <h2>Add Games</h2>
       <div class="add-tabs" role="tablist">
-        <button class="add-tab active" role="tab" aria-selected="true" data-tab="name"><i class="ti ti-search"></i> By name</button>
-        <button class="add-tab" role="tab" aria-selected="false" data-tab="photo"><i class="ti ti-camera"></i> By photo</button>
+        <button class="add-tab active" role="tab" aria-selected="true" data-tab="name"><i class="ti ti-search"></i> Name</button>
+        <button class="add-tab" role="tab" aria-selected="false" data-tab="photo"><i class="ti ti-camera"></i> Photo</button>
+        <button class="add-tab" role="tab" aria-selected="false" data-tab="csv"><i class="ti ti-table"></i> Spreadsheet</button>
       </div>
       <div class="add-pane" id="paneName">
         <p class="hint" style="margin-top:0;">Search BoardGameGeek and pick the right edition. Expansions of games you own are added to that game.</p>
@@ -889,6 +904,12 @@
         <label>Box photo</label>
         <input type="file" id="photoInput" accept="image/*" capture="environment" />
         <button class="btn primary" id="identifyBtn" style="width:100%; margin-top:0.75rem;">Identify Games</button>
+      </div>
+      <div class="add-pane" id="paneCsv" hidden>
+        <p class="hint" style="margin-top:0;">Got a big collection? Upload a spreadsheet saved as CSV with one game per row. A column of game names is all it needs (a BGG ID or year column helps it pick the right edition). Each game is matched on BoardGameGeek and added to your shelf; anything it can’t find is listed for you to add by name.</p>
+        <label>Spreadsheet (.csv)</label>
+        <input type="file" id="csvInput" accept=".csv,.txt,text/csv,text/plain" />
+        <div id="csvPreview"></div>
       </div>
       <div id="identifyArea"></div>
       <div class="modal-actions">
@@ -1265,20 +1286,23 @@
         setSyncStatus(e.message, true);
       }
     }
-    // Empty shelf: offer the BGG import; while it runs, show progress and check back every few seconds
+    // Your shelf's panel: ways to add games when it's empty, progress while a spreadsheet or BGG plays come in,
+    // what a spreadsheet couldn't match, and a quiet line for your BGG plays
+    const LS_CSV_SEEN = 'vault_csv_seen';
+    const bggPlaysForm = () => '<form class="row" id="importForm"><input id="importUser" type="text" autocomplete="username" placeholder="BGG username" value="' + esc(myShelf.bggUsername || '') + '">' +
+      '<button class="btn" type="submit"><i class="fa-solid fa-cloud-arrow-down"></i> ' + (myShelf.bggUsername ? 'Update plays' : 'Bring in my plays') + '</button></form>';
     function renderImportPanel() {
       const panel = document.getElementById('importPanel');
       clearTimeout(importPoll);
       if (!viewingMine() || !myShelf) { panel.hidden = true; return; }
       const st = myShelf.status || {};
-      const running = st.state === 'running' && (Date.now() - Date.parse(st.at || 0)) < 15 * 60 * 1000;
+      const running = st.state === 'running' && (Date.now() - Date.parse(st.at || 0)) < 30 * 60 * 1000;
       const empty = !(myShelf.items || []).length;
       if (running) {
         panel.hidden = false;
-        panel.innerHTML = '<div class="import-card"><h2>Bringing your shelf over from BGG…</h2>' +
-          '<p class="hint" style="margin:0;">You can leave this page open; it fills in when it’s done. A big collection takes a few minutes.</p>' +
-          '<div class="import-progress"><div class="spinner"></div><span>' + esc(st.step || 'Working') +
-          (st.games ? ' · ' + st.games + ' games' + (st.expansions ? ', ' + st.expansions + ' expansions' : '') : '') + '</span></div></div>';
+        panel.innerHTML = '<div class="import-card"><h2>' + (st.kind === 'csv' ? 'Adding your games…' : 'Bringing your plays over from BGG…') + '</h2>' +
+          '<p class="hint" style="margin:0;">' + (st.kind === 'csv' ? 'You can leave this page open; games appear when it’s done. A long list takes a few minutes (BGG lets us look up about one game a second).' : 'You can leave this page open. Plays show up on each game once it’s on your shelf.') + '</p>' +
+          '<div class="import-progress"><div class="spinner"></div><span>' + esc(st.step || 'Working') + '</span></div></div>';
         importPoll = setTimeout(async () => {
           try {
             const next = await n8nFetch('/shelf', { method: 'GET' });
@@ -1286,29 +1310,43 @@
             myShelf = next;
             if (viewingMine()) { collection = next.items || []; rebuildGenreFilter(); render(); }
             renderImportPanel();
-            if (done) toast('Your shelf is ready: ' + (next.items || []).length + ' games' + (next.status.plays ? ' and ' + next.status.plays + ' plays' : '') + '.');
+            if (done) toast(next.status.kind === 'csv' ? 'Added ' + (next.status.added || 0) + ' games' + (next.status.expansions ? ' and ' + next.status.expansions + ' expansions' : '') + '.'
+              : 'Your plays are in: ' + (next.status.plays || 0) + ' plays.');
           } catch (e) { importPoll = setTimeout(renderImportPanel, 8000); }
         }, 4000);
         return;
       }
+      const failed = st.state === 'error' ? '<p class="hint" style="color:var(--brand-dark); font-weight:700;">' + esc(st.message || 'The last import didn’t finish.') + '</p>' : '';
+      // A spreadsheet that's done: what it added, and what it couldn't find (tap one to add it by name)
+      let seen = '';
+      try { seen = localStorage.getItem(LS_CSV_SEEN) || ''; } catch (e) {}
+      const missing = st.kind === 'csv' && st.state === 'done' && (st.notFound || []).length && seen !== st.finished ? st.notFound : null;
+      const missingCard = missing ? '<div class="import-card" style="margin-bottom:1rem;"><h2>' + (st.added || 0) + ' games added</h2>' +
+        '<p class="hint" style="margin:0;">Couldn’t find ' + missing.length + ' on BoardGameGeek. Tap one to search for it by name:</p>' +
+        '<div class="not-found">' + missing.map(t => '<button type="button" data-find="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>' +
+        '<div class="add-ways"><button class="btn ghost" type="button" data-csv-done>Done</button></div></div>' : '';
       if (empty) {
         panel.hidden = false;
-        panel.innerHTML = '<div class="import-card"><h2>Build your shelf from BoardGameGeek</h2>' +
-          '<p class="hint" style="margin:0;">Enter your BGG username. We’ll bring in the games you own, their expansions, and the plays you’ve logged (from BG Stats too, if it posts to BGG).</p>' +
-          (st.state === 'error' ? '<p class="hint" style="color:var(--brand-dark); font-weight:700;">' + esc(st.message || 'The last import didn’t finish.') + '</p>' : '') +
-          '<form class="row" id="importForm"><input id="importUser" type="text" autocomplete="username" placeholder="BGG username" value="' + esc(myShelf.bggUsername || '') + '">' +
-          '<button class="btn primary" type="submit"><i class="fa-solid fa-cloud-arrow-down"></i> Import</button></form></div>';
+        panel.innerHTML = missingCard + '<div class="import-card"><h2>Fill your shelf</h2>' +
+          '<p class="hint" style="margin:0;">Add the games you own. A big collection is fastest from a spreadsheet.</p>' + failed +
+          '<div class="add-ways"><button class="btn primary" type="button" data-add-way="name"><i class="ti ti-search"></i> Name</button>' +
+          '<button class="btn" type="button" data-add-way="photo"><i class="ti ti-camera"></i> By photo</button>' +
+          '<button class="btn" type="button" data-add-way="csv"><i class="ti ti-table"></i> Spreadsheet</button></div>' +
+          '<div class="sub"><h3>Your plays from BoardGameGeek <span style="font-weight:600; color:var(--text-muted);">(optional)</span></h3>' +
+          '<p class="hint" style="margin:0;">Brings in the plays you’ve logged (BG Stats too, if it posts to BGG). It doesn’t add games: plays show up on a game once it’s on your shelf.</p>' +
+          (myShelf.bggUsername && st.plays ? '<p class="hint" style="margin:0.4rem 0 0;"><b>' + st.plays + '</b> plays from <b>' + esc(myShelf.bggUsername) + '</b> are ready.</p>' : '') +
+          bggPlaysForm() + '</div></div>';
         return;
       }
-      // Shelf has games: a quiet line to pull in anything new from BGG
+      // Shelf has games: a quiet line for BGG plays
       panel.hidden = false;
-      panel.innerHTML = '<p class="import-note"><span><i class="fa-solid fa-house"></i> Your shelf' + (myShelf.bggUsername ? ', from BGG user <b>' + esc(myShelf.bggUsername) + '</b>' : '') + '.</span>' +
-        (myShelf.bggUsername ? '<button type="button" data-reimport>Update from BGG</button>' : '') + '</p>';
+      panel.innerHTML = missingCard + '<p class="import-note"><span><i class="fa-solid fa-house"></i> Your shelf' + (myShelf.bggUsername ? ' · plays from BGG user <b>' + esc(myShelf.bggUsername) + '</b>' : '') + '.</span>' +
+        (myShelf.bggUsername ? '<button type="button" data-reimport>Update plays from BGG</button>' : '<button type="button" data-connect-bgg>Bring in my BGG plays</button>') + '</p>' + failed;
     }
     async function startImport(username) {
       try {
         await n8nFetch('/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bggUsername: username }) });
-        myShelf = { ...(myShelf || {}), bggUsername: username, status: { state: 'running', step: 'Reading your BGG collection', at: new Date().toISOString() } };
+        myShelf = { ...(myShelf || {}), bggUsername: username, status: { state: 'running', kind: 'bgg', step: 'Reading your plays from BGG', at: new Date().toISOString() } };
         renderImportPanel();
       } catch (err) { toast(err.message, true); }
     }
@@ -1320,6 +1358,15 @@
     });
     document.getElementById('importPanel').addEventListener('click', (e) => {
       if (e.target.closest('[data-reimport]') && myShelf && myShelf.bggUsername) startImport(myShelf.bggUsername);
+      const way = e.target.closest('[data-add-way]');
+      if (way) openAddModal(way.dataset.addWay);
+      const find = e.target.closest('[data-find]');
+      if (find) openAddModal('name', find.dataset.find);
+      if (e.target.closest('[data-csv-done]')) { try { localStorage.setItem(LS_CSV_SEEN, (myShelf.status || {}).finished || ''); } catch (err) {} renderImportPanel(); }
+      if (e.target.closest('[data-connect-bgg]')) {
+        const u = prompt('Your BoardGameGeek username (brings in your logged plays, not games):', myShelf.bggUsername || '');
+        if (u && u.trim()) startImport(u.trim());
+      }
     });
 
     async function loadCollection() {
@@ -1848,6 +1895,7 @@
       document.querySelectorAll('.add-tab').forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', String(on)); });
       document.getElementById('paneName').hidden = tab !== 'name';
       document.getElementById('panePhoto').hidden = tab !== 'photo';
+      document.getElementById('paneCsv').hidden = tab !== 'csv';
       identifyArea.innerHTML = '';
       if (tab === 'name') setTimeout(() => document.getElementById('nameSearchInput').focus(), 0);
     }
@@ -1869,6 +1917,7 @@
       identifyArea.innerHTML = '';
       if (q.length < 2) { box.innerHTML = '<p class="hint">Type at least 2 characters.</p>'; return; }
       lastSearch = q;
+      picked.clear();
       box.innerHTML = '<div class="spinner"></div>';
       try {
         const { results } = await n8nFetch('/bgg-search?q=' + encodeURIComponent(q), { method: 'GET' });
@@ -1877,48 +1926,160 @@
           const owned = ownedNote(r);
           const base = r.kind === 'expansion' && r.expands.length ? 'Expansion of ' + r.expands.map(b => b.title).join(', ') : (r.kind === 'expansion' ? 'Expansion' : '');
           const meta = [r.year, base, r.rating ? 'BGG ' + r.rating.toFixed(1) : '', r.rank ? '#' + r.rank : ''].filter(Boolean).join(' · ');
-          return '<div class="candidate' + (owned ? ' owned' : '') + '">' +
+          return '<div class="candidate' + (owned ? ' owned' : '') + '"' + (owned ? '' : ' role="checkbox" aria-checked="false" tabindex="0" data-pick="' + r.bggId + '" data-pick-title="' + esc(r.title) + '" data-pick-kind="' + (r.kind === 'expansion' ? 'expansion' : 'game') + '"') + '>' +
             (r.thumbnail ? '<img src="' + esc(r.thumbnail) + '" alt="" loading="lazy">' : '<div class="game-icon"><i class="ti ti-meeple"></i></div>') +
             '<div class="cmeta"><div class="ctitle">' + esc(r.title) + '</div><div class="cyear">' + esc(owned || meta) + '</div></div>' +
-            (owned ? '' : '<button class="btn primary" data-add-bgg="' + r.bggId + '" data-add-title="' + esc(r.title) + '">Add</button>') +
+            (owned ? '' : '<span class="pick" aria-hidden="true"><i class="fa-solid fa-check"></i></span>') +
           '</div>';
         }).join('') : '<p class="hint">No BGG matches for "' + esc(q) + '".</p>') +
-          '<button class="add-asis" data-add-asis="' + esc(q) + '">Not on BGG? Add "' + esc(q) + '" as is</button>';
+          '<button class="add-asis" data-add-asis="' + esc(q) + '">Not on BGG? Add "' + esc(q) + '" as is</button>' +
+          (results.length ? '<div class="pick-bar"><button class="btn primary" id="addPicked" disabled>Tick the ones you own</button></div>' : '');
       } catch (err) {
         box.innerHTML = '<p class="hint">Search failed: ' + esc(err.message) + '</p>';
       }
     });
-    document.getElementById('nameResults').addEventListener('click', async (e) => {
-      const btn = e.target.closest('[data-add-bgg], [data-add-asis]');
-      if (!btn) return;
-      const payload = btn.dataset.addBgg ? { bggId: Number(btn.dataset.addBgg) } : { title: btn.dataset.addAsis };
-      const label = btn.dataset.addTitle || btn.dataset.addAsis;
-      document.querySelectorAll('#nameResults button').forEach(b => b.disabled = true); // one add at a time
-      identifyArea.innerHTML = '<div class="spinner"></div><p class="hint" style="text-align:center;">Adding "' + esc(label) + '" and looking it up on BGG…</p>';
-      try {
-        // A friend's own shelf, or Dan's collection
-        const r = await n8nFetch(viewingMine() ? '/shelf-add' : '/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        identifyArea.innerHTML = identifySummaryHtml(r);
-        document.getElementById('addCancel').textContent = 'Done';
-        toast((r.added || []).length ? 'Added "' + label + '".' : 'Added "' + label + '" as an expansion.');
-        await loadCollection();
-        document.getElementById('nameResults').innerHTML = '';
-        document.getElementById('nameSearchInput').value = '';
-      } catch (err) {
-        identifyArea.innerHTML = '';
-        toast(err.message, true);
-        document.querySelectorAll('#nameResults button').forEach(b => b.disabled = false);
+    // Tick any number of results (a game and the expansions you own), then add them in one go
+    const picked = new Map(); // bggId -> { title, kind }
+    function renderPicked() {
+      document.querySelectorAll('#nameResults [data-pick]').forEach(c => {
+        const on = picked.has(c.dataset.pick);
+        c.classList.toggle('picked', on);
+        c.setAttribute('aria-checked', String(on));
+      });
+      const go = document.getElementById('addPicked');
+      if (go) { go.disabled = !picked.size; go.textContent = picked.size ? 'Add ' + picked.size + ' to my shelf' : 'Tick the ones you own'; }
+    }
+    async function addGames(list) {
+      // Base games first, so an expansion picked with its game lands under it
+      list = [...list].sort((a, b) => (a.kind === 'expansion') - (b.kind === 'expansion'));
+      document.querySelectorAll('#nameResults button').forEach(b => b.disabled = true);
+      const all = { added: [], expansions: [], skipped: [] };
+      const failed = [];
+      for (let i = 0; i < list.length; i++) {
+        const g = list[i];
+        identifyArea.innerHTML = '<div class="spinner"></div><p class="hint" style="text-align:center;">Adding "' + esc(g.title) + '"' + (list.length > 1 ? ' (' + (i + 1) + ' of ' + list.length + ')' : '') + '…</p>';
+        try {
+          // A friend's own shelf, or Dan's collection
+          const r = await n8nFetch(viewingMine() ? '/shelf-add' : '/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(g.payload) });
+          all.added.push(...(r.added || [])); all.expansions.push(...(r.expansions || [])); all.skipped.push(...(r.skipped || []));
+        } catch (err) { failed.push(g.title + ': ' + err.message); }
       }
+      identifyArea.innerHTML = identifySummaryHtml(all) + (failed.length ? '<p class="hint" style="color:var(--brand-dark);">' + failed.map(esc).join('<br>') + '</p>' : '');
+      document.getElementById('addCancel').textContent = 'Done';
+      const n = all.added.length + all.expansions.length;
+      if (n) toast(n === 1 ? 'Added "' + (all.added[0] || all.expansions[0]).title + '".' : 'Added ' + n + ' games and expansions.');
+      else if (failed.length) toast(failed[0], true);
+      picked.clear();
+      await loadCollection();
+      document.getElementById('nameResults').innerHTML = '';
+      document.getElementById('nameSearchInput').value = '';
+    }
+    document.getElementById('nameResults').addEventListener('click', (e) => {
+      const card = e.target.closest('[data-pick]');
+      if (card) {
+        const id = card.dataset.pick;
+        if (picked.has(id)) picked.delete(id); else picked.set(id, { title: card.dataset.pickTitle, kind: card.dataset.pickKind });
+        renderPicked();
+        return;
+      }
+      if (e.target.closest('#addPicked') && picked.size) {
+        addGames([...picked].map(([id, p]) => ({ title: p.title, kind: p.kind, payload: { bggId: Number(id) } })));
+        return;
+      }
+      const asis = e.target.closest('[data-add-asis]');
+      if (asis) addGames([{ title: asis.dataset.addAsis, kind: 'game', payload: { title: asis.dataset.addAsis } }]);
+    });
+    document.getElementById('nameResults').addEventListener('keydown', (e) => {
+      if ((e.key === ' ' || e.key === 'Enter') && e.target.matches('[data-pick]')) { e.preventDefault(); e.target.click(); }
     });
 
-    document.getElementById('addFab').addEventListener('click', () => {
+    document.getElementById('addFab').addEventListener('click', () => openAddModal('name'));
+    function openAddModal(tab, query) {
+      document.getElementById('csvInput').value = '';
+      document.getElementById('csvPreview').innerHTML = '';
       document.getElementById('photoInput').value = '';
       document.getElementById('nameResults').innerHTML = '';
       document.getElementById('nameSearchInput').value = '';
       document.getElementById('addCancel').textContent = 'Cancel';
-      setAddTab('name');
+      setAddTab(tab || 'name');
       identifyArea.innerHTML = '';
       addModal.classList.add('open');
+      if (query) { document.getElementById('nameSearchInput').value = query; document.getElementById('nameSearchForm').requestSubmit(); }
+    }
+
+    // ---------- add from a spreadsheet ----------
+    // CSV rows (quotes, commas inside quotes, ; or tab separators all fine)
+    function parseCsv(text) {
+      const first = text.split(/\r?\n/, 1)[0] || '';
+      const sep = [',', ';', '\t'].map(c => [c, first.split(c).length]).sort((a, b) => b[1] - a[1])[0][0];
+      const rows = []; let row = [], cell = '', q = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; continue; }
+        if (ch === '"') q = true;
+        else if (ch === sep) { row.push(cell); cell = ''; }
+        else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+        else cell += ch;
+      }
+      if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+      return rows.map(r => r.map(c => c.trim())).filter(r => r.some(Boolean));
+    }
+    let csvPlan = null; // { rows, header, cols: { title, id, year, own } }
+    function csvColumns(rows) {
+      const head = rows[0].map(h => h.toLowerCase().replace(/[^a-z]/g, ''));
+      const find = (re) => head.findIndex(h => re.test(h));
+      const cols = { title: find(/^(objectname|name|title|game|gamename|gametitle|boardgame|boardgamename)$/), id: find(/^(objectid|bggid|bgg|id|gameid)$/),
+        year: find(/^(year|yearpublished|published)$/), own: find(/^own(ed)?$/) };
+      const header = cols.title >= 0 || cols.id >= 0;
+      if (!header) cols.title = 0; // no header row: the first column is the game names
+      return { header, cols };
+    }
+    function csvRows(plan) {
+      const { cols } = plan;
+      return plan.rows.slice(plan.header ? 1 : 0)
+        .filter(r => cols.own < 0 || /^(1|y|yes|true|x)$/i.test(r[cols.own] || '')) // a BGG export: only the games marked owned
+        .map(r => ({ title: cols.title >= 0 ? r[cols.title] || '' : '', bggId: cols.id >= 0 && /^\d+$/.test(r[cols.id] || '') ? r[cols.id] : '', year: cols.year >= 0 ? r[cols.year] || '' : '' }))
+        .filter(r => r.title || r.bggId);
+    }
+    function renderCsvPreview() {
+      const box = document.getElementById('csvPreview');
+      if (!csvPlan) { box.innerHTML = ''; return; }
+      const rows = csvRows(csvPlan);
+      const names = csvPlan.header ? csvPlan.rows[0] : csvPlan.rows[0].map((_, i) => 'Column ' + (i + 1));
+      const opts = names.map((n, i) => '<option value="' + i + '"' + (i === csvPlan.cols.title ? ' selected' : '') + '>' + esc(n || 'Column ' + (i + 1)) + '</option>').join('');
+      box.innerHTML = '<div class="csv-preview"><div><b>' + rows.length + '</b> game' + (rows.length === 1 ? '' : 's') + ' · names from <select id="csvTitleCol">' + opts + '</select></div>' +
+        (csvPlan.cols.own >= 0 ? '<div class="sample">Only rows marked as owned are included.</div>' : '') +
+        '<div class="sample">' + esc(rows.slice(0, 5).map(r => r.title || 'BGG #' + r.bggId).join(' · ')) + (rows.length > 5 ? ' …' : '') + '</div></div>' +
+        '<button class="btn primary" id="csvGo" style="width:100%; margin-top:0.75rem;"' + (rows.length ? '' : ' disabled') + '><i class="ti ti-table-import"></i> Add ' + rows.length + ' game' + (rows.length === 1 ? '' : 's') + ' to my shelf</button>';
+    }
+    document.getElementById('csvInput').addEventListener('change', async (e) => {
+      const f = e.target.files[0];
+      csvPlan = null;
+      if (!f) { renderCsvPreview(); return; }
+      if (f.size > 3 * 1024 * 1024) { toast('That file is too big. Save just the game list as CSV.', true); return; }
+      const rows = parseCsv(await f.text());
+      if (!rows.length) { toast('That file looks empty.', true); return; }
+      csvPlan = { rows, ...csvColumns(rows) };
+      renderCsvPreview();
+    });
+    document.getElementById('csvPreview').addEventListener('change', (e) => {
+      if (e.target.id === 'csvTitleCol' && csvPlan) { csvPlan.cols.title = Number(e.target.value); renderCsvPreview(); }
+    });
+    document.getElementById('csvPreview').addEventListener('click', async (e) => {
+      const go = e.target.closest('#csvGo');
+      if (!go || !csvPlan) return;
+      const rows = csvRows(csvPlan);
+      if (rows.length > 2000) { toast('That’s more than 2,000 games. Split the file in two.', true); return; }
+      go.disabled = true; go.textContent = 'Starting…';
+      try {
+        const r = await n8nFetch('/shelf-csv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows }) });
+        addModal.classList.remove('open');
+        csvPlan = null;
+        if (viewingMine()) {
+          myShelf = { ...(myShelf || {}), status: { state: 'running', kind: 'csv', step: r.lookingUp ? 'Looking up ' + r.lookingUp + ' games on BGG' : 'Getting game details and box art', at: new Date().toISOString() } };
+          renderImportPanel();
+        } else toast('Adding ' + rows.length + ' games in the background. Refresh in a few minutes.');
+      } catch (err) { toast(err.message, true); go.disabled = false; go.textContent = 'Try again'; }
     });
     document.getElementById('addCancel').addEventListener('click', () => addModal.classList.remove('open'));
 
