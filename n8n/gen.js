@@ -310,6 +310,12 @@ const wf = (id, name, nodes, edges, extraSettings = {}) => {
 // =====================================================================
 const getCollection = wf(ID.collection, 'Vault — Get Collection', [
   webhook('Webhook', 'GET', 'vault/collection'),
+  // Dan's own view; friends see his shelf through Friends (which checks the friendship), everyone else sees their own
+  code('Owner Only', function () {
+    const owner = $('Auth: Role').first().json._auth.role === 'owner';
+    return [{ json: owner ? { ok: true } : { ok: false, status: 403, message: 'Open a friend’s shelf from Friends' } }];
+  }),
+  ifTrue('Owner?', '={{ $json.ok }}'),
   airtableListAll('List All Games'),
   code('Shape For Frontend', function () {
     const owner = $('Auth: Role').first().json._auth.role === 'owner';
@@ -320,7 +326,8 @@ const getCollection = wf(ID.collection, 'Vault — Get Collection', [
   }),
   respond('Respond', '={{ JSON.stringify($json.items) }}'),
   respondError(),
-], [['Webhook', 'List All Games'], ['List All Games', 'Shape For Frontend'], ['Shape For Frontend', 'Respond']]);
+], [['Webhook', 'Owner Only'], ['Owner Only', 'Owner?'], ['Owner?', 'List All Games', 0], ['Owner?', 'Respond Error', 1],
+  ['List All Games', 'Shape For Frontend'], ['Shape For Frontend', 'Respond']]);
 addMemberAuth(getCollection, { failTo: 'Respond Error' });
 
 // =====================================================================

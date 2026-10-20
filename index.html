@@ -1218,10 +1218,12 @@
     let friendShelfName = '';
     let myShelf = null; // { items, status, bggUsername } for the 'mine' view
     let importPoll = null;
-    const viewingMine = () => shelfView === 'mine' && isMember() && !isOwner();
+    // Everyone's home is their own shelf (Dan's own is the main collection); a friend's opens from Friends
     const viewingFriend = () => isMember() && /^friend:\d+$/.test(shelfView) ? Number(shelfView.slice(7)) : null;
+    const viewingMine = () => isMember() && !isOwner() && !viewingFriend();
+    const homeShelf = () => isOwner() ? 'main' : 'mine';
     // What Nathan, the @ list and "See all" are about
-    const currentShelf = () => viewingMine() ? 'mine' : viewingFriend() ? shelfView : 'main';
+    const currentShelf = () => viewingFriend() ? shelfView : viewingMine() ? 'mine' : 'main';
     // Edit controls follow the shelf being viewed: the owner on the main shelf, a friend on their own
     function canEdit() { return viewingMine() || (isOwner() && currentShelf() === 'main'); }
     function updateShelfUi() {
@@ -1233,10 +1235,7 @@
         b.setAttribute('aria-selected', String(on));
       });
     }
-    let homeView = 'main'; // where "Close" on a friend's shelf goes back to
     async function setShelfView(view) {
-      if (!/^friend:/.test(view) && !/^friend:/.test(shelfView)) homeView = view;
-      else if (/^friend:/.test(view) && !/^friend:/.test(shelfView)) homeView = shelfView;
       shelfView = view;
       try { localStorage.setItem(LS_SHELF, view); } catch (e) {}
       askIds = null;
@@ -1246,24 +1245,23 @@
       await Promise.all([loadCollection(), loadPeople()]);
     }
     document.getElementById('shelfSwitch').addEventListener('click', (e) => {
-      if (e.target.closest('[data-close-visit]')) { setShelfView(homeView); return; }
+      if (e.target.closest('[data-close-visit]')) { setShelfView(homeShelf()); return; }
       const b = e.target.closest('[data-shelf]');
       if (b && b.dataset.shelf !== currentShelf()) setShelfView(b.dataset.shelf);
     });
-    // Buttons: the main collection, your own shelf (friends), and each friend's shelf
+    // Only while visiting a friend: "Matt's shelf · view only  × Close" (back to your own)
     function renderShelfSwitch() {
       const box = document.getElementById('shelfSwitch');
       if (!isMember()) { box.hidden = true; return; }
-      const btn = (key, icon, label) => '<button type="button" role="tab" data-shelf="' + key + '"><i class="fa-solid ' + icon + '"></i> ' + esc(label) + '</button>';
       // A friend's shelf replaces the switch with "Matt's shelf · view only  × Close"
       const visiting = viewingFriend() ? (friendsData.friends || []).find(f => f.id === viewingFriend()) : null;
       const html = visiting
         ? '<span class="visiting-label"><i class="fa-solid fa-user"></i> ' + esc(visiting.firstName) + '’s shelf <small>· view only</small></span>' +
-          '<button type="button" class="close-visit" data-close-visit title="Back to ' + (homeView === 'mine' || isOwner() ? 'your shelf' : 'Dan’s shelf') + '"><i class="fa-solid fa-xmark"></i> Close</button>'
-        : (isOwner() ? btn('main', 'fa-house', 'My shelf') : btn('main', 'fa-book-open', 'Dan’s shelf') + btn('mine', 'fa-house', 'My shelf'));
+          '<button type="button" class="close-visit" data-close-visit title="Back to your shelf"><i class="fa-solid fa-xmark"></i> Close</button>'
+        : '';
       if (box.dataset.html !== html) { box.innerHTML = html; box.dataset.html = html; }
       box.classList.toggle('visiting', !!visiting);
-      box.hidden = !visiting && box.children.length < 2;
+      box.hidden = !visiting;
       box.querySelectorAll('[data-shelf]').forEach(b => { const on = b.dataset.shelf === currentShelf(); b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
     }
     async function loadFriends() {
@@ -1271,7 +1269,7 @@
       try { friendsData = await n8nFetch('/friends', { method: 'GET' }); friendsFailed = false; }
       catch (e) { friendsFailed = true; renderFriendsPanel(); return; }
       // A saved friend view whose friendship is gone falls back to the main shelf
-      if (viewingFriend() && !(friendsData.friends || []).some(f => f.id === viewingFriend())) { setShelfView('main'); return; }
+      if (viewingFriend() && !(friendsData.friends || []).some(f => f.id === viewingFriend())) { setShelfView(homeShelf()); return; }
       renderShelfSwitch();
       renderFriendsPanel();
     }
@@ -1289,7 +1287,7 @@
       } catch (e) {
         setSyncStatus('');
         toast(e.message, true);
-        setShelfView('main');
+        setShelfView(homeShelf());
       }
     }
 
@@ -2690,8 +2688,8 @@
       document.getElementById('copyFriendCode').hidden = !friendsData.code;
       const list = friendsData.friends || [];
       document.getElementById('friendsList').innerHTML = list.length ? list.map(f =>
-        '<div class="fr-row"><div class="who"><b>' + esc(f.name) + '</b><span>' + (f.isAdmin ? 'Dan’s collection is the main shelf' : f.games + (f.games === 1 ? ' game' : ' games')) + '</span></div>' +
-        (f.isAdmin ? '' : '<button type="button" class="btn ghost" data-view-friend="' + f.id + '">View library</button>') +
+        '<div class="fr-row"><div class="who"><b>' + esc(f.name) + '</b><span>' + f.games + (f.games === 1 ? ' game' : ' games') + '</span></div>' +
+        '<button type="button" class="btn ghost" data-view-friend="' + f.id + '">View library</button>' +
         '<button type="button" class="mini-btn" data-remove-friend="' + f.id + '" data-name="' + esc(f.firstName) + '" title="Remove ' + esc(f.firstName) + '" aria-label="Remove ' + esc(f.firstName) + '"><i class="fa-solid fa-xmark"></i></button></div>'
       ).join('') : '<p class="hint" style="margin:0;">No friends yet. Share your code!</p>';
     }
@@ -2722,7 +2720,7 @@
         if (!confirm('Remove ' + rm.dataset.name + ' as a friend? You’ll stop seeing each other’s shelves.')) return;
         try {
           await n8nFetch('/friends', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'remove', id: Number(rm.dataset.removeFriend) }) });
-          if (viewingFriend() === Number(rm.dataset.removeFriend)) setShelfView('main');
+          if (viewingFriend() === Number(rm.dataset.removeFriend)) setShelfView(homeShelf());
           await loadFriends();
         } catch (err) { toast(err.message, true); }
       }
