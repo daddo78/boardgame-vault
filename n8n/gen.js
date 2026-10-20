@@ -1722,7 +1722,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       .map((id) => byId[id] || (own && openNames[id] ? byName[openNames[id]] : null)).filter(Boolean);
     const count = c.intent === 'browse' ? (Number(c.playerCount) || null)
       : Math.max(Number(c.playerCount) || 0, group.length + (Number(c.unknownPeople) || 0)) || null;
-    const ages = [Number(c.youngestAge) || null, ...group.map((p) => p.age)].filter((a) => a > 0);
+    const ages = [Number(c.youngestAge) || null, ...(c.intent === 'browse' ? [] : group.map((p) => p.age))].filter((a) => a > 0); // a browse is about the shelf, not who's playing
     const youngest = ages.length ? Math.min(...ages) : null;
     const maxMin = Number(c.maxMinutes) || null;
     const wMin = c.weight && Number(c.weight.min) || null, wMax = c.weight && Number(c.weight.max) || null;
@@ -1802,6 +1802,14 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const limit = browse ? Math.max(0, Math.min(50, Math.round(Number(c.limit) || 0))) : 0;
     if (limit) fits = fits.slice(0, limit);
     const gap = gap0 || fits.length === 0;
+    // "My top ten …": the whole ranked list, straight from the data (shown under Nathan's summary)
+    const METRIC = {
+      plays: (g) => g.playCount + ' play' + (g.playCount === 1 ? '' : 's'), leastPlays: (g) => (g.playCount || 0) + ' play' + (g.playCount === 1 ? '' : 's'),
+      recent: (g) => 'last played ' + g.lastPlayed, stale: (g) => 'last played ' + g.lastPlayed,
+      rating: (g) => 'BGG ' + Number(g.bggRating).toFixed(1), rank: (g) => 'BGG #' + g.rank, want: (g) => g.desireToPlay + '/5 want to play',
+      weight: (g) => 'weight ' + Number(g.weight).toFixed(1), newest: (g) => 'added ' + String(g.addedAt || '').slice(0, 10),
+    };
+    const ranked = !gap && sorter && limit && limit <= 25 && METRIC[c.sort] ? fits.map((x) => ({ id: x.g.id, title: x.g.title, value: METRIC[c.sort](x.g) })) : null;
     const short = (gap ? loose.sort((a, b) => b.s - a.s).slice(0, 12) : fits.slice(0, 30)).map((x) => x.g);
     const matchIds = gap ? [] : fits.map((x) => x.g.id);
     // A few facts about the matching set, so a browse summary can be specific without guessing
@@ -1877,7 +1885,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       weight: c.weight || null, coop: c.coop ?? null, themes: want, avoid, freshness: c.freshness || null, mood: c.mood || '' };
     return [{ json: { offTopic: false, gap, browse, matchIds, setFacts, understood, constraints: c, shortIds: short.map((g) => g.id),
       titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
-      gameLines: short.map((g) => line(g)).join('\n'), profiles: group.map(profile).join('\n'),
+      gameLines: short.map((g) => line(g)).join('\n'), profiles: group.map(profile).join('\n'), ranked,
       askerProfile: asker && !group.includes(asker) ? profile(asker) : '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest, fromOwn: !!own } }];
   }),
   ifTrue('On Topic?', '={{ !$json.offTopic }}'),
@@ -1908,7 +1916,11 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'Use only the facts in SET FACTS. If the profile is empty, say so kindly: when it is the ASKER\'s own, suggest filling in My profile (under their name, top left of the site) so you can do better; for anyone else, suggest nudging that person to fill in theirs. Then pick 3 to 5 highlights from CANDIDATES that best show their taste (most played or rated highest), each with one sentence of "why". gap is null.',
       ] : s.browse ? [
       'FORMAT: this is a question about what is on the shelf, not a request for one game. Sum up the matching games in "summary" (2-4 sentences): use the exact COUNT from SET FACTS, then what kinds they are (weights, lengths, mechanics, sub-themes) and any pattern in plays or favorites. Then pick 3 to 5 varied highlights from CANDIDATES that show the range (for example a favorite, a light one, a heavy one, one that is never played), each with one sentence of "why".',
+      ...(s.ranked ? [
+      'RANKED: the full ranked list (every game with its number) is shown to them right under your summary, so do not list the games in the summary. Name the leader with its number, then sum up what the list says about their taste (weights, mechanics, co-op vs competitive, favorites). Make the highlights 3 to 4 of the most interesting games from the list, not simply the top three.',
+      ] : [
       'If SET FACTS has an ORDER, it is a ranked list: in the summary name the top three in order with their numbers (e.g. "The Crew leads with 21 plays"), and make the highlights the top 3 to 5 in that same order.',
+      ]),
       ] : [
       'FORMAT: one headline pick and one contrasting alternative (for example lighter, faster, or a different feel). For each, a short vivid table-feel picture (1-3 sentences) of what playing it actually feels like.',
       'Keep each entry scannable: "why" is 2-4 sentences, data and people fit first.',
@@ -1965,7 +1977,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       const highlights = (Array.isArray(a.highlights) ? a.highlights : []).map((x) => entry(x, false)).filter(Boolean).slice(0, 5);
       if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });
       const summary = str(a.summary, 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');
-      return [{ json: { ok: true, intent: 'browse', understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
+      return [{ json: { ok: true, intent: 'browse', understood: s.understood, constraints: s.constraints, summary, ranked: s.ranked || null, highlights, gap: gapOf(),
         matchIds: s.matchIds, fromOwn: !!s.fromOwn, signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];
     }
     let pick = entry(a.pick, true);

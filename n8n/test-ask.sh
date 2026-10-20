@@ -31,6 +31,9 @@ w.nodes.push({ id: 'who', name: 'Who', type: 'n8n-nodes-base.postgres', typeVers
 w.connections.Webhook = { main: [[{ node: 'Who', type: 'main', index: 0 }]] };
 w.connections.Who = { main: [[{ node: 'Auth: Role', type: 'main', index: 0 }]] };
 w.connections['Auth: Role'] = { main: [[{ node: 'Validate', type: 'main', index: 0 }]] };
+// Test questions don't use up anyone's daily allowance
+const use = w.nodes.find((n) => n.name === 'Use Allowance');
+Object.assign(use, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode: 'return [{ json: { questions: 0 } }];' } }); delete use.credentials;
 for (const n of w.nodes) if (n.type === 'n8n-nodes-base.respondToWebhook') Object.assign(n, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode: 'return $input.all();' } });
 require('fs').writeFileSync(out, JSON.stringify([w]));
 NODE
@@ -51,7 +54,7 @@ const steps = Object.entries(run).map(([n, r]) => [n, r.reduce((t, x) => t + (x.
 const total = Object.values(run).flat().reduce((t, x) => t + (x.executionTime || 0), 0);
 console.log('TIMING (ms): total ' + total);
 for (const [n, t] of steps) console.log('  ' + String(t).padStart(6) + '  ' + n);
-if (process.env.SHOW) for (const n of process.env.SHOW.split(',')) if (run[n]) console.log(n + ': ' + JSON.stringify(run[n][0].data.main[0].map((i) => i.json.choices ? i.json.choices[0].message.content : i.json)).slice(0, 1500));
+if (process.env.SHOW) for (const n of process.env.SHOW.split(',')) if (run[n]) console.log(n + ': ' + JSON.stringify(run[n][0].data.main[0].map((i) => i.json.choices ? i.json.choices[0].message.content : process.env.KEY ? i.json[process.env.KEY] : i.json)).slice(0, 1500));
 const last = run['Respond OK'] ? run['Respond OK'][0].data.main[0][0].json : null;
 if (last) {
   console.log('\nANSWER: ' + (last.intent || '') + ' matchIds=' + ((last.matchIds || []).length));
