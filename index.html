@@ -190,6 +190,10 @@
   .not-found { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.7rem; max-height: 14rem; overflow: auto; }
   .not-found button { border: 1px solid var(--line, #d9dee8); background: #fff; border-radius: 999px; padding: 0.3rem 0.75rem; font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; color: var(--ink); }
   .not-found button:hover { border-color: var(--brand); color: var(--brand-dark); }
+  .csv-example { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 0.2rem 0 0.4rem; background: #fff; border-radius: 0.6rem; overflow: hidden; }
+  .csv-example th, .csv-example td { text-align: left; padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--exp-bg); }
+  .csv-example th { background: var(--exp-bg); font-weight: 700; }
+  .csv-example th span { display: block; font-weight: 600; font-size: 0.7rem; color: var(--text-muted); }
   .csv-preview { background: var(--exp-bg); border-radius: 0.9rem; padding: 0.8rem 1rem; margin-top: 0.75rem; font-size: 0.88rem; }
   .csv-preview select { font: inherit; margin-left: 0.3rem; }
   .csv-preview .sample { color: var(--text-muted); margin-top: 0.35rem; }
@@ -906,7 +910,12 @@
         <button class="btn primary" id="identifyBtn" style="width:100%; margin-top:0.75rem;">Identify Games</button>
       </div>
       <div class="add-pane" id="paneCsv" hidden>
-        <p class="hint" style="margin-top:0;">Got a big collection? Upload a spreadsheet saved as CSV with one game per row. A column of game names is all it needs (a BGG ID or year column helps it pick the right edition). Each game is matched on BoardGameGeek and added to your shelf; anything it can’t find is listed for you to add by name.</p>
+        <p class="hint" style="margin-top:0;">Got a big collection? Upload a spreadsheet (saved as CSV) with one game per row. Each game is matched on BoardGameGeek and added to your shelf; anything it can’t find is listed for you to add by name.</p>
+        <table class="csv-example" aria-label="Example spreadsheet">
+          <thead><tr><th>Name <span>needed</span></th><th>Year <span>optional</span></th><th>BGG ID <span>optional</span></th></tr></thead>
+          <tbody><tr><td>Wingspan</td><td>2019</td><td>266192</td></tr><tr><td>Catan</td><td></td><td></td></tr><tr><td>Catan: Seafarers</td><td></td><td></td></tr></tbody>
+        </table>
+        <p class="hint">Only the name is needed. Add the year (or the BGG ID, the number in a game’s BGG address) when there are several editions with the same name, so it picks the right one. Expansions can be their own rows. <a href="#" id="csvTemplate">Download a template</a></p>
         <label>Spreadsheet (.csv)</label>
         <input type="file" id="csvInput" accept=".csv,.txt,text/csv,text/plain" />
         <div id="csvPreview"></div>
@@ -2061,6 +2070,15 @@
       if (!rows.length) { toast('That file looks empty.', true); return; }
       csvPlan = { rows, ...csvColumns(rows) };
       renderCsvPreview();
+    });
+    document.getElementById('csvTemplate').addEventListener('click', (e) => {
+      e.preventDefault();
+      const csv = ['Name,Year,BGG ID', 'Wingspan,2019,266192', 'Catan,,', 'Catan: Seafarers,,', ''].join('\r\n');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      a.download = 'my-games.csv';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     });
     document.getElementById('csvPreview').addEventListener('change', (e) => {
       if (e.target.id === 'csvTitleCol' && csvPlan) { csvPlan.cols.title = Number(e.target.value); renderCsvPreview(); }
