@@ -807,8 +807,8 @@
   <!-- Sign-in dialog (the Google button is rendered into #googleSignIn) -->
   <div class="modal-overlay" id="signInModal">
     <div class="modal" style="text-align:center;">
-      <h2>Sign in to make changes</h2>
-      <p class="hint" style="margin-top:0;">Anyone can browse this collection. Only the owner can rate, favorite, add or remove games.</p>
+      <h2>Sign in</h2>
+      <p class="hint" style="margin-top:0;">Board Game Curator is for invited friends. Sign in with the Google account Dan added.</p>
       <div id="googleSignIn"></div>
       <p class="hint" id="signInNote"></p>
       <div class="modal-actions"><button class="btn ghost" id="signInCancel">Not now</button></div>
@@ -1080,8 +1080,52 @@
         box.innerHTML = '';
         google.accounts.id.renderButton(box, { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with', logo_alignment: 'left' });
       } else {
-        box.innerHTML = '<p class="hint">Google sign-in didn’t load. Check your connection and try again.</p>';
+        // Google's script hasn't loaded (slow, or blocked): our own button tries again, then falls back to Google's sign-in page
+        box.innerHTML = '<button class="btn primary" type="button" data-google-fallback><i class="fa-brands fa-google"></i> Sign in with Google</button>';
       }
+    }
+    document.getElementById('googleSignIn').addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-google-fallback]');
+      if (!b) return;
+      b.disabled = true;
+      b.textContent = 'Opening Google…';
+      if (await loadGoogleScript()) { openSignIn(document.getElementById('signInNote').textContent); return; }
+      googleRedirectSignIn();
+    });
+    // Load (or reload) Google's sign-in script; resolves true once it's usable
+    function loadGoogleScript() {
+      if (window.google && google.accounts) { initGoogle(); return Promise.resolve(true); }
+      return new Promise((resolve) => {
+        const sc = document.createElement('script');
+        sc.src = 'https://accounts.google.com/gsi/client';
+        sc.async = true;
+        const done = (ok) => { clearTimeout(t); if (ok) initGoogle(); resolve(ok && gisReady); };
+        const t = setTimeout(() => done(!!(window.google && google.accounts)), 6000);
+        sc.onload = () => done(true);
+        sc.onerror = () => done(false);
+        document.head.appendChild(sc);
+      });
+    }
+    // Last resort: Google's own sign-in page, which sends the ID token back in the address (#id_token=…)
+    function googleRedirectSignIn() {
+      const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      try { sessionStorage.setItem('vault_oauth_nonce', nonce); } catch (e) {}
+      const p = new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, response_type: 'id_token', scope: 'openid email profile',
+        redirect_uri: location.origin + '/', nonce, prompt: 'select_account' });
+      location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p.toString();
+    }
+    function finishRedirectSignIn() {
+      if (!/[#&]id_token=/.test(location.hash)) return;
+      const h = new URLSearchParams(location.hash.slice(1));
+      const token = h.get('id_token');
+      history.replaceState(null, '', location.pathname + location.search);
+      let nonce = null;
+      try { nonce = sessionStorage.getItem('vault_oauth_nonce'); sessionStorage.removeItem('vault_oauth_nonce'); } catch (e) {}
+      try {
+        const claims = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (!nonce || claims.nonce !== nonce) return; // only a sign-in this browser started
+      } catch (e) { return; }
+      onCredential({ credential: token });
     }
     // A fresh token, renewed silently when possible; otherwise asks the owner to sign in
     async function ensureToken() {
@@ -2510,6 +2554,7 @@
     document.getElementById('tipClose').addEventListener('click', () => tipModal.classList.remove('open'));
     tipModal.addEventListener('click', (e) => { if (e.target === tipModal) tipModal.classList.remove('open'); });
     document.getElementById('signInCancel').addEventListener('click', () => document.getElementById('signInModal').classList.remove('open'));
+    finishRedirectSignIn(); // back from Google's sign-in page
     window.addEventListener('load', () => { initGoogle(); renderLandingSignIn(); }); // the Google script loads async
 
     try { localStorage.removeItem('vault_n8n_base_url'); } catch (e) {}
