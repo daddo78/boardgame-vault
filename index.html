@@ -1158,8 +1158,10 @@
         } catch (e) {}
         updateAuthUi();
         landingNotice('');
-        if (!wasMember) {
-          toast(w.role === 'owner' ? 'Signed in. Welcome back!' : 'Welcome, ' + (w.playerName || who).split(' ')[0] + '!');
+        // Reload after signing in: always for a new sign-in, and when the last load failed because the sign-in had expired ("Offline")
+        const failed = document.getElementById('totalBadge').classList.contains('err');
+        if (!wasMember || failed) {
+          if (!wasMember) toast(w.role === 'owner' ? 'Signed in. Welcome back!' : 'Welcome, ' + (w.playerName || who).split(' ')[0] + '!');
           loadCollection();
           loadPeople();
           loadFriends();
@@ -1297,7 +1299,7 @@
       badge.classList.toggle('err', !!isErr);
       badge.title = isErr ? msg : 'Games in the collection';
       status.hidden = !msg;
-      status.innerHTML = isErr ? '<i class="fa-solid fa-triangle-exclamation"></i> Offline' : '<span class="badge-spin"></span> ' + esc(msg);
+      status.innerHTML = isErr ? (/sign in/i.test(String(msg)) ? '<i class="fa-solid fa-right-to-bracket"></i> Signed out' : '<i class="fa-solid fa-triangle-exclamation"></i> Offline') : '<span class="badge-spin"></span> ' + esc(msg);
       document.getElementById('badgeTotal').hidden = !!msg;
     }
 
