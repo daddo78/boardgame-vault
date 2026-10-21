@@ -61,6 +61,8 @@ const ID = {
   dashboard: 'BGVaultDashbrd01',
   askTest: 'BGVaultAskTest01',
   selfTest: 'BGVaultSelfTest1',
+  memory: 'BGVaultMemory001',
+  memoryForget: 'BGVaultForget001',
   shelfAdd: 'BGVaultShelfAdd1',
   shelfIdentify: 'BGVaultShelfPic1',
   friends: 'BGVaultFriends01',
@@ -1618,8 +1620,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     } : null;
     const mentioned = Array.isArray(b.mentioned) ? b.mentioned.map(String).filter((x) => x.length < 40).slice(0, 100) : [];
     const recent = Array.isArray(b.recent) ? b.recent.map(String).filter((x) => x.length < 40).slice(0, 40) : [];
+    const chatKey = /^[A-Za-z0-9-]{8,64}$/.test(String(b.chatKey || '')) ? String(b.chatKey) : 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     const auth = $input.first().json._auth;
-    return [{ json: { ok: true, t0: Date.now(), question, playerIds, previous: prev, mentioned, recent, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
+    return [{ json: { ok: true, t0: Date.now(), question, playerIds, previous: prev, mentioned, recent, chatKey, memory: b.noMemory !== true, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
       shelf: /^friend:\d+$/.test(String(b.shelf || '')) ? String(b.shelf) : b.shelf === 'mine' ? 'mine' : 'main' } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
@@ -1632,6 +1635,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     return [{ json: { ok: true, used } }];
   }),
   ifTrue('Allowed?', '={{ $json.ok }}'),
+  // What Nathan remembers: notes about the asker, games they turned down, his recent picks for them, and this chat so far
+  pg('Memory', "SELECT CASE WHEN $3::boolean THEN bgc.memory_for($1, $2) ELSE '{}'::jsonb END AS mem",
+    "={{ [$('Validate').first().json.email, $('Validate').first().json.chatKey, String($('Validate').first().json.memory)] }}"),
   // Dan's shelf, or the member's own: its games, its owner's player list (from their plays) and ratings
   pg('Shelf View', 'SELECT bgc.shelf_view($1, $2, $3) AS v',
     "={{ [$('Validate').first().json.email, $('Validate').first().json.shelf, $('Validate').first().json.askerId] }}"),
@@ -1689,6 +1695,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'SHELF OPEN: ' + (sv.ownerName || '__OWNER_NAME__') + '\'s' + (sv.shelf === 'mine' || (sv.shelf === 'main' && $('Auth: Role').first().json._auth.role === 'owner') ? ' (the asker\'s own)' : ' (not the asker\'s)'),
       selected.length ? `Already selected as playing: ${selected.join(', ')}` : '',
       v.previous ? 'PREVIOUS: ' + JSON.stringify({ question: v.previous.question, constraints: v.previous.constraints }) + ' (its answer had ' + (v.previous.setIds || []).length + ' games)' : '',
+      (() => { const t = ($('Memory').first().json.mem || {}).turns || []; return t.length > 1 ? 'EARLIER IN THIS CHAT (turn 1 is how it started; for a question about this conversation, like "what did you suggest first?" or "the other one you mentioned", take the game titles from here):\n' + t.map((x, i) => (i ? 'later turn' : 'turn 1') + ': Q: ' + x.q + ' | A: ' + x.a).join('\n') : ''; })(),
       '',
       'REQUEST: ' + v.question,
     ].filter((l) => l !== '').join('\n');
@@ -1857,7 +1864,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const hay = (g) => [g.title, g.genre, g.type, g.desc, ...g.categories, ...g.mechanics].join(' ').toLowerCase();
     const isCoop = (g) => g.mechanics.some((m) => /cooperative/i.test(m)) || /co-?op/i.test(g.type);
     const daysSince = (d) => d ? (Date.now() - new Date(d).getTime()) / 86400000 : Infinity;
+    const mem = $('Memory').first().json.mem || {};
     const recentSet = new Set(v.recent || []);
+    const recentBgg = new Set((mem.recentBgg || []).map(String));
+    const skipBgg = new Set((mem.skipBgg || []).map(String));
     const scored = [], loose = [];
     for (const g of games) {
       if (exclude.has(g.id)) continue;
@@ -1891,7 +1901,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       if (c.freshness === 'favorite') s += (g.favorite ? 3 : 0) + (g.desireToPlay || 0) * 0.5;
       // Variety for recommendations: games Nathan suggested in the last two weeks drop back, and near-ties shuffle,
       // so the same question doesn't always land on the same game (a browse or a ranked list stays exact)
-      if (c.intent !== 'browse') s += Math.random() * 1.5 - (recentSet.has(g.id) ? 2.5 : 0);
+      if (c.intent !== 'browse') s += Math.random() * 1.5 - (recentSet.has(g.id) || recentBgg.has(String(g.bggId)) ? 2.5 : 0) - (skipBgg.has(String(g.bggId)) ? 8 : 0);
       scored.push({ g, s });
     }
     scored.sort((a, b) => b.s - a.s);
@@ -2094,9 +2104,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       const coop = (g) => (g.mechanics || []).some((m) => /cooperative/i.test(m));
       const picks = (lookup.pool || []).filter((g) => (!count || (g.minPlayers <= count && count <= (g.maxPlayers || 99)))
           && (!maxMin || (g.maxTime || g.minTime || 999) <= maxMin * 1.1) && (!wMax || (g.weight && g.weight <= wMax + 0.3)) && (!wMin || (g.weight && g.weight >= wMin - 0.3))
-          && (c.coop !== true || coop(g)) && (c.coop !== false || !coop(g)) && !avoid.some((w) => hay2(g).includes(w)))
+          && (c.coop !== true || coop(g)) && (c.coop !== false || !coop(g)) && !avoid.some((w) => hay2(g).includes(w)) && !skipBgg.has(String(g.bggId)))
         .map((g) => ({ g, s: [...(g.categories || []), ...(g.mechanics || [])].reduce((n, t) => n + (tasteTags[t] || 0), 0) / Math.max(1, tasteGames.length) * 3
-          + want.filter((w) => hay2(g).includes(w)).length * 2.5 + ((g.rating || 6.5) - 6.5) * 0.8 + ((g.friends || []).length ? 1.5 : 0)
+          + want.filter((w) => hay2(g).includes(w)).length * 2.5 + ((g.rating || 6.5) - 6.5) * 0.8 + ((g.friends || []).length ? 1.5 : 0) - (recentBgg.has(String(g.bggId)) ? 2 : 0)
           // "a two-player game" means one that shines at 2, not one that merely allows it
           + (count ? ((g.bestPlayers || []).includes(count) ? 3 : -1.5) : 0) }))
         .sort((a, b) => b.s - a.s).slice(0, 12);
@@ -2136,6 +2146,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
       // A browse is about the shelf: its own play counts only, unless they named people (one set of numbers, no mix-ups)
       gameLines: short.map((g) => line(g, browse && !(v.playerIds || []).length ? [] : group)).join('\n'), profiles: group.map(profile).join('\n'), ranked,
+      recentIds: short.filter((g) => recentSet.has(g.id) || recentBgg.has(String(g.bggId))).map((g) => g.id),
       askerProfile: asker && !group.includes(asker) ? profile(asker) : '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest, fromOwn: !!own,
       // Across friends' shelves: cards link to BGG and say who has each game; "at Keith's": whose shelf
       ...(fpool ? { across: true, off: short.map((g) => ({ id: g.id, title: g.title, bggId: g.bggId, cover: g.coverCard, friends: g.owners })) } : {}),
@@ -2194,6 +2205,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '',
       'HONEST GAPS: if GAP is true (nothing meets the hard limits), or the kind of game asked for (a genre, theme or mechanic) is not really on the shelf, say so plainly in gap.missing (one sentence, no guessing), make your pick the closest match, and you may name ONE real, well-known game not on this shelf that fills the gap in gap.consider (only if you are sure it exists). Never present it as owned. If the shelf has a true match, gap is null.',
       '',
+      'MEMORY: you are getting to know the ASKER over time. WHAT YOU REMEMBER is from earlier chats: let it shape your picks quietly, and mention it only when it matters ("I know you like weeknights short"). Never suggest a game they asked you not to.',
+      'In "remember", list 0-2 lasting facts the ASKER just told you about THEMSELVES in this REQUEST: stable likes and dislikes, how long or heavy they like games, who they usually play with and when, or a game they don\'t want suggested (put its title in "skip"). Not one-off moods or plans ("tonight", "I\'m tired", "this weekend"), not facts about other people, not things you only inferred from data, and not facts already in WHAT YOU REMEMBER (if the new fact changes one, set "replaces" to that note\'s id). Write each note in the third person, under 15 words. Whenever the REQUEST states a lasting preference, record it, even when the same request also asks for a game for tonight. Words like "usually", "always", "never", "on weeknights", "I like", "I hate" or "I\'m burned out on" signal one. Examples: "on weeknights I only have about an hour, so I like shorter games. What should I play tonight?" -> {"note": "Has about an hour on weeknights; likes shorter games"}; "please stop suggesting Cascadia, I\'m burned out on it" -> {"note": "Burned out on Cascadia; don\'t suggest it", "skip": "Cascadia"}; "I hate trivia games" -> {"note": "Dislikes trivia games"}; "my wife and I play on Sunday mornings" -> {"note": "Plays with their partner on Sunday mornings"}. Tonight\'s mood or situation is not a lasting fact: "I\'m tired tonight, something light" -> [] and "we have 3 tonight" -> []. A request that only asks for a game teaches nothing: then "remember" is [].',
+      '',
       'Reply with JSON only:',
       ...(s.browse ? [
       '{"summary": "...", "highlights": [{"id": "...", "quip": "..." or "", "why": "..."}],',
@@ -2203,6 +2217,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       ' "avoid": {"id": "...", "why": "..."} or null (only if a candidate would clearly flop tonight),',
       ]),
       ' "gap": {"missing": "...", "consider": "Game title" or null} or null,',
+      ' "remember": [{"note": "...", "replaces": note id or null, "skip": "Game title" or null}],',
       ' "signoff": "an optional short corny sign-off, or empty"}',
     ].join('\n');
     const systemText = system.split('{SHELF_OWNER}').join(s.ownerName || '__OWNER_NAME__');
@@ -2213,7 +2228,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'GAP: ' + (s.gap ? 'true' : 'false'),
       s.setFacts ? (s.person ? 'SET FACTS (about the people asked about):\n' : s.mode === 'rules' ? '' : s.mode ? 'ABOUT THE ASKER:\n' : 'SET FACTS (all games that match):\n') + s.setFacts : '',
       'ALREADY_JOKED: ' + (s.shortIds.filter((id) => mentioned.has(id)).join(', ') || '(none)'),
-      s.browse ? '' : 'RECENTLY_SUGGESTED (you recommended these to this person in the last two weeks; prefer a fresh pick that fits as well, and only repeat one if it is clearly the best fit or they ask for it): ' + (s.shortIds.filter((id) => (v.recent || []).includes(id)).join(', ') || '(none)'),
+      (() => { const m = $('Memory').first().json.mem || {}; return 'WHAT YOU REMEMBER ABOUT THE ASKER (id | note):\n' + ((m.notes || []).map((n) => n.id + ' | ' + n.note).join('\n') || '(nothing yet)'); })(),
+      (() => { const t = ($('Memory').first().json.mem || {}).turns || []; return t.length ? 'EARLIER IN THIS CHAT (oldest first):\n' + t.map((x) => '- They asked: ' + x.q + ' | You answered: ' + x.a).join('\n') : ''; })(),
+      s.browse ? '' : 'RECENTLY_SUGGESTED (you recommended these to this person in the last two weeks; prefer a fresh pick that fits as well, and only repeat one if it is clearly the best fit or they ask for it): ' + (s.shortIds.filter((id) => (v.recent || []).includes(id) || (s.recentIds || []).includes(id)).join(', ') || '(none)'),
       s.askerName ? 'ASKER (the person typing; call them "you"): ' + s.askerName : '', s.guest || '',
       s.askerProfile ? 'ASKER PROFILE (use it when they ask for something they would like, even if they are not listed as playing):\n' + s.askerProfile : '',
       '', 'PEOPLE PLAYING:', s.profiles || '(not specified; recommend for the group described in the request)',
@@ -2229,7 +2246,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const s = $('Build Recommend Request').first().json;
     const text = $input.first().json.choices?.[0]?.message?.content || '';
     let a = {};
-    try { a = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
+    // The JSON, even when the model writes a sentence (or a stray brace) before it
+    for (let i = text.indexOf('{'); i >= 0 && !Object.keys(a).length; i = text.indexOf('{', i + 1)) {
+      try { a = JSON.parse(text.slice(i, text.lastIndexOf('}') + 1)); } catch (e) {}
+    }
     const allowed = new Set(s.shortIds);
     const seen = new Set();
     // Nathan talks to the asker as "you": drop their name when he addresses them with it ("Yes, Dan, …", "Good news, Nathan:", "…, Dan.")
@@ -2250,12 +2270,15 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const sl = $('Own Shelf').first().json;
     const onShelf = new Set(((sl.visit || sl.own || $('Shelf View').first().json.v).games || []).map((r) => toGame(r).title.toLowerCase()));
     const consider = (t) => (t && !onShelf.has(t.toLowerCase()) ? t : null);
+    const learn = (Array.isArray(a.remember) ? a.remember : []).filter((l) => l && typeof l.note === 'string' && l.note.trim().length >= 4).slice(0, 2)
+      .map((l) => ({ note: str(l.note, 160), replaces: /^\d+$/.test(String(l.replaces ?? '')) ? String(l.replaces) : null, skip: l.skip ? str(l.skip, 120) : null }));
+    const memOut = learn.length ? { learn, remembered: learn.map((l) => l.note) } : {};
     const gapOf = () => (s.gap || (a.gap && a.gap.missing)) ? { missing: str(a.gap && a.gap.missing, 300) || 'Nothing on the shelf matches every part of that.', consider: consider(str(a.gap && a.gap.consider, 80)) } : null;
     if (s.browse) {
       const highlights = (Array.isArray(a.highlights) ? a.highlights : []).map((x) => entry(x, false)).filter(Boolean).slice(0, 5);
       if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });
       const summary = str(a.summary, s.mode === 'rules' ? 3500 : 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');
-      return [{ json: { ok: true, intent: 'browse', mode: s.mode || null, person: !!s.person, social: s.across ? 'friends' : s.visiting ? 'visit' : null, ...(s.rulebooks ? { rulebooks: s.rulebooks } : {}), understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
+      return [{ json: { ok: true, ...memOut, intent: 'browse', mode: s.mode || null, person: !!s.person, social: s.across ? 'friends' : s.visiting ? 'visit' : null, ...(s.rulebooks ? { rulebooks: s.rulebooks } : {}), understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
         matchIds: s.matchIds, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}), signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];
     }
     let pick = entry(a.pick, true);
@@ -2264,7 +2287,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const alternative = entry(a.alternative, true);
     const avoid = entry(a.avoid, false);
     const gap = gapOf();
-    return [{ json: { ok: true, intent: 'recommend', social: s.across ? 'friends' : s.visiting ? 'visit' : null, matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}),
+    return [{ json: { ok: true, ...memOut, intent: 'recommend', social: s.across ? 'friends' : s.visiting ? 'visit' : null, matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}),
       signoff: str(a.signoff, 200), pickIds: [pick, alternative].filter(Boolean).map((x) => x.id), model: $input.first().json.model || null } }];
   }),
   code('No Candidates', function () {
@@ -2276,16 +2299,20 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   code('Off Topic', function () {
     return [{ json: { ok: true, offTopic: true, pick: null, note: $input.first().json.reply } }];
   }),
-  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respond('Respond OK', "={{ JSON.stringify({ ...$json, learn: undefined, chatKey: $('Validate').first().json.chatKey }) }}"),
   // For the admin dashboard: what kind of question it was and how long it took (never the question itself)
   { ...pg('Log Answer', 'SELECT bgc.log_ask($1, $2, $3::int, $4::boolean, $5)',
     "={{ [$('Validate').first().json.email, $json.offTopic ? 'off-topic' : ($json.mode || ($json.person ? 'person' : $json.intent) || 'other'), String(Date.now() - $('Validate').first().json.t0), String($json.ok !== false), $json.social || ''] }}"),
     onError: 'continueRegularOutput' },
+  // Nathan's memory: the question and answer, and anything he learned about the asker
+  { ...pg('Save Turn', 'SELECT bgc.chat_save($1, $2, $3, $4::jsonb, $5::jsonb)',
+    "={{ [$('Validate').first().json.email, $('Validate').first().json.chatKey, $('Validate').first().json.question, JSON.stringify({ ...$('Respond OK').first().json, learn: undefined }), JSON.stringify($('Respond OK').first().json.learn || [])] }}"),
+    onError: 'continueRegularOutput' },
   respondError(),
 ], [
-  ['Respond OK', 'Log Answer'],
+  ['Respond OK', 'Log Answer'], ['Log Answer', 'Save Turn'],
   ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Use Allowance', 0], ['Valid?', 'Respond Error', 1],
-  ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'Shelf View', 0], ['Allowed?', 'Respond Error', 1], ['Shelf View', 'List Games'],
+  ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'Memory', 0], ['Memory', 'Shelf View'], ['Allowed?', 'Respond Error', 1], ['Shelf View', 'List Games'],
   ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'One More Item'], ['One More Item', 'List Ratings'],
   ['List Ratings', 'Build Understand Request'], ['Build Understand Request', 'Understand Request'], ['Understand Request', 'Scope'], ['Scope', 'Own Shelf'], ['Own Shelf', 'Game Lookup'], ['Game Lookup', 'Lookup Queries'], ['Lookup Queries', 'Ask BGG?'],
   ['Ask BGG?', 'Game Search', 0], ['Ask BGG?', 'Shortlist', 1], ['Game Search', 'Game Candidates'], ['Game Candidates', 'Game Thing'], ['Game Thing', 'Game Choose'], ['Game Choose', 'Shortlist'],
@@ -3016,7 +3043,7 @@ const askTest = (() => {
     const i = $('Webhook').first().json;
     const m = $input.first().json.r || {};
     // A short pause first, so the nightly questions are spaced out for the AI service
-    return [{ json: { body: { question: i.question, playerIds: [], shelf: i.shelf || 'main', previous: i.previous || null }, _authOk: true,
+    return [{ json: { body: { question: i.question, playerIds: [], shelf: i.shelf || 'main', previous: i.previous || null, noMemory: true }, _authOk: true,
       _auth: { role: i.role || 'friend', email: i.email, memberId: m.id || null, admin: false, playerId: m.playerId || null, playerName: m.playerName || '' } } }];
   });
   w.connections.Webhook = { main: [[{ node: 'Pause', type: 'main', index: 0 }]] };
@@ -3025,6 +3052,7 @@ const askTest = (() => {
   const quiet = (name, jsCode) => { const n = w.nodes.find((x) => x.name === name); Object.assign(n, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode } }); delete n.credentials; delete n.webhookId; };
   quiet('Use Allowance', 'return [{ json: { questions: 0, lim: 999 } }];');
   quiet('Log Answer', 'return $input.all();');
+  quiet('Save Turn', 'return $input.all();');
   for (const n of w.nodes.filter((x) => x.type === 'n8n-nodes-base.respondToWebhook')) quiet(n.name, 'return $input.all();');
   return w;
 })();
@@ -3086,8 +3114,42 @@ const selfTest = wf(ID.selfTest, 'Vault — Nightly Self-Test', [
 ], [['Nightly', 'Database Checks'], ['Run Now', 'Database Checks'], ['Database Checks', 'Questions'], ['Questions', 'Ask Nathan'], ['Ask Nathan', 'Score'],
   ['Score', 'Save Result'], ['Save Result', 'Pass Along'], ['Pass Along', 'Problems?'], ['Problems?', 'Email Dan', 0]]);
 
+// =====================================================================
+// 36. Nathan's Memory  GET /webhook/vault/memory[?chat=<key>]  (member gate): what Nathan remembers about you, and a chat to show again
+//     POST /webhook/vault/memory { action: 'forget', id } | { action: 'forgetAll' }  (notes and conversations)
+// =====================================================================
+const memory = wf(ID.memory, 'Vault — Nathan Memory', [
+  webhook('Webhook', 'GET', 'vault/memory'),
+  pg('Read', 'SELECT bgc.memory_page($1, $2) AS r',
+    "={{ [$json._auth.email, String(($json.query || {}).chat || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 64)] }}"),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Read'], ['Read', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(memory, { failTo: 'Respond Error' });
+
+const memoryForget = wf(ID.memoryForget, 'Vault — Nathan Forget', [
+  webhook('Webhook', 'POST', 'vault/memory'),
+  code('Validate', function () {
+    const j = $input.first().json;
+    const b = j.body || {};
+    const id = Number(b.id);
+    if (b.action === 'forgetAll') return [{ json: { ok: true, email: j._auth.email, id: '' } }];
+    if (b.action === 'forget' && Number.isInteger(id) && id > 0) return [{ json: { ok: true, email: j._auth.email, id: String(id) } }];
+    return [{ json: { ok: false, status: 400, message: 'Say which note to forget' } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  pg('Forget', "SELECT bgc.memory_forget($1, nullif($2, '')::bigint) AS r", '={{ [$json.email, $json.id] }}'),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Forget', 0], ['Valid?', 'Respond Error', 1], ['Forget', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(memoryForget, { failTo: 'Respond Error' });
+
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest, memory, memoryForget };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

@@ -3,6 +3,7 @@
 # Runs a temporary copy of the Ask workflow on the server (manual trigger, sign-in replaced by a fixed member).
 #   ./test-ask.sh "What do you know about me?"                 (as Dan)
 #   ./test-ask.sh "something quick for 4" friend@example.com    (as another member; pass a role with ROLE=friend)
+#   CHAT=key SAVE=1 ./test-ask.sh "..." (continue a chat and save it to memory; MEMORY=0 ignores what Nathan remembers)
 #   SHELF=mine ./test-ask.sh "my top ten most played" friend@example.com   (on their own shelf; or SHELF=friend:3)
 # Leaves an inactive "TEMP test: ask" workflow in n8n (archive it in the UI when done testing).
 set -euo pipefail
@@ -22,7 +23,7 @@ for (const k of Object.keys(w.connections)) if (drop(k)) delete w.connections[k]
 const wh = w.nodes.find((n) => n.name === 'Webhook');
 Object.assign(wh, { type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, parameters: {} }); delete wh.webhookId;
 const roleNode = w.nodes.find((n) => n.name === 'Auth: Role');
-roleNode.parameters = { jsCode: `return [{ json: { body: { question: ${JSON.stringify(q)}, playerIds: [], shelf: ${JSON.stringify(shelf)}, previous: ${process.env.PREV || "null"} }, _authOk: true, _auth: { role: ${JSON.stringify(role)}, email: ${JSON.stringify(email)}, playerId: $('Who').first().json.playerId, playerName: $('Who').first().json.playerName } } }];` };
+roleNode.parameters = { jsCode: `return [{ json: { body: { question: ${JSON.stringify(q)}, playerIds: [], shelf: ${JSON.stringify(shelf)}, previous: ${process.env.PREV || "null"}, chatKey: ${JSON.stringify(process.env.CHAT || "")}, noMemory: ${process.env.MEMORY === "0"} }, _authOk: true, _auth: { role: ${JSON.stringify(role)}, email: ${JSON.stringify(email)}, playerId: $('Who').first().json.playerId, playerName: $('Who').first().json.playerName } } }];` };
 // Look up the member's player card the same way sign-in does
 w.nodes.push({ id: 'who', name: 'Who', type: 'n8n-nodes-base.postgres', typeVersion: 2.6, position: [0, 200],
   parameters: { operation: 'executeQuery', options: {},
@@ -37,6 +38,9 @@ Object.assign(use, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { 
 // ...and aren't counted in the admin dashboard
 const log = w.nodes.find((n) => n.name === 'Log Answer');
 if (log) { Object.assign(log, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode: 'return $input.all();' } }); delete log.credentials; }
+// ...and aren't saved to their chat history or memory (SAVE=1 to test that)
+const save = w.nodes.find((n) => n.name === 'Save Turn');
+if (save && process.env.SAVE !== '1') { Object.assign(save, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode: 'return $input.all();' } }); delete save.credentials; }
 for (const n of w.nodes) if (n.type === 'n8n-nodes-base.respondToWebhook') Object.assign(n, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode: 'return $input.all();' } });
 require('fs').writeFileSync(out, JSON.stringify([w]));
 NODE
@@ -57,7 +61,7 @@ const steps = Object.entries(run).map(([n, r]) => [n, r.reduce((t, x) => t + (x.
 const total = Object.values(run).flat().reduce((t, x) => t + (x.executionTime || 0), 0);
 console.log('TIMING (ms): total ' + total);
 for (const [n, t] of steps) console.log('  ' + String(t).padStart(6) + '  ' + n);
-if (process.env.SHOW) for (const n of process.env.SHOW.split(',')) if (run[n]) console.log(n + ': ' + JSON.stringify(run[n][0].data.main[0].map((i) => i.json.choices ? i.json.choices[0].message.content : process.env.KEY ? i.json[process.env.KEY] : i.json)).slice(0, 1500));
+if (process.env.SHOW) for (const n of process.env.SHOW.split(',')) if (run[n]) console.log(n + ': ' + JSON.stringify(run[n][0].data.main[0].map((i) => i.json.choices ? i.json.choices[0].message.content : process.env.KEY ? i.json[process.env.KEY] : i.json)).slice(process.env.TAIL ? -1500 : 0, process.env.TAIL ? undefined : 1500));
 if (process.env.JSON) { const o = run['Respond OK'] ? run['Respond OK'][0].data.main[0][0].json : { error: rd.error ? rd.error.message : 'no answer' }; console.log('@@JSON ' + JSON.stringify(o)); process.exit(0); }
 const last = run['Respond OK'] ? run['Respond OK'][0].data.main[0][0].json : null;
 if (last) {
@@ -68,5 +72,6 @@ if (last) {
   if (last.understood) console.log('understood: ' + JSON.stringify(last.understood));
   if (last.highlights) console.log('highlights: ' + last.highlights.map((h) => h.title).join(', '));
   if (last.note || last.message) console.log(last.note || last.message);
+  if (last.learn) console.log('remember: ' + JSON.stringify(last.learn));
 }
 NODE

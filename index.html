@@ -285,6 +285,8 @@
   .n-gap { margin-top: 0.8rem; background: #fff4d6; color: #6b4a00; border-radius: 0.9rem; padding: 0.7rem 0.9rem; font-size: 0.9rem; }
   .n-gap a { color: var(--brand); font-weight: 700; }
   .n-sign { margin-top: 0.9rem; font-weight: 800; color: var(--ink); }
+  .n-memo { margin: 0.8rem 0 0; font-size: 0.86rem; color: var(--text-muted); display: flex; gap: 0.4rem; align-items: baseline; flex-wrap: wrap; }
+  .n-memo .linklike { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--accent); text-decoration: underline; cursor: pointer; }
   .n-sign span { display: block; font-weight: 500; color: var(--text-muted); font-style: italic; margin-top: 0.15rem; }
   .ask-modal h2 { padding-right: 2.5rem; }
   .ask-form { display: flex; gap: 0.5rem; align-items: flex-end; margin-top: 0.9rem; }
@@ -1501,6 +1503,7 @@
         setSyncStatus('');
         rebuildGenreFilter();
         render();
+        if (!chatRestored) { chatRestored = true; restoreChat(); }
       } catch (e) {
         setSyncStatus(e.message, true);
         const cached = localStorage.getItem(LS_CACHE);
@@ -2538,6 +2541,7 @@
     document.getElementById('npNew').addEventListener('click', () => {
       thread.innerHTML = '';
       askLast = null;
+      newChat();
       askSelected.clear();
       nathanSets.length = 0;
       setPanel('collapsed');
@@ -2623,6 +2627,29 @@
     const SS_JOKED = 'vault_nathan_joked';
     const joked = new Set((() => { try { return JSON.parse(sessionStorage.getItem(SS_JOKED) || '[]'); } catch (e) { return []; } })());
     const rememberJoked = (ids) => { ids.forEach(id => joked.add(id)); try { sessionStorage.setItem(SS_JOKED, JSON.stringify([...joked])); } catch (e) {} };
+    // The conversation: kept on the server so it survives a refresh and Nathan can look back at it. "New chat" starts another.
+    const LS_CHAT = 'vault_nathan_chat';
+    let chatKey = (() => { try { return localStorage.getItem(LS_CHAT) || ''; } catch (e) { return ''; } })();
+    let chatRestored = false;
+    const setChatKey = (k) => { chatKey = k || ''; try { chatKey ? localStorage.setItem(LS_CHAT, chatKey) : localStorage.removeItem(LS_CHAT); } catch (e) {} };
+    const newChat = () => setChatKey(window.crypto && crypto.randomUUID ? crypto.randomUUID() : 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+    // Your latest chat (from the last 12 hours) comes back after a refresh, or on another device
+    async function restoreChat() {
+      if (!isMember() || thread.children.length) return;
+      let m;
+      try { m = await n8nFetch('/memory' + (chatKey ? '?chat=' + encodeURIComponent(chatKey) : ''), { method: 'GET' }); } catch (e) { return; }
+      const turns = (m && m.chat && m.chat.turns) || [];
+      if (!turns.length || thread.children.length) return;
+      setChatKey(m.chat.key);
+      for (const t of turns) {
+        thread.insertAdjacentHTML('beforeend', '<div class="np-turn me"><div class="np-bubble">' + bubbleHtml(t.question) + '</div></div>' +
+          '<div class="np-turn nathan"><div class="nathan-avatar sm" aria-hidden="true"></div><div class="np-body">' + nathanAnswerHtml(t.answer || {}) + '</div></div>');
+        rememberJoked((t.answer || {}).pickIds || []);
+      }
+      const last = turns[turns.length - 1], a = last.answer || {};
+      if (a.pick || (a.highlights || []).length) askLast = { question: last.question, constraints: a.constraints, pickIds: a.pickIds, setIds: (a.matchIds && a.matchIds.length ? a.matchIds : a.pickIds || []).slice(0, 60), fromOwn: !!a.fromOwn };
+      setPanel('collapsed');
+    }
     // Games Nathan recommended in the last two weeks, so asking again brings something fresh
     const LS_RECENT = 'vault_nathan_recent';
     const recentPicks = () => { try { const cut = Date.now() - 14 * 86400000; return (JSON.parse(localStorage.getItem(LS_RECENT) || '[]') || []).filter((x) => x && x.t > cut); } catch (e) { return []; } };
@@ -2709,7 +2736,9 @@
       const body = r.intent === 'browse'
         ? head + '<p class="n-summary' + (r.mode === 'rules' ? ' rules' : '') + '">' + esc(r.summary || '') + '</p>' + rulesLinks(r) + gap + (r.mode === 'rules' ? '' : r.highlights.map(h => nathanCard(h, 'highlight')).join(''))
         : head + gap + nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid');
-      return body + (r.signoff ? '<div class="n-sign">' + (r.intent === 'browse' ? '' : 'And that’s what’s hitting the table!') + '<span>' + esc(r.signoff) + '</span></div>' : '');
+      const memo = (r.remembered || []).length ? '<p class="n-memo"><span><i class="ti ti-notebook"></i> I’ll remember: ' + r.remembered.map(esc).join('; ') + '.</span>' +
+        '<button type="button" class="linklike" data-open-memory>What I remember</button></p>' : '';
+      return body + (r.signoff ? '<div class="n-sign">' + (r.intent === 'browse' ? '' : 'And that’s what’s hitting the table!') + '<span>' + esc(r.signoff) + '</span></div>' : '') + memo;
     }
     // The question as a bubble, with each @Full Name highlighted
     function bubbleHtml(q) {
@@ -2793,9 +2822,10 @@
       input.value = '';
       input.blur(); // put the phone keyboard away while Nathan answers
       if (!followUp) {
-        // A new question from the top bar is a fresh overview, like a new search
+        // A new question from the top bar is a fresh overview, like a new search (and a new chat)
         thread.innerHTML = '';
         askLast = null;
+        newChat();
       }
       setPanel(followUp ? 'expanded' : 'collapsed');
       thread.insertAdjacentHTML('beforeend', '<div class="np-turn me"><div class="np-bubble">' + bubbleHtml(question) + '</div></div>');
@@ -2809,7 +2839,8 @@
       (followUp ? turn : panel).scrollIntoView({ behavior: 'smooth', block: followUp ? 'nearest' : 'start' });
       try {
         const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], recent: recentPicks().map((x) => x.id), shelf: currentShelf() }) });
+          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], recent: recentPicks().map((x) => x.id), chatKey, shelf: currentShelf() }) });
+        if (r.chatKey) setChatKey(r.chatKey);
         if (r.pick || (r.highlights || []).length) {
           // The whole answer (all ten of a top ten), so "which of those…" narrows it instead of starting over
           askLast = { question, constraints: r.constraints, pickIds: r.pickIds, setIds: (r.matchIds && r.matchIds.length ? r.matchIds : r.pickIds || []).slice(0, 60), fromOwn: !!r.fromOwn };
@@ -2910,12 +2941,56 @@
         '<div class="top-search"><input type="text" id="topQuery" placeholder="Add a game, e.g. Brass: Birmingham" autocomplete="off"><button type="button" class="btn" id="topFind"><i class="ti ti-search"></i></button></div>' +
         '<div class="wl-list" id="topResults"></div>' +
         '<label for="meNotes">About me <span style="font-weight:600;">(favorite games, what I’d recommend, anything Nathan should know)</span></label><textarea id="meNotes" rows="3" maxlength="600">' + esc(p.notes || '') + '</textarea>' +
+        '<div class="section-label" style="margin-top:1rem;" id="memLabel">What Nathan remembers about me</div>' +
+        '<p class="hint" style="margin-top:0;">Nathan picks these up when you tell him about yourself, and uses them in every answer. Only you can see them. Remove anything that’s wrong.</p>' +
+        '<div class="wl-list" id="memList"><div class="spinner"></div></div>' +
         '<div class="pl-two"><div><label for="meBgg">BGG username <span style="font-weight:600;">(optional)</span></label><input type="text" id="meBgg" maxlength="60" value="' + esc(p.bggUsername || '') + '"></div>' +
         '<div><label for="meAge">Age <span style="font-weight:600;">(optional)</span></label><input type="number" id="meAge" min="1" max="120" value="' + (p.age || '') + '"></div></div>' +
         '<div class="modal-actions"><button type="button" class="btn ghost" data-profile-close>Cancel</button><button type="submit" class="btn primary" id="profileSave">Save</button></div>' +
       '</form>';
       renderTop();
+      loadMemory();
     }
+    let memPage = null, memConfirm = false, memScroll = false;
+    async function loadMemory() {
+      const box = document.getElementById('memList');
+      if (!box) return;
+      memConfirm = false;
+      try { memPage = await n8nFetch('/memory?chat=none', { method: 'GET' }); renderMemory(); }
+      catch (e) { box.innerHTML = '<p class="hint" style="margin:0;">' + esc(e.message) + '</p>'; }
+    }
+    function renderMemory() {
+      const box = document.getElementById('memList');
+      if (!box || !memPage) return;
+      const notes = memPage.notes || [];
+      box.innerHTML = (notes.length ? notes.map(n => '<div class="wl-row"><span class="ph"><i class="ti ti-notebook"></i></span>' +
+          '<div class="t"><b>' + esc(n.note) + '</b><span>' + esc(new Date(n.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + '</span></div>' +
+          '<button type="button" class="mini-btn" data-mem-forget="' + Number(n.id) + '" title="Forget this" aria-label="Forget this"><i class="fa-solid fa-xmark"></i></button></div>').join('')
+        : '<p class="hint" style="margin:0;">Nothing yet. Tell Nathan about yourself ("on weeknights I only have an hour") and he’ll remember.</p>') +
+        (notes.length || memPage.chats ? '<button type="button" class="btn ghost" data-mem-all style="margin-top:0.5rem;justify-self:start;">' +
+          (memConfirm ? 'Tap again to forget everything' : 'Forget everything (notes and past chats)') + '</button>' : '');
+      if (memScroll) { memScroll = false; document.getElementById('memLabel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    }
+    profileModal.addEventListener('click', async (e) => {
+      const one = e.target.closest('[data-mem-forget]');
+      const all = e.target.closest('[data-mem-all]');
+      if (!one && !all) return;
+      if (all && !memConfirm) { memConfirm = true; renderMemory(); return; }
+      try {
+        memPage = await n8nFetch('/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(one ? { action: 'forget', id: Number(one.dataset.memForget) } : { action: 'forgetAll' }) });
+        memConfirm = false;
+        renderMemory();
+        if (all) { thread.innerHTML = ''; askLast = null; newChat(); setPanel('hidden'); }
+        toast(one ? 'Nathan forgot that.' : 'Nathan forgot everything about your chats.');
+      } catch (err) { toast(err.message, true); }
+    });
+    // "What I remember" under an answer opens the profile at that section
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('[data-open-memory]')) return;
+      memScroll = true;
+      document.getElementById('menuProfile').click();
+    });
     function renderTop() {
       const list = document.getElementById('topList');
       if (!list || !myProfile) return;

@@ -59,6 +59,18 @@ SELECT pg_temp.check((SELECT title FROM games WHERE id = bgc.match_game('Catan')
 SELECT pg_temp.check(bgc.match_game('Zzqx Not A Real Game') IS NULL, 'a made-up name finds nothing');
 SELECT pg_temp.check(coalesce((SELECT title FROM games WHERE id = bgc.match_game('Horror on the Orient Express')), '') NOT LIKE '%Dead Man%', 'a game not filled in yet isn''t swapped for a similar title');
 
+-- Nathan's memory: chats and notes are private to each member, and a turned-down game is skipped
+SELECT pg_temp.check((bgc.chat_save('check.member@example.invalid', 'check-chat-1', 'something like Catan', '{"pick": {"title": "Catan"}}', '[{"note": "Prefers games under an hour", "replaces": null, "skip": null}, {"note": "Doesn''t want Terraforming Mars suggested", "replaces": null, "skip": "Terraforming Mars"}]') ->> 'ok')::boolean, 'a chat turn is saved');
+SELECT pg_temp.check(jsonb_array_length(bgc.memory_for('check.member@example.invalid', 'check-chat-1') -> 'notes') = 2, 'Nathan remembers what he learned about you');
+SELECT pg_temp.check((bgc.memory_for('check.member@example.invalid', 'check-chat-1') -> 'skipBgg') @> to_jsonb((SELECT bgg_id FROM games WHERE title = 'Terraforming Mars')), 'a game you turned down is on your skip list');
+SELECT pg_temp.check((bgc.memory_for('check.member@example.invalid', 'check-chat-1') -> 'recentBgg') @> to_jsonb((SELECT bgg_id FROM games WHERE title = 'Catan')), 'Nathan knows what he suggested you lately');
+SELECT pg_temp.check(jsonb_array_length(bgc.memory_for('check.member@example.invalid', 'check-chat-1') -> 'turns') = 1, 'Nathan sees the chat so far');
+SELECT pg_temp.check(jsonb_array_length(bgc.memory_for('dandehaan@gmail.com', 'check-chat-1') -> 'turns') = 0, 'someone else''s chat isn''t yours, even with its key');
+SELECT pg_temp.check(bgc.memory_page('dandehaan@gmail.com', 'check-chat-1') -> 'chat' = 'null'::jsonb OR bgc.memory_page('dandehaan@gmail.com', 'check-chat-1') -> 'chat' ->> 'key' <> 'check-chat-1', 'you can''t open someone else''s chat');
+SELECT pg_temp.check((bgc.memory_forget('check.member@example.invalid', NULL) ->> 'ok')::boolean, 'you can ask Nathan to forget everything');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM chat_turns t JOIN members m ON m.id = t.member_id WHERE m.google_email = 'check.member@example.invalid')
+  AND NOT EXISTS (SELECT 1 FROM member_notes n JOIN members m ON m.id = n.member_id WHERE m.google_email = 'check.member@example.invalid'), '"Forget everything" deletes your notes and chats');
+
 -- People lists come from plays (1+), and Matt's counts are intact
 SELECT pg_temp.check((SELECT play_count FROM shelves s JOIN games g ON g.id = s.game_id WHERE s.member_id = 1 AND g.title = 'The Crew: The Quest for Planet Nine') = 21, 'Dan''s play counts are intact (The Crew: 21)');
 

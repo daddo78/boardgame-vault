@@ -4,10 +4,16 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 
 ## v0.12 · October 20, 2026
 
+**Nathan gets to know you**
+- Tell him about yourself and he remembers it: "on weeknights I only have about an hour", "I hate trivia games", "please stop suggesting Cascadia". A small 📝 "I'll remember…" line shows under his answer when he learns something.
+- He uses what he remembers in every answer, and never suggests a game you asked him to drop.
+- Your chat is saved, so it's still there after a refresh or on your phone. He can look back over it too ("what was the first game you suggested?"). The top bar or **New chat** starts a fresh one.
+- Ask the same thing twice and you'll get fresh ideas. He knows what he recommended you in the last two weeks, on any device.
+- **You're in control:** My profile → *What Nathan remembers* lists everything he's learned. Remove any note, or tap *Forget everything* to clear your notes and past chats. Only you can see them. Chats are kept for 6 months.
+
 **Fixes**
-- Asking about a game you don’t own finds that exact game ("Horror on the Orient Express" no longer turns into "Dead Man on the Orient Express").
-- Nathan’s "worth a look" tip never suggests a game you already own.
-- Ask the same thing twice and you’ll get fresh ideas: Nathan remembers what he recommended you in the last two weeks and mixes up games that fit equally well.
+- Asking about a game you don't own finds that exact game ("Horror on the Orient Express" no longer turns into "Dead Man on the Orient Express").
+- Nathan's "worth a look" tip never suggests a game you already own.
 
 ## v0.11 · October 20, 2026
 

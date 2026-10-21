@@ -169,7 +169,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
       <text class="s" x="336" y="184">Every page action is a webhook. Each one</text>
       <text class="s" x="336" y="200">checks the Google token and membership</text>
       <text class="s" x="336" y="216">first, then does its work.</text>
-      <rect class="chip" x="336" y="234" width="122" height="26" rx="13"/><text class="ct" x="350" y="251">31 webhooks</text>
+      <rect class="chip" x="336" y="234" width="122" height="26" rx="13"/><text class="ct" x="350" y="251">33 webhooks</text>
       <rect class="chip" x="466" y="234" width="138" height="26" rx="13"/><text class="ct" x="479" y="251">6 scheduled jobs</text>
       <rect class="chip" x="336" y="268" width="122" height="26" rx="13"/><text class="ct" x="352" y="285">Ask (Nathan)</text>
       <rect class="chip" x="466" y="268" width="138" height="26" rx="13"/><text class="ct" x="482" y="285">Error Alert</text>
@@ -261,14 +261,15 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
   <p>Ask is the biggest workflow. Two AI steps do the reading and the writing. Plain code and SQL around them decide what's true: which games exist, who owns them, and what fits the limits.</p>
   <ol class="pipe">
     <li><span class="tag db">Database</span><div><b>Count the question.</b> Each member gets 30 a day (admins can change it). The day resets at midnight Eastern.</div></li>
+    <li><span class="tag db">Database</span><div><b>Remember.</b> Loads what Nathan has learned about the asker (short notes, games to skip), what he suggested them in the last two weeks, and this chat so far: how it started plus the latest five turns.</div></li>
     <li><span class="tag ai">Gemini</span><div><b>Understand.</b> Turns the question into a plan: what kind of question it is (browse, recommend, person, game, buy, rules), who's playing, player count, time, weight, themes, games named.</div></li>
     <li><span class="tag code">Code</span><div><b>Firm rules.</b> These override the model's reading. "A game I don't own" means ideas to buy, "my" means the asker's shelf, "who has…" looks across friends, and "at Keith's" means Keith's shelf.</div></li>
     <li><span class="tag db">Database</span><div><b>Look things up.</b> Finds the games named, even partial or misspelled names (<code>match_game</code>). Also gets who owns them, ideas to buy, friends' shelves, the asker's Top 10 and wishlist, and any uploaded rulebook text.</div></li>
     <li><span class="tag web">BGG</span><div><b>Fill the gaps.</b> If a game isn't in our catalog yet, BoardGameGeek supplies it. The most-rated exact match wins.</div></li>
     <li><span class="tag code">Code</span><div><b>Shortlist.</b> Applies the hard limits and scores the rest by the group's ratings, plays and taste. Follow-ups ("which of those are co-op?") stay within the last answer.</div></li>
-    <li><span class="tag ai">Claude</span><div><b>Nathan writes the answer</b> from that shortlist only, in his voice: picks, reasons, a quip, and an honest note when nothing fits.</div></li>
+    <li><span class="tag ai">Claude</span><div><b>Nathan writes the answer</b> from that shortlist only, in his voice: picks, reasons, a quip, and an honest note when nothing fits. In the same reply he notes up to two lasting facts the asker just told him ("has about an hour on weeknights").</div></li>
     <li><span class="tag code">Code</span><div><b>Check the answer.</b> Removes any game that wasn't on the shortlist, removes the asker's name used as a greeting, and drops a "worth a look" tip that names a game already owned.</div></li>
-    <li><span class="tag db">Database</span><div><b>Log it.</b> Saves only the kind of question and how long it took, never the words, for the admin dashboard.</div></li>
+    <li><span class="tag db">Database</span><div><b>Save it.</b> After replying, saves the turn to the asker's chat history and applies what he learned (their notes, at most 30). The admin dashboard gets only the kind of question and how long it took, never the words.</div></li>
   </ol>
 </section>
 
@@ -288,6 +289,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
         <tr><td>Wishlists</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>wishlist</td><td>Yours or a friend's; "Got it!" moves a game onto your shelf</td><td class="who-pill">member</td></tr>
         <tr><td>Rulebooks</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>rulebook</td><td>Upload a PDF once; everyone can open it and Nathan reads it</td><td class="who-pill">member</td></tr>
         <tr><td>Nathan</td><td class="ep"><span class="m post">POST</span>ask</td><td>The question pipeline above</td><td class="who-pill">member · 30/day</td></tr>
+        <tr><td>Memory</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>memory</td><td>Your latest chat to show again, what Nathan remembers, forgetting a note or everything</td><td class="who-pill">member</td></tr>
         <tr><td>Admin</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>admin<br><span class="m">GET</span>dashboard</td><td>Members, invites, admin rights, Nathan's limits; the usage dashboard</td><td class="who-pill">admin</td></tr>
         <tr><td>Welcome page</td><td class="ep"><span class="m">GET</span>collection</td><td>What visitors see before they're members</td><td class="who-pill">anyone</td></tr>
       </tbody>
@@ -303,7 +305,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
       <div class="clock">
         <div><time>4:00</time><span>Sync plays from BoardGameGeek for everyone who connected a username</span></div>
         <div><time>4:20</time><span>Sync people: who has logged plays with whom, and their BGG ratings</span></div>
-        <div><time>5:40</time><span>Self-test: 32 database checks, then 18 real questions to Nathan. Emails Dan only if something fails</span></div>
+        <div><time>5:40</time><span>Self-test: 41 database checks, then 18 real questions to Nathan. Emails Dan only if something fails</span></div>
         <div><time>9:00</time><span>Health check: emails Dan if the database backup hasn't run in 26 hours</span></div>
         <div><time>nightly</time><span>Backup: both databases dumped to the private GitHub repo</span></div>
       </div>
@@ -329,7 +331,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
     <li><div><b>Edit the source</b><span class="who">index.html · n8n/gen.js · server/bgc-db/schema/NNN_*.sql</span>Workflows are written as code in one file, never clicked together in the n8n editor.</div></li>
     <li><div><b>Apply database changes</b><span class="who">psql &lt; schema/022_match_unfilled.sql</span>Each schema file is numbered and safe to run again.</div></li>
     <li><div><b>Deploy the workflows</b><span class="who">n8n/deploy.sh ask</span>Generates the workflow JSON, imports and publishes it, then restarts n8n and waits until it answers.</div></li>
-    <li><div><b>Run the checks</b><span class="who">bgc.self_check(): 32 rules, rolled back afterwards</span>The deploy fails if any check fails. It covers membership, privacy, ratings, wishlists, admin and game matching. <code>node n8n/test-nathan.js</code> runs the 18 Nathan questions.</div></li>
+    <li><div><b>Run the checks</b><span class="who">bgc.self_check(): 41 rules, rolled back afterwards</span>The deploy fails if any check fails. It covers membership, privacy, ratings, wishlists, admin, game matching and Nathan's memory. <code>node n8n/test-nathan.js</code> runs the 18 Nathan questions.</div></li>
     <li><div><b>Push the page</b><span class="who">git push → GitHub Pages</span>The site updates within a minute or two.</div></li>
     <li><div><b>Tell the testers</b><span class="who">CHANGELOG.md → node tools/post-update.js v0.12</span>Posts that version's notes to the bgc-testers channel on Discord.</div></li>
   </ol>
@@ -346,6 +348,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
         <li><b>shelves</b>: who owns what, favorites</li>
         <li><b>plays</b>, <b>ratings</b>: from BG Stats via BGG, and your stars</li>
         <li><b>wishlist</b>, <b>rulebooks</b> (PDF plus extracted text)</li>
+        <li><b>chat_turns</b>, <b>member_notes</b>: Nathan's memory. Chats are kept 6 months; notes stay until you delete them</li>
         <li><b>ask_log</b>, <b>settings</b>: question types and timings, limits, the last self-test</li>
       </ul>
     </div>
@@ -355,7 +358,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
         <li>The database password stays on the server (<code>~/bgc-db/.env</code>).</li>
         <li>API keys for BGG and OpenRouter are stored as n8n credentials.</li>
         <li>The Discord webhook is on Dan's PC (<code>%USERPROFILE%\.bgc</code>).</li>
-        <li>Question text is never stored. Only the kind of question is.</li>
+        <li>Chats are stored for Nathan's memory, and only the asker sees them. The admin dashboard shows question types, never the words.</li>
       </ul>
     </div>
   </div>
