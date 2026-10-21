@@ -362,7 +362,23 @@
   .ask-send { position: absolute; right: 0.35rem; top: 50%; transform: translateY(-50%); width: 2.2rem; height: 2.2rem; border-radius: 50%; border: none; background: var(--brand); color: #fff; cursor: pointer; font-size: 1.15rem; display: flex; align-items: center; justify-content: center; }
   .ask-send:hover { background: var(--brand-dark); }
   .ask-send:disabled { background: #d9c9b8; cursor: default; }
-  .ask-bar .search-clear { right: 2.85rem; }
+  .ask-bar .search-clear { right: 5.1rem; }
+  .search-box.ask-bar input { padding-right: 7.6rem !important; }
+  /* Attach a photo: next to the send button in the Ask bar and the reply box */
+  .photo-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 2.1rem; height: 2.1rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: var(--navy); background: var(--exp-bg); cursor: pointer; font-size: 1.05rem; }
+  .photo-btn:hover { background: #e9dfcc; }
+  .photo-btn:focus-within { outline: 2px solid var(--teal); outline-offset: 2px; }
+  .ask-bar .photo-btn { right: 2.8rem; }
+  .np-compose .photo-btn { right: 2.85rem; }
+  .np-compose input { padding-right: 5.6rem !important; }
+  .photo-chip { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0 0 0.4rem; padding: 0.3rem 0.4rem 0.3rem 0.3rem; border-radius: 0.7rem; background: var(--exp-bg); font-size: 0.82rem; font-weight: 700; color: var(--ink); }
+  .photo-chip[hidden] { display: none; }
+  .photo-chip img { width: 2.4rem; height: 2.4rem; object-fit: cover; border-radius: 0.45rem; }
+  .photo-chip button { border: 0; background: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; padding: 0 0.2rem; }
+  .np-compose .photo-chip { margin: 0 0 0.45rem 0.4rem; }
+  body.chatting #barPhotoChip { display: none; }
+  .np-bubble img.np-photo { display: block; max-width: min(220px, 100%); max-height: 220px; object-fit: cover; border-radius: 0.7rem; margin-bottom: 0.4rem; }
   .mention-list { position: absolute; left: 2.6rem; top: calc(100% + 0.35rem); z-index: 20; background: #fff; border-radius: 0.9rem; box-shadow: 0 12px 30px rgba(40,25,10,0.18); padding: 0.35rem; min-width: 15rem; max-width: calc(100% - 3rem); max-height: 16rem; overflow-y: auto; }
   .mention-list[hidden] { display: none; }
   .mention-opt { display: flex; align-items: center; gap: 0.55rem; width: 100%; border: none; background: none; text-align: left; padding: 0.5rem 0.65rem; border-radius: 0.6rem; font-family: var(--font-body); font-size: 0.92rem; font-weight: 600; color: var(--ink); cursor: pointer; }
@@ -809,8 +825,10 @@
         <input type="text" id="searchInput" placeholder="Ask Nathan about your shelf… (@ to add people)" enterkeyhint="send" maxlength="500" autocomplete="off"
           aria-label="Ask Nathan about your shelf" role="combobox" aria-autocomplete="list" aria-controls="mentionList" aria-expanded="false" />
         <button type="button" class="search-clear" id="searchClear" aria-label="Clear" hidden><i class="ti ti-x"></i></button>
+        <label class="photo-btn member-only" title="Add a photo (an icon, a card, a game box)"><i class="ti ti-camera"></i><input type="file" accept="image/*" data-photo-input="bar" hidden aria-label="Add a photo"></label>
         <button type="button" class="ask-send" id="askSend" aria-label="Ask Nathan" title="Ask Nathan (Enter)"><i class="ti ti-arrow-up"></i></button>
         <div class="mention-list" id="mentionList" role="listbox" hidden></div>
+        <div class="photo-chip" id="barPhotoChip" hidden><img alt="The photo you're adding"><span>Photo added</span><button type="button" data-photo-remove aria-label="Remove the photo"><i class="ti ti-x"></i></button></div>
         <div class="mention-list suggest-list" id="askExamples" role="listbox" aria-label="Ideas to ask Nathan" hidden>
           <div class="suggest-head">Try asking Nathan</div>
           <button type="button" class="mention-opt" role="option" data-example="What can four of us finish in under 30 minutes?"><span class="at"><i class="ti ti-sparkles"></i></span>What can four of us finish in under 30 minutes?</button>
@@ -838,8 +856,10 @@
           <div class="np-thread" id="askThread" aria-live="polite"></div>
           <button type="button" class="np-more" id="npMore" hidden>Chat more <i class="ti ti-chevron-down"></i></button>
           <div class="np-compose" id="npCompose">
+            <div class="photo-chip" id="npPhotoChip" hidden><img alt="The photo you're adding"><span>Photo added</span><button type="button" data-photo-remove aria-label="Remove the photo"><i class="ti ti-x"></i></button></div>
             <input type="text" id="npInput" placeholder="Reply to Nathan… (@ to add people)" enterkeyhint="send" maxlength="500" autocomplete="off"
               aria-label="Reply to Nathan" role="combobox" aria-autocomplete="list" aria-controls="npMentionList" aria-expanded="false" />
+            <label class="photo-btn" title="Add a photo (an icon, a card, a game box)"><i class="ti ti-camera"></i><input type="file" accept="image/*" data-photo-input="reply" hidden aria-label="Add a photo"></label>
             <button type="button" class="ask-send" id="npSend" aria-label="Send to Nathan"><i class="ti ti-arrow-up"></i></button>
             <div class="mention-list" id="npMentionList" role="listbox" hidden></div>
           </div>
@@ -2916,7 +2936,7 @@
       return used || none ? '<div class="n-sources">' + used + none + '</div>' : '';
     }
     function nathanAnswerHtml(r) {
-      if (r.offTopic || (!r.pick && !(r.highlights || []).length)) return '<p class="ask-note" style="margin:0;">' + esc(r.note || (r.gap && r.gap.missing) || 'Nathan came up empty on that one.') + '</p>';
+      if (r.offTopic || (!r.pick && !(r.highlights || []).length && !r.summary)) return '<p class="ask-note" style="margin:0;">' + esc(r.note || (r.gap && r.gap.missing) || 'Nathan came up empty on that one.') + '</p>';
       const gap = r.gap ? '<div class="n-gap">' + esc(r.gap.missing) +
         (r.gap.consider ? ' Not on your shelf, but worth a look: <a href="https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=' + encodeURIComponent(r.gap.consider) + '" target="_blank" rel="noopener">' + esc(r.gap.consider) + '</a>.' : '') + '</div>' : '';
       const n = (r.matchIds || []).length;
@@ -2932,7 +2952,7 @@
       const top = (r.intent === 'browse' ? '' : understoodHtml(r.understood)) + seeAll;
       const head = top ? '<div class="n-toprow">' + top + '</div>' : '';
       const body = r.intent === 'browse'
-        ? head + '<p class="n-summary' + (r.mode === 'rules' ? ' rules' : '') + '">' + esc(r.summary || '') + '</p>' + rulesLinks(r) + gap + (r.mode === 'rules' ? '' : r.highlights.map(h => nathanCard(h, 'highlight')).join(''))
+        ? head + '<p class="n-summary' + (r.mode === 'rules' ? ' rules' : '') + '">' + esc(r.summary || '') + '</p>' + rulesLinks(r) + gap + (r.mode === 'rules' ? '' : (r.highlights || []).map(h => nathanCard(h, 'highlight')).join(''))
         : head + gap + nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid');
       const memo = (r.remembered || []).length ? '<p class="n-memo"><span><i class="ti ti-notebook"></i> I’ll remember: ' + r.remembered.map(esc).join('; ') + '.</span>' +
         '<button type="button" class="linklike" data-open-memory>What I remember</button></p>' : '';
@@ -3007,9 +3027,39 @@
       const timer = setInterval(show, 2400);
       return () => clearInterval(timer);
     }
+    let pendingPhoto = null; // a photo going with the next question (never stored)
+    async function shrinkPhoto(file) {
+      const bmp = await createImageBitmap(file);
+      const k = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', 0.82);
+    }
+    function renderPhotoChips() {
+      for (const id of ['barPhotoChip', 'npPhotoChip']) {
+        const chip = document.getElementById(id);
+        chip.hidden = !pendingPhoto;
+        if (pendingPhoto) chip.querySelector('img').src = pendingPhoto;
+      }
+    }
+    document.addEventListener('change', async (e) => {
+      const input = e.target.closest('[data-photo-input]');
+      if (!input) return;
+      const file = input.files[0];
+      input.value = '';
+      if (!file) return;
+      try { pendingPhoto = await shrinkPhoto(file); }
+      catch (err) { toast('That photo couldn’t be opened. Try a JPEG or PNG.', true); return; }
+      renderPhotoChips();
+      const box = input.dataset.photoInput === 'bar' ? bar : npInput;
+      if (!box.value.trim()) box.placeholder = 'Ask about the photo, e.g. "what does this icon mean?"';
+    });
+    document.addEventListener('click', (e) => { if (e.target.closest('[data-photo-remove]')) { pendingPhoto = null; renderPhotoChips(); } });
     async function askNathan(text, followUp) {
       if (asks && asks.left <= 0) { renderAskMeter(); return; }
-      const question = String(text || '').trim();
+      const photo = pendingPhoto;
+      const question = String(text || '').trim() || (photo ? 'What is this?' : '');
       const input = followUp ? npInput : bar;
       if (question.length < 3) { input.focus(); return; }
       if (askBusy) return;
@@ -3026,7 +3076,9 @@
         newChat();
       }
       setPanel(followUp ? 'expanded' : 'collapsed');
-      thread.insertAdjacentHTML('beforeend', '<div class="np-turn me"><div class="np-bubble">' + bubbleHtml(question) + '</div></div>');
+      thread.insertAdjacentHTML('beforeend', '<div class="np-turn me"><div class="np-bubble">' + (photo ? '<img class="np-photo" src="' + photo + '" alt="Your photo">' : '') + bubbleHtml(question) + '</div></div>');
+      pendingPhoto = null; renderPhotoChips();
+      bar.placeholder = 'Ask Nathan about your shelf… (@ to add people)'; npInput.placeholder = 'Reply to Nathan… (@ to add people)';
       const names = people.players.filter(p => askSelected.has(p.id)).map(p => firstName(p.name));
       const turn = document.createElement('div');
       turn.className = 'np-turn nathan';
@@ -3037,7 +3089,7 @@
       (followUp ? turn : panel).scrollIntoView({ behavior: 'smooth', block: followUp ? 'nearest' : 'start' });
       try {
         const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], recent: recentPicks().map((x) => x.id), chatKey, shelf: currentShelf() }) });
+          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], recent: recentPicks().map((x) => x.id), chatKey, image: photo, shelf: currentShelf() }) });
         if (r.chatKey) chatKey = r.chatKey;
         if (r.pick || (r.highlights || []).length) {
           // The whole answer (all ten of a top ten), so "which of those…" narrows it instead of starting over

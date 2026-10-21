@@ -1605,7 +1605,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   code('Validate', function () {
     const b = $input.first().json.body || {};
     const err = (status, message) => [{ json: { ok: false, status, message } }];
-    const question = String(b.question || '').trim();
+    const image = typeof b.image === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b.image) && b.image.length < 2500000 ? b.image : null;
+    if (b.image && !image) return err(400, 'That photo couldn’t be read. Try another one.');
+    const question = String(b.question || '').trim() || (image ? 'What is this?' : '');
     if (question.length < 3) return err(400, 'Ask a question, like "a co-op for 3 under an hour".');
     if (question.length > 500) return err(400, 'Keep the question under 500 characters.');
     // Safety net across everyone (the per-member allowance is checked next, in the database)
@@ -1626,7 +1628,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const recent = Array.isArray(b.recent) ? b.recent.map(String).filter((x) => x.length < 40).slice(0, 40) : [];
     const chatKey = /^[A-Za-z0-9-]{8,64}$/.test(String(b.chatKey || '')) ? String(b.chatKey) : 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     const auth = $input.first().json._auth;
-    return [{ json: { ok: true, t0: Date.now(), question, playerIds, previous: prev, mentioned, recent, chatKey, memory: b.noMemory !== true, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
+    return [{ json: { ok: true, t0: Date.now(), question, playerIds, previous: prev, mentioned, recent, chatKey, memory: b.noMemory !== true, image, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
       shelf: /^friend:\d+$/.test(String(b.shelf || '')) ? String(b.shelf) : b.shelf === 'mine' ? 'mine' : 'main' } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
@@ -1640,8 +1642,39 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   }),
   ifTrue('Allowed?', '={{ $json.ok }}'),
   // What Nathan remembers: notes about the asker, games they turned down, his recent picks for them, and this chat so far
-  pg('Memory', "SELECT CASE WHEN $3::boolean THEN bgc.memory_for($1, $2) ELSE '{}'::jsonb END AS mem",
+  pg('Memory', "SELECT CASE WHEN $3::boolean THEN bgc.memory_for($1, $2) ELSE '{}'::jsonb END AS mem, " +
+    "(SELECT coalesce(jsonb_agg(DISTINCT g.title), '[]') FROM rule_docs d JOIN games g ON g.id = d.game_id WHERE d.status = 'ready') AS rule_games",
     "={{ [$('Validate').first().json.email, $('Validate').first().json.chatKey, String($('Validate').first().json.memory)] }}"),
+  // A photo: the vision model says what it shows (a box, an icon, a card…), which game, and any readable text
+  ifTrue('Photo?', "={{ !!$('Validate').first().json.image }}"),
+  code('Photo Request', function () {
+    const v = $('Validate').first().json;
+    return [{ json: { requestBody: {
+      model: '__VISION_MODEL__', models: ['google/gemini-2.5-flash', '__VISION_MODEL__'], max_tokens: 800, temperature: 0.1, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: 'A board game player attached this photo to a question for their game assistant. The question: "' + v.question.replace(/"/g, '\'') + '"\n' +
+          (() => {
+            const m = $('Memory').first().json;
+            const earlier = ((m.mem || {}).turns || []).slice(-2).map((t) => t.q).join(' / ');
+            return (earlier ? 'Earlier in this chat they asked: ' + earlier + '\n' : '') +
+              ((m.rule_games || []).length ? 'Games we have rulebooks for (prefer these if the photo fits one): ' + m.rule_games.join('; ') + '\n' : '');
+          })() +
+          'Reply with JSON only: {"shows": "box" | "icon" | "card" | "board" | "component" | "rulebook page" | "other", ' +
+          '"games": [the official BoardGameGeek titles of any games you can identify from the photo, most likely first, else []], ' +
+          '"text": "any readable text, word for word", ' +
+          '"description": "one or two plain sentences of what is shown. For an icon or symbol, describe its colour and shape the way a rulebook\'s text would (e.g. purple hand icon, green leaf symbol)"}' },
+        { type: 'image_url', image_url: { url: v.image } },
+      ] }],
+    } } }];
+  }),
+  { ...openrouter('Look At Photo'), onError: 'continueRegularOutput' },
+  code('Photo Notes', function () {
+    const text = $input.first().json.choices?.[0]?.message?.content || '';
+    let p = {};
+    try { p = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) { p = {}; }
+    const games = (Array.isArray(p.games) ? p.games : []).map((g) => String(g).trim()).filter(Boolean).slice(0, 3);
+    return [{ json: { shows: String(p.shows || 'other').slice(0, 30), games, text: String(p.text || '').slice(0, 600), description: String(p.description || 'A photo the asker attached.').slice(0, 600) } }];
+  }),
   // Dan's shelf, or the member's own: its games, its owner's player list (from their plays) and ratings
   pg('Shelf View', 'SELECT bgc.shelf_view($1, $2, $3) AS v',
     "={{ [$('Validate').first().json.email, $('Validate').first().json.shelf, $('Validate').first().json.askerId] }}"),
@@ -1702,6 +1735,14 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       selected.length ? `Already selected as playing: ${selected.join(', ')}` : '',
       v.previous ? 'PREVIOUS: ' + JSON.stringify({ question: v.previous.question, constraints: v.previous.constraints }) + ' (its answer had ' + (v.previous.setIds || []).length + ' games)' : '',
       (() => { const t = ($('Memory').first().json.mem || {}).turns || []; return t.length > 1 ? 'EARLIER IN THIS CHAT (turn 1 is how it started; for a question about this conversation, like "what did you suggest first?" or "the other one you mentioned", take the game titles from here):\n' + t.map((x, i) => (i ? 'later turn' : 'turn 1') + ': Q: ' + x.q + ' | A: ' + x.a).join('\n') : ''; })(),
+      (() => {
+        if (!$('Photo Notes').isExecuted) return '';
+        const p = $('Photo Notes').first().json;
+        return 'PHOTO: the asker attached a photo. It shows: ' + p.shows + '. ' + p.description + (p.text ? ' Readable text: "' + p.text + '".' : '') + (p.games.length ? ' It looks like it is from: ' + p.games.join(' / ') + '.' : '') + '\n' +
+          'Read the REQUEST with the photo: if it shows a game box and they ask what it is (or about it), intent "game" with games: [that title]. ' +
+          'If it shows an icon, symbol, card or component and they ask what it means or how it works, intent "rules", games: [the game it is from, from the photo, the chat or the request], ' +
+          'and searchTerms: the words a rulebook would use for it, including its look (e.g. "purple hand icon action token spend").';
+      })(),
       '',
       'REQUEST: ' + v.question,
     ].filter((l) => l !== '').join('\n');
@@ -2253,7 +2294,11 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     ].filter((l) => l !== '').join('\n');
     return [{ json: { ...s, requestBody: {
       model: '__ASK_MODEL__', models: ['__ASK_MODEL__', 'google/gemini-2.5-flash'], max_tokens: 2500, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
-      messages: [{ role: 'system', content: systemText }, { role: 'user', content: user }],
+      messages: [{ role: 'system', content: systemText }, { role: 'user', content: $('Photo Notes').isExecuted
+        ? [{ type: 'text', text: user + '\n\nPHOTO: the asker attached the photo below (it shows: ' + $('Photo Notes').first().json.shows + ' — ' + $('Photo Notes').first().json.description + '). ' +
+            'Answer about what is in it. For an icon or component, say what it means from the RULEBOOK EXCERPTS (match it by its look) and cite the page; if the excerpts don\'t say, say so rather than guessing.' },
+          { type: 'image_url', image_url: { url: $('Validate').first().json.image } }]
+        : user }],
     } } }];
   }),
   openrouter('Recommend'),
@@ -2324,13 +2369,13 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     onError: 'continueRegularOutput' },
   // Nathan's memory: the question and answer, and anything he learned about the asker
   { ...pg('Save Turn', 'SELECT bgc.chat_save($1, $2, $3, $4::jsonb, $5::jsonb)',
-    "={{ [$('Validate').first().json.email, $('Validate').first().json.chatKey, $('Validate').first().json.question, JSON.stringify({ ...$('Respond OK').first().json, learn: undefined }), JSON.stringify($('Respond OK').first().json.learn || [])] }}"),
+    "={{ [$('Validate').first().json.email, $('Validate').first().json.chatKey, $('Validate').first().json.question + ($('Validate').first().json.image ? ' (photo)' : ''), JSON.stringify({ ...$('Respond OK').first().json, learn: undefined }), JSON.stringify($('Respond OK').first().json.learn || [])] }}"),
     onError: 'continueRegularOutput' },
   respondError(),
 ], [
   ['Respond OK', 'Log Answer'], ['Log Answer', 'Save Turn'],
   ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Use Allowance', 0], ['Valid?', 'Respond Error', 1],
-  ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'Memory', 0], ['Memory', 'Shelf View'], ['Allowed?', 'Respond Error', 1], ['Shelf View', 'List Games'],
+  ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'Memory', 0], ['Memory', 'Photo?'], ['Photo?', 'Photo Request', 0], ['Photo?', 'Shelf View', 1], ['Photo Request', 'Look At Photo'], ['Look At Photo', 'Photo Notes'], ['Photo Notes', 'Shelf View'], ['Allowed?', 'Respond Error', 1], ['Shelf View', 'List Games'],
   ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'One More Item'], ['One More Item', 'List Ratings'],
   ['List Ratings', 'Build Understand Request'], ['Build Understand Request', 'Understand Request'], ['Understand Request', 'Scope'], ['Scope', 'Own Shelf'], ['Own Shelf', 'Game Lookup'], ['Game Lookup', 'Lookup Queries'], ['Lookup Queries', 'Ask BGG?'],
   ['Ask BGG?', 'Game Search', 0], ['Ask BGG?', 'Shortlist', 1], ['Game Search', 'Game Candidates'], ['Game Candidates', 'Game Thing'], ['Game Thing', 'Game Choose'], ['Game Choose', 'Shortlist'],

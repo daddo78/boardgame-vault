@@ -4,6 +4,7 @@
 #   ./test-ask.sh "What do you know about me?"                 (as Dan)
 #   ./test-ask.sh "something quick for 4" friend@example.com    (as another member; pass a role with ROLE=friend)
 #   CHAT=key SAVE=1 ./test-ask.sh "..." (continue a chat and save it to memory; MEMORY=0 ignores what Nathan remembers)
+#   IMAGE=photo.jpg ./test-ask.sh "what does this icon mean?"   (attach a photo)
 #   SHELF=mine ./test-ask.sh "my top ten most played" friend@example.com   (on their own shelf; or SHELF=friend:3)
 # Leaves an inactive "TEMP test: ask" workflow in n8n (archive it in the UI when done testing).
 set -euo pipefail
@@ -23,7 +24,7 @@ for (const k of Object.keys(w.connections)) if (drop(k)) delete w.connections[k]
 const wh = w.nodes.find((n) => n.name === 'Webhook');
 Object.assign(wh, { type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, parameters: {} }); delete wh.webhookId;
 const roleNode = w.nodes.find((n) => n.name === 'Auth: Role');
-roleNode.parameters = { jsCode: `return [{ json: { body: { question: ${JSON.stringify(q)}, playerIds: [], shelf: ${JSON.stringify(shelf)}, previous: ${process.env.PREV || "null"}, chatKey: ${JSON.stringify(process.env.CHAT || "")}, noMemory: ${process.env.MEMORY === "0"} }, _authOk: true, _auth: { role: ${JSON.stringify(role)}, email: ${JSON.stringify(email)}, playerId: $('Who').first().json.playerId, playerName: $('Who').first().json.playerName } } }];` };
+roleNode.parameters = { jsCode: `return [{ json: { body: { question: ${JSON.stringify(q)}, playerIds: [], shelf: ${JSON.stringify(shelf)}, previous: ${process.env.PREV || "null"}, chatKey: ${JSON.stringify(process.env.CHAT || "")}, noMemory: ${process.env.MEMORY === "0"}, image: ${process.env.IMAGE ? JSON.stringify("data:image/jpeg;base64," + require("fs").readFileSync(process.env.IMAGE).toString("base64")) : "null"} }, _authOk: true, _auth: { role: ${JSON.stringify(role)}, email: ${JSON.stringify(email)}, playerId: $('Who').first().json.playerId, playerName: $('Who').first().json.playerName } } }];` };
 // Look up the member's player card the same way sign-in does
 w.nodes.push({ id: 'who', name: 'Who', type: 'n8n-nodes-base.postgres', typeVersion: 2.6, position: [0, 200],
   parameters: { operation: 'executeQuery', options: {},
