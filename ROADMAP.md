@@ -80,6 +80,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [x] Merge duplicate player cards: Keith McKimmy III merged into Keith McKimmy (now an alias)
 
 ## 6. Later ideas
+- [ ] Move to boardgamecurator.com (on hold; bought through Cloudflare, nameservers already Cloudflare, no DNS records yet). Dan: two CNAMEs (`@` and `www` → `daddo78.github.io`, DNS only) and the Google OAuth client's origins/redirect (`https://boardgamecurator.com`, `www`, and `/`). Claude: `CNAME` file, links in tools/post-update.js, docs/architecture.html and README, test sign-in, then Enforce HTTPS and a 301 redirect rule from bg.ondorilabo.com. Testers sign in once more; the server stays n8n.ondorilabo.com
 - [ ] Player pages: each person's top games, win rate, favorites
 - [ ] Game night log: who came and what was played
 - [ ] Thinning helper: suggest what to let go using thinning flags plus play data
