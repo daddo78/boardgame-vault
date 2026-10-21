@@ -63,6 +63,7 @@ const ID = {
   aiUsage: 'BGVaultAiUsage01',
   costs: 'BGVaultCosts0001',
   costsSave: 'BGVaultCostsSav1',
+  fillCatalog: 'BGVaultFillCat01',
   dashboard: 'BGVaultDashbrd01',
   askTest: 'BGVaultAskTest01',
   selfTest: 'BGVaultSelfTest1',
@@ -3466,8 +3467,40 @@ const costsSave = wf(ID.costsSave, 'Vault — Costs (fixed costs)', [
 ], [['Webhook', 'Save'], ['Save', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
 addMemberAuth(costsSave, { failTo: 'Respond Error' });
 
+// =====================================================================
+// 42. Fill Catalog  every 10 minutes (and "Run Now"): 20 catalog games that were never looked up on BGG (they came in
+//     from logged plays) get their details and box art. Wishlist and Top 10 games first, then games on shelves.
+// =====================================================================
+const fillCatalog = wf(ID.fillCatalog, 'Vault — Fill Catalog', [
+  node('Every 10 Minutes', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ field: 'minutes', minutesInterval: 10 }] } }),
+  node('Run Now', 'n8n-nodes-base.manualTrigger', 1, {}),
+  pg('Which Games', 'SELECT bgc.catalog_to_fill(20) AS ids', null),
+  ifTrue('Any?', '={{ !!$json.ids }}'),
+  { ...node('BGG Details', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/thing',
+    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    ...qs({ id: '={{ $json.ids }}', stats: '1' }),
+    options: { timeout: 60000, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
+  }, { credentials: CRED.bgg, ...retry }), onError: 'continueRegularOutput' },
+  code('Parse Details', function () {
+    const things = $input.all().flatMap((page) => parseThingXml(page.json.data));
+    return things.length ? things.map((t) => ({ json: t })) : [];
+  }),
+  { ...node('Box Art', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: '=https://api.geekdo.com/api/images/{{ $json.picId || 0 }}',
+    options: { timeout: 20000, batching: { batch: { batchSize: 1, batchInterval: 250 } } },
+  }, { retryOnFail: true, maxTries: 2, waitBetweenTries: 3000 }), onError: 'continueRegularOutput' },
+  code('With Covers', function () {
+    const things = $('Parse Details').all().map((i) => i.json);
+    const imgs = $input.all().map((i) => i.json.images || {});
+    return [{ json: { things: things.map((t, i) => { const im = imgs[i] || {}; return { ...t, coverCard: im.medium?.url || im.itempage?.url || null, coverLarge: im.itempage?.url || im.medium?.url || null }; }) } }];
+  }),
+  pg('Save', "SELECT bgc.enrich_games('', $1::jsonb, '[]'::jsonb) AS r", '={{ [JSON.stringify($json.things)] }}'),
+], [['Every 10 Minutes', 'Which Games'], ['Run Now', 'Which Games'], ['Which Games', 'Any?'], ['Any?', 'BGG Details', 0],
+  ['BGG Details', 'Parse Details'], ['Parse Details', 'Box Art'], ['Box Art', 'With Covers'], ['With Covers', 'Save']]);
+
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest, memory, memoryForget, memberPlays, memberPlaysNightly, ruleChange, ruleReader, aiUsage, costs, costsSave };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest, memory, memoryForget, memberPlays, memberPlaysNightly, ruleChange, ruleReader, aiUsage, costs, costsSave, fillCatalog };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
