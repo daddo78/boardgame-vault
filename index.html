@@ -1529,7 +1529,6 @@
         setSyncStatus('');
         rebuildGenreFilter();
         render();
-        if (!chatRestored) { chatRestored = true; restoreChat(); }
       } catch (e) {
         setSyncStatus(e.message, true);
         const cached = localStorage.getItem(LS_CACHE);
@@ -2710,29 +2709,10 @@
     const SS_JOKED = 'vault_nathan_joked';
     const joked = new Set((() => { try { return JSON.parse(sessionStorage.getItem(SS_JOKED) || '[]'); } catch (e) { return []; } })());
     const rememberJoked = (ids) => { ids.forEach(id => joked.add(id)); try { sessionStorage.setItem(SS_JOKED, JSON.stringify([...joked])); } catch (e) {} };
-    // The conversation: kept on the server so it survives a refresh and Nathan can look back at it. "New chat" starts another.
-    const LS_CHAT = 'vault_nathan_chat';
-    let chatKey = (() => { try { return localStorage.getItem(LS_CHAT) || ''; } catch (e) { return ''; } })();
-    let chatRestored = false;
-    const setChatKey = (k) => { chatKey = k || ''; try { chatKey ? localStorage.setItem(LS_CHAT, chatKey) : localStorage.removeItem(LS_CHAT); } catch (e) {} };
-    const newChat = () => setChatKey(window.crypto && crypto.randomUUID ? crypto.randomUUID() : 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
-    // Your latest chat (from the last 12 hours) comes back after a refresh, or on another device
-    async function restoreChat() {
-      if (!isMember() || thread.children.length) return;
-      let m;
-      try { m = await n8nFetch('/memory' + (chatKey ? '?chat=' + encodeURIComponent(chatKey) : ''), { method: 'GET' }); } catch (e) { return; }
-      const turns = (m && m.chat && m.chat.turns) || [];
-      if (!turns.length || thread.children.length) return;
-      setChatKey(m.chat.key);
-      for (const t of turns) {
-        thread.insertAdjacentHTML('beforeend', '<div class="np-turn me"><div class="np-bubble">' + bubbleHtml(t.question) + '</div></div>' +
-          '<div class="np-turn nathan"><div class="nathan-avatar sm" aria-hidden="true"></div><div class="np-body">' + nathanAnswerHtml(t.answer || {}) + '</div></div>');
-        rememberJoked((t.answer || {}).pickIds || []);
-      }
-      const last = turns[turns.length - 1], a = last.answer || {};
-      if (a.pick || (a.highlights || []).length) askLast = { question: last.question, constraints: a.constraints, pickIds: a.pickIds, setIds: (a.matchIds && a.matchIds.length ? a.matchIds : a.pickIds || []).slice(0, 60), fromOwn: !!a.fromOwn };
-      setPanel('collapsed');
-    }
+    // The conversation: each one is saved on the server so Nathan can look back over it. A question from the top bar
+    // or "New chat" starts another; a refresh starts clean.
+    let chatKey = '';
+    const newChat = () => { chatKey = window.crypto && crypto.randomUUID ? crypto.randomUUID() : 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); };
     // Games Nathan recommended in the last two weeks, so asking again brings something fresh
     const LS_RECENT = 'vault_nathan_recent';
     const recentPicks = () => { try { const cut = Date.now() - 14 * 86400000; return (JSON.parse(localStorage.getItem(LS_RECENT) || '[]') || []).filter((x) => x && x.t > cut); } catch (e) { return []; } };
@@ -2923,7 +2903,7 @@
       try {
         const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], recent: recentPicks().map((x) => x.id), chatKey, shelf: currentShelf() }) });
-        if (r.chatKey) setChatKey(r.chatKey);
+        if (r.chatKey) chatKey = r.chatKey;
         if (r.pick || (r.highlights || []).length) {
           // The whole answer (all ten of a top ten), so "which of those…" narrows it instead of starting over
           askLast = { question, constraints: r.constraints, pickIds: r.pickIds, setIds: (r.matchIds && r.matchIds.length ? r.matchIds : r.pickIds || []).slice(0, 60), fromOwn: !!r.fromOwn };

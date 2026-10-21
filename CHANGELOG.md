@@ -2,6 +2,11 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.12.2 · October 21, 2026
+
+- **What's new is in the app:** tap the ⚙️ cog at the top right to see which version you're on and read these notes.
+- Refreshing the page starts with a clean Nathan panel instead of reopening your last chat. He still remembers what you've told him.
+
 ## v0.12.1 · October 21, 2026
 
 **Nathan listens better**
