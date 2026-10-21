@@ -597,6 +597,15 @@
   .fab { position: fixed; bottom: 1.75rem; right: 1.75rem; width: 3.6rem; height: 3.6rem; border-radius: 50%; background: var(--orange); color: #fff; border: none; font-size: 1.8rem; font-weight: 700; cursor: pointer; box-shadow: var(--shadow); z-index: 60; }
   .fab:hover { background: #e58e08; }
   body.chatting #addFab { display: none !important; } /* out of the way of the reply box */
+  /* Back to top: shows once you're a few screens down the shelf, bottom left (the + button is bottom right) */
+  .to-top { position: fixed; left: calc(1.25rem + env(safe-area-inset-left, 0px)); bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); z-index: 60;
+    display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 0.95rem; border-radius: 999px; border: none; cursor: pointer;
+    background: var(--navy); color: #fff; font: 700 0.85rem var(--font-display, inherit); box-shadow: var(--shadow);
+    opacity: 0; transform: translateY(0.6rem); pointer-events: none; transition: opacity 0.2s, transform 0.2s; }
+  .to-top.show { opacity: 1; transform: none; pointer-events: auto; }
+  .to-top:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+  body.chatting .to-top, body.guest .to-top, body.modal-locked .to-top { display: none; }
+  @media (prefers-reduced-motion: reduce) { .to-top { transition: none; } }
   .modal-overlay { position: fixed; inset: 0; background: rgba(20,40,90,0.45); display: none; align-items: center; justify-content: center; z-index: 100; padding: 1.5rem; }
   .modal-overlay.open { display: flex; }
   /* What's new */
@@ -907,6 +916,7 @@
   </footer>
 
   <button class="fab edit-only" id="addFab" title="Add games"><i class="fa-solid fa-plus"></i></button>
+  <button class="to-top" id="toTop" type="button" aria-label="Back to top"><i class="fa-solid fa-arrow-up"></i> Top</button>
 
   <!-- Players (owner only) -->
   <div class="modal-overlay" id="playersModal">
@@ -2335,6 +2345,18 @@
     });
 
     document.getElementById('addFab').addEventListener('click', () => openAddModal('name'));
+    // Back to top, once you're more than two screens down
+    const toTop = document.getElementById('toTop');
+    let toTopTick = false;
+    window.addEventListener('scroll', () => {
+      if (toTopTick) return;
+      toTopTick = true;
+      requestAnimationFrame(() => { toTop.classList.toggle('show', window.scrollY > window.innerHeight * 2); toTopTick = false; });
+    }, { passive: true });
+    toTop.addEventListener('click', () => {
+      const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'instant' });
+    });
     function openAddModal(tab, query) {
       document.getElementById('csvInput').value = '';
       document.getElementById('csvPreview').innerHTML = '';

@@ -9,7 +9,10 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 - A game can have more than one document: the rulebook plus a reference guide, appendix, FAQ or solo rules. Nathan searches all of them ("per the Appendix, p. 3").
 - Games with a rulebook show a 📖 on their cover, on everyone's shelf.
 - To add one, open a game → *Rulebooks & guides*, choose the PDF, and if you can, paste the link to the official copy. Nathan takes about 10 seconds a page. We keep his reading, not the file: everyone opens the official copy from your link.
-- First ones in: SETI, Andromeda's Edge (with its EDGE cases appendix) and The Fate of the Fellowship.
+- First ones in: SETI, Andromeda's Edge (with its EDGE cases appendix) and The Fate of the Fellowship. Any edition works: ask about "Andromeda's Edge" whether you own the base game, the Deluxe Edition, or neither.
+
+**Also**
+- A **Top** button appears once you're a few screens down your shelf, so you can jump back up.
 
 ## v0.12.2 · October 21, 2026
 
