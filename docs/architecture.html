@@ -1,0 +1,365 @@
+<title>Board Game Curator Architecture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column; a wide system map first, then the journeys through it (sign-in, Ask, schedules, shipping) */
+:root {
+  --bg: #f6f8f5;          /* table paper, a touch of felt green */
+  --surface: #ffffff;
+  --ink: #18221c;
+  --muted: #5a6a60;
+  --line: #cfd9d1;
+  --felt: #1f6b4a;        /* the card table */
+  --felt-soft: #e2efe7;
+  --meeple: #c8372d;      /* the site's red */
+  --meeple-soft: #fbe6e3;
+  --amber: #a86a00;
+  --amber-soft: #fbf0d9;
+  --display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111814; --surface: #18221c; --ink: #e6eee8; --muted: #9aaba0; --line: #2d3b33;
+  --felt: #5fc495; --felt-soft: #1d3328; --meeple: #ff7a6e; --meeple-soft: #3a1e1b; --amber: #e7b04a; --amber-soft: #3a2e14;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111814; --surface: #18221c; --ink: #e6eee8; --muted: #9aaba0; --line: #2d3b33;
+  --felt: #5fc495; --felt-soft: #1d3328; --meeple: #ff7a6e; --meeple-soft: #3a1e1b; --amber: #e7b04a; --amber-soft: #3a2e14;
+  color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 72px; display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; font-weight: 700; }
+h3 { font-size: 1.1rem; font-weight: 700; }
+p { margin: 0; max-width: 65ch; }
+.eyebrow { font: 600 0.72rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--felt); }
+.lede { font-size: 1.15rem; color: var(--muted); }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+code { background: var(--felt-soft); padding: 0.1em 0.35em; border-radius: 4px; }
+section { display: grid; gap: 18px; min-width: 0; }
+header { display: grid; gap: 14px; }
+
+/* System map */
+.map { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.map svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.map text { font-family: var(--body); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.85rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.sw { width: 14px; height: 14px; border-radius: 3px; border: 2px solid; display: inline-block; }
+
+/* Step list for journeys (these are real sequences, so they're numbered) */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: 12px; align-items: start; }
+.steps li::before { content: counter(s); font: 700 0.9rem/2rem var(--display); width: 2rem; height: 2rem; text-align: center; border-radius: 50%; background: var(--felt-soft); color: var(--felt); }
+.steps b { font-family: var(--display); }
+.steps .who { font: 0.75rem var(--mono); color: var(--muted); display: block; }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.panel p, .panel li { font-size: 0.95rem; }
+.panel ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+
+/* Ask pipeline: model steps tagged */
+.tag { font: 600 0.68rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 7px; border-radius: 4px; white-space: nowrap; }
+.tag.ai { background: var(--meeple-soft); color: var(--meeple); }
+.tag.code { background: var(--felt-soft); color: var(--felt); }
+.tag.db { background: var(--amber-soft); color: var(--amber); }
+.tag.web { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.pipe { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.pipe li { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 14px; padding: 12px 18px; border-top: 1px solid var(--line); align-items: baseline; }
+.pipe li:first-child { border-top: 0; }
+.pipe .tag { justify-self: start; }
+.pipe b { font-family: var(--display); }
+
+/* Endpoint table */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 0.92rem; }
+th, td { text-align: left; padding: 9px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+thead th { border-top: 0; font: 600 0.72rem var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+td.ep { font-family: var(--mono); font-size: 0.82rem; white-space: nowrap; }
+.m { font: 600 0.7rem var(--mono); color: var(--felt); margin-right: 6px; }
+.m.post { color: var(--meeple); }
+.who-pill { font: 0.72rem var(--mono); color: var(--muted); white-space: nowrap; }
+
+/* Clock of scheduled jobs */
+.clock { display: grid; gap: 0; border-left: 2px solid var(--felt); margin-left: 6px; }
+.clock div { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: 14px; padding: 8px 0 8px 18px; position: relative; }
+.clock div::before { content: ""; position: absolute; left: -7px; top: 15px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--felt); }
+.clock time { font: 600 0.85rem var(--mono); color: var(--felt); font-variant-numeric: tabular-nums; }
+
+footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 18px; }
+
+@media (max-width: 520px) {
+  .pipe li { grid-template-columns: 1fr; gap: 6px; }
+  .clock div { grid-template-columns: 1fr; gap: 2px; }
+}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">bg.ondorilabo.com · how it fits together</span>
+  <h1>Board Game Curator Architecture</h1>
+  <p class="lede">A static web page talks to about 35 n8n workflows on a small server. The workflows read and write one Postgres database and call out to Google, BoardGameGeek and AI models. Nathan, the curator, is one of those workflows.</p>
+</header>
+
+<section aria-labelledby="map-h">
+  <h2 id="map-h">The system map</h2>
+  <div class="map" role="img" aria-label="Diagram: members' browsers load the page from GitHub Pages and call n8n through a Cloudflare tunnel. n8n runs on a Hostinger VPS beside Postgres, NocoDB and a backup job. n8n calls Google, BoardGameGeek, OpenRouter and Gmail. Backups go to a private GitHub repo.">
+    <svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" style="fill: var(--muted)"/>
+        </marker>
+      </defs>
+      <style>
+        .bx { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+        .bx.felt { fill: var(--felt-soft); stroke: var(--felt); }
+        .bx.red { fill: var(--meeple-soft); stroke: var(--meeple); }
+        .bx.amb { fill: var(--amber-soft); stroke: var(--amber); }
+        .frame { fill: none; stroke: var(--felt); stroke-width: 1.5; stroke-dasharray: 6 5; }
+        .t { fill: var(--ink); font-weight: 700; font-size: 15px; font-family: var(--display); }
+        .s { fill: var(--muted); font-size: 12px; }
+        .k { fill: var(--felt); font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; }
+        .lbl { fill: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+        .ln { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+        .ln.d { stroke-dasharray: 4 4; }
+        .chip { fill: var(--surface); stroke: var(--felt); stroke-width: 1; }
+        .ct { fill: var(--felt); font-family: var(--mono); font-size: 11px; }
+      </style>
+
+      <!-- Browser -->
+      <rect class="bx red" x="20" y="40" width="230" height="150" rx="12"/>
+      <text class="t" x="36" y="68">Members' browsers</text>
+      <text class="s" x="36" y="92">index.html: shelves, friends,</text>
+      <text class="s" x="36" y="108">wishlists, rulebooks, Ask Nathan</text>
+      <text class="s" x="36" y="132">dashboard.html: admins only</text>
+      <text class="s" x="36" y="156">Signs in with Google; sends the</text>
+      <text class="s" x="36" y="172">ID token with every request</text>
+
+      <!-- GitHub Pages -->
+      <rect class="bx" x="20" y="240" width="230" height="90" rx="12"/>
+      <text class="t" x="36" y="268">GitHub Pages</text>
+      <text class="s" x="36" y="290">Hosts the static files from</text>
+      <text class="s" x="36" y="306">this repo (no build step)</text>
+      <path class="ln" d="M135,240 V194" marker-end="url(#ah)"/>
+      <text class="lbl" x="142" y="222">serves page</text>
+
+      <!-- Cloudflare -->
+      <rect class="bx" x="320" y="30" width="300" height="50" rx="10"/>
+      <text class="t" x="336" y="61">Cloudflare</text>
+      <text class="s" x="430" y="61">DNS + tunnel to the server</text>
+      <path class="ln" d="M250,58 H316" marker-end="url(#ah)"/>
+      <text class="lbl" x="256" y="50">HTTPS</text>
+
+      <!-- VPS frame -->
+      <rect class="frame" x="300" y="100" width="690" height="250" rx="14"/>
+      <text class="k" x="316" y="122">HOSTINGER VPS · DOCKER</text>
+      <path class="ln" d="M540,80 V128" marker-end="url(#ah)"/>
+      <text class="lbl" x="548" y="110">/webhook/vault/*</text>
+
+      <!-- n8n -->
+      <rect class="bx felt" x="320" y="134" width="300" height="196" rx="12"/>
+      <text class="t" x="336" y="162">n8n workflows</text>
+      <text class="s" x="336" y="184">Every page action is a webhook. Each one</text>
+      <text class="s" x="336" y="200">checks the Google token and membership</text>
+      <text class="s" x="336" y="216">first, then does its work.</text>
+      <rect class="chip" x="336" y="234" width="122" height="26" rx="13"/><text class="ct" x="350" y="251">31 webhooks</text>
+      <rect class="chip" x="466" y="234" width="138" height="26" rx="13"/><text class="ct" x="479" y="251">6 scheduled jobs</text>
+      <rect class="chip" x="336" y="268" width="122" height="26" rx="13"/><text class="ct" x="352" y="285">Ask (Nathan)</text>
+      <rect class="chip" x="466" y="268" width="138" height="26" rx="13"/><text class="ct" x="482" y="285">Error Alert</text>
+      <text class="s" x="336" y="316">Built by n8n/gen.js, shipped by deploy.sh</text>
+
+      <!-- Postgres -->
+      <rect class="bx amb" x="690" y="134" width="280" height="116" rx="12"/>
+      <text class="t" x="706" y="162">Postgres  ·  schema bgc</text>
+      <text class="s" x="706" y="184">Members, games, shelves, plays,</text>
+      <text class="s" x="706" y="200">ratings, friends, wishlists, rulebooks,</text>
+      <text class="s" x="706" y="216">question counts. Rules live in SQL</text>
+      <text class="s" x="706" y="232">functions (sign_in, shelf_view, …).</text>
+      <path class="ln" d="M624,192 H686" marker-start="url(#ah)" marker-end="url(#ah)"/>
+      <text class="lbl" x="632" y="184">SQL</text>
+
+      <!-- NocoDB + Backup -->
+      <rect class="bx" x="690" y="264" width="134" height="70" rx="10"/>
+      <text class="t" x="704" y="290">NocoDB</text>
+      <text class="s" x="704" y="310">Spreadsheet view</text>
+      <text class="s" x="704" y="324">for Dan</text>
+      <rect class="bx" x="836" y="264" width="134" height="70" rx="10"/>
+      <text class="t" x="850" y="290">Backup</text>
+      <text class="s" x="850" y="310">Nightly SQL dump</text>
+      <text class="s" x="850" y="324">of both databases</text>
+      <path class="ln" d="M757,250 V262" />
+      <path class="ln" d="M903,250 V262" />
+
+      <!-- Outside services -->
+      <text class="k" x="20" y="402">OUTSIDE SERVICES</text>
+      <path class="ln" d="M470,330 V378 H110 M470,378 H698 M110,378 V416 M306,378 V416 M502,378 V416 M698,378 V416"/>
+      <path class="ln" d="M110,410 V418" marker-end="url(#ah)"/><path class="ln" d="M306,410 V418" marker-end="url(#ah)"/>
+      <path class="ln" d="M502,410 V418" marker-end="url(#ah)"/><path class="ln" d="M698,410 V418" marker-end="url(#ah)"/>
+      <path class="ln d" d="M20,175 H8 V470 H16" marker-end="url(#ah)"/>
+      <path class="ln" d="M903,334 V418" marker-end="url(#ah)"/>
+
+      <rect class="bx" x="20" y="420" width="180" height="100" rx="10"/>
+      <text class="t" x="34" y="446">Google</text>
+      <text class="s" x="34" y="468">Sign-in in the browser;</text>
+      <text class="s" x="34" y="484">n8n checks each token</text>
+      <text class="s" x="34" y="500">(tokeninfo)</text>
+
+      <rect class="bx" x="216" y="420" width="180" height="100" rx="10"/>
+      <text class="t" x="230" y="446">BoardGameGeek</text>
+      <text class="s" x="230" y="468">XML API: game details,</text>
+      <text class="s" x="230" y="484">search, box art, plays</text>
+      <text class="s" x="230" y="500">(BG Stats posts there)</text>
+
+      <rect class="bx" x="412" y="420" width="180" height="100" rx="10"/>
+      <text class="t" x="426" y="446">OpenRouter</text>
+      <text class="s" x="426" y="468">Gemini 2.5 Flash Lite</text>
+      <text class="s" x="426" y="484">Claude Haiku 5.5</text>
+      <text class="s" x="426" y="500">(each has a fallback)</text>
+
+      <rect class="bx" x="608" y="420" width="180" height="100" rx="10"/>
+      <text class="t" x="622" y="446">Gmail</text>
+      <text class="s" x="622" y="468">Emails Dan when a</text>
+      <text class="s" x="622" y="484">workflow fails or a</text>
+      <text class="s" x="622" y="500">nightly check finds a problem</text>
+
+      <rect class="bx" x="804" y="420" width="180" height="100" rx="10"/>
+      <text class="t" x="818" y="446">GitHub (private)</text>
+      <text class="s" x="818" y="468">Backup repo: every</text>
+      <text class="s" x="818" y="484">night is a version you</text>
+      <text class="s" x="818" y="500">can restore</text>
+    </svg>
+  </div>
+  <div class="legend">
+    <span><i class="sw" style="border-color: var(--meeple); background: var(--meeple-soft)"></i>What people use</span>
+    <span><i class="sw" style="border-color: var(--felt); background: var(--felt-soft)"></i>The logic</span>
+    <span><i class="sw" style="border-color: var(--amber); background: var(--amber-soft)"></i>The data</span>
+    <span><i class="sw" style="border-color: var(--line); background: var(--surface)"></i>Hosting and outside services</span>
+  </div>
+</section>
+
+<section aria-labelledby="req-h">
+  <h2 id="req-h">What happens when someone taps something</h2>
+  <p>Every action on the page follows the same path, whether it's rating a game, adding one, or opening a friend's shelf.</p>
+  <ol class="steps">
+    <li><div><b>The page signs you in with Google</b><span class="who">browser · Google Identity, with a "Sign in with Google" button as a fallback</span>It keeps the Google ID token in the browser and sends it with each request.</div></li>
+    <li><div><b>Cloudflare passes the request to n8n</b><span class="who">n8n.ondorilabo.com/webhook/vault/…</span>The server has no open ports. The Cloudflare tunnel is the only way in.</div></li>
+    <li><div><b>n8n checks who you are</b><span class="who">Google tokeninfo → bgc.sign_in(email)</span>The token must be real, and your email must belong to a member. The result says your role (member or admin) and which shelf is yours.</div></li>
+    <li><div><b>The workflow does the work in the database</b><span class="who">one SQL function call, e.g. bgc.shelf_view, bgc.rate, bgc.wish_change</span>Privacy rules live in the database. A friend's shelf, wishlist or profile only comes back if you're connected by friend code.</div></li>
+    <li><div><b>The page redraws</b><span class="who">JSON back to index.html</span>Errors come back as a plain message, and the badge at the top shows "Signed out" when your sign-in has expired.</div></li>
+  </ol>
+</section>
+
+<section aria-labelledby="ask-h">
+  <h2 id="ask-h">How Nathan answers a question</h2>
+  <p>Ask is the biggest workflow. Two AI steps do the reading and the writing. Plain code and SQL around them decide what's true: which games exist, who owns them, and what fits the limits.</p>
+  <ol class="pipe">
+    <li><span class="tag db">Database</span><div><b>Count the question.</b> Each member gets 30 a day (admins can change it). The day resets at midnight Eastern.</div></li>
+    <li><span class="tag ai">Gemini</span><div><b>Understand.</b> Turns the question into a plan: what kind of question it is (browse, recommend, person, game, buy, rules), who's playing, player count, time, weight, themes, games named.</div></li>
+    <li><span class="tag code">Code</span><div><b>Firm rules.</b> These override the model's reading. "A game I don't own" means ideas to buy, "my" means the asker's shelf, "who has…" looks across friends, and "at Keith's" means Keith's shelf.</div></li>
+    <li><span class="tag db">Database</span><div><b>Look things up.</b> Finds the games named, even partial or misspelled names (<code>match_game</code>). Also gets who owns them, ideas to buy, friends' shelves, the asker's Top 10 and wishlist, and any uploaded rulebook text.</div></li>
+    <li><span class="tag web">BGG</span><div><b>Fill the gaps.</b> If a game isn't in our catalog yet, BoardGameGeek supplies it. The most-rated exact match wins.</div></li>
+    <li><span class="tag code">Code</span><div><b>Shortlist.</b> Applies the hard limits and scores the rest by the group's ratings, plays and taste. Follow-ups ("which of those are co-op?") stay within the last answer.</div></li>
+    <li><span class="tag ai">Claude</span><div><b>Nathan writes the answer</b> from that shortlist only, in his voice: picks, reasons, a quip, and an honest note when nothing fits.</div></li>
+    <li><span class="tag code">Code</span><div><b>Check the answer.</b> Removes any game that wasn't on the shortlist, removes the asker's name used as a greeting, and drops a "worth a look" tip that names a game already owned.</div></li>
+    <li><span class="tag db">Database</span><div><b>Log it.</b> Saves only the kind of question and how long it took, never the words, for the admin dashboard.</div></li>
+  </ol>
+</section>
+
+<section aria-labelledby="ep-h">
+  <h2 id="ep-h">The webhooks</h2>
+  <p>Every address starts with <code>https://n8n.ondorilabo.com/webhook/vault/</code>. All of them except the welcome page's need a signed-in member.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Area</th><th>Address</th><th>What it does</th><th>Who</th></tr></thead>
+      <tbody>
+        <tr><td>Shelf</td><td class="ep"><span class="m">GET</span>shelf<br><span class="m post">POST</span>shelf-update · shelf-remove</td><td>Your own shelf, favorites, removing games</td><td class="who-pill">member</td></tr>
+        <tr><td>Adding games</td><td class="ep"><span class="m">GET</span>bgg-search<br><span class="m post">POST</span>shelf-add · shelf-identify · shelf-csv</td><td>Add by name (multi-pick), from a photo, or from a CSV file</td><td class="who-pill">member</td></tr>
+        <tr><td>Plays</td><td class="ep"><span class="m post">POST</span>import</td><td>Connect a BGG username. Brings in plays only, never games</td><td class="who-pill">member</td></tr>
+        <tr><td>Ratings</td><td class="ep"><span class="m post">POST</span>rate</td><td>Your 1–5 stars on a game</td><td class="who-pill">member</td></tr>
+        <tr><td>People</td><td class="ep"><span class="m">GET</span>people · whoami · me<br><span class="m post">POST</span>me-save</td><td>Who's logged plays with you, your role, your taste profile and Top 10</td><td class="who-pill">member</td></tr>
+        <tr><td>Friends</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>friends<br><span class="m">GET</span>profile</td><td>Friend codes, connecting and removing, friends' profile pages</td><td class="who-pill">member</td></tr>
+        <tr><td>Wishlists</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>wishlist</td><td>Yours or a friend's; "Got it!" moves a game onto your shelf</td><td class="who-pill">member</td></tr>
+        <tr><td>Rulebooks</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>rulebook</td><td>Upload a PDF once; everyone can open it and Nathan reads it</td><td class="who-pill">member</td></tr>
+        <tr><td>Nathan</td><td class="ep"><span class="m post">POST</span>ask</td><td>The question pipeline above</td><td class="who-pill">member · 30/day</td></tr>
+        <tr><td>Admin</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>admin<br><span class="m">GET</span>dashboard</td><td>Members, invites, admin rights, Nathan's limits; the usage dashboard</td><td class="who-pill">admin</td></tr>
+        <tr><td>Welcome page</td><td class="ep"><span class="m">GET</span>collection</td><td>What visitors see before they're members</td><td class="who-pill">anyone</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="sched-h">
+  <h2 id="sched-h">What runs on its own</h2>
+  <div class="grid2">
+    <div class="panel">
+      <h3>Every night (Eastern)</h3>
+      <div class="clock">
+        <div><time>4:00</time><span>Sync plays from BoardGameGeek for everyone who connected a username</span></div>
+        <div><time>4:20</time><span>Sync people: who has logged plays with whom, and their BGG ratings</span></div>
+        <div><time>5:40</time><span>Self-test: 32 database checks, then 18 real questions to Nathan. Emails Dan only if something fails</span></div>
+        <div><time>9:00</time><span>Health check: emails Dan if the database backup hasn't run in 26 hours</span></div>
+        <div><time>nightly</time><span>Backup: both databases dumped to the private GitHub repo</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>All the time</h3>
+      <ul>
+        <li><b>Every 15 minutes:</b> a photo sweep finishes any box photo an earlier run left half done.</li>
+        <li><b>On any failure:</b> the Error Alert workflow emails Dan which workflow broke and where.</li>
+      </ul>
+      <h3>Never automatic</h3>
+      <ul>
+        <li>Release notes go to the testers' Discord only when Dan says so.</li>
+        <li>Nobody becomes a member without an invite from an admin or a friend code.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="ship-h">
+  <h2 id="ship-h">How a change ships</h2>
+  <ol class="steps">
+    <li><div><b>Edit the source</b><span class="who">index.html · n8n/gen.js · server/bgc-db/schema/NNN_*.sql</span>Workflows are written as code in one file, never clicked together in the n8n editor.</div></li>
+    <li><div><b>Apply database changes</b><span class="who">psql &lt; schema/022_match_unfilled.sql</span>Each schema file is numbered and safe to run again.</div></li>
+    <li><div><b>Deploy the workflows</b><span class="who">n8n/deploy.sh ask</span>Generates the workflow JSON, imports and publishes it, then restarts n8n and waits until it answers.</div></li>
+    <li><div><b>Run the checks</b><span class="who">bgc.self_check(): 32 rules, rolled back afterwards</span>The deploy fails if any check fails. It covers membership, privacy, ratings, wishlists, admin and game matching. <code>node n8n/test-nathan.js</code> runs the 18 Nathan questions.</div></li>
+    <li><div><b>Push the page</b><span class="who">git push → GitHub Pages</span>The site updates within a minute or two.</div></li>
+    <li><div><b>Tell the testers</b><span class="who">CHANGELOG.md → node tools/post-update.js v0.12</span>Posts that version's notes to the bgc-testers channel on Discord.</div></li>
+  </ol>
+</section>
+
+<section aria-labelledby="data-h">
+  <h2 id="data-h">Where things are kept</h2>
+  <div class="grid2">
+    <div class="panel">
+      <h3>In the database</h3>
+      <ul>
+        <li><b>members</b>, <b>friends</b>: who's in, roles, friend codes, Top 10</li>
+        <li><b>games</b>: the shared catalog, filled in from BGG</li>
+        <li><b>shelves</b>: who owns what, favorites</li>
+        <li><b>plays</b>, <b>ratings</b>: from BG Stats via BGG, and your stars</li>
+        <li><b>wishlist</b>, <b>rulebooks</b> (PDF plus extracted text)</li>
+        <li><b>ask_log</b>, <b>settings</b>: question types and timings, limits, the last self-test</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>Kept off the repo</h3>
+      <ul>
+        <li>The database password stays on the server (<code>~/bgc-db/.env</code>).</li>
+        <li>API keys for BGG and OpenRouter are stored as n8n credentials.</li>
+        <li>The Discord webhook is on Dan's PC (<code>%USERPROFILE%\.bgc</code>).</li>
+        <li>Question text is never stored. Only the kind of question is.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>Board Game Curator · v0.12 · October 2026. Drawn from the live code: n8n/gen.js, server/bgc-db/schema and n8n/deploy.sh.</footer>
+</div>

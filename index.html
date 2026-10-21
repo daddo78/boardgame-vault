@@ -2623,6 +2623,13 @@
     const SS_JOKED = 'vault_nathan_joked';
     const joked = new Set((() => { try { return JSON.parse(sessionStorage.getItem(SS_JOKED) || '[]'); } catch (e) { return []; } })());
     const rememberJoked = (ids) => { ids.forEach(id => joked.add(id)); try { sessionStorage.setItem(SS_JOKED, JSON.stringify([...joked])); } catch (e) {} };
+    // Games Nathan recommended in the last two weeks, so asking again brings something fresh
+    const LS_RECENT = 'vault_nathan_recent';
+    const recentPicks = () => { try { const cut = Date.now() - 14 * 86400000; return (JSON.parse(localStorage.getItem(LS_RECENT) || '[]') || []).filter((x) => x && x.t > cut); } catch (e) { return []; } };
+    const rememberPicks = (ids) => {
+      const kept = recentPicks().filter((x) => !ids.includes(x.id));
+      try { localStorage.setItem(LS_RECENT, JSON.stringify([...ids.map((id) => ({ id, t: Date.now() })), ...kept].slice(0, 40))); } catch (e) {}
+    };
 
     // Spec chips come from our own (BGG-sourced) data, never from the model
     function specChips(g) {
@@ -2802,11 +2809,12 @@
       (followUp ? turn : panel).scrollIntoView({ behavior: 'smooth', block: followUp ? 'nearest' : 'start' });
       try {
         const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], shelf: currentShelf() }) });
+          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], recent: recentPicks().map((x) => x.id), shelf: currentShelf() }) });
         if (r.pick || (r.highlights || []).length) {
           // The whole answer (all ten of a top ten), so "which of those…" narrows it instead of starting over
           askLast = { question, constraints: r.constraints, pickIds: r.pickIds, setIds: (r.matchIds && r.matchIds.length ? r.matchIds : r.pickIds || []).slice(0, 60), fromOwn: !!r.fromOwn };
           rememberJoked(r.pickIds || []);
+          if (r.intent !== 'browse') rememberPicks(r.pickIds || []);
         }
         turn.querySelector('.np-body').innerHTML = nathanAnswerHtml(r);
         if (asks) { asks.left = Math.max(0, asks.left - 1); renderAskMeter(); }

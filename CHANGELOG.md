@@ -7,6 +7,7 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 **Fixes**
 - Asking about a game you don’t own finds that exact game ("Horror on the Orient Express" no longer turns into "Dead Man on the Orient Express").
 - Nathan’s "worth a look" tip never suggests a game you already own.
+- Ask the same thing twice and you’ll get fresh ideas: Nathan remembers what he recommended you in the last two weeks and mixes up games that fit equally well.
 
 ## v0.11 · October 20, 2026
 

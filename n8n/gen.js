@@ -1617,8 +1617,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       fromOwn: b.previous.fromOwn === true,
     } : null;
     const mentioned = Array.isArray(b.mentioned) ? b.mentioned.map(String).filter((x) => x.length < 40).slice(0, 100) : [];
+    const recent = Array.isArray(b.recent) ? b.recent.map(String).filter((x) => x.length < 40).slice(0, 40) : [];
     const auth = $input.first().json._auth;
-    return [{ json: { ok: true, t0: Date.now(), question, playerIds, previous: prev, mentioned, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
+    return [{ json: { ok: true, t0: Date.now(), question, playerIds, previous: prev, mentioned, recent, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
       shelf: /^friend:\d+$/.test(String(b.shelf || '')) ? String(b.shelf) : b.shelf === 'mine' ? 'mine' : 'main' } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
@@ -1856,6 +1857,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const hay = (g) => [g.title, g.genre, g.type, g.desc, ...g.categories, ...g.mechanics].join(' ').toLowerCase();
     const isCoop = (g) => g.mechanics.some((m) => /cooperative/i.test(m)) || /co-?op/i.test(g.type);
     const daysSince = (d) => d ? (Date.now() - new Date(d).getTime()) / 86400000 : Infinity;
+    const recentSet = new Set(v.recent || []);
     const scored = [], loose = [];
     for (const g of games) {
       if (exclude.has(g.id)) continue;
@@ -1887,6 +1889,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       if (c.freshness === 'unplayed' && !g.playCount) s += 3;
       if (c.freshness === 'stale' && daysSince(g.lastPlayed) > 365) s += 3;
       if (c.freshness === 'favorite') s += (g.favorite ? 3 : 0) + (g.desireToPlay || 0) * 0.5;
+      // Variety for recommendations: games Nathan suggested in the last two weeks drop back, and near-ties shuffle,
+      // so the same question doesn't always land on the same game (a browse or a ranked list stays exact)
+      if (c.intent !== 'browse') s += Math.random() * 1.5 - (recentSet.has(g.id) ? 2.5 : 0);
       scored.push({ g, s });
     }
     scored.sort((a, b) => b.s - a.s);
@@ -2208,6 +2213,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'GAP: ' + (s.gap ? 'true' : 'false'),
       s.setFacts ? (s.person ? 'SET FACTS (about the people asked about):\n' : s.mode === 'rules' ? '' : s.mode ? 'ABOUT THE ASKER:\n' : 'SET FACTS (all games that match):\n') + s.setFacts : '',
       'ALREADY_JOKED: ' + (s.shortIds.filter((id) => mentioned.has(id)).join(', ') || '(none)'),
+      s.browse ? '' : 'RECENTLY_SUGGESTED (you recommended these to this person in the last two weeks; prefer a fresh pick that fits as well, and only repeat one if it is clearly the best fit or they ask for it): ' + (s.shortIds.filter((id) => (v.recent || []).includes(id)).join(', ') || '(none)'),
       s.askerName ? 'ASKER (the person typing; call them "you"): ' + s.askerName : '', s.guest || '',
       s.askerProfile ? 'ASKER PROFILE (use it when they ask for something they would like, even if they are not listed as playing):\n' + s.askerProfile : '',
       '', 'PEOPLE PLAYING:', s.profiles || '(not specified; recommend for the group described in the request)',
