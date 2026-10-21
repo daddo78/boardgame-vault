@@ -2993,7 +2993,7 @@ addMemberAuth(profilePage, { failTo: 'Respond Error' });
 // =====================================================================
 const admin = wf(ID.admin, 'Vault — Admin', [
   webhook('Webhook', 'GET', 'vault/admin'),
-  pg('Overview', 'SELECT bgc.admin_overview($1) AS r', '={{ [$json._auth.email] }}'),
+  pg('Overview', "SELECT bgc.admin_overview($1) || CASE WHEN bgc.is_admin($1) THEN jsonb_build_object('rulebooks', bgc.rule_docs_all($1)) ELSE '{}'::jsonb END AS r", '={{ [$json._auth.email] }}'),
   code('Result', function () { return [{ json: $input.first().json.r }]; }),
   ifTrue('OK?', '={{ $json.ok }}'),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
@@ -3255,7 +3255,7 @@ const ruleReader = wf(ID.ruleReader, 'Vault — Rulebook Reader', [
   ['Page', 'Request'], ['Request', 'Has Image?'], ['Has Image?', 'Read Page', 0], ['Read Page', 'Sections'], ['Sections', 'Save Page'], ['Save Page', 'All Read'], ['All Read', 'Finish'], ['Finish', 'All Done?'], ['All Done?', 'Delete PDF', 0]]);
 
 // =====================================================================
-// 33. Dashboard  GET /webhook/vault/dashboard  (admins): everything about how people use the site, for dashboard.html
+// 33. Dashboard  GET /webhook/vault/dashboard  (admins): everything about how people use the site, for the admin portal (admin.html)
 // =====================================================================
 const dashboard = wf(ID.dashboard, 'Vault — Dashboard', [
   webhook('Webhook', 'GET', 'vault/dashboard'),

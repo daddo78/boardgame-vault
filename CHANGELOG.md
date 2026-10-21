@@ -2,6 +2,10 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.15 · October 21, 2026
+
+*Behind the scenes: Admin is now its own page with the dashboard, members and invites, Nathan's settings and the nightly check, and every rulebook in one place.*
+
 ## v0.14 · October 21, 2026
 
 - **Show Nathan a photo:** tap 📷 in the Ask bar or the reply box. Snap an icon or a card and ask "what does this mean?" and he finds it in the rulebook and gives you the page. Snap a box, or just the board and cards on the table, and ask "what game is this?" and he tells you about it (and whether it's on your shelf). Photos aren't kept.

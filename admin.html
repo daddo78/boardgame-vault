@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin · Board Game Curator</title>
+<link rel="icon" href="assets/nathan-avatar.png">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+  :root {
+    --brand: #c9342a; --brand-dark: #93231b; --navy: #24365a; --orange: #ffa726; --green: #a3d977; --green-ink: #2f5a12; --ok: #3f8a1f;
+    --yellow: #ffd166; --sky: #8ac4f5; --purple: #b384dc; --bg: #f5eee1; --card: #ffffff; --ink: #2b3445; --muted: #7b8494;
+    --line: #e6e0d4; --soft: #f1f4f8; --accent: #0041c2; --shadow: 0 6px 20px rgba(31,63,143,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { overflow-x: clip; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Outfit', sans-serif; line-height: 1.45; padding: 0 0 4rem; }
+  a { color: var(--accent); }
+  button, input, select { font: inherit; }
+  .bar { background: #f7f1e6; border-bottom: 1px solid #eadfcb; min-height: 3.6rem; display: flex; align-items: center; justify-content: space-between; gap: 0.8rem;
+    padding: env(safe-area-inset-top, 0px) max(1rem, env(safe-area-inset-right, 0px)) 0 max(1rem, env(safe-area-inset-left, 0px)); position: sticky; top: 0; z-index: 5; }
+  .bar a.back { font-weight: 700; text-decoration: none; color: var(--ink); display: inline-flex; gap: 0.45rem; align-items: center; white-space: nowrap; }
+  .bar .title { font-weight: 800; display: inline-flex; gap: 0.45rem; align-items: center; }
+  .bar .title i { color: var(--brand); }
+  .bar .who { font-size: 0.85rem; color: var(--muted); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The portal: a menu on the left (tabs across the top on a phone), the chosen section on the right */
+  .shell { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 1.4rem;
+    padding: 1.2rem max(1rem, env(safe-area-inset-right, 0px)) 0 max(1rem, env(safe-area-inset-left, 0px)); }
+  .side { position: sticky; top: 4.8rem; align-self: start; display: grid; gap: 0.25rem; }
+  .side a { display: flex; align-items: center; gap: 0.65rem; padding: 0.6rem 0.8rem; border-radius: 0.8rem; text-decoration: none; color: var(--ink); font-weight: 700; }
+  .side a i { width: 1.1rem; text-align: center; color: var(--muted); }
+  .side a:hover { background: rgba(255,255,255,0.6); }
+  .side a.on { background: var(--card); box-shadow: var(--shadow); }
+  .side a.on i { color: var(--brand); }
+  .side a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .side .count { margin-left: auto; font-size: 0.75rem; color: var(--muted); font-weight: 700; }
+  main { min-width: 0; }
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: minmax(0, 1fr); gap: 0.8rem; }
+    .side { position: sticky; top: 3.6rem; z-index: 4; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.3rem; background: var(--bg); padding: 0.5rem 0; }
+    .side a { flex-direction: column; justify-content: center; gap: 0.2rem; padding: 0.45rem 0.2rem; font-size: 0.78rem; text-align: center; }
+    .side a i { width: auto; font-size: 1rem; }
+    .side .count { display: none; }
+  }
+  h1 { font-size: 1.9rem; display: flex; align-items: center; gap: 0.55rem; }
+  h1 i { color: var(--brand); }
+  .sub { color: var(--muted); font-size: 0.9rem; margin-top: 0.15rem; }
+  h2 { font-size: 1.15rem; margin: 1.8rem 0 0.7rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  h2 i { color: var(--brand); font-size: 1rem; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; margin-top: 1rem; }
+  .tiles.five { grid-template-columns: repeat(auto-fit, minmax(min(100%, 112px), 1fr)); }
+  .tile { background: var(--card); border-radius: 1rem; padding: 0.8rem 0.9rem; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.7rem; color: var(--brand); line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tile span { font-size: 0.72rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+  .tile small { display: block; font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 0.8rem; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 0.8rem; }
+  .card { background: var(--card); border-radius: 1rem; padding: 1rem; box-shadow: var(--shadow); min-width: 0; }
+  .card h3 { font-size: 0.95rem; margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+  .card h3 small { font-weight: 600; color: var(--muted); font-size: 0.78rem; }
+  .chart { position: relative; height: 240px; }
+  .chart.sm { height: 200px; }
+  .seg { display: inline-flex; background: var(--soft); border-radius: 999px; padding: 0.2rem; }
+  .seg button { border: none; background: none; border-radius: 999px; padding: 0.25rem 0.7rem; font-size: 0.8rem; font-weight: 700; cursor: pointer; color: var(--ink); }
+  .seg button.on { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .table-wrap { overflow-x: auto; background: var(--card); border-radius: 1rem; box-shadow: var(--shadow); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; min-width: 900px; }
+  th, td { text-align: right; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th { position: sticky; top: 0; background: #fbf8f2; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--muted); cursor: pointer; user-select: none; }
+  th:first-child, td:first-child { text-align: left; }
+  th.on { color: var(--brand-dark); }
+  tr:last-child td { border-bottom: none; }
+  td .name { font-weight: 700; }
+  .badge { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; border-radius: 999px; padding: 0.08rem 0.45rem; margin-left: 0.3rem; background: var(--soft); color: var(--brand-dark); }
+  .rank { display: inline-block; min-width: 1.5rem; font-weight: 800; color: var(--brand); }
+  .meter { height: 0.55rem; background: var(--soft); border-radius: 999px; overflow: hidden; margin-top: 0.25rem; }
+  .meter div { height: 100%; background: var(--brand); border-radius: 999px; }
+  .adopt { display: grid; gap: 0.6rem; }
+  .adopt .row { font-size: 0.88rem; }
+  .adopt .row b { float: right; }
+  .games { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
+  .g { display: flex; align-items: center; gap: 0.6rem; font-size: 0.86rem; min-width: 0; }
+  .g img, .g .ph { width: 2.4rem; height: 2.4rem; border-radius: 0.5rem; object-fit: cover; background: var(--soft); flex: none; }
+  .g .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .g .t small { display: block; font-weight: 500; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .g .n { font-weight: 800; color: var(--brand); flex: none; white-space: nowrap; padding-left: 0.3rem; }
+  .g .rank { flex: none; }
+  .empty { color: var(--muted); font-size: 0.85rem; }
+  .gate { max-width: 460px; margin: 4rem auto; background: var(--card); border-radius: 1.25rem; padding: 2rem 1.5rem; text-align: center; box-shadow: var(--shadow); }
+  .gate h1 { justify-content: center; font-size: 1.5rem; }
+  .gate p { color: var(--muted); margin: 0.8rem 0 1.2rem; }
+  .gate .gbtn { display: flex; justify-content: center; }
+  .note { font-size: 0.78rem; color: var(--muted); margin-top: 0.5rem; }
+  .spinner { width: 2rem; height: 2rem; border: 3px solid var(--soft); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 3rem auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* Forms and buttons in the admin sections */
+  .form { display: grid; gap: 0.6rem; }
+  .form .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .form input { flex: 1 1 12rem; min-width: 0; border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 0.6rem; padding: 0.6rem 0.75rem; color: var(--ink); }
+  .form input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .btn { border: none; border-radius: 999px; padding: 0.55rem 1rem; font-weight: 700; cursor: pointer; background: var(--soft); color: var(--ink); display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+  .btn.primary { background: var(--brand); color: #fff; }
+  .btn.primary:hover { background: var(--brand-dark); }
+  .btn.small { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+  .btn.danger { color: var(--brand-dark); }
+  .btn.danger.armed { background: var(--brand); color: #fff; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .search { width: 100%; max-width: 22rem; border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 999px; padding: 0.5rem 0.9rem; }
+  .members { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 0.7rem; }
+  .member .top { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+  .member .top b { font-size: 1.02rem; margin-right: 0.2rem; }
+  .member .mail { font-size: 0.82rem; color: var(--muted); word-break: break-all; margin-top: 0.1rem; }
+  .member .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.7rem 0; }
+  .member .stats div { background: var(--soft); border-radius: 0.6rem; padding: 0.35rem 0.5rem; }
+  .member .stats b { display: block; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+  .member .stats span { font-size: 0.68rem; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+  .member .acts { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 800; padding: 0.15rem 0.55rem; border-radius: 999px; background: var(--soft); color: var(--muted); }
+  .pill.ok { background: #e6f3dc; color: var(--ok); }
+  .pill.warn { background: #fdecea; color: var(--brand-dark); }
+  .pill.busy { background: #fff3dc; color: #8a5a00; }
+  .status { display: flex; gap: 0.7rem; align-items: center; }
+  .status i { font-size: 1.4rem; }
+  .toast { position: fixed; left: 50%; bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: #fff; padding: 0.7rem 1.2rem; border-radius: 999px;
+    font-weight: 600; font-size: 0.9rem; box-shadow: 0 8px 24px rgba(0,0,0,0.2); z-index: 50; max-width: calc(100% - 2rem); }
+  .toast.err { background: var(--brand-dark); }
+  .toast[hidden] { display: none; }
+  @media (max-width: 640px) {
+    h1 { font-size: 1.5rem; }
+    .tile b { font-size: 1.4rem; }
+    .bar .who { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+</style>
+</head>
+<body>
+  <div class="bar"><a class="back" href="./"><i class="fa-solid fa-arrow-left"></i> Shelf</a><span class="title"><i class="fa-solid fa-shield-halved"></i> Admin</span><span class="who" id="who"></span></div>
+  <div class="shell">
+    <nav class="side" id="nav" aria-label="Admin sections" hidden>
+      <a href="#dashboard" data-tab="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+      <a href="#members" data-tab="members"><i class="fa-solid fa-users"></i> Members <span class="count" id="nMembers"></span></a>
+      <a href="#nathan" data-tab="nathan"><i class="fa-solid fa-comments"></i> Nathan</a>
+      <a href="#rulebooks" data-tab="rulebooks"><i class="fa-solid fa-book-open"></i> Rulebooks <span class="count" id="nRules"></span></a>
+    </nav>
+    <main id="app"><div class="spinner"></div></main>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+  const N8N = 'https://n8n.ondorilabo.com/webhook/vault';
+  const CLIENT_ID = '91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com';
+  const LS_TOKEN = 'vault_id_token'; // shared with the shelf, so being signed in there signs you in here
+  const app = document.getElementById('app');
+  const nav = document.getElementById('nav');
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const claims = (t) => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { return null; } };
+  const fresh = (t) => { const c = t && claims(t); return !!(c && c.exp * 1000 > Date.now() + 30000); };
+  const token = () => { try { return localStorage.getItem(LS_TOKEN); } catch (e) { return null; } };
+  const ago = (iso) => { if (!iso) return 'never'; const m = (Date.now() - Date.parse(iso)) / 60000; return m < 2 ? 'just now' : m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
+  const num = (n) => n == null ? '–' : Number(n).toLocaleString();
+  const KIND = { recommend: 'What to play', browse: 'Lists & top tens', person: 'About people', game: 'About a game', buy: 'Buy ideas', rules: 'Rules', 'off-topic': 'Off-topic', other: 'Other' };
+  const COLORS = ['#c9342a', '#0041c2', '#ffa726', '#a3d977', '#b384dc', '#8ac4f5', '#ffd166', '#7b8494'];
+  const TABS = ['dashboard', 'members', 'nathan', 'rulebooks'];
+  let toastTimer = null;
+  function toast(msg, err) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast' + (err ? ' err' : ''); t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 4500);
+  }
+
+  // ---- Signing in (only when the shelf's sign-in has expired)
+  function gate(msg, withButton) {
+    nav.hidden = true;
+    app.innerHTML = '<div class="gate"><h1><i class="fa-solid fa-shield-halved"></i> Admin</h1><p>' + msg + '</p>' + (withButton ? '<div class="gbtn" id="gbtn"></div>' : '') +
+      '<p style="margin:1rem 0 0;"><a href="./">Back to the shelf</a></p></div>';
+    if (!withButton) return;
+    const draw = () => {
+      if (!(window.google && google.accounts)) return setTimeout(draw, 300);
+      google.accounts.id.initialize({ client_id: CLIENT_ID, callback: (r) => { try { localStorage.setItem(LS_TOKEN, r.credential); } catch (e) {} start(); }, auto_select: true, use_fedcm_for_prompt: true });
+      google.accounts.id.renderButton(document.getElementById('gbtn'), { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with' });
+      google.accounts.id.prompt();
+    };
+    draw();
+  }
+  class Gate extends Error { constructor(msg, button) { super(msg); this.button = button; } }
+  async function call(path, opts = {}) {
+    const t = token();
+    if (!fresh(t)) throw new Gate('Sign in with your Google account to open Admin. It’s for admins only.', true);
+    let res;
+    try { res = await fetch(N8N + path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + t } }); }
+    catch (e) { throw new Gate('Couldn’t reach the server. Check your connection and refresh.', false); }
+    if (res.status === 401) { try { localStorage.removeItem(LS_TOKEN); } catch (e) {} throw new Gate('Your sign-in expired. Sign in again to open Admin.', true); }
+    if (res.status === 403) throw new Gate('Admin is for admins only.', false);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.ok === false) throw new Error(body.message || 'Something went wrong (' + res.status + '). Try again in a moment.');
+    return body;
+  }
+  const post = (path, payload) => call(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+  // ---- Data: the dashboard and the admin list, each loaded once and refreshed after a change
+  let D = null, A = null;
+  const loadD = async (force) => (D && !force) ? D : (D = await call('/dashboard'));
+  const loadA = async (force) => {
+    if (A && !force) return A;
+    A = await call('/admin');
+    document.getElementById('nMembers').textContent = (A.members || []).length || '';
+    document.getElementById('nRules').textContent = (A.rulebooks || []).length || '';
+    return A;
+  };
+
+  // ---- Sections, one per address: #dashboard, #members, #nathan, #rulebooks
+  let current = null;
+  async function show() {
+    const tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'dashboard';
+    current = tab;
+    nav.querySelectorAll('[data-tab]').forEach((a) => { a.classList.toggle('on', a.dataset.tab === tab); a.setAttribute('aria-current', a.dataset.tab === tab ? 'page' : 'false'); });
+    app.innerHTML = '<div class="spinner"></div>';
+    try {
+      if (tab === 'dashboard') renderDashboard(await loadD());
+      else if (tab === 'members') renderMembers(await loadA());
+      else if (tab === 'nathan') { const [a, d] = await Promise.all([loadA(), loadD()]); renderNathan(a, d); }
+      else renderRulebooks(await loadA());
+    } catch (e) {
+      if (e instanceof Gate) return gate(e.message, e.button);
+      app.innerHTML = '<div class="card"><p>' + esc(e.message) + '</p></div>';
+    }
+  }
+  async function start() {
+    const t = token();
+    if (!fresh(t)) return gate('Sign in with your Google account to open Admin. It’s for admins only.', true);
+    const c = claims(t);
+    document.getElementById('who').textContent = c.name || c.email || '';
+    try { await loadA(); } catch (e) { if (e instanceof Gate) return gate(e.message, e.button); }
+    nav.hidden = false;
+    show();
+  }
+  window.addEventListener('hashchange', () => { if (!nav.hidden) { armed = null; show(); window.scrollTo(0, 0); } });
+
+  // ================= Dashboard =================
+  let days = 30, sortKey = 'score', sortDir = -1;
+  const charts = {};
+  function renderDashboard(d) {
+    const k = d.kpis;
+    const tile = (n, label, small) => '<div class="tile"><b>' + n + '</b><span>' + label + '</span>' + (small ? '<small>' + small + '</small>' : '') + '</div>';
+    app.innerHTML =
+      '<h1><i class="fa-solid fa-chart-line"></i> Dashboard</h1>' +
+      '<div class="sub">How people use Board Game Curator · updated ' + esc(new Date(d.generatedAt).toLocaleString()) + ' · times are Eastern</div>' + selfTestHtml(d.selfTest) +
+      '<div class="tiles">' +
+        tile(num(k.members), 'Members') + tile(num(k.activeToday), 'Active today') + tile(num(k.active7), 'Active this week') + tile(num(k.active30), 'Active this month', 'avg ' + num(k.avgDaily30) + ' a day') +
+        tile(num(k.questions7), 'Questions this week') + tile(num(k.questions30), 'Questions this month', num(k.questionsAll) + ' all time') +
+        tile(k.answerSec7 != null ? k.answerSec7 + 's' : '–', 'Avg answer time', 'last 7 days') + tile(k.answerOk30 != null ? k.answerOk30 + '%' : '–', 'Answers that worked', 'last 30 days') +
+        tile(num(k.uniqueGames), 'Different games', num(k.games) + ' copies on shelves') + tile(num(k.gamesAdded30), 'Games added', 'last 30 days') +
+        tile(num(k.ratings30), 'Ratings given', 'last 30 days · ' + num(k.ratings) + ' total') + tile(num(k.wishlist), 'Wishlist items') +
+        tile(num(k.friendships), 'Friendships') + tile(num(k.rulebooks), 'Rulebooks') + tile(num(k.plays), 'Plays logged') +
+      '</div>' +
+      '<h2><i class="fa-solid fa-users"></i> Activity <span class="seg" id="range"><button data-days="30" class="on">30 days</button><button data-days="90">90 days</button></span></h2>' +
+      '<div class="grid2">' +
+        '<div class="card"><h3>People and questions <small>members active each day, questions to Nathan</small></h3><div class="chart"><canvas id="cActivity"></canvas></div></div>' +
+        '<div class="card"><h3>Shelf activity <small>games added, ratings, wishlist adds, new friends</small></h3><div class="chart"><canvas id="cShelf"></canvas></div></div>' +
+      '</div>' +
+      '<h2><i class="fa-solid fa-comments"></i> Nathan</h2>' +
+      '<div class="grid3">' +
+        '<div class="card"><h3>What people ask <small>last 30 days</small></h3><div class="chart sm"><canvas id="cKinds"></canvas></div><div class="note">Kinds of questions only, never the questions themselves.</div></div>' +
+        '<div class="card"><h3>When people ask <small>by hour, last 30 days</small></h3><div class="chart sm"><canvas id="cHours"></canvas></div></div>' +
+        '<div class="card"><h3>Which days <small>last 30 days</small></h3><div class="chart sm"><canvas id="cDays"></canvas></div></div>' +
+        '<div class="card"><h3>Answer speed <small>average seconds per day</small></h3><div class="chart sm"><canvas id="cSpeed"></canvas></div></div>' +
+        '<div class="card"><h3>Questions with friends <small>last 30 days</small></h3>' + socialHtml(d) + '</div>' +
+        '<div class="card"><h3>Daily limit</h3><div style="font-size:2rem; font-weight:800; color:var(--brand);">' + d.askLimit + '</div><div class="note">questions per member per day · <a href="#nathan">change it</a></div></div>' +
+      '</div>' +
+      '<h2><i class="fa-solid fa-trophy"></i> Top users</h2>' +
+      '<div class="table-wrap"><table id="users"></table></div>' +
+      '<div class="note">Ranked by an overall activity score: days active ×3, questions ×2, games added and ratings in the last 30 days. Click a column to sort. Manage people under <a href="#members">Members</a>.</div>' +
+      '<h2><i class="fa-solid fa-seedling"></i> Getting started</h2>' +
+      '<div class="card adopt" id="adopt"></div>' +
+      '<h2><i class="fa-solid fa-dice"></i> The games</h2>' +
+      '<div class="grid3">' +
+        gamesCard('On the most shelves', d.mostOwned, (g) => g.n + ' shelves', (g) => g.who) +
+        gamesCard('Most played', d.mostPlayed, (g) => num(g.n) + ' plays') +
+        gamesCard('Highest rated by members', d.topRated, (g) => Number(g.avg).toFixed(1) + '★', (g) => g.n + ' ratings') +
+        gamesCard('Most wished for', d.mostWished, (g) => g.n + (g.n === 1 ? ' wish' : ' wishes')) +
+        gamesCard('Recently added', d.recentlyAdded, (g) => '', (g) => g.who + ' · ' + ago(g.at)) +
+      '</div>';
+    document.getElementById('range').addEventListener('click', (e) => { const b = e.target.closest('[data-days]'); if (b) { days = Number(b.dataset.days); document.querySelectorAll('#range button').forEach((x) => x.classList.toggle('on', x === b)); drawActivity(); } });
+    drawActivity();
+    drawNathan();
+    renderUsers();
+    renderAdoption();
+  }
+  // The nightly self-test: the site's rules and Nathan's question set
+  function selfTestHtml(t) {
+    if (!t) return '';
+    const bad = (t.failures || []).length;
+    return '<div class="card status" style="margin-top:0.9rem; border-left:5px solid ' + (bad ? 'var(--brand)' : 'var(--ok)') + ';">' +
+      '<i class="fa-solid ' + (bad ? 'fa-triangle-exclamation' : 'fa-circle-check') + '" style="color:' + (bad ? 'var(--brand)' : 'var(--ok)') + ';"></i>' +
+      '<div><b>Nightly check ' + (bad ? 'found ' + bad + ' problem' + (bad === 1 ? '' : 's') : 'passed') + '</b><div class="note" style="margin:0;">' + esc(ago(t.at)) + ' · site rules ' + t.dbPassed + '/' + t.dbTotal + ' · Nathan questions ' + t.nathanPassed + '/' + t.nathanTotal + '</div>' +
+      (bad ? '<div class="note" style="margin:0.3rem 0 0;">' + t.failures.map((f) => esc(f.what) + (f.problems && f.problems.length ? ': ' + esc(f.problems.join('; ')) : '')).join('<br>') + '</div>' : '') + '</div></div>';
+  }
+  function socialHtml(d) {
+    const s = d.askSocial || {};
+    const total = Object.values(d.askKinds || {}).reduce((a, b) => a + b, 0);
+    const row = (label, n) => '<div class="adopt"><div class="row">' + label + ' <b>' + num(n) + '</b><div class="meter"><div style="width:' + (total ? Math.round(n / total * 100) : 0) + '%"></div></div></div></div>';
+    return total ? row('Across friends’ shelves ("who has…")', s.friends || 0) + '<div style="height:0.5rem"></div>' + row('At a friend’s place', s.visit || 0) : '<p class="empty">No questions yet.</p>';
+  }
+  function gamesCard(title, list, right, sub) {
+    return '<div class="card"><h3>' + title + '</h3>' + ((list || []).length ? '<div class="games">' + list.map((g, i) => '<div class="g"><span class="rank">' + (i + 1) + '</span>' +
+      (g.cover ? '<img src="' + esc(g.cover) + '" alt="" loading="lazy">' : '<span class="ph"></span>') +
+      '<span class="t">' + esc(g.title) + (sub ? '<small>' + esc(sub(g) || '') + '</small>' : '') + '</span><span class="n">' + esc(right(g)) + '</span></div>').join('') + '</div>'
+      : '<p class="empty">Nothing yet.</p>') + '</div>';
+  }
+  const base = (extra) => ({ responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Outfit' } } }, tooltip: { titleFont: { family: 'Outfit' }, bodyFont: { family: 'Outfit' } } },
+    scales: { x: { grid: { display: false }, ticks: { font: { family: 'Outfit' }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }, y: { beginAtZero: true, ticks: { precision: 0, font: { family: 'Outfit' } } } }, ...extra });
+  const make = (id, cfg) => { if (charts[id]) charts[id].destroy(); charts[id] = new Chart(document.getElementById(id), cfg); };
+  const label = (day) => new Date(day + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  function drawActivity() {
+    const s = D.daily.slice(-days);
+    const x = s.map((d) => label(d.day));
+    make('cActivity', { type: 'bar', data: { labels: x, datasets: [
+      { type: 'line', label: 'Members active', data: s.map((d) => d.active), borderColor: COLORS[1], backgroundColor: COLORS[1], tension: 0.3, pointRadius: 0, yAxisID: 'y' },
+      { type: 'bar', label: 'Questions', data: s.map((d) => d.questions), backgroundColor: 'rgba(201,52,42,0.75)', borderRadius: 3, yAxisID: 'y' },
+    ] }, options: base() });
+    make('cShelf', { type: 'bar', data: { labels: x, datasets: [
+      { label: 'Games added', data: s.map((d) => d.gamesAdded), backgroundColor: COLORS[0], stack: 'a', borderRadius: 2 },
+      { label: 'Ratings', data: s.map((d) => d.ratings), backgroundColor: COLORS[2], stack: 'a', borderRadius: 2 },
+      { label: 'Wishlist adds', data: s.map((d) => d.wishes), backgroundColor: COLORS[4], stack: 'a', borderRadius: 2 },
+      { label: 'New friends', data: s.map((d) => d.friendships), backgroundColor: COLORS[3], stack: 'a', borderRadius: 2 },
+    ] }, options: base({ scales: { x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } }) });
+  }
+  function drawNathan() {
+    const kinds = Object.entries(D.askKinds || {}).sort((a, b) => b[1] - a[1]);
+    make('cKinds', { type: 'doughnut', data: { labels: kinds.length ? kinds.map(([k]) => KIND[k] || k) : ['No questions yet'], datasets: [{ data: kinds.length ? kinds.map(([, n]) => n) : [1],
+      backgroundColor: kinds.length ? COLORS : ['#e6e0d4'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Outfit' } } } } } });
+    const hours = Array.from({ length: 24 }, (_, h) => (h % 12 || 12) + (h < 12 ? 'a' : 'p'));
+    make('cHours', { type: 'bar', data: { labels: hours, datasets: [{ label: 'Questions', data: D.askHours, backgroundColor: COLORS[1], borderRadius: 2 }] }, options: base({ plugins: { legend: { display: false } } }) });
+    make('cDays', { type: 'bar', data: { labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], datasets: [{ label: 'Questions', data: D.askWeekdays, backgroundColor: COLORS[2], borderRadius: 3 }] }, options: base({ plugins: { legend: { display: false } } }) });
+    const s = D.daily.slice(-30);
+    make('cSpeed', { type: 'line', data: { labels: s.map((d) => label(d.day)), datasets: [{ label: 'Seconds', data: s.map((d) => d.answerSec), borderColor: COLORS[0], backgroundColor: 'rgba(201,52,42,0.12)', fill: true, tension: 0.3, spanGaps: true, pointRadius: 2 }] },
+      options: base({ plugins: { legend: { display: false } } }) });
+  }
+  const COLS = [
+    ['name', 'Member'], ['score', 'Activity'], ['lastSeen', 'Last seen'], ['activeDays30', 'Days active (30d)'], ['visits30', 'Visits (30d)'],
+    ['questions30', 'Questions (30d)'], ['questionsAll', 'Questions (all)'], ['favoriteKind', 'Asks most about'], ['games', 'Games'], ['gamesAdded30', 'Added (30d)'],
+    ['plays', 'Plays'], ['ratings', 'Ratings'], ['wishlist', 'Wishlist'], ['friends', 'Friends'], ['top10', 'Top 10'], ['profile', 'Profile'],
+  ];
+  function renderUsers() {
+    const list = [...D.users].sort((a, b) => {
+      const x = a[sortKey], y = b[sortKey];
+      if (sortKey === 'lastSeen') return ((Date.parse(x || 0) || 0) - (Date.parse(y || 0) || 0)) * sortDir;
+      if (typeof x === 'string' || typeof y === 'string') return String(x || '').localeCompare(String(y || '')) * sortDir;
+      return ((x || 0) - (y || 0)) * sortDir;
+    });
+    const cell = (u, k) => {
+      if (k === 'name') return '<span class="name">' + esc(u.name) + '</span>' + (u.isAdmin ? '<span class="badge">Admin</span>' : '') + (u.demo ? '<span class="badge">Demo</span>' : '') + (u.bgg ? '<span class="badge">BGG</span>' : '');
+      if (k === 'lastSeen') return esc(ago(u.lastSeen));
+      if (k === 'favoriteKind') return esc(u.favoriteKind ? (KIND[u.favoriteKind] || u.favoriteKind) : '–');
+      if (k === 'profile') return u.profile + '/4';
+      if (k === 'top10') return u.top10 + '/10';
+      return num(u[k]);
+    };
+    document.getElementById('users').innerHTML = '<thead><tr>' + COLS.map(([k, l]) => '<th data-k="' + k + '" class="' + (k === sortKey ? 'on' : '') + '">' + l + (k === sortKey ? (sortDir < 0 ? ' ↓' : ' ↑') : '') + '</th>').join('') + '</tr></thead>' +
+      '<tbody>' + list.map((u) => '<tr>' + COLS.map(([k]) => '<td>' + cell(u, k) + '</td>').join('') + '</tr>').join('') + '</tbody>';
+  }
+  function renderAdoption() {
+    const a = D.adoption, n = a.members || 1;
+    const row = (label, v) => '<div class="row">' + label + ' <b>' + v + ' of ' + a.members + '</b><div class="meter"><div style="width:' + Math.round(v / n * 100) + '%"></div></div></div>';
+    document.getElementById('adopt').innerHTML = row('Have games on their shelf', a.withGames) + row('Brought in their BGG plays', a.withPlays) + row('Asked Nathan something', a.askedNathan) +
+      row('Rated games', a.withRatings) + row('Filled in their profile', a.withProfile) + row('Picked a Top 10', a.withTop10) + row('Started a wishlist', a.withWishlist) + row('Connected with a friend', a.withFriends);
+  }
+
+  // ================= Members =================
+  let memberQuery = '', armed = null; // armed: the "Remove" waiting for a second tap
+  function renderMembers(a) {
+    const me = (claims(token()) || {}).email || '';
+    const list = (a.members || []).filter((m) => !memberQuery || (m.name + ' ' + m.email).toLowerCase().includes(memberQuery.toLowerCase()));
+    app.innerHTML =
+      '<h1><i class="fa-solid fa-users"></i> Members</h1><div class="sub">' + (a.members || []).length + ' members · the site is invite-only</div>' +
+      '<div class="card" style="margin-top:1rem;"><h3>Invite someone</h3>' +
+        '<form class="form" id="invite"><div class="row"><input id="invName" placeholder="Their name" maxlength="80" autocomplete="off" aria-label="Their name">' +
+        '<input id="invEmail" type="email" placeholder="Their Google email" maxlength="200" autocomplete="off" aria-label="Their Google email">' +
+        '<button class="btn primary" type="submit"><i class="fa-solid fa-paper-plane"></i> Invite</button></div></form>' +
+        '<div class="note">They get a welcome email with the link and how to start. It has to be a Google account. If Google sign-in is still in testing mode, add them as a test user in Google Cloud too.</div></div>' +
+      '<h2><i class="fa-solid fa-address-book"></i> Everyone <input class="search" id="memberSearch" type="search" placeholder="Search by name or email" value="' + esc(memberQuery) + '" aria-label="Search members"></h2>' +
+      '<div class="members" id="memberList">' + (list.length ? list.map((m) => memberCard(m, me)).join('') : '<p class="empty">Nobody matches that.</p>') + '</div>';
+  }
+  function memberCard(m, me) {
+    const self = me && m.email.toLowerCase() === me.toLowerCase();
+    const pills = [m.isOwner ? '<span class="pill ok">Owner</span>' : m.isAdmin ? '<span class="pill ok">Admin</span>' : '', self ? '<span class="pill">You</span>' : '', m.demo ? '<span class="pill">Demo</span>' : '',
+      m.lastSeen ? '' : '<span class="pill busy">Hasn’t signed in yet</span>'].join('');
+    const stat = (n, l) => '<div><b>' + num(n) + '</b><span>' + l + '</span></div>';
+    const removeArmed = armed === 'remove:' + m.id;
+    return '<div class="card member"><div class="top"><b>' + esc(m.name) + '</b>' + pills + '</div>' +
+      '<div class="mail">' + esc(m.email) + '</div>' +
+      '<div class="note" style="margin-top:0.2rem;">Last seen ' + esc(ago(m.lastSeen)) + ' · active ' + m.activeDays30 + ' of the last 30 days' + (m.bgg ? ' · BGG ' + esc(m.bgg) : '') + (m.joined ? ' · joined ' + esc(new Date(m.joined).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })) : '') + '</div>' +
+      '<div class="stats">' + stat(m.games, 'Games') + stat(m.plays, 'Plays') + stat(m.ratings, 'Ratings') + stat(m.friends, 'Friends') + stat(m.wishlist, 'Wishlist') + stat(m.questionsToday, 'Asked today') + '</div>' +
+      '<div class="acts">' +
+        (m.isOwner ? '' : '<button type="button" class="btn small" data-admin="' + m.id + '" data-on="' + (!m.isAdmin) + '"><i class="fa-solid fa-shield-halved"></i> ' + (m.isAdmin ? 'Remove admin' : 'Make admin') + '</button>') +
+        (m.questionsToday ? '<button type="button" class="btn small" data-reset="' + m.id + '"><i class="fa-solid fa-rotate-left"></i> Reset today’s questions</button>' : '') +
+        (m.isOwner || self ? '' : '<button type="button" class="btn small danger' + (removeArmed ? ' armed' : '') + '" data-remove="' + m.id + '">' +
+          (removeArmed ? 'Tap again: delete ' + esc(m.name.split(' ')[0]) + '’s shelf, plays and friends' : '<i class="fa-solid fa-user-minus"></i> Remove') + '</button>') +
+      '</div></div>';
+  }
+  async function adminAct(payload) {
+    try {
+      const r = await post('/admin', payload);
+      toast(r.message || 'Done.');
+      armed = null;
+      await loadA(true);
+      D = null; // the dashboard counts change too
+      show();
+    } catch (e) { if (e instanceof Gate) return gate(e.message, e.button); toast(e.message, true); }
+  }
+  app.addEventListener('input', (e) => {
+    if (e.target.id !== 'memberSearch') return;
+    memberQuery = e.target.value;
+    const me = (claims(token()) || {}).email || '';
+    const list = (A.members || []).filter((m) => !memberQuery || (m.name + ' ' + m.email).toLowerCase().includes(memberQuery.toLowerCase()));
+    document.getElementById('memberList').innerHTML = list.length ? list.map((m) => memberCard(m, me)).join('') : '<p class="empty">Nobody matches that.</p>';
+  });
+
+  // ================= Nathan =================
+  function renderNathan(a, d) {
+    const busy = (a.members || []).filter((m) => m.questionsToday).sort((x, y) => y.questionsToday - x.questionsToday);
+    const kinds = Object.entries(d.askKinds || {}).sort((x, y) => y[1] - x[1]);
+    const total = kinds.reduce((s, [, n]) => s + n, 0);
+    app.innerHTML =
+      '<h1><i class="fa-solid fa-comments"></i> Nathan</h1><div class="sub">The curator: how much he’s asked, his daily limit, and the nightly check</div>' +
+      selfTestHtml(d.selfTest) +
+      '<div class="tiles five">' +
+        '<div class="tile"><b>' + num(a.totals.questionsToday) + '</b><span>Questions today</span></div>' +
+        '<div class="tile"><b>' + num(a.totals.questions7) + '</b><span>This week</span></div>' +
+        '<div class="tile"><b>' + num(a.totals.questions30) + '</b><span>This month</span></div>' +
+        '<div class="tile"><b>' + (d.kpis.answerSec7 != null ? d.kpis.answerSec7 + 's' : '–') + '</b><span>Avg answer time</span><small>last 7 days</small></div>' +
+        '<div class="tile"><b>' + (d.kpis.answerOk30 != null ? d.kpis.answerOk30 + '%' : '–') + '</b><span>Answers that worked</span><small>last 30 days</small></div>' +
+      '</div>' +
+      '<div class="grid2" style="margin-top:0.8rem;">' +
+        '<div class="card"><h3>Questions per member per day</h3>' +
+          '<form class="form" id="limit"><div class="row"><input id="limitValue" type="number" min="1" max="500" value="' + a.askLimit + '" aria-label="Questions per member per day" style="max-width:8rem;">' +
+          '<button class="btn primary" type="submit">Save</button></div></form>' +
+          '<div class="note">Resets at midnight Eastern. Each question costs a fraction of a cent on the AI service.</div></div>' +
+        '<div class="card"><h3>What people ask <small>last 30 days</small></h3>' +
+          (total ? '<div class="adopt">' + kinds.map(([k, n]) => '<div class="row">' + esc(KIND[k] || k) + ' <b>' + num(n) + '</b><div class="meter"><div style="width:' + Math.round(n / total * 100) + '%"></div></div></div>').join('') + '</div>'
+            : '<p class="empty">No questions yet.</p>') + '<div class="note">Kinds of questions only, never the questions themselves.</div></div>' +
+      '</div>' +
+      '<h2><i class="fa-solid fa-clock"></i> Asked today</h2>' +
+      (busy.length ? '<div class="members">' + busy.map((m) => '<div class="card member"><div class="top"><b>' + esc(m.name) + '</b><span class="pill' + (m.questionsToday >= a.askLimit ? ' warn' : '') + '">' + m.questionsToday + ' of ' + a.askLimit + '</span></div>' +
+          '<div class="note">' + num(m.questions7) + ' this week · ' + num(m.questionsAll) + ' all time</div>' +
+          '<div class="acts" style="margin-top:0.6rem;"><button type="button" class="btn small" data-reset="' + m.id + '"><i class="fa-solid fa-rotate-left"></i> Reset today’s questions</button></div></div>').join('') + '</div>'
+        : '<p class="empty">Nobody has asked Nathan anything yet today.</p>');
+  }
+
+  // ================= Rulebooks =================
+  function renderRulebooks(a) {
+    const docs = a.rulebooks || [];
+    const st = (d) => d.status === 'ready' ? '<span class="pill ok">Ready</span>' : d.status === 'error' ? '<span class="pill warn">Couldn’t read</span>'
+      : '<span class="pill busy">' + (d.status === 'queued' ? 'Waiting' : 'Reading ' + d.pagesDone + '/' + d.pages) + '</span>';
+    app.innerHTML =
+      '<h1><i class="fa-solid fa-book-open"></i> Rulebooks</h1><div class="sub">Every rulebook and guide Nathan has read. Members add them from a game’s details; we keep his text and a link to the official copy, never the PDF.</div>' +
+      (docs.length ? '<div class="table-wrap" style="margin-top:1rem;"><table style="min-width:760px;"><thead><tr><th>Game</th><th style="text-align:left;">Document</th><th>Pages</th><th>Sections</th><th style="text-align:left;">Status</th><th style="text-align:left;">Added</th><th style="text-align:left;">Official copy</th><th></th></tr></thead><tbody>' +
+        docs.map((d) => '<tr><td><span class="name">' + esc(d.game) + '</span></td><td style="text-align:left;">' + esc(d.label) + (d.title ? ' · ' + esc(d.title) : '') + '</td>' +
+          '<td>' + num(d.pages) + '</td><td>' + num(d.sections) + '</td><td style="text-align:left;">' + st(d) + (d.error ? '<div class="note" style="white-space:normal;">' + esc(d.error) + '</div>' : '') + '</td>' +
+          '<td style="text-align:left;">' + esc(d.uploadedBy || '–') + ' · ' + esc(ago(d.added)) + '</td>' +
+          '<td style="text-align:left;">' + (d.source ? '<a href="' + esc(d.source) + '" target="_blank" rel="noopener">Open</a> · ' : '') + '<button type="button" class="btn small" data-link="' + d.id + '">' + (d.source ? 'Change' : 'Add link') + '</button></td>' +
+          '<td><button type="button" class="btn small danger' + (armed === 'doc:' + d.id ? ' armed' : '') + '" data-doc-remove="' + d.id + '">' + (armed === 'doc:' + d.id ? 'Tap again to remove' : 'Remove') + '</button></td></tr>').join('') +
+        '</tbody></table></div>'
+        : '<div class="card" style="margin-top:1rem;"><p class="empty">No rulebooks yet. Members add them from a game’s details → Rulebooks &amp; guides.</p></div>');
+  }
+  async function docChange(payload) {
+    try { await post('/rulebook-change', payload); toast(payload.action === 'remove' ? 'Removed.' : 'Link saved.'); armed = null; await loadA(true); show(); }
+    catch (e) { if (e instanceof Gate) return gate(e.message, e.button); toast(e.message, true); }
+  }
+
+  // ---- Buttons and forms
+  app.addEventListener('click', (e) => {
+    const th = e.target.closest('#users th[data-k]');
+    if (th) { const k = th.dataset.k; sortDir = k === sortKey ? -sortDir : (k === 'name' || k === 'favoriteKind' ? 1 : -1); sortKey = k; renderUsers(); return; }
+    const ad = e.target.closest('[data-admin]');
+    if (ad) return adminAct({ action: 'admin', target: Number(ad.dataset.admin), on: ad.dataset.on === 'true' });
+    const rs = e.target.closest('[data-reset]');
+    if (rs) return adminAct({ action: 'resetAsks', target: Number(rs.dataset.reset) });
+    const rm = e.target.closest('[data-remove]');
+    if (rm) {
+      if (armed !== 'remove:' + rm.dataset.remove) { armed = 'remove:' + rm.dataset.remove; return show(); }
+      return adminAct({ action: 'remove', target: Number(rm.dataset.remove) });
+    }
+    const dl = e.target.closest('[data-link]');
+    if (dl) {
+      const url = prompt('Link to the official copy (publisher page or PDF), starting with https://');
+      if (url && url.trim()) docChange({ id: Number(dl.dataset.link), action: 'edit', source: url.trim() });
+      return;
+    }
+    const dr = e.target.closest('[data-doc-remove]');
+    if (dr) {
+      if (armed !== 'doc:' + dr.dataset.docRemove) { armed = 'doc:' + dr.dataset.docRemove; return show(); }
+      return docChange({ id: Number(dr.dataset.docRemove), action: 'remove' });
+    }
+  });
+  app.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (e.target.id === 'invite') adminAct({ action: 'invite', name: document.getElementById('invName').value, email: document.getElementById('invEmail').value });
+    if (e.target.id === 'limit') adminAct({ action: 'askLimit', value: Number(document.getElementById('limitValue').value) });
+  });
+
+  start();
+</script>
+</body>
+</html>
