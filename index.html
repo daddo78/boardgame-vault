@@ -582,6 +582,9 @@
   body.chatting #addFab { display: none !important; } /* out of the way of the reply box */
   .modal-overlay { position: fixed; inset: 0; background: rgba(20,40,90,0.45); display: none; align-items: center; justify-content: center; z-index: 100; padding: 1.5rem; }
   .modal-overlay.open { display: flex; }
+  /* While a popup is open the page behind it is held in place (phones would otherwise scroll it along with the popup) */
+  .modal-overlay, .modal { overscroll-behavior: contain; }
+  body.modal-locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   .modal { background: var(--card-bg); border-radius: 1.25rem; padding: 1.75rem; max-width: 460px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(20,40,90,0.25); }
   .modal h2 { font-family: var(--font-display); margin-bottom: 1rem; color: var(--ink); font-weight: 800; letter-spacing: -0.01em; }
   .modal label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem; margin-top: 0.9rem; font-weight: 700; }
@@ -1795,6 +1798,22 @@
       detailModal.classList.add('open');
     }
     function closeDetail() { detailModal.classList.remove('open'); detailId = null; }
+    // Any popup: freeze the page behind it where it is, and put you back in the same spot when it closes
+    let lockedY = null;
+    function syncScrollLock() {
+      const open = !!document.querySelector('.modal-overlay.open');
+      if (open && lockedY === null) {
+        lockedY = window.scrollY;
+        document.body.style.top = -lockedY + 'px';
+        document.body.classList.add('modal-locked');
+      } else if (!open && lockedY !== null) {
+        document.body.classList.remove('modal-locked');
+        document.body.style.top = '';
+        window.scrollTo({ top: lockedY, behavior: 'instant' });
+        lockedY = null;
+      }
+    }
+    new MutationObserver(syncScrollLock).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
     // Rulebooks: one per game, shared by every member; Nathan answers rules questions from it
     const rbCache = {};
     function rbHtml(info, g) {

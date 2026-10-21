@@ -10,6 +10,8 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 - Tonight's pick is a game that's at its best with your number of players, not one he has to make excuses for.
 - The "ages" chip only appears when someone mentions ages or kids.
 - He calls your shelf "your shelf", not "my shelf".
+- "Who has a co-op for 2?" always looks at your friends' shelves and says whose copy to borrow.
+- On your phone, scrolling inside a game's details (or any popup) no longer scrolls the shelf behind it. Close it and you're right where you left off.
 
 ## v0.12 · October 20, 2026
 
