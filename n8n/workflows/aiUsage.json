@@ -1,0 +1,178 @@
+{
+  "id": "BGVaultAiUsage01",
+  "name": "Vault — AI Spending",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "ac763b48-29bb-4d1b-8b49-a33b6418c2fb",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1,
+              "triggerAtMinute": 7
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f9454934-f65d-41fe-b2a7-9a4dcd6c99c0",
+      "name": "Run Now",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "e04cb232-ca1f-4e70-aa7c-f5fa6afb1385",
+      "name": "This Key",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://openrouter.ai/api/v1/key",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "vxwyGYOyusPAYIJd",
+          "name": "OpenRouter API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "d075723c-7bdc-474e-8860-ae6d93acf480",
+      "name": "Account",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://openrouter.ai/api/v1/credits",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "vxwyGYOyusPAYIJd",
+          "name": "OpenRouter API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7c14cd1e-2e16-46fc-b48d-a96613c427de",
+      "name": "Save",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT bgc.log_usage(nullif($1, '')::numeric, nullif($2, '')::numeric, nullif($3, '')::numeric, nullif($4, '')::numeric)",
+        "options": {
+          "queryReplacement": "={{ [String((($('This Key').first().json || {}).data || {}).usage ?? ''), String((($('This Key').first().json || {}).data || {}).limit ?? ''), String((($('Account').first().json || {}).data || {}).total_credits ?? ''), String((($('Account').first().json || {}).data || {}).total_usage ?? '')] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "Every Hour": {
+      "main": [
+        [
+          {
+            "node": "This Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now": {
+      "main": [
+        [
+          {
+            "node": "This Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "This Key": {
+      "main": [
+        [
+          {
+            "node": "Account",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Account": {
+      "main": [
+        [
+          {
+            "node": "Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "BGVaultAlert0001"
+  },
+  "tags": []
+}

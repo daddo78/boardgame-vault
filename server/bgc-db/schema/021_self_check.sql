@@ -60,6 +60,9 @@ BEGIN
     res := res || jsonb_build_object('what', 'a rules question finds the right page', 'ok', coalesce(((bgc.rule_search('["Catan"]', 'can I trade with other players') -> 0 -> 'sections' -> 0 ->> 'page')::int = 3), false));
     res := res || jsonb_build_object('what', 'someone else can''t remove your rulebook', 'ok', coalesce((NOT (bgc.rule_doc_change('nathan.schmidt@curator.invalid', (SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'remove', '{}') ->> 'ok')::boolean), false));
     res := res || jsonb_build_object('what', 'a game with a rulebook shows it on every shelf', 'ok', coalesce((bgc.rule_doc_games() @> '[13]'), false));
+    res := res || jsonb_build_object('what', 'an AI call''s cost can be recorded', 'ok', coalesce((bgc.log_ai('dandehaan@gmail.com', '[{"feature": "nathan", "model": "check-model", "cost": 0.5}]') IS NULL), false));
+    res := res || jsonb_build_object('what', 'the recorded cost is there afterwards', 'ok', coalesce((EXISTS (SELECT 1 FROM ai_costs WHERE model = 'check-model' AND cost = 0.5 AND feature = 'nathan')), false));
+    res := res || jsonb_build_object('what', 'only admins see what the site costs', 'ok', coalesce((NOT (bgc.costs_page('check.member@example.invalid') ->> 'ok')::boolean AND (bgc.costs_page('dandehaan@gmail.com') ->> 'ok')::boolean), false));
     res := res || jsonb_build_object('what', 'Dan''s play counts are intact (The Crew: 21)', 'ok', coalesce(((SELECT play_count FROM shelves s JOIN games g ON g.id = s.game_id WHERE s.member_id = 1 AND g.title = 'The Crew: The Quest for Planet Nine') = 21), false));
     RAISE EXCEPTION 'self-check done' USING ERRCODE = 'P0001'; -- undo everything the checks did
   EXCEPTION WHEN raise_exception THEN

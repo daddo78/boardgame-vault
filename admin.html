@@ -41,8 +41,8 @@
   main { min-width: 0; }
   @media (max-width: 860px) {
     .shell { grid-template-columns: minmax(0, 1fr); gap: 0.8rem; }
-    .side { position: sticky; top: 3.6rem; z-index: 4; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.3rem; background: var(--bg); padding: 0.5rem 0; }
-    .side a { flex-direction: column; justify-content: center; gap: 0.2rem; padding: 0.45rem 0.2rem; font-size: 0.78rem; text-align: center; }
+    .side { position: sticky; top: 3.6rem; z-index: 4; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.25rem; background: var(--bg); padding: 0.5rem 0; }
+    .side a { flex-direction: column; justify-content: center; gap: 0.2rem; padding: 0.45rem 0.1rem; font-size: 0.72rem; text-align: center; }
     .side a i { width: auto; font-size: 1rem; }
     .side .count { display: none; }
   }
@@ -125,6 +125,11 @@
   .pill.busy { background: #fff3dc; color: #8a5a00; }
   .status { display: flex; gap: 0.7rem; align-items: center; }
   .status i { font-size: 1.4rem; }
+  .money { font-variant-numeric: tabular-nums; }
+  .fixed-row { display: grid; grid-template-columns: minmax(0, 1fr) 7rem 7rem auto; gap: 0.4rem; align-items: center; margin-bottom: 0.4rem; }
+  .fixed-row input, .fixed-row select { min-width: 0; border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 0.6rem; padding: 0.5rem 0.6rem; color: var(--ink); }
+  @media (max-width: 520px) { .fixed-row { grid-template-columns: minmax(0, 1fr) 5.5rem 5.5rem auto; } }
+  .warnbox { border-left: 5px solid var(--brand); }
   .toast { position: fixed; left: 50%; bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: #fff; padding: 0.7rem 1.2rem; border-radius: 999px;
     font-weight: 600; font-size: 0.9rem; box-shadow: 0 8px 24px rgba(0,0,0,0.2); z-index: 50; max-width: calc(100% - 2rem); }
   .toast.err { background: var(--brand-dark); }
@@ -145,6 +150,7 @@
       <a href="#members" data-tab="members"><i class="fa-solid fa-users"></i> Members <span class="count" id="nMembers"></span></a>
       <a href="#nathan" data-tab="nathan"><i class="fa-solid fa-comments"></i> Nathan</a>
       <a href="#rulebooks" data-tab="rulebooks"><i class="fa-solid fa-book-open"></i> Rulebooks <span class="count" id="nRules"></span></a>
+      <a href="#costs" data-tab="costs"><i class="fa-solid fa-coins"></i> Costs</a>
     </nav>
     <main id="app"><div class="spinner"></div></main>
   </div>
@@ -164,7 +170,7 @@
   const num = (n) => n == null ? '–' : Number(n).toLocaleString();
   const KIND = { recommend: 'What to play', browse: 'Lists & top tens', person: 'About people', game: 'About a game', buy: 'Buy ideas', rules: 'Rules', 'off-topic': 'Off-topic', other: 'Other' };
   const COLORS = ['#c9342a', '#0041c2', '#ffa726', '#a3d977', '#b384dc', '#8ac4f5', '#ffd166', '#7b8494'];
-  const TABS = ['dashboard', 'members', 'nathan', 'rulebooks'];
+  const TABS = ['dashboard', 'members', 'nathan', 'rulebooks', 'costs'];
   let toastTimer = null;
   function toast(msg, err) {
     const t = document.getElementById('toast');
@@ -202,7 +208,7 @@
   const post = (path, payload) => call(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
   // ---- Data: the dashboard and the admin list, each loaded once and refreshed after a change
-  let D = null, A = null;
+  let D = null, A = null, C = null;
   const loadD = async (force) => (D && !force) ? D : (D = await call('/dashboard'));
   const loadA = async (force) => {
     if (A && !force) return A;
@@ -223,6 +229,7 @@
       if (tab === 'dashboard') renderDashboard(await loadD());
       else if (tab === 'members') renderMembers(await loadA());
       else if (tab === 'nathan') { const [a, d] = await Promise.all([loadA(), loadD()]); renderNathan(a, d); }
+      else if (tab === 'costs') renderCosts(C = await call('/costs'));
       else renderRulebooks(await loadA());
     } catch (e) {
       if (e instanceof Gate) return gate(e.message, e.button);
@@ -452,6 +459,72 @@
         : '<p class="empty">Nobody has asked Nathan anything yet today.</p>');
   }
 
+  // ================= Costs =================
+  const FEATURE = { nathan: 'Nathan’s answers', photo: 'Photos', rulebook: 'Reading rulebooks', tests: 'Tests (nightly check)', other: 'Other (adding games by photo, icons)' };
+  const FCOLORS = { nathan: '#c9342a', photo: '#b384dc', rulebook: '#0041c2', tests: '#7b8494', other: '#ffa726' };
+  const usd = (n, small) => n == null ? '–' : '$' + (small && Math.abs(n) < 1 ? Number(n).toFixed(n && Math.abs(n) < 0.01 ? 4 : 3) : Number(n).toFixed(2));
+  let fixedDraft = null;
+  function renderCosts(c) {
+    if (!fixedDraft) fixedDraft = (c.fixed || []).map((x) => ({ ...x }));
+    const tile = (n, label, small) => '<div class="tile"><b class="money">' + n + '</b><span>' + label + '</span>' + (small ? '<small>' + small + '</small>' : '') + '</div>';
+    const feats = Object.entries(c.byFeature || {});
+    const tracked30 = feats.reduce((t, [, v]) => t + Number(v.cost30 || 0), 0);
+    const other30 = Math.max(0, Number(c.last30 || 0) - tracked30);
+    const rows = [...feats.map(([k, v]) => [k, Number(v.cost30 || 0), v.calls30, Number(v.costAll || 0), v.callsAll]), ...(other30 > 0.0005 ? [['other', other30, null, null, null]] : [])].sort((a, b) => b[1] - a[1]);
+    const limitLeft = c.keyLimit != null && c.keyAllTime != null ? c.keyLimit - c.keyAllTime : null;
+    const lowKey = limitLeft != null && limitLeft < 2, lowBalance = c.balance != null && c.balance < 5;
+    app.innerHTML =
+      '<h1><i class="fa-solid fa-coins"></i> Costs</h1><div class="sub">What Board Game Curator costs to run · AI spending is exact, from OpenRouter' + (c.tracking.lastCheck ? ' · checked ' + esc(ago(c.tracking.lastCheck)) : '') + '</div>' +
+      (lowKey || lowBalance ? '<div class="card status warnbox" style="margin-top:0.9rem;"><i class="fa-solid fa-triangle-exclamation" style="color:var(--brand);"></i><div><b>' +
+        (lowKey ? 'The site’s OpenRouter key is close to its $' + Number(c.keyLimit).toFixed(0) + ' limit' : 'Your OpenRouter balance is low') + '</b><div class="note" style="margin:0;">' +
+        (lowKey ? usd(limitLeft) + ' left before Nathan stops answering. Raise the key’s limit on openrouter.ai → Keys.' : usd(c.balance) + ' left. Add credits on openrouter.ai → Credits.') + '</div></div></div>' : '') +
+      '<div class="tiles">' +
+        tile(usd(c.projectedMonth), 'This month, projected', 'AI ' + usd(c.projectedAi, true) + ' + fixed ' + usd(c.fixedMonthly)) +
+        tile(usd(c.monthToDate, true), 'AI so far this month') + tile(usd(c.today, true), 'AI today') + tile(usd(c.last30, true), 'AI last 30 days') +
+        tile(usd(c.keyAllTime), 'AI all time', 'this site’s key' + (c.keyLimit != null ? ' · limit ' + usd(c.keyLimit) : '')) +
+        tile(usd(c.balance), 'OpenRouter balance', 'shared by all your keys') +
+      '</div>' +
+      '<h2><i class="fa-solid fa-chart-column"></i> AI spending by day</h2>' +
+      '<div class="card"><div class="chart"><canvas id="cCost"></canvas></div><div class="note">Exact daily totals start ' + (c.tracking.since ? esc(new Date(c.tracking.since).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) : 'today') + ', when the site began checking OpenRouter every hour. The split by feature starts the same day.</div></div>' +
+      '<div class="grid2" style="margin-top:0.8rem;">' +
+        '<div class="card"><h3>What the AI money goes to <small>last 30 days</small></h3>' +
+          (rows.length ? '<div class="adopt">' + rows.map(([k, c30, n30]) => '<div class="row">' + esc(FEATURE[k] || k) + (n30 ? ' <span class="note">· ' + num(n30) + ' calls</span>' : '') + ' <b class="money">' + usd(c30, true) + '</b><div class="meter"><div style="width:' + (c.last30 > 0 ? Math.min(100, Math.round(c30 / Math.max(Number(c.last30), tracked30) * 100)) : 0) + '%; background:' + (FCOLORS[k] || '#7b8494') + '"></div></div></div>').join('') + '</div>'
+            : '<p class="empty">Nothing yet. Costs show up as soon as Nathan answers or reads a rulebook.</p>') + '</div>' +
+        '<div class="card"><h3>Averages</h3><div class="adopt">' +
+          '<div class="row">Per question to Nathan <b class="money">' + usd(c.perQuestion, true) + '</b></div>' +
+          '<div class="row">Per rulebook page read <b class="money">' + usd(c.perRulebookPage, true) + '</b></div>' +
+          '<div class="row">Per active member, last 30 days <b class="money">' + usd(c.perActiveMember, true) + '</b></div>' +
+        '</div><div class="note">A 28-page rulebook costs about 28 × the page price, once. Questions are what grow with more members.</div></div>' +
+      '</div>' +
+      '<h2><i class="fa-solid fa-server"></i> Fixed costs</h2>' +
+      '<div class="card"><form class="form" id="fixedForm">' +
+        (fixedDraft.length ? '' : '<p class="empty" style="margin-bottom:0.4rem;">Add what you pay for hosting and domains, so the monthly total is the real total.</p>') +
+        fixedDraft.map((x, i) => '<div class="fixed-row"><input data-fx="' + i + '" data-k="name" value="' + esc(x.name) + '" placeholder="e.g. Hostinger VPS" maxlength="60" aria-label="What it is">' +
+          '<input data-fx="' + i + '" data-k="amount" value="' + esc(x.amount ?? '') + '" placeholder="Amount" inputmode="decimal" aria-label="Amount in dollars">' +
+          '<select data-fx="' + i + '" data-k="per" aria-label="How often"><option value="month"' + (x.per !== 'year' ? ' selected' : '') + '>a month</option><option value="year"' + (x.per === 'year' ? ' selected' : '') + '>a year</option></select>' +
+          '<button type="button" class="btn small danger" data-fx-remove="' + i + '" aria-label="Remove"><i class="fa-solid fa-xmark"></i></button></div>').join('') +
+        '<div class="row"><button type="button" class="btn small" id="fxAdd"><i class="fa-solid fa-plus"></i> Add a cost</button>' +
+        '<button type="submit" class="btn primary small">Save</button></div>' +
+        '<div class="note">Yearly costs count as a twelfth each month. Free services (Cloudflare, GitHub Pages, the email service) don’t need adding.</div></form></div>';
+    drawCosts(c);
+  }
+  function drawCosts(c) {
+    // From the day before tracking began (at least the last two weeks), so the chart isn't mostly empty
+    const since = c.tracking.since ? new Date(c.tracking.since).toISOString().slice(0, 10) : null;
+    const all = c.daily || [];
+    const from = since ? Math.max(0, Math.min(all.findIndex((d) => d.day >= since) - 1, all.length - 14)) : Math.max(0, all.length - 14);
+    const days = all.slice(from < 0 ? 0 : from);
+    const feats = [...new Set(days.flatMap((d) => Object.keys(d.features || {})))];
+    const ds = feats.map((k) => ({ type: 'bar', label: FEATURE[k] || k, data: days.map((d) => Number((d.features || {})[k] || 0)), backgroundColor: FCOLORS[k] || '#7b8494', stack: 'a', borderRadius: 2 }));
+    ds.push({ type: 'bar', label: FEATURE.other, data: days.map((d) => Math.max(0, Number(d.exact || 0) - Number(d.tracked || 0))), backgroundColor: FCOLORS.other, stack: 'a', borderRadius: 2 });
+    make('cCost', { type: 'bar', data: { labels: days.map((d) => label(d.day)), datasets: ds },
+      options: base({ scales: { x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
+        y: { stacked: true, beginAtZero: true, ticks: { callback: (v) => '$' + Number(v).toFixed(v === 0 ? 0 : v < 0.01 ? 4 : v < 1 ? 3 : 2) } } },
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Outfit' } } }, tooltip: { callbacks: { label: (x) => x.dataset.label + ': $' + Number(x.raw).toFixed(4) } } } }) });
+  }
+  app.addEventListener('input', (e) => { const el = e.target.closest('[data-fx]'); if (el && fixedDraft) fixedDraft[Number(el.dataset.fx)][el.dataset.k] = el.value; });
+  app.addEventListener('change', (e) => { const el = e.target.closest('select[data-fx]'); if (el && fixedDraft) fixedDraft[Number(el.dataset.fx)].per = el.value; });
+
   // ================= Rulebooks =================
   function renderRulebooks(a) {
     const docs = a.rulebooks || [];
@@ -470,6 +543,14 @@
   }
   async function docChange(payload) {
     try { await post('/rulebook-change', payload); toast(payload.action === 'remove' ? 'Removed.' : 'Link saved.'); armed = null; await loadA(true); show(); }
+    catch (e) { if (e instanceof Gate) return gate(e.message, e.button); toast(e.message, true); }
+  }
+
+  async function saveFixed() {
+    const items = fixedDraft.filter((x) => String(x.name || '').trim()).map((x) => ({ name: String(x.name).trim(), amount: String(x.amount || '').replace(/[$,\s]/g, ''), per: x.per === 'year' ? 'year' : 'month' }));
+    const bad = items.find((x) => !/^\d+(\.\d+)?$/.test(x.amount));
+    if (bad) return toast('Give "' + bad.name + '" an amount, like 12.99', true);
+    try { C = await post('/costs', { fixed: items }); fixedDraft = null; renderCosts(C); toast('Saved.'); }
     catch (e) { if (e instanceof Gate) return gate(e.message, e.button); toast(e.message, true); }
   }
 
@@ -492,6 +573,9 @@
       if (url && url.trim()) docChange({ id: Number(dl.dataset.link), action: 'edit', source: url.trim() });
       return;
     }
+    if (e.target.closest('#fxAdd')) { fixedDraft.push({ name: '', amount: '', per: 'month' }); return renderCosts(C); }
+    const fx = e.target.closest('[data-fx-remove]');
+    if (fx) { fixedDraft.splice(Number(fx.dataset.fxRemove), 1); return renderCosts(C); }
     const dr = e.target.closest('[data-doc-remove]');
     if (dr) {
       if (armed !== 'doc:' + dr.dataset.docRemove) { armed = 'doc:' + dr.dataset.docRemove; return show(); }
@@ -502,6 +586,7 @@
     e.preventDefault();
     if (e.target.id === 'invite') adminAct({ action: 'invite', name: document.getElementById('invName').value, email: document.getElementById('invEmail').value });
     if (e.target.id === 'limit') adminAct({ action: 'askLimit', value: Number(document.getElementById('limitValue').value) });
+    if (e.target.id === 'fixedForm') saveFixed();
   });
 
   start();

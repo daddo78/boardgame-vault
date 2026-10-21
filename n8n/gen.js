@@ -60,6 +60,9 @@ const ID = {
   rulebookGet: 'BGVaultRulesGet1',
   ruleChange: 'BGVaultRuleChg01',
   ruleReader: 'BGVaultRuleRead1',
+  aiUsage: 'BGVaultAiUsage01',
+  costs: 'BGVaultCosts0001',
+  costsSave: 'BGVaultCostsSav1',
   dashboard: 'BGVaultDashbrd01',
   askTest: 'BGVaultAskTest01',
   selfTest: 'BGVaultSelfTest1',
@@ -739,7 +742,7 @@ const identify = wf(ID.identify, 'Vault — Identify Games From Photo', [
       // Low reasoning keeps answers fast and cheap (some vision models require reasoning to be on)
       model: '__VISION_MODEL__', max_tokens: 8000, reasoning: { effort: 'low' },
       // Only route to providers that don't store or train on the photo
-      provider: { data_collection: 'deny' },
+      provider: { data_collection: 'deny' }, usage: { include: true },
       messages: [
         { role: 'system', content: 'You identify board games from photos for a personal collection catalog. Reply with JSON only.' },
         { role: 'user', content: [
@@ -1126,7 +1129,7 @@ const addByName = wf(ID.addByName, 'Vault — Add Game By Name', [
       '{"genre": "theme/setting, 1-2 short labels joined by \\" / \\"", "type": "core mechanics, 1-2 labels joined by \\" / \\"", "desc": "one vivid sentence (max ~22 words) about what players do"}',
       'Style example: {"genre":"Nature / Ecology","type":"Engine Building / Tableau","desc":"Construct an interconnected 4x4 flora and fauna island ecosystem with zero downtime on rival turns."}',
     ].join('\n');
-    return [{ json: { ...p, requestBody: { model: '__VISION_MODEL__', max_tokens: 2000, reasoning: { effort: 'low' }, provider: { data_collection: 'deny' },
+    return [{ json: { ...p, requestBody: { model: '__VISION_MODEL__', max_tokens: 2000, reasoning: { effort: 'low' }, provider: { data_collection: 'deny' }, usage: { include: true },
       messages: [{ role: 'user', content: prompt }] } } }];
   }),
   ifTrue('On BGG?', '={{ !!$json.requestBody }}'),
@@ -1628,7 +1631,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const recent = Array.isArray(b.recent) ? b.recent.map(String).filter((x) => x.length < 40).slice(0, 40) : [];
     const chatKey = /^[A-Za-z0-9-]{8,64}$/.test(String(b.chatKey || '')) ? String(b.chatKey) : 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     const auth = $input.first().json._auth;
-    return [{ json: { ok: true, t0: Date.now(), question, playerIds, previous: prev, mentioned, recent, chatKey, memory: b.noMemory !== true, image, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
+    return [{ json: { ok: true, t0: Date.now(), question, playerIds, previous: prev, mentioned, recent, chatKey, memory: b.noMemory !== true, image, test: b.test === true, email: auth.email, askerId: auth.playerId || null, askerName: auth.playerName || '',
       shelf: /^friend:\d+$/.test(String(b.shelf || '')) ? String(b.shelf) : b.shelf === 'mine' ? 'mine' : 'main' } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
@@ -1650,7 +1653,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   code('Photo Request', function () {
     const v = $('Validate').first().json;
     return [{ json: { requestBody: {
-      model: 'google/gemini-2.5-flash', models: ['google/gemini-2.5-flash', '__VISION_MODEL__'], max_tokens: 800, temperature: 0.1, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
+      model: 'google/gemini-2.5-flash', models: ['google/gemini-2.5-flash', '__VISION_MODEL__'], max_tokens: 800, temperature: 0.1, reasoning: { enabled: false }, provider: { data_collection: 'deny' }, usage: { include: true },
       messages: [{ role: 'user', content: [
         { type: 'text', text: 'A board game player attached this photo to a question for their game assistant. The question: "' + v.question.replace(/"/g, '\'') + '"\n' +
           (() => {
@@ -1750,7 +1753,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'REQUEST: ' + v.question,
     ].filter((l) => l !== '').join('\n');
     return [{ json: { requestBody: {
-      model: '__VISION_MODEL__', models: ['__VISION_MODEL__', '__ASK_MODEL__'], max_tokens: 1500, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
+      model: '__VISION_MODEL__', models: ['__VISION_MODEL__', '__ASK_MODEL__'], max_tokens: 1500, reasoning: { enabled: false }, provider: { data_collection: 'deny' }, usage: { include: true },
       messages: [{ role: 'user', content: prompt }],
     } } }];
   }),
@@ -2296,7 +2299,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '', 'CANDIDATES (id | title | facts | how each person relates to it):', s.gameLines,
     ].filter((l) => l !== '').join('\n');
     return [{ json: { ...s, requestBody: {
-      model: '__ASK_MODEL__', models: ['__ASK_MODEL__', 'google/gemini-2.5-flash'], max_tokens: 2500, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
+      model: '__ASK_MODEL__', models: ['__ASK_MODEL__', 'google/gemini-2.5-flash'], max_tokens: 2500, reasoning: { enabled: false }, provider: { data_collection: 'deny' }, usage: { include: true },
       messages: [{ role: 'system', content: systemText }, { role: 'user', content: $('Photo Notes').isExecuted
         ? [{ type: 'text', text: user + '\n\nPHOTO: the asker attached the photo below (it shows: ' + $('Photo Notes').first().json.shows + ' — ' + $('Photo Notes').first().json.description + '). ' +
             'Answer about what is in it. If they ask what game it is: name it, say what gave it away (the board, the card art, a logo), and if you are not sure say so and give your next guess too. Never mention a photo reader or how sure it was; just say it in your own words (e.g. \"I\'m fairly sure\"). For an icon or component, say what it means from the RULEBOOK EXCERPTS (match it by its look) and cite the page; if the excerpts don\'t say, say so rather than guessing. (How sure the photo reader was: ' + $('Photo Notes').first().json.sure + '.)' },
@@ -2370,13 +2373,18 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   { ...pg('Log Answer', 'SELECT bgc.log_ask($1, $2, $3::int, $4::boolean, $5)',
     "={{ [$('Validate').first().json.email, $json.offTopic ? 'off-topic' : ($json.mode || ($json.person ? 'person' : $json.intent) || 'other'), String(Date.now() - $('Validate').first().json.t0), String($json.ok !== false), $json.social || ''] }}"),
     onError: 'continueRegularOutput' },
+  // What this answer cost: each AI call's own price, from OpenRouter
+  { ...pg('Log Cost', 'SELECT bgc.log_ai($1, $2::jsonb)',
+    "={{ [$('Validate').first().json.email, JSON.stringify(['Understand Request', 'Look At Photo', 'Recommend'].filter((n) => $(n).isExecuted).map((n) => { const j = $(n).first().json || {}; const u = j.usage || {}; " +
+    "return { feature: $('Validate').first().json.test ? 'tests' : n === 'Look At Photo' ? 'photo' : 'nathan', model: j.model || null, cost: u.cost, in: u.prompt_tokens, out: u.completion_tokens }; }))] }}"),
+    onError: 'continueRegularOutput' },
   // Nathan's memory: the question and answer, and anything he learned about the asker
   { ...pg('Save Turn', 'SELECT bgc.chat_save($1, $2, $3, $4::jsonb, $5::jsonb)',
     "={{ [$('Validate').first().json.email, $('Validate').first().json.chatKey, $('Validate').first().json.question + ($('Validate').first().json.image ? ' (photo)' : ''), JSON.stringify({ ...$('Respond OK').first().json, learn: undefined }), JSON.stringify($('Respond OK').first().json.learn || [])] }}"),
     onError: 'continueRegularOutput' },
   respondError(),
 ], [
-  ['Respond OK', 'Log Answer'], ['Log Answer', 'Save Turn'],
+  ['Respond OK', 'Log Answer'], ['Log Answer', 'Save Turn'], ['Save Turn', 'Log Cost'],
   ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Use Allowance', 0], ['Valid?', 'Respond Error', 1],
   ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'Memory', 0], ['Memory', 'Shelf View'], ['Allowed?', 'Respond Error', 1], ['Shelf View', 'List Games'],
   ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'One More Item'], ['One More Item', 'List Ratings'],
@@ -2796,7 +2804,7 @@ const shelfIdentify = wf(ID.shelfIdentify, 'Vault — Add To My Shelf From Photo
       '', 'OWNED:', ...owned,
     ].join('\n');
     return [{ json: { requestBody: {
-      model: '__VISION_MODEL__', max_tokens: 4000, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
+      model: '__VISION_MODEL__', max_tokens: 4000, reasoning: { enabled: false }, provider: { data_collection: 'deny' }, usage: { include: true },
       messages: [
         { role: 'system', content: 'You identify board games from photos for a personal collection catalog. Reply with JSON only.' },
         { role: 'user', content: [{ type: 'text', text: instructions }, { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } }] },
@@ -3194,7 +3202,7 @@ const ruleReader = wf(ID.ruleReader, 'Vault — Rulebook Reader', [
       if (it.json.jpeg_b64) content.push({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + it.json.jpeg_b64 } });
       return { json: { doc: p.doc, page: p.page, pdfText: text, hasImage: !!it.json.jpeg_b64, requestBody: {
         model: 'google/gemini-2.5-flash', models: ['google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite'], max_tokens: 6000, temperature: 0.1,
-        reasoning: { enabled: false }, provider: { data_collection: 'deny' }, messages: [{ role: 'user', content }] } } };
+        reasoning: { enabled: false }, provider: { data_collection: 'deny' }, usage: { include: true }, messages: [{ role: 'user', content }] } } };
     });
   }) }),
   // A page the page service couldn't hand over isn't read blind: it stays unread and the next pass tries again
@@ -3241,11 +3249,13 @@ const ruleReader = wf(ID.ruleReader, 'Vault — Rulebook Reader', [
         }
         out.push({ heading: secs[k].heading, body });
       }
-      return { json: { doc: q.doc, page: q.page, markdown: md, fromPdf, sections: out } };
+      const u = it.json.usage || {};
+      return { json: { doc: q.doc, page: q.page, markdown: md, fromPdf, sections: out,
+        cost: fromPdf ? [] : [{ feature: 'rulebook', model: it.json.model || null, cost: u.cost, in: u.prompt_tokens, out: u.completion_tokens }] } };
     }).filter(Boolean);
   }),
-  pg('Save Page', 'SELECT bgc.rule_page_save($1::bigint, $2::int, $3, $4::boolean, $5::jsonb) AS r',
-    '={{ [String($json.doc), String($json.page), $json.markdown, String($json.fromPdf), JSON.stringify($json.sections)] }}'),
+  pg('Save Page', 'SELECT bgc.rule_page_save($1::bigint, $2::int, $3, $4::boolean, $5::jsonb) AS r, bgc.log_ai(NULL, $6::jsonb) AS c',
+    '={{ [String($json.doc), String($json.page), $json.markdown, String($json.fromPdf), JSON.stringify($json.sections), JSON.stringify($json.cost || [])] }}'),
   code('All Read', function () { return [{ json: { doc: $('Pages').first().json.doc } }]; }),
   pg('Finish', 'SELECT bgc.rule_doc_finish($1::bigint) AS r', '={{ [String($json.doc)] }}'),
   ifTrue('All Done?', "={{ $json.r.status !== 'queued' }}"),
@@ -3290,7 +3300,7 @@ const askTest = (() => {
     const i = $('Webhook').first().json;
     const m = $input.first().json.r || {};
     // A short pause first, so the nightly questions are spaced out for the AI service
-    return [{ json: { body: { question: i.question, playerIds: [], shelf: i.shelf || 'main', previous: i.previous || null, noMemory: true }, _authOk: true,
+    return [{ json: { body: { question: i.question, playerIds: [], shelf: i.shelf || 'main', previous: i.previous || null, noMemory: true, test: true }, _authOk: true,
       _auth: { role: i.role || 'friend', email: i.email, memberId: m.id || null, admin: false, playerId: m.playerId || null, playerName: m.playerName || '' } } }];
   });
   w.connections.Webhook = { main: [[{ node: 'Pause', type: 'main', index: 0 }]] };
@@ -3420,8 +3430,44 @@ const memberPlaysNightly = wf(ID.memberPlaysNightly, 'Vault — Sync Member Play
   }), onError: 'continueRegularOutput' },
 ], [['Nightly', 'Members'], ['Run Now', 'Members'], ['Members', 'Ready'], ['Ready', 'Sync Each']]);
 
+// =====================================================================
+// 40. AI Spending  every hour: what this site's OpenRouter key has spent in total, and the account's balance
+// 41. Costs  GET /webhook/vault/costs (admins): Admin → Costs.  POST { fixed: [{ name, amount, per }] } saves fixed costs
+// =====================================================================
+const orGet = (name, path) => ({ ...node(name, 'n8n-nodes-base.httpRequest', 4.2, {
+  method: 'GET', url: 'https://openrouter.ai/api/v1/' + path, authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth', options: { timeout: 20000 },
+}, { credentials: CRED.openrouter, ...retry }), onError: 'continueRegularOutput' });
+const aiUsage = wf(ID.aiUsage, 'Vault — AI Spending', [
+  node('Every Hour', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ field: 'hours', hoursInterval: 1, triggerAtMinute: 7 }] } }),
+  node('Run Now', 'n8n-nodes-base.manualTrigger', 1, {}),
+  orGet('This Key', 'key'),
+  orGet('Account', 'credits'),
+  pg('Save', 'SELECT bgc.log_usage(nullif($1, \'\')::numeric, nullif($2, \'\')::numeric, nullif($3, \'\')::numeric, nullif($4, \'\')::numeric)',
+    "={{ [String((($('This Key').first().json || {}).data || {}).usage ?? ''), String((($('This Key').first().json || {}).data || {}).limit ?? ''), " +
+    "String((($('Account').first().json || {}).data || {}).total_credits ?? ''), String((($('Account').first().json || {}).data || {}).total_usage ?? '')] }}"),
+], [['Every Hour', 'This Key'], ['Run Now', 'This Key'], ['This Key', 'Account'], ['Account', 'Save']]);
+
+const costs = wf(ID.costs, 'Vault — Costs', [
+  webhook('Webhook', 'GET', 'vault/costs'),
+  pg('Read', 'SELECT bgc.costs_page($1) AS r', '={{ [$json._auth.email] }}'),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Read'], ['Read', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(costs, { failTo: 'Respond Error' });
+const costsSave = wf(ID.costsSave, 'Vault — Costs (fixed costs)', [
+  webhook('Webhook', 'POST', 'vault/costs'),
+  pg('Save', 'SELECT bgc.costs_fixed_save($1, $2::jsonb) AS r', '={{ [$json._auth.email, JSON.stringify(Array.isArray(($json.body || {}).fixed) ? $json.body.fixed.slice(0, 20) : [])] }}'),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Save'], ['Save', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(costsSave, { failTo: 'Respond Error' });
+
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest, memory, memoryForget, memberPlays, memberPlaysNightly, ruleChange, ruleReader };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest, memory, memoryForget, memberPlays, memberPlaysNightly, ruleChange, ruleReader, aiUsage, costs, costsSave };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "d962bd61-b6a5-4503-a207-afec8d8b282e",
+      "id": "ec16d81b-f6e8-4166-870d-e7293a84fe6d",
       "name": "When Uploaded",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -18,7 +18,7 @@
       }
     },
     {
-      "id": "a1546f89-67c7-42cb-aaf4-adf74ee11d7e",
+      "id": "52aa85e2-eb55-41af-986d-ea2b8011e4d2",
       "name": "Every 2 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -38,7 +38,7 @@
       }
     },
     {
-      "id": "8e930638-0b9e-4da7-b4b4-e56957c40640",
+      "id": "05432819-c60f-4e87-af17-48d43124e7c4",
       "name": "Claim",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -64,7 +64,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "7236615a-da66-4495-8cc2-75624f37d2da",
+      "id": "b71cf291-6201-4017-8fcd-a017aec972af",
       "name": "Pages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -77,7 +77,7 @@
       }
     },
     {
-      "id": "d1fd2e64-8025-4cc9-81b6-b85dc59dec81",
+      "id": "58f343f6-659b-4d73-8fd5-658bfcf2e32d",
       "name": "Any Pages?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -94,7 +94,7 @@
           },
           "conditions": [
             {
-              "id": "62b5a8e3-60e1-4528-b64f-74be6eec1c3c",
+              "id": "f3f6a1e4-57c6-4423-a064-c9c9736729c5",
               "leftValue": "={{ !$json.finishOnly }}",
               "rightValue": "",
               "operator": {
@@ -110,7 +110,7 @@
       }
     },
     {
-      "id": "2ae49c3f-7016-4f7c-a73b-ee7cc0ae3b97",
+      "id": "15014bd1-8f80-4fc2-b549-b62636e35796",
       "name": "Page",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -137,7 +137,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "cf9c52dd-8e2d-441c-a146-8e68f92d13c5",
+      "id": "c28c7be9-733b-4d9f-a691-fe2f4366c0e3",
       "name": "Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -146,11 +146,11 @@
         300
       ],
       "parameters": {
-        "jsCode": "const PROMPT = \"You are turning ONE page of a board game rulebook into clean text that a rules assistant will search and quote with page numbers.\\nYou get the page image and the text a PDF reader pulled from this page. That text may be out of order, split oddly, or missing words that are drawn as pictures.\\nRewrite this page only, as Markdown:\\n- Keep every rule, number and example on the page. Do not add, guess or summarise anything that is not printed on this page.\\n- Follow the reading order a person would: columns, then sidebars and boxes, each where it belongs.\\n- Use the page's own headings as Markdown headings (#, ##, ###).\\n- Replace each icon or symbol with words in square brackets. Use its meaning only when this page makes it clear (a legend, a label, or the sentence around it says what it is). Otherwise describe what it looks like, e.g. [purple hand icon], [green leaf symbol]. Never borrow names from other games, and give different-looking icons different words.\\n- For a diagram, setup picture or worked example, write one short line: \\\"Example (picture): ...\\\" describing what it shows.\\n- Skip page numbers, decorative art and flavour-only captions.\\nReply with the Markdown only, starting straight with the page's content: no remarks about the image or the extracted text.\";\n    return $input.all().map((it, i) => {\n      const p = $('Any Pages?').all()[i].json;\n      const text = String(it.json.text || '').slice(0, 9000);\n      const content = [{ type: 'text', text: PROMPT + '\\n\\nThis is page ' + p.page + ' of ' + p.pages + ' of the ' + p.label + ' for ' + p.game + '.\\n\\nTEXT FROM THE PDF READER:\\n' + (text || '(none)') }];\n      if (it.json.jpeg_b64) content.push({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + it.json.jpeg_b64 } });\n      return { json: { doc: p.doc, page: p.page, pdfText: text, hasImage: !!it.json.jpeg_b64, requestBody: {\n        model: 'google/gemini-2.5-flash', models: ['google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite'], max_tokens: 6000, temperature: 0.1,\n        reasoning: { enabled: false }, provider: { data_collection: 'deny' }, messages: [{ role: 'user', content }] } } };\n    });\n  "
+        "jsCode": "const PROMPT = \"You are turning ONE page of a board game rulebook into clean text that a rules assistant will search and quote with page numbers.\\nYou get the page image and the text a PDF reader pulled from this page. That text may be out of order, split oddly, or missing words that are drawn as pictures.\\nRewrite this page only, as Markdown:\\n- Keep every rule, number and example on the page. Do not add, guess or summarise anything that is not printed on this page.\\n- Follow the reading order a person would: columns, then sidebars and boxes, each where it belongs.\\n- Use the page's own headings as Markdown headings (#, ##, ###).\\n- Replace each icon or symbol with words in square brackets. Use its meaning only when this page makes it clear (a legend, a label, or the sentence around it says what it is). Otherwise describe what it looks like, e.g. [purple hand icon], [green leaf symbol]. Never borrow names from other games, and give different-looking icons different words.\\n- For a diagram, setup picture or worked example, write one short line: \\\"Example (picture): ...\\\" describing what it shows.\\n- Skip page numbers, decorative art and flavour-only captions.\\nReply with the Markdown only, starting straight with the page's content: no remarks about the image or the extracted text.\";\n    return $input.all().map((it, i) => {\n      const p = $('Any Pages?').all()[i].json;\n      const text = String(it.json.text || '').slice(0, 9000);\n      const content = [{ type: 'text', text: PROMPT + '\\n\\nThis is page ' + p.page + ' of ' + p.pages + ' of the ' + p.label + ' for ' + p.game + '.\\n\\nTEXT FROM THE PDF READER:\\n' + (text || '(none)') }];\n      if (it.json.jpeg_b64) content.push({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + it.json.jpeg_b64 } });\n      return { json: { doc: p.doc, page: p.page, pdfText: text, hasImage: !!it.json.jpeg_b64, requestBody: {\n        model: 'google/gemini-2.5-flash', models: ['google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite'], max_tokens: 6000, temperature: 0.1,\n        reasoning: { enabled: false }, provider: { data_collection: 'deny' }, usage: { include: true }, messages: [{ role: 'user', content }] } } };\n    });\n  "
       }
     },
     {
-      "id": "52f51815-0726-4354-ad87-c93b8c334a60",
+      "id": "abb137da-e4e7-433c-a2c5-5f0c203c2750",
       "name": "Has Image?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -167,7 +167,7 @@
           },
           "conditions": [
             {
-              "id": "4f04f101-f4d3-40bc-b556-0e5aa6bfd92f",
+              "id": "538941b7-747b-48f4-80a8-c7d5e02b7543",
               "leftValue": "={{ $json.hasImage }}",
               "rightValue": "",
               "operator": {
@@ -183,7 +183,7 @@
       }
     },
     {
-      "id": "8105faff-db52-4539-aee5-ef9a2d52a826",
+      "id": "3a86750a-9b8b-41be-b8b6-18acc8c34b8a",
       "name": "Read Page",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -234,7 +234,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "0c662a88-58a3-4d86-a021-381e4a397274",
+      "id": "a6adfc1a-9e32-4fa7-a6b1-6bc072b789f2",
       "name": "Sections",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -243,11 +243,11 @@
         300
       ],
       "parameters": {
-        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n      // Other editions whose logged plays count toward this game\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n  // ---- People: Players and Ratings tables ----\n  const PF = {\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\n  };\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\n  const toPlayer = (r) => {\n    const f = r.fields || {};\n    let history = {};\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\n    return {\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\n    };\n  };\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\n  // The part of a player card that belongs to the person: only they edit it (via /me)\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\n  // Highest-priority source wins when one person has several ratings for a game\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\n  const ratingsByPlayerGame = (list) => {\n    const out = {};\n    for (const r of list) {\n      if (!r.gameId || !r.playerId || !r.stars) continue;\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\n      if (r.source === 'site') e.stars = r.stars;\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\n    }\n    return out;\n  };\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\n  const parseThingXml = (xml) => {\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\n    const bestWith = (s) => {\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\n      });\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\n      if (winners.length) return winners;\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\n      return top ? [top.n] : [];\n    };\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\n      const s = m[3];\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\n      const avg = Number(attr(s, 'average') || 0);\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\n        // An expansion's inbound links point at the base game(s) it expands\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\n    });\n  };\n  const toRating = (r) => {\n    const f = r.fields || {};\n    const src = f[RF.source];\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\n      source: typeof src === 'object' && src ? src.name : src || '' };\n  };\n\n    return $input.all().map((it, i) => {\n      const q = $('Has Image?').itemMatching(i).json;\n      let md = String((it.json.choices && it.json.choices[0] && it.json.choices[0].message && it.json.choices[0].message.content) || '').trim()\n        .replace(/^```(?:markdown)?\\s*/i, '').replace(/\\s*```$/, '');\n      // A remark before the page itself (\"The PDF reader pulled no text…\") isn't part of the rulebook\n      while (/^(the (pdf|extracted|provided) (reader|text)|i will|i'll|here is|here's|below is|note:)/i.test(md.split('\\n')[0] || '') && !/^#/.test(md)) md = md.split('\\n').slice(1).join('\\n').trim();\n      const fromPdf = !md;\n      if (!md) md = q.pdfText; // the vision step failed: the page's own text is better than nothing\n      if (!String(md || '').trim()) return null; // nothing to save: the page stays unread and is tried again\n      // Sections: each heading starts one; tiny ones join the next, long ones split at paragraphs\n      const secs = [];\n      let cur = { heading: '', lines: [] };\n      for (const line of md.split('\\n')) {\n        const h = line.match(/^#{1,4}\\s+(.+?)\\s*#*\\s*$/);\n        if (h) { if (cur.lines.join('').trim()) secs.push(cur); cur = { heading: h[1].replace(/\\*\\*/g, '').trim(), lines: [] }; }\n        else cur.lines.push(line);\n      }\n      if (cur.lines.join('').trim() || cur.heading) secs.push(cur);\n      const out = [];\n      for (let k = 0; k < secs.length; k++) {\n        let body = secs[k].lines.join('\\n').replace(/\\n{3,}/g, '\\n\\n').trim();\n        if (!body && !secs[k].heading) continue;\n        if (body.length < 120 && k + 1 < secs.length && !secs[k + 1].lines.join('').trim().startsWith('#')) {\n          secs[k + 1].lines.unshift((secs[k].heading ? secs[k].heading + ': ' : '') + body);\n          if (!secs[k + 1].heading) secs[k + 1].heading = secs[k].heading;\n          continue;\n        }\n        if (!body) body = secs[k].heading;\n        while (body.length > 2400) {\n          const cut = Math.max(body.lastIndexOf('\\n\\n', 2000), 800);\n          out.push({ heading: secs[k].heading, body: body.slice(0, cut).trim() });\n          body = body.slice(cut).trim();\n        }\n        out.push({ heading: secs[k].heading, body });\n      }\n      return { json: { doc: q.doc, page: q.page, markdown: md, fromPdf, sections: out } };\n    }).filter(Boolean);\n  "
+        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n      // Other editions whose logged plays count toward this game\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n  // ---- People: Players and Ratings tables ----\n  const PF = {\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\n  };\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\n  const toPlayer = (r) => {\n    const f = r.fields || {};\n    let history = {};\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\n    return {\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\n    };\n  };\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\n  // The part of a player card that belongs to the person: only they edit it (via /me)\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\n  // Highest-priority source wins when one person has several ratings for a game\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\n  const ratingsByPlayerGame = (list) => {\n    const out = {};\n    for (const r of list) {\n      if (!r.gameId || !r.playerId || !r.stars) continue;\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\n      if (r.source === 'site') e.stars = r.stars;\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\n    }\n    return out;\n  };\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\n  const parseThingXml = (xml) => {\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\n    const bestWith = (s) => {\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\n      });\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\n      if (winners.length) return winners;\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\n      return top ? [top.n] : [];\n    };\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\n      const s = m[3];\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\n      const avg = Number(attr(s, 'average') || 0);\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\n        // An expansion's inbound links point at the base game(s) it expands\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\n    });\n  };\n  const toRating = (r) => {\n    const f = r.fields || {};\n    const src = f[RF.source];\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\n      source: typeof src === 'object' && src ? src.name : src || '' };\n  };\n\n    return $input.all().map((it, i) => {\n      const q = $('Has Image?').itemMatching(i).json;\n      let md = String((it.json.choices && it.json.choices[0] && it.json.choices[0].message && it.json.choices[0].message.content) || '').trim()\n        .replace(/^```(?:markdown)?\\s*/i, '').replace(/\\s*```$/, '');\n      // A remark before the page itself (\"The PDF reader pulled no text…\") isn't part of the rulebook\n      while (/^(the (pdf|extracted|provided) (reader|text)|i will|i'll|here is|here's|below is|note:)/i.test(md.split('\\n')[0] || '') && !/^#/.test(md)) md = md.split('\\n').slice(1).join('\\n').trim();\n      const fromPdf = !md;\n      if (!md) md = q.pdfText; // the vision step failed: the page's own text is better than nothing\n      if (!String(md || '').trim()) return null; // nothing to save: the page stays unread and is tried again\n      // Sections: each heading starts one; tiny ones join the next, long ones split at paragraphs\n      const secs = [];\n      let cur = { heading: '', lines: [] };\n      for (const line of md.split('\\n')) {\n        const h = line.match(/^#{1,4}\\s+(.+?)\\s*#*\\s*$/);\n        if (h) { if (cur.lines.join('').trim()) secs.push(cur); cur = { heading: h[1].replace(/\\*\\*/g, '').trim(), lines: [] }; }\n        else cur.lines.push(line);\n      }\n      if (cur.lines.join('').trim() || cur.heading) secs.push(cur);\n      const out = [];\n      for (let k = 0; k < secs.length; k++) {\n        let body = secs[k].lines.join('\\n').replace(/\\n{3,}/g, '\\n\\n').trim();\n        if (!body && !secs[k].heading) continue;\n        if (body.length < 120 && k + 1 < secs.length && !secs[k + 1].lines.join('').trim().startsWith('#')) {\n          secs[k + 1].lines.unshift((secs[k].heading ? secs[k].heading + ': ' : '') + body);\n          if (!secs[k + 1].heading) secs[k + 1].heading = secs[k].heading;\n          continue;\n        }\n        if (!body) body = secs[k].heading;\n        while (body.length > 2400) {\n          const cut = Math.max(body.lastIndexOf('\\n\\n', 2000), 800);\n          out.push({ heading: secs[k].heading, body: body.slice(0, cut).trim() });\n          body = body.slice(cut).trim();\n        }\n        out.push({ heading: secs[k].heading, body });\n      }\n      const u = it.json.usage || {};\n      return { json: { doc: q.doc, page: q.page, markdown: md, fromPdf, sections: out,\n        cost: fromPdf ? [] : [{ feature: 'rulebook', model: it.json.model || null, cost: u.cost, in: u.prompt_tokens, out: u.completion_tokens }] } };\n    }).filter(Boolean);\n  "
       }
     },
     {
-      "id": "139d79cc-905e-48e4-8450-47e5c8e1b595",
+      "id": "ee57a981-2162-4b68-9f2e-920076b7ac55",
       "name": "Save Page",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -257,9 +257,9 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT bgc.rule_page_save($1::bigint, $2::int, $3, $4::boolean, $5::jsonb) AS r",
+        "query": "SELECT bgc.rule_page_save($1::bigint, $2::int, $3, $4::boolean, $5::jsonb) AS r, bgc.log_ai(NULL, $6::jsonb) AS c",
         "options": {
-          "queryReplacement": "={{ [String($json.doc), String($json.page), $json.markdown, String($json.fromPdf), JSON.stringify($json.sections)] }}",
+          "queryReplacement": "={{ [String($json.doc), String($json.page), $json.markdown, String($json.fromPdf), JSON.stringify($json.sections), JSON.stringify($json.cost || [])] }}",
           "queryBatching": "independently"
         }
       },
@@ -274,7 +274,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "ffc24b5a-ddb1-41e7-b0c7-14edaf57eba9",
+      "id": "0fd591a8-2e60-45e9-9788-61eba5681910",
       "name": "All Read",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -287,7 +287,7 @@
       }
     },
     {
-      "id": "67970429-4fc8-40a1-b749-9b747ce1ab06",
+      "id": "ebd6df49-6b38-4f60-9de3-15c2864baf07",
       "name": "Finish",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -314,7 +314,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "a07f412e-2d49-4aab-bad5-028c6ad191f2",
+      "id": "5cf0d4b0-87e8-431b-8cc6-d36bfd67ea69",
       "name": "All Done?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -331,7 +331,7 @@
           },
           "conditions": [
             {
-              "id": "c20f2d48-294d-47c1-9768-33bbe78bb6f9",
+              "id": "12ecfadb-e882-4b05-a392-22a7b91cce5a",
               "leftValue": "={{ $json.r.status !== 'queued' }}",
               "rightValue": "",
               "operator": {
@@ -347,7 +347,7 @@
       }
     },
     {
-      "id": "ed57f3c3-cee4-4b3e-b664-2d055c948c0f",
+      "id": "fb6db266-5ed7-4d19-bd67-4751e3449676",
       "name": "Delete PDF",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,

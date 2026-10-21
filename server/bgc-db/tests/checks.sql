@@ -82,6 +82,11 @@ SELECT pg_temp.check((bgc.rule_search('["Catan"]', 'can I trade with other playe
 SELECT pg_temp.check(NOT (bgc.rule_doc_change('nathan.schmidt@curator.invalid', (SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'remove', '{}') ->> 'ok')::boolean, 'someone else can''t remove your rulebook');
 SELECT pg_temp.check(bgc.rule_doc_games() @> '[13]', 'a game with a rulebook shows it on every shelf');
 
+-- Costs: an AI call's cost is recorded, and only admins see the Costs page
+SELECT pg_temp.check(bgc.log_ai('dandehaan@gmail.com', '[{"feature": "nathan", "model": "check-model", "cost": 0.5}]') IS NULL, 'an AI call''s cost can be recorded');
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM ai_costs WHERE model = 'check-model' AND cost = 0.5 AND feature = 'nathan'), 'the recorded cost is there afterwards');
+SELECT pg_temp.check(NOT (bgc.costs_page('check.member@example.invalid') ->> 'ok')::boolean AND (bgc.costs_page('dandehaan@gmail.com') ->> 'ok')::boolean, 'only admins see what the site costs');
+
 -- People lists come from plays (1+), and Matt's counts are intact
 SELECT pg_temp.check((SELECT play_count FROM shelves s JOIN games g ON g.id = s.game_id WHERE s.member_id = 1 AND g.title = 'The Crew: The Quest for Planet Nine') = 21, 'Dan''s play counts are intact (The Crew: 21)');
 

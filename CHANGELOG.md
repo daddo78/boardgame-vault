@@ -4,7 +4,7 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 
 ## v0.15 · October 21, 2026
 
-*Behind the scenes: Admin is now its own page with the dashboard, members and invites, Nathan's settings and the nightly check, and every rulebook in one place.*
+*Behind the scenes: Admin is now its own page with the dashboard, members and invites, Nathan's settings and the nightly check, and every rulebook in one place, plus a Costs page: exact AI spending by feature, the OpenRouter balance, and hosting costs.*
 
 ## v0.14 · October 21, 2026
 

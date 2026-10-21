@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "2fa36590-0059-4165-a4ba-b545a8266e80",
+      "id": "14162870-0f64-4750-9158-4f45428bbd92",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "45dedcb6-a4e8-4236-8d07-6a4a0edd95da"
+      "webhookId": "e25356ad-e373-4f34-a664-e16dd05fc906"
     },
     {
-      "id": "fb036021-e311-4b3a-978e-53795eb0dbc8",
+      "id": "1eb10a57-2a03-4009-b0f0-0cf5500ff509",
       "name": "Photo To Base64",
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
@@ -40,7 +40,7 @@
       }
     },
     {
-      "id": "ebc65150-02ea-4373-bdcf-f8b092995e60",
+      "id": "1b626f5d-feb5-4368-baf0-8244ad4dae92",
       "name": "List All Games",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -67,7 +67,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "ba61250a-0d53-40f7-a6b2-10882c0f8a46",
+      "id": "9a327611-93e0-4471-abbe-bd20d25337fe",
       "name": "Build Vision Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -76,11 +76,11 @@
         300
       ],
       "parameters": {
-        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n      // Other editions whose logged plays count toward this game\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n  // ---- People: Players and Ratings tables ----\n  const PF = {\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\n  };\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\n  const toPlayer = (r) => {\n    const f = r.fields || {};\n    let history = {};\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\n    return {\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\n    };\n  };\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\n  // The part of a player card that belongs to the person: only they edit it (via /me)\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\n  // Highest-priority source wins when one person has several ratings for a game\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\n  const ratingsByPlayerGame = (list) => {\n    const out = {};\n    for (const r of list) {\n      if (!r.gameId || !r.playerId || !r.stars) continue;\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\n      if (r.source === 'site') e.stars = r.stars;\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\n    }\n    return out;\n  };\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\n  const parseThingXml = (xml) => {\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\n    const bestWith = (s) => {\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\n      });\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\n      if (winners.length) return winners;\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\n      return top ? [top.n] : [];\n    };\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\n      const s = m[3];\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\n      const avg = Number(attr(s, 'average') || 0);\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\n        // An expansion's inbound links point at the base game(s) it expands\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\n    });\n  };\n  const toRating = (r) => {\n    const f = r.fields || {};\n    const src = f[RF.source];\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\n      source: typeof src === 'object' && src ? src.name : src || '' };\n  };\n\n    const bin = $('Webhook').first().binary || {};\n    const key = Object.keys(bin)[0];\n    if (!key) throw new Error('No photo uploaded');\n    const mime = bin[key].mimeType || 'image/jpeg';\n    const b64 = $('Photo To Base64').first().json.photoB64;\n    const owned = $input.all().flatMap((i) => i.json.records || []).map(toGame).map((g) => g.title).sort();\n    const instructions = [\n      'Identify every board game box visible in this photo (fronts, backs or spines). Skip anything you cannot read confidently.',\n      'Reply with JSON only:',\n      '{\"items\": [{',\n      '  \"title\": \"official title as printed, e.g. \\\\\"Dune: Imperium\\\\\"\",',\n      '  \"kind\": \"game\" or \"expansion\",',\n      '  \"baseGame\": \"for an expansion, the title of the game it expands; else null\",',\n      '  \"owned\": \"if this is the same game (any edition, spelling or language) as a title in the OWNED list below, that exact OWNED title; else null. An expansion is never the same game as its base game: for an expansion, only fill this if the expansion itself is in the list\",',\n      '  \"genre\": \"theme/setting, 1-2 short labels joined by \\\\\" / \\\\\", e.g. \\\\\"Nature / Ecology\\\\\"\",',\n      '  \"type\": \"core mechanics, 1-2 labels joined by \\\\\" / \\\\\", e.g. \\\\\"Engine Building / Tableau\\\\\"\",',\n      '  \"desc\": \"one vivid sentence (max ~22 words) about what players do\",',\n      '  \"confidence\": 0.0-1.0',\n      '}], \"reason\": \"only if no boxes could be identified\"}',\n      'Style example: {\"title\":\"Earth\",\"kind\":\"game\",\"genre\":\"Nature / Ecology\",\"type\":\"Engine Building / Tableau\",\"desc\":\"Construct an interconnected 4x4 flora and fauna island ecosystem with zero downtime on rival turns.\"}',\n      '',\n      'OWNED:',\n      ...owned,\n    ].join('\\n');\n    return [{ json: { requestBody: {\n      // Low reasoning keeps answers fast and cheap (some vision models require reasoning to be on)\n      model: 'google/gemini-2.5-flash-lite', max_tokens: 8000, reasoning: { effort: 'low' },\n      // Only route to providers that don't store or train on the photo\n      provider: { data_collection: 'deny' },\n      messages: [\n        { role: 'system', content: 'You identify board games from photos for a personal collection catalog. Reply with JSON only.' },\n        { role: 'user', content: [\n          { type: 'text', text: instructions },\n          { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },\n        ] },\n      ],\n    } } }];\n  "
+        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n      // Other editions whose logged plays count toward this game\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n  // ---- People: Players and Ratings tables ----\n  const PF = {\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\n  };\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\n  const toPlayer = (r) => {\n    const f = r.fields || {};\n    let history = {};\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\n    return {\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\n    };\n  };\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\n  // The part of a player card that belongs to the person: only they edit it (via /me)\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\n  // Highest-priority source wins when one person has several ratings for a game\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\n  const ratingsByPlayerGame = (list) => {\n    const out = {};\n    for (const r of list) {\n      if (!r.gameId || !r.playerId || !r.stars) continue;\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\n      if (r.source === 'site') e.stars = r.stars;\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\n    }\n    return out;\n  };\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\n  const parseThingXml = (xml) => {\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\n    const bestWith = (s) => {\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\n      });\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\n      if (winners.length) return winners;\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\n      return top ? [top.n] : [];\n    };\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\n      const s = m[3];\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\n      const avg = Number(attr(s, 'average') || 0);\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\n        // An expansion's inbound links point at the base game(s) it expands\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\n    });\n  };\n  const toRating = (r) => {\n    const f = r.fields || {};\n    const src = f[RF.source];\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\n      source: typeof src === 'object' && src ? src.name : src || '' };\n  };\n\n    const bin = $('Webhook').first().binary || {};\n    const key = Object.keys(bin)[0];\n    if (!key) throw new Error('No photo uploaded');\n    const mime = bin[key].mimeType || 'image/jpeg';\n    const b64 = $('Photo To Base64').first().json.photoB64;\n    const owned = $input.all().flatMap((i) => i.json.records || []).map(toGame).map((g) => g.title).sort();\n    const instructions = [\n      'Identify every board game box visible in this photo (fronts, backs or spines). Skip anything you cannot read confidently.',\n      'Reply with JSON only:',\n      '{\"items\": [{',\n      '  \"title\": \"official title as printed, e.g. \\\\\"Dune: Imperium\\\\\"\",',\n      '  \"kind\": \"game\" or \"expansion\",',\n      '  \"baseGame\": \"for an expansion, the title of the game it expands; else null\",',\n      '  \"owned\": \"if this is the same game (any edition, spelling or language) as a title in the OWNED list below, that exact OWNED title; else null. An expansion is never the same game as its base game: for an expansion, only fill this if the expansion itself is in the list\",',\n      '  \"genre\": \"theme/setting, 1-2 short labels joined by \\\\\" / \\\\\", e.g. \\\\\"Nature / Ecology\\\\\"\",',\n      '  \"type\": \"core mechanics, 1-2 labels joined by \\\\\" / \\\\\", e.g. \\\\\"Engine Building / Tableau\\\\\"\",',\n      '  \"desc\": \"one vivid sentence (max ~22 words) about what players do\",',\n      '  \"confidence\": 0.0-1.0',\n      '}], \"reason\": \"only if no boxes could be identified\"}',\n      'Style example: {\"title\":\"Earth\",\"kind\":\"game\",\"genre\":\"Nature / Ecology\",\"type\":\"Engine Building / Tableau\",\"desc\":\"Construct an interconnected 4x4 flora and fauna island ecosystem with zero downtime on rival turns.\"}',\n      '',\n      'OWNED:',\n      ...owned,\n    ].join('\\n');\n    return [{ json: { requestBody: {\n      // Low reasoning keeps answers fast and cheap (some vision models require reasoning to be on)\n      model: 'google/gemini-2.5-flash-lite', max_tokens: 8000, reasoning: { effort: 'low' },\n      // Only route to providers that don't store or train on the photo\n      provider: { data_collection: 'deny' }, usage: { include: true },\n      messages: [\n        { role: 'system', content: 'You identify board games from photos for a personal collection catalog. Reply with JSON only.' },\n        { role: 'user', content: [\n          { type: 'text', text: instructions },\n          { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },\n        ] },\n      ],\n    } } }];\n  "
       }
     },
     {
-      "id": "25421d44-8ca6-499e-81f9-c995998d4940",
+      "id": "eed0dc16-b5da-4ee2-b76e-9bd2632da94c",
       "name": "Ask Vision Model",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -124,7 +124,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "9c8e81d0-bd77-472e-8ad3-1a096cbbf1aa",
+      "id": "adb9cc18-7acd-4f32-bc99-71e1d0bd68f2",
       "name": "Plan",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -137,7 +137,7 @@
       }
     },
     {
-      "id": "1897e4e9-e8b2-4980-960c-7a08f69dbac4",
+      "id": "0a79e954-537a-4453-abc0-07e5ab34af4d",
       "name": "Identified?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -154,7 +154,7 @@
           },
           "conditions": [
             {
-              "id": "3837f8cf-ca78-4dee-bb46-7cc12e0c726b",
+              "id": "e645381c-4b83-42bc-ab14-e2128806c945",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -170,7 +170,7 @@
       }
     },
     {
-      "id": "7574619d-618a-4205-9d14-6d8432ea88e1",
+      "id": "f56b6fc4-c54b-4d27-a4e9-8466ae95e180",
       "name": "Expansions To Add?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -187,7 +187,7 @@
           },
           "conditions": [
             {
-              "id": "ded3d6cc-0e08-4dd3-9d8b-4e2f1f576d9b",
+              "id": "e9e61ef4-0b87-458a-a061-3cb11510b62f",
               "leftValue": "={{ $json.expRecords.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -203,7 +203,7 @@
       }
     },
     {
-      "id": "5ca34062-8b88-4dd6-b9f6-124fdbd36bfe",
+      "id": "1e3126b2-70ba-4bab-aaf8-e7960c49a2b7",
       "name": "Save Expansions",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -230,7 +230,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "d187f780-436e-47e9-9521-8a891d75626c",
+      "id": "01b67e07-c154-49dc-abcf-2c126935715d",
       "name": "After Expansions",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -243,7 +243,7 @@
       }
     },
     {
-      "id": "bf1dd449-29e0-47ee-b13e-95da7996e5d8",
+      "id": "bb09b14d-a0e8-4a9c-b6a5-51863335e708",
       "name": "New Games?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -260,7 +260,7 @@
           },
           "conditions": [
             {
-              "id": "8aa4b976-e150-41e4-9917-a707cc0af185",
+              "id": "ae7d9755-42f1-453f-83a9-6634b43b778b",
               "leftValue": "={{ $json.creates.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -276,7 +276,7 @@
       }
     },
     {
-      "id": "167a94f9-9619-4903-9247-b1ae787f46ec",
+      "id": "a8986078-5b55-461b-b437-c20ef8264b9a",
       "name": "Create Records",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -303,7 +303,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "1c6eb253-a3bd-4ba1-8417-b228d04728af",
+      "id": "71743876-4531-4cb5-9344-e9d1eb132842",
       "name": "One Item Per New Game",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -316,7 +316,7 @@
       }
     },
     {
-      "id": "5d75f626-051b-402f-a0e7-539fc7d5075a",
+      "id": "4e4154c6-3ae9-466a-a01f-e631ae1e94cb",
       "name": "BGG Enrich",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
@@ -339,7 +339,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "9e56568a-fd95-4a26-8cf7-ad6c2a134186",
+      "id": "61f85e02-e672-4634-ac79-209be7696b43",
       "name": "Check BGG Duplicates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -352,7 +352,7 @@
       }
     },
     {
-      "id": "adf3f6e0-d86e-4b12-a1b3-9735ff0b4be9",
+      "id": "eaa031e1-c067-4b1e-8e96-8a07550fe01b",
       "name": "Remove Duplicates?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -369,7 +369,7 @@
           },
           "conditions": [
             {
-              "id": "ac6009e4-8f3e-401a-b413-3d2ff03b9610",
+              "id": "62e9cd31-a4c1-40c1-9321-e03ce6a58160",
               "leftValue": "={{ $json.dupes.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -385,7 +385,7 @@
       }
     },
     {
-      "id": "81aa50f7-6ab8-4c12-a94c-d6266efc3c2b",
+      "id": "f96220e0-ac7f-4f9c-9f1b-fcb59e332eb4",
       "name": "Delete Duplicates",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -412,7 +412,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "ef151e2a-bce5-4742-8a7a-8a00b060cc77",
+      "id": "614987e4-20c2-47af-b2f0-b12888e0170d",
       "name": "After Duplicates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -425,7 +425,7 @@
       }
     },
     {
-      "id": "f2fa5247-9b50-468a-a7b1-0d735c1594a3",
+      "id": "660507f0-fb7e-4bfc-a680-c37466d2a311",
       "name": "Icons Needed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -442,7 +442,7 @@
           },
           "conditions": [
             {
-              "id": "35b98b2b-b095-45e8-91d4-ddfbfff57da1",
+              "id": "0d0e79f4-7c4a-4236-b29c-d18f3c4c83b3",
               "leftValue": "={{ $json.keep.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -458,7 +458,7 @@
       }
     },
     {
-      "id": "c9f2296c-cbb4-4716-a8b8-05e17156fae7",
+      "id": "eb1752be-9db3-468b-a429-97b253be1f77",
       "name": "One Item Per Kept Game",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -471,7 +471,7 @@
       }
     },
     {
-      "id": "fbf63ed2-0b8e-4826-992a-50edb7eb0648",
+      "id": "9790e8f2-8afc-47f2-8657-75a26e13f642",
       "name": "Assign Icon",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
@@ -494,7 +494,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "5ec6a39a-4ae0-4b40-b75d-865c44eecd7f",
+      "id": "6cd73fc5-6dce-4ce4-8ded-6dab5c76d453",
       "name": "Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -507,7 +507,7 @@
       }
     },
     {
-      "id": "2b2c9546-b959-4ad2-93f7-06081c32a44c",
+      "id": "6ab8bc46-a6f0-45dc-87f4-9b5bc5ccc8be",
       "name": "Delete Photo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -520,7 +520,7 @@
       }
     },
     {
-      "id": "fac32040-f666-45fd-8b42-49f5f68a495a",
+      "id": "a322dc56-31a2-4063-b96e-f4fa83151bf5",
       "name": "Delete Photo (no match)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -533,7 +533,7 @@
       }
     },
     {
-      "id": "6853e482-0920-432f-b12d-37fd220c4dcb",
+      "id": "5f31d646-4dc9-4183-9eb4-965052d96623",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -550,7 +550,7 @@
       }
     },
     {
-      "id": "ed64f044-bc63-4c0e-b15b-bd583861b87b",
+      "id": "eb1b7132-6d72-4c9d-bcd6-2bf1b50be983",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -567,7 +567,7 @@
       }
     },
     {
-      "id": "90e3ecb2-8cb2-42f0-84e9-51c4b5846450",
+      "id": "580b6ee1-5f45-464d-ae9f-d7c041ccaa16",
       "name": "Auth: Read Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -580,7 +580,7 @@
       }
     },
     {
-      "id": "488d7900-a1d0-4118-b7c9-18fa87aa5f4f",
+      "id": "980f1fbd-579b-4e21-b3f2-3c93ab2229f7",
       "name": "Auth: Verify With Google",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -607,7 +607,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "4052ef68-03d9-426c-83a1-c7a3fc91cc84",
+      "id": "7c3323fb-52fa-4187-b1a1-c567b908f050",
       "name": "Auth: Check Owner",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -620,7 +620,7 @@
       }
     },
     {
-      "id": "5395326b-56ac-4340-8fcb-ac7c840cdb66",
+      "id": "fca47d93-508e-4dd5-9874-ce7415238447",
       "name": "Signed In?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -637,7 +637,7 @@
           },
           "conditions": [
             {
-              "id": "d5ec5aef-43bf-46f9-9642-37a1e19c2fd4",
+              "id": "6c680c4e-6d4a-46f8-a84b-97d0e3488da5",
               "leftValue": "={{ $json._authOk === true }}",
               "rightValue": "",
               "operator": {
