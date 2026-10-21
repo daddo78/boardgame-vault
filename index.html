@@ -97,6 +97,7 @@
   /* Visitors browse read-only: editing controls only appear for a signed-in owner */
   body:not(.owner) .owner-only { display: none !important; }
   body:not(.admin) .admin-only { display: none !important; }
+  body.owner .not-owner { display: none !important; }
   /* Admin page */
   .adm-tabs { display: flex; gap: 0.3rem; background: var(--exp-bg); border-radius: 999px; padding: 0.25rem; margin: 0.6rem 0 0.9rem; }
   .adm-tabs button { flex: 1; border: none; background: none; border-radius: 999px; padding: 0.45rem 0.6rem; font: inherit; font-weight: 700; font-size: 0.88rem; cursor: pointer; color: var(--ink); }
@@ -971,6 +972,11 @@
         <p class="hint" style="margin-top:0;" id="newsVersion">The release notes for every update.</p>
         <button class="btn" id="openNewsBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-sparkles"></i> What's new</button>
       </div>
+      <div class="not-owner">
+        <label>My plays</label>
+        <p class="hint" style="margin-top:0;">Your plays from BoardGameGeek (and BG Stats, if it posts there) refresh every night. Just logged a game? Sync now.</p>
+        <button class="btn" id="syncMyPlaysBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-refresh"></i> Sync my plays</button>
+      </div>
       <div class="owner-only">
         <label>Play counts</label>
         <p class="hint" style="margin-top:0;">Pulled from your BGG plays (logged through BG Stats) every night at 4am, and for each game as you add it.</p>
@@ -1494,7 +1500,8 @@
         await n8nFetch('/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bggUsername: username }) });
         myShelf = { ...(myShelf || {}), bggUsername: username, status: { state: 'running', kind: 'bgg', step: 'Reading your plays from BGG', at: new Date().toISOString() } };
         renderImportPanel();
-      } catch (err) { toast(err.message, true); }
+        return true;
+      } catch (err) { toast(err.message, true); return false; }
     }
     document.getElementById('importPanel').addEventListener('submit', (e) => {
       if (e.target.id !== 'importForm') return;
@@ -2087,6 +2094,13 @@
       settingsModal.classList.add('open');
     });
     document.getElementById('settingsCancel').addEventListener('click', () => settingsModal.classList.remove('open'));
+    // A member's own plays: the same import as "Connect BGG", run again with their username
+    document.getElementById('syncMyPlaysBtn').addEventListener('click', async () => {
+      try { if (!myShelf || !myShelf.bggUsername) myShelf = await n8nFetch('/shelf', { method: 'GET' }); } catch (e) {}
+      settingsModal.classList.remove('open');
+      if (!myShelf || !myShelf.bggUsername) { toast('Connect your BoardGameGeek username on your shelf first ("Bring in my BGG plays").', true); return; }
+      if (await startImport(myShelf.bggUsername)) toast('Syncing your plays from BGG. They’ll show up in a minute or two.');
+    });
     // What's new: the release notes (CHANGELOG.md, published with the site), newest first
     const newsModal = document.getElementById('newsModal');
     let newsText = null;

@@ -61,6 +61,8 @@ const ID = {
   dashboard: 'BGVaultDashbrd01',
   askTest: 'BGVaultAskTest01',
   selfTest: 'BGVaultSelfTest1',
+  memberPlays: 'BGVaultMbrPlays1',
+  memberPlaysNightly: 'BGVaultMbrSync01',
   memory: 'BGVaultMemory001',
   memoryForget: 'BGVaultForget001',
   shelfAdd: 'BGVaultShelfAdd1',
@@ -2430,23 +2432,12 @@ addMemberAuth(shelfRemove, { failTo: 'Respond Error' });
 //     account -> their player list. A game's plays count as soon as the game is on their shelf.
 //     Answers right away ("started"); progress shows on /shelf.
 // =====================================================================
-const importBgg = wf(ID.importBgg, 'Vault — Connect BGG Plays', [
-  webhook('Webhook', 'POST', 'vault/import'),
-  code('Validate', function () {
-    const j = $input.first().json;
-    const username = String((j.body || {}).bggUsername || '').trim();
-    if (!/^[A-Za-z0-9_ .-]{2,40}$/.test(username)) return [{ json: { ok: false, status: 400, message: 'Enter your BoardGameGeek username' } }];
-    return [{ json: { ok: true, email: j._auth.email, username } }];
-  }),
-  ifTrue('Valid?', '={{ $json.ok }}'),
-  pg('Start', 'SELECT bgc.start_import($1, $2) AS r', '={{ [$json.email, $json.username] }}'),
-  code('Started?', function () { return [{ json: { ...$input.first().json.r, status: 409 } }]; }),
-  ifTrue('Can Start?', '={{ $json.ok }}'),
-  respond('Respond Started', '={{ JSON.stringify({ ok: true, started: true }) }}'),
+// Every play from a member's BGG account -> their plays, player list and counts. WHO is the node holding { email, username }.
+const playsPipeline = (WHO) => [
   { ...node('BGG Plays', 'n8n-nodes-base.httpRequest', 4.2, {
     method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/plays',
     authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
-    ...qs({ username: "={{ $('Validate').first().json.username }}", type: 'thing', subtype: 'boardgame' }),
+    ...qs({ username: "={{ $('" + WHO + "').first().json.username }}", type: 'thing', subtype: 'boardgame' }),
     options: {
       timeout: 30000,
       response: { response: { responseFormat: 'text', outputPropertyName: 'data' } },
@@ -2478,11 +2469,27 @@ const importBgg = wf(ID.importBgg, 'Vault — Connect BGG Plays', [
     return [{ json: { ok: true, plays: plays.filter((p) => p.id && p.bggId) } }];
   }),
   ifTrue('Plays OK?', '={{ $json.ok }}'),
-  pg('Save Plays', 'SELECT at.save_plays($1, $2::jsonb) AS saved', "={{ [$('Validate').first().json.email, JSON.stringify($json.plays)] }}"),
-  pg('Players And Counts', 'SELECT bgc.refresh_member($1) AS r', "={{ [$('Validate').first().json.email] }}"),
+  pg('Save Plays', 'SELECT at.save_plays($1, $2::jsonb) AS saved', "={{ [$('" + WHO + "').first().json.email, JSON.stringify($json.plays)] }}"),
+  pg('Players And Counts', 'SELECT bgc.refresh_member($1) AS r', "={{ [$('" + WHO + "').first().json.email] }}"),
   pg('Done', "SELECT bgc.set_import($1, jsonb_build_object('state', 'done', 'step', 'Done', 'plays', $2::int, 'players', $3::int, 'finished', at.iso(now()))) AS s",
-    "={{ [$('Validate').first().json.email, $('Save Plays').first().json.saved.plays, $json.r.players] }}"),
-  pg('Failed', "SELECT bgc.set_import($1, jsonb_build_object('state', 'error', 'message', $2::text)) AS s", "={{ [$('Validate').first().json.email, $json.message] }}"),
+    "={{ [$('" + WHO + "').first().json.email, $('Save Plays').first().json.saved.plays, $json.r.players] }}"),
+  pg('Failed', "SELECT bgc.set_import($1, jsonb_build_object('state', 'error', 'message', $2::text)) AS s", "={{ [$('" + WHO + "').first().json.email, $json.message] }}"),
+];
+
+const importBgg = wf(ID.importBgg, 'Vault — Connect BGG Plays', [
+  webhook('Webhook', 'POST', 'vault/import'),
+  code('Validate', function () {
+    const j = $input.first().json;
+    const username = String((j.body || {}).bggUsername || '').trim();
+    if (!/^[A-Za-z0-9_ .-]{2,40}$/.test(username)) return [{ json: { ok: false, status: 400, message: 'Enter your BoardGameGeek username' } }];
+    return [{ json: { ok: true, email: j._auth.email, username } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  pg('Start', 'SELECT bgc.start_import($1, $2) AS r', '={{ [$json.email, $json.username] }}'),
+  code('Started?', function () { return [{ json: { ...$input.first().json.r, status: 409 } }]; }),
+  ifTrue('Can Start?', '={{ $json.ok }}'),
+  respond('Respond Started', '={{ JSON.stringify({ ok: true, started: true }) }}'),
+  ...playsPipeline('Validate'),
   respondError(),
 ], [
   ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Start', 0], ['Valid?', 'Respond Error', 1],
@@ -3162,8 +3169,30 @@ const memoryForget = wf(ID.memoryForget, 'Vault — Nathan Forget', [
 ], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Forget', 0], ['Valid?', 'Respond Error', 1], ['Forget', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
 addMemberAuth(memoryForget, { failTo: 'Respond Error' });
 
+// =====================================================================
+// 37. Member Plays (sub-workflow) { email, username }: the plays pipeline for one member (the nightly sync runs it for each)
+// 38. Sync Member Plays  nightly 4:30 (and "Run Now"): every member with a BGG username, except Dan (Sync Plays covers his)
+// =====================================================================
+const memberPlays = wf(ID.memberPlays, 'Vault — Member Plays (one member)', [
+  node('Start', 'n8n-nodes-base.executeWorkflowTrigger', 1.1, { inputSource: 'passthrough' }),
+  ...playsPipeline('Start'),
+], [
+  ['Start', 'BGG Plays'], ['BGG Plays', 'Parse Plays'], ['Parse Plays', 'Plays OK?'], ['Plays OK?', 'Save Plays', 0], ['Plays OK?', 'Failed', 1],
+  ['Save Plays', 'Players And Counts'], ['Players And Counts', 'Done'],
+]);
+const memberPlaysNightly = wf(ID.memberPlaysNightly, 'Vault — Sync Member Plays', [
+  node('Nightly', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ triggerAtHour: 4, triggerAtMinute: 30 }] } }),
+  node('Run Now', 'n8n-nodes-base.manualTrigger', 1, {}),
+  pg('Members', "SELECT bgc.start_import(m.google_email, m.bgg_username) ->> 'ok' AS ok, m.google_email AS email, m.bgg_username AS username " +
+    "FROM members m WHERE nullif(btrim(m.bgg_username), '') IS NOT NULL AND m.id <> at.admin_id() ORDER BY m.id", null),
+  code('Ready', function () { return $input.all().filter((i) => i.json.ok === 'true' && i.json.email).map((i) => ({ json: { email: i.json.email, username: i.json.username } })); }),
+  { ...node('Sync Each', 'n8n-nodes-base.executeWorkflow', 1.2, {
+    source: 'database', workflowId: { __rl: true, value: ID.memberPlays, mode: 'id' }, mode: 'each', options: { waitForSubWorkflow: true },
+  }), onError: 'continueRegularOutput' },
+], [['Nightly', 'Members'], ['Run Now', 'Members'], ['Members', 'Ready'], ['Ready', 'Sync Each']]);
+
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest, memory, memoryForget };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest, memory, memoryForget, memberPlays, memberPlaysNightly };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

@@ -4,7 +4,9 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 
 ## v0.12.2 · October 21, 2026
 
-- **What's new is in the app:** tap the ⚙️ cog at the top right to see which version you're on and read these notes.
+- **Your plays stay up to date:** everyone's BoardGameGeek plays (including what BG Stats posts there) now sync every night. Before, they only came in once, when you connected BGG.
+- **Sync my plays:** just finished a game? Tap the ⚙️ cog → *Sync my plays* and it shows up in a minute or two.
+- **What's new is in the app:** the same cog shows which version you're on and these notes.
 - Refreshing the page starts with a clean Nathan panel instead of reopening your last chat. He still remembers what you've told him.
 
 ## v0.12.1 · October 21, 2026
