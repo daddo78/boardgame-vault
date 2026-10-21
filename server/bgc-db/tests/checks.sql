@@ -57,6 +57,7 @@ SELECT pg_temp.check((SELECT title FROM games WHERE id = bgc.match_game('Terafor
 SELECT pg_temp.check((SELECT title FROM games WHERE id = bgc.match_game('Tanares Adventure')) LIKE '%Tanares Adventures', 'a partial name finds the game');
 SELECT pg_temp.check((SELECT title FROM games WHERE id = bgc.match_game('Catan')) = 'Catan', 'an exact name finds that game, not an expansion');
 SELECT pg_temp.check(bgc.match_game('Zzqx Not A Real Game') IS NULL, 'a made-up name finds nothing');
+SELECT pg_temp.check(coalesce((SELECT title FROM games WHERE id = bgc.match_game('Horror on the Orient Express')), '') NOT LIKE '%Dead Man%', 'a game not filled in yet isn''t swapped for a similar title');
 
 -- People lists come from plays (1+), and Matt's counts are intact
 SELECT pg_temp.check((SELECT play_count FROM shelves s JOIN games g ON g.id = s.game_id WHERE s.member_id = 1 AND g.title = 'The Crew: The Quest for Planet Nine') = 21, 'Dan''s play counts are intact (The Crew: 21)');

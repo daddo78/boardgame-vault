@@ -2,6 +2,12 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.12 · October 20, 2026
+
+**Fixes**
+- Asking about a game you don’t own finds that exact game ("Horror on the Orient Express" no longer turns into "Dead Man on the Orient Express").
+- Nathan’s "worth a look" tip never suggests a game you already own.
+
 ## v0.11 · October 20, 2026
 
 **Your profile and wishlist**

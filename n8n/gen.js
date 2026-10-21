@@ -2240,7 +2240,11 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       return { id: String(x.id), title: s.titles[x.id], quip: str(x.quip, 200), why: str(x.why, 700),
         ...(withFeel ? { tableFeel: str(x.tableFeel, 400) } : {}), ...(x.swapJoke ? { swapJoke: str(x.swapJoke, 300) } : {}), ...(off ? { off } : {}) };
     };
-    const gapOf = () => (s.gap || (a.gap && a.gap.missing)) ? { missing: str(a.gap && a.gap.missing, 300) || 'Nothing on the shelf matches every part of that.', consider: str(a.gap && a.gap.consider, 80) || null } : null;
+    // "Not on your shelf, but worth a look" must really not be on the shelf
+    const sl = $('Own Shelf').first().json;
+    const onShelf = new Set(((sl.visit || sl.own || $('Shelf View').first().json.v).games || []).map((r) => toGame(r).title.toLowerCase()));
+    const consider = (t) => (t && !onShelf.has(t.toLowerCase()) ? t : null);
+    const gapOf = () => (s.gap || (a.gap && a.gap.missing)) ? { missing: str(a.gap && a.gap.missing, 300) || 'Nothing on the shelf matches every part of that.', consider: consider(str(a.gap && a.gap.consider, 80)) } : null;
     if (s.browse) {
       const highlights = (Array.isArray(a.highlights) ? a.highlights : []).map((x) => entry(x, false)).filter(Boolean).slice(0, 5);
       if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });

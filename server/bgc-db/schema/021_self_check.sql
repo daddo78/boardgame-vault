@@ -40,6 +40,7 @@ BEGIN
     res := res || jsonb_build_object('what', 'a partial name finds the game', 'ok', coalesce(((SELECT title FROM games WHERE id = bgc.match_game('Tanares Adventure')) LIKE '%Tanares Adventures'), false));
     res := res || jsonb_build_object('what', 'an exact name finds that game, not an expansion', 'ok', coalesce(((SELECT title FROM games WHERE id = bgc.match_game('Catan')) = 'Catan'), false));
     res := res || jsonb_build_object('what', 'a made-up name finds nothing', 'ok', coalesce((bgc.match_game('Zzqx Not A Real Game') IS NULL), false));
+    res := res || jsonb_build_object('what', 'a game not filled in yet isn''t swapped for a similar title', 'ok', coalesce((coalesce((SELECT title FROM games WHERE id = bgc.match_game('Horror on the Orient Express')), '') NOT LIKE '%Dead Man%'), false));
     res := res || jsonb_build_object('what', 'Dan''s play counts are intact (The Crew: 21)', 'ok', coalesce(((SELECT play_count FROM shelves s JOIN games g ON g.id = s.game_id WHERE s.member_id = 1 AND g.title = 'The Crew: The Quest for Planet Nine') = 21), false));
     RAISE EXCEPTION 'self-check done' USING ERRCODE = 'P0001'; -- undo everything the checks did
   EXCEPTION WHEN raise_exception THEN
