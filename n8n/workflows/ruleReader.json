@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "1b8d50bb-f04e-426d-bd57-eaf714c0eefb",
+      "id": "bb62eb75-f5ce-43d9-a257-6c218f998a82",
       "name": "When Uploaded",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -18,7 +18,7 @@
       }
     },
     {
-      "id": "996900aa-87f6-4807-b214-54b2beba8bce",
+      "id": "c5b84300-359c-4189-b297-ebc15612faef",
       "name": "Every 2 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -38,7 +38,7 @@
       }
     },
     {
-      "id": "e261af3a-56a6-4a35-8917-c1bbd54bd668",
+      "id": "38cbb620-47cf-42f3-b921-b3bedbc876b0",
       "name": "Claim",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -64,7 +64,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "6115fa6f-6f0e-4b13-8560-f8b3cd956abe",
+      "id": "659176eb-ad4f-4952-8988-4465744287b1",
       "name": "Pages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -77,7 +77,7 @@
       }
     },
     {
-      "id": "c279085e-97ca-43c2-83a4-5016b1c6327f",
+      "id": "0a8bbdf6-eea9-49a9-bfc2-a54aeb8d03fa",
       "name": "Any Pages?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -94,7 +94,7 @@
           },
           "conditions": [
             {
-              "id": "f32d2a9d-4cf3-4439-9429-2aa0f8e62c44",
+              "id": "3b950c5d-cbad-463d-8c7c-9ef1748da1b0",
               "leftValue": "={{ !$json.finishOnly }}",
               "rightValue": "",
               "operator": {
@@ -110,7 +110,7 @@
       }
     },
     {
-      "id": "2f4cbec6-2568-49d3-a840-b9e5b96d671f",
+      "id": "b1731838-53da-4128-a7fb-d9e244ff4f5c",
       "name": "Page",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -137,7 +137,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "281d288e-a46f-4c68-99c0-18a35b0c7081",
+      "id": "d0f86e63-fac7-4f03-b9df-9712b7653590",
       "name": "Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -150,7 +150,7 @@
       }
     },
     {
-      "id": "ca138ad2-b1f8-4064-8919-7f87bffc277c",
+      "id": "69bcd7c8-8212-4fc5-bc2a-f30eb545bd08",
       "name": "Has Image?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -167,7 +167,7 @@
           },
           "conditions": [
             {
-              "id": "057448e4-a359-4144-a36d-f986a3379669",
+              "id": "13a08e31-f05b-46ef-a979-afd9345b0b99",
               "leftValue": "={{ $json.hasImage }}",
               "rightValue": "",
               "operator": {
@@ -183,7 +183,7 @@
       }
     },
     {
-      "id": "8f5b9e0e-c079-4ca2-afe2-626c8cbfb859",
+      "id": "4c8fdb17-1c57-4a5a-96d8-eab697222500",
       "name": "Read Page",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -234,7 +234,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "44a46abc-f592-4d88-a42b-213fe38908d4",
+      "id": "b2a5d0ca-381d-44cd-8c9b-97cb853723b6",
       "name": "Sections",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -247,7 +247,7 @@
       }
     },
     {
-      "id": "ac52cd6e-aa5c-4af6-9bf7-a74d61884cc2",
+      "id": "ff6345df-022e-41c2-b42a-d4afb4e5bfa2",
       "name": "Save Page",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -274,7 +274,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "8ce20483-f0a4-47c1-bef7-c8c001ed0e6b",
+      "id": "9ce3badb-64ea-49a3-bc65-4fd681a3a77d",
       "name": "All Read",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -287,7 +287,7 @@
       }
     },
     {
-      "id": "92c9bb99-336b-43a1-b253-5a38df53aa57",
+      "id": "38dff869-669b-4fa1-9403-28ac7d7a7054",
       "name": "Finish",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -314,7 +314,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "20a6bd83-93a3-4217-8663-4b72613ff7e6",
+      "id": "a8c67d0b-174a-4def-9e81-899afcf980f5",
       "name": "All Done?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -331,7 +331,7 @@
           },
           "conditions": [
             {
-              "id": "7e789059-9852-4d9d-a376-6d9233d942d4",
+              "id": "02f4bd1a-e5f6-4288-b014-c8deb2883893",
               "leftValue": "={{ $json.r.status !== 'queued' }}",
               "rightValue": "",
               "operator": {
@@ -347,7 +347,7 @@
       }
     },
     {
-      "id": "0cec3439-fb6b-4667-892b-5aaab52857db",
+      "id": "88504711-1430-4066-9cf3-a9878e8e017f",
       "name": "Delete PDF",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
