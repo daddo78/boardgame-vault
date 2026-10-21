@@ -3015,9 +3015,49 @@ const adminAction = wf(ID.adminAction, 'Vault — Admin (actions)', [
   pg('Act', "SELECT bgc.admin_action($1, $2, nullif($3, '')::bigint, $4::jsonb) AS r", '={{ [$json.email, $json.action, $json.target, JSON.stringify($json.v)] }}'),
   code('Result', function () { return [{ json: $input.first().json.r }]; }),
   ifTrue('OK?', '={{ $json.ok }}'),
+  // A new member gets an email saying they're in, and how to start
+  ifTrue('Invite?', "={{ $('Validate').first().json.action === 'invite' }}"),
+  code('Invite Email', function () {
+    const v = $('Validate').first().json;
+    const who = String(($('Auth: Role').first().json._auth || {}).playerName || '').split(' ')[0] || 'A friend';
+    const first = v.v.name.split(' ')[0];
+    const site = 'https://bg.ondorilabo.com';
+    const text = [
+      'Hi ' + first + ',', '',
+      who + ' invited you to Board Game Curator, a board game site for your friend group: keep track of the games you own, bring in your plays from BG Stats, and ask Nathan, the resident curator, what to play tonight.', '',
+      'Sign in with Google using this address: ' + v.v.email, site, '',
+      'Once you\'re in:',
+      '- Add your games (by name, a photo of your shelf, or a spreadsheet)',
+      '- Connect your BoardGameGeek username to bring in your plays',
+      '- Swap friend codes with ' + who + ' to see each other\'s shelves', '',
+      'See you at the table!', 'Nathan', '',
+      '(You got this because ' + who + ' added you on Board Game Curator. Reply to this email to reach ' + who + '.)',
+    ].join('\n');
+    const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#2b3445;max-width:520px">' +
+      '<p>Hi ' + esc(first) + ',</p>' +
+      '<p><b>' + esc(who) + '</b> invited you to <b>Board Game Curator</b>, a board game site for your friend group: keep track of the games you own, bring in your plays from BG Stats, and ask Nathan, the resident curator, what to play tonight.</p>' +
+      '<p style="margin:22px 0"><a href="' + site + '" style="background:#c9342a;color:#fff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px;display:inline-block">Open Board Game Curator</a></p>' +
+      '<p>Sign in with Google using <b>' + esc(v.v.email) + '</b>.</p>' +
+      '<p style="margin-bottom:4px">Once you\'re in:</p><ul style="margin-top:0;padding-left:20px"><li>Add your games (by name, a photo of your shelf, or a spreadsheet)</li>' +
+      '<li>Connect your BoardGameGeek username to bring in your plays</li><li>Swap friend codes with ' + esc(who) + ' to see each other\'s shelves</li></ul>' +
+      '<p>See you at the table!<br>Nathan</p>' +
+      '<p style="font-size:12px;color:#7a8394;margin-top:26px">You got this because ' + esc(who) + ' added you on Board Game Curator. Reply to this email to reach ' + esc(who) + '.</p></div>';
+    return [{ json: { to: v.v.email, replyTo: v.email, subject: who + ' invited you to Board Game Curator', text, html } }];
+  }),
+  { ...node('Send Invite', 'n8n-nodes-base.emailSend', 2.1, {
+    fromEmail: ALERT_FROM, toEmail: '={{ $json.to }}', subject: '={{ $json.subject }}', emailFormat: 'both', text: '={{ $json.text }}', html: '={{ $json.html }}',
+    options: { appendAttribution: false, replyTo: '={{ $json.replyTo }}' },
+  }, { credentials: CRED.smtp }), onError: 'continueRegularOutput' },
+  code('Invited', function () {
+    const r = $('Result').first().json;
+    const sent = !$input.first().json.error;
+    return [{ json: { ...r, emailed: sent, message: r.message + (sent ? '. We emailed them how to get started.' : '. (The welcome email didn’t go out, so let them know yourself.)') } }];
+  }),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
-], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Act', 0], ['Valid?', 'Respond Error', 1], ['Act', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Act', 0], ['Valid?', 'Respond Error', 1], ['Act', 'Result'], ['Result', 'OK?'], ['OK?', 'Invite?', 0], ['OK?', 'Respond Error', 1],
+  ['Invite?', 'Invite Email', 0], ['Invite?', 'Respond OK', 1], ['Invite Email', 'Send Invite'], ['Send Invite', 'Invited'], ['Invited', 'Respond OK']]);
 addMemberAuth(adminAction, { failTo: 'Respond Error' });
 
 // =====================================================================

@@ -5,6 +5,7 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 ## v0.14 · October 21, 2026
 
 - **Show Nathan a photo:** tap 📷 in the Ask bar or the reply box. Snap an icon or a card and ask "what does this mean?" and he finds it in the rulebook and gives you the page. Snap a box, or just the board and cards on the table, and ask "what game is this?" and he tells you about it (and whether it's on your shelf). Photos aren't kept.
+- **Invites come with an email:** when an admin invites someone, they get a welcome email with the link, which Google account to use, and how to get started.
 - **Nathan full screen:** tap ⤢ at the top of Nathan's chat to give the conversation the whole screen, with the reply box at the bottom. Tap ⤡ to go back to your shelf, right where you were.
 
 ## v0.13 · October 21, 2026
