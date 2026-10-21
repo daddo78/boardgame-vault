@@ -2,6 +2,15 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.12.1 · October 21, 2026
+
+**Nathan listens better**
+- Tell him how a game went ("I really liked Got Five") and he takes it as feedback. He's glad it landed, remembers it, and suggests more like it for the same table.
+- Numbers in game names aren't player counts anymore ("Got Five!" no longer means five players).
+- Tonight's pick is a game that's at its best with your number of players, not one he has to make excuses for.
+- The "ages" chip only appears when someone mentions ages or kids.
+- He calls your shelf "your shelf", not "my shelf".
+
 ## v0.12 · October 20, 2026
 
 **Nathan gets to know you**

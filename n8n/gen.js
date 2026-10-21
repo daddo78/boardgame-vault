@@ -1672,7 +1672,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '  "reply": "only if onTopic is false: one friendly, lightly punny sentence from Nathan, the collection curator, steering back to board games",',
       '  "playerIds": [ids from ROSTER for people playing, named or clearly meant (first names, nicknames); when they include themselves ("for me and Brittany", "something I would like") add the ASKER id],',
       '  "unknownPeople": number of other people mentioned who are not on the roster (e.g. "and 2 friends" = 2),',
-      '  "playerCount": total players if stated or implied, else null,',
+      '  "playerCount": total players if stated or implied, else null. A number that is part of a game\'s title ("Got Five!", "7 Wonders", "Five Tribes", "Catan 5-6 Player Extension") is never a player count,',
       '  "maxMinutes": longest acceptable play time in minutes, else null ("quick" ~ 30, "an hour" = 60, "all evening" ~ 240),',
       '  "youngestAge": age of the youngest player if stated, else null,',
       '  "weight": {"min": 1-5, "max": 1-5} complexity if they hint at it ("light" max 2.2, "brain burner" min 3.2), else null,',
@@ -1685,6 +1685,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '  "excludeIds": []',
       '}',
       'If PREVIOUS is given, this is a follow-up ("shorter", "something else"): start from its constraints and change only what the new message changes. Only when they want different games ("something else", "another one") put the previous picks in excludeIds; when they narrow it down ("which of those are quick") keep excludeIds empty.',
+      'FEEDBACK: if the message is a reaction to a game rather than a new ask ("I really liked Got Five", "that one was a hit", "we played Brass and hated it"), add "feedback": "liked" or "disliked" and "feedbackGame": its official title. Use intent "recommend" and keep the PREVIOUS constraints (same people, player count and time) unchanged; for "liked", put that game\'s genre and main mechanics in "themes" (e.g. Got Five!: deduction, set collection, light) so similar games come up, and put the previous picks in excludeIds. Otherwise "feedback" is null.',
       'Also add "fromPrevious": true when the new message is about the games in the PREVIOUS answer ("those", "these", "of them", "which one", "the first one", "out of my top ten", "of those, which is heaviest"), else false.',
       '',
       'ROSTER (id | name):', roster || '(none)',
@@ -1871,6 +1872,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const scored = [], loose = [];
     for (const g of games) {
       if (exclude.has(g.id)) continue;
+      if (c.feedback && c.feedbackGame && normTitle(g.title) === normTitle(String(c.feedbackGame))) continue; // "I really liked Got Five": more like it, not it again
       // Loose score for gap mode: same preferences, only the player count enforced
       if (!count || !g.minPlayers || (count >= g.minPlayers && count <= g.maxPlayers)) {
         const h0 = hay(g);
@@ -1889,7 +1891,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       const h = hay(g);
       if (avoid.some((w) => h.includes(w))) continue;
       let s = 0;
-      if (count && g.bestPlayers.includes(count)) s += 2;
+      if (count && g.bestPlayers.includes(count)) s += 3.5;
+      else if (count && g.bestPlayers.length) s -= 1; // allowed at this count, but not where it shines
       s += want.filter((w) => h.includes(w)).length * 2.5;
       s += (g.desireToPlay || 0) * 0.4 + (g.favorite ? 1 : 0) - (g.thinningCandidate ? 0.5 : 0);
       s += ((g.bggRating || 6.5) - 6.5) * 0.5;
@@ -1901,7 +1904,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       if (c.freshness === 'favorite') s += (g.favorite ? 3 : 0) + (g.desireToPlay || 0) * 0.5;
       // Variety for recommendations: games Nathan suggested in the last two weeks drop back, and near-ties shuffle,
       // so the same question doesn't always land on the same game (a browse or a ranked list stays exact)
-      if (c.intent !== 'browse') s += Math.random() * 1.5 - (recentSet.has(g.id) || recentBgg.has(String(g.bggId)) ? 2.5 : 0) - (skipBgg.has(String(g.bggId)) ? 8 : 0);
+      if (c.intent !== 'browse') s += Math.random() * 1 - (recentSet.has(g.id) || recentBgg.has(String(g.bggId)) ? 2.5 : 0) - (skipBgg.has(String(g.bggId)) ? 8 : 0);
       scored.push({ g, s });
     }
     scored.sort((a, b) => b.s - a.s);
@@ -2140,7 +2143,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         understood: { players: ppl.map((p) => p.name) }, constraints: c, shortIds: pick.map((g) => g.id),
         titles: Object.fromEntries(pick.map((g) => [g.id, g.title])), gameLines: pick.map((g) => line(g, ppl)).join('\n'), profiles: '', ownerName: shelfOwner, guest, fromOwn: !!own } }];
     }
-    const understood = { players: group.map((p) => p.name), playerCount: count, maxMinutes: maxMin, youngestAge: youngest,
+    const understood = { players: group.map((p) => p.name), playerCount: count, maxMinutes: maxMin, youngestAge: c.youngestAge ? youngest : null,
       weight: c.weight || null, coop: c.coop ?? null, themes: want, avoid, freshness: c.freshness || null, mood: c.mood || '' };
     return [{ json: { offTopic: false, gap, browse, matchIds, setFacts, understood, constraints: c, shortIds: short.map((g) => g.id),
       titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
@@ -2172,7 +2175,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'VOICE:',
       '- You are talking with the ASKER: always call them "you" (never by their name, never "he" or "she"). Use first names only for other people.',
       ...($('Shelf View').first().json.v.askerName !== 'Nathan Schmidt' ? [
-      '- You ARE Nathan Schmidt. Facts explicitly about Nathan Schmidt (his profile, his own shelf, his plays and ratings) are about you: say them in the first person ("I love engine builders", "I\'ve played Ark Nova 39 times", "on my shelf"). Everything else (the plays, wins and stars in CANDIDATES) belongs to the shelf owner or the people named, never to you.',
+      '- You ARE Nathan Schmidt. Facts explicitly about Nathan Schmidt (his profile, his own shelf, his plays and ratings) are about you: say them in the first person ("I love engine builders", "I\'ve played Ark Nova 39 times", "on my shelf"). Everything else (the plays, wins and stars in CANDIDATES) belongs to the shelf owner or the people named, never to you, and the shelf you are picking from is theirs: say "your shelf" or "{SHELF_OWNER}\'s shelf", never "my shelf".',
       ] : []),
       '- Warm and enthusiastically corny: wholesome dad jokes and puns about cardboard and meeples, gentle self-deprecating humor about shelf space and the shelf of shame. Humor is a light flourish and never crowds out the recommendation.',
       '- First mention: for a title NOT in ALREADY_JOKED, open its entry with a one-line dad-joke quip about that game. For titles in ALREADY_JOKED, leave quip empty.',
@@ -2199,14 +2202,14 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       ]),
       'Answer the question fully in the summary, in natural sentences: if they ask for ten, name all ten (with their numbers, in order); if they ask whether they own something, say yes or no first. Never stop at a sample of what they asked for. Then add a sentence on what it says about their taste. Make the highlights 3 to 5 of the most interesting games from the answer.',
       ] : [
-      'FORMAT: one headline pick and one contrasting alternative (for example lighter, faster, or a different feel). For each, a short vivid table-feel picture (1-3 sentences) of what playing it actually feels like.',
+      'FORMAT: one headline pick and one contrasting alternative (for example lighter, faster, or a different feel). The headline must fit the request without excuses: if it is not at its best at the asked player count ("best at 2 or 3" for four of you) and another good candidate is, pick that one instead. For each, a short vivid table-feel picture (1-3 sentences) of what playing it actually feels like.',
       'Keep each entry scannable: "why" is 2-4 sentences, data and people fit first.',
       ]),
       '',
       'HONEST GAPS: if GAP is true (nothing meets the hard limits), or the kind of game asked for (a genre, theme or mechanic) is not really on the shelf, say so plainly in gap.missing (one sentence, no guessing), make your pick the closest match, and you may name ONE real, well-known game not on this shelf that fills the gap in gap.consider (only if you are sure it exists). Never present it as owned. If the shelf has a true match, gap is null.',
       '',
       'MEMORY: you are getting to know the ASKER over time. WHAT YOU REMEMBER is from earlier chats: let it shape your picks quietly, and mention it only when it matters ("I know you like weeknights short"). Never suggest a game they asked you not to.',
-      'In "remember", list 0-2 lasting facts the ASKER just told you about THEMSELVES in this REQUEST: stable likes and dislikes, how long or heavy they like games, who they usually play with and when, or a game they don\'t want suggested (put its title in "skip"). Not one-off moods or plans ("tonight", "I\'m tired", "this weekend"), not facts about other people, not things you only inferred from data, and not facts already in WHAT YOU REMEMBER (if the new fact changes one, set "replaces" to that note\'s id). Write each note in the third person, under 15 words. Whenever the REQUEST states a lasting preference, record it, even when the same request also asks for a game for tonight. Words like "usually", "always", "never", "on weeknights", "I like", "I hate" or "I\'m burned out on" signal one. Examples: "on weeknights I only have about an hour, so I like shorter games. What should I play tonight?" -> {"note": "Has about an hour on weeknights; likes shorter games"}; "please stop suggesting Cascadia, I\'m burned out on it" -> {"note": "Burned out on Cascadia; don\'t suggest it", "skip": "Cascadia"}; "I hate trivia games" -> {"note": "Dislikes trivia games"}; "my wife and I play on Sunday mornings" -> {"note": "Plays with their partner on Sunday mornings"}. Tonight\'s mood or situation is not a lasting fact: "I\'m tired tonight, something light" -> [] and "we have 3 tonight" -> []. A request that only asks for a game teaches nothing: then "remember" is [].',
+      'In "remember", list 0-2 lasting facts the ASKER just told you about THEMSELVES in this REQUEST: stable likes and dislikes, how long or heavy they like games, who they usually play with and when, or a game they don\'t want suggested (put its title in "skip"). Not one-off moods or plans ("tonight", "I\'m tired", "this weekend"), not facts about other people, not things you only inferred from data, and not facts already in WHAT YOU REMEMBER (if the new fact changes one, set "replaces" to that note\'s id). Write each note in the third person, under 15 words. Whenever the REQUEST states a lasting preference, record it, even when the same request also asks for a game for tonight. Words like "usually", "always", "never", "on weeknights", "I like", "I hate" or "I\'m burned out on" signal one. Examples: "on weeknights I only have about an hour, so I like shorter games. What should I play tonight?" -> {"note": "Has about an hour on weeknights; likes shorter games"}; "please stop suggesting Cascadia, I\'m burned out on it" -> {"note": "Burned out on Cascadia; don\'t suggest it", "skip": "Cascadia"}; "I hate trivia games" -> {"note": "Dislikes trivia games"}; "I really liked Got Five" -> {"note": "Really liked Got Five!"}; "my wife and I play on Sunday mornings" -> {"note": "Plays with their partner on Sunday mornings"}. Tonight\'s mood or situation is not a lasting fact: "I\'m tired tonight, something light" -> [] and "we have 3 tonight" -> []. A request that only asks for a game teaches nothing: then "remember" is [].',
       '',
       'Reply with JSON only:',
       ...(s.browse ? [
@@ -2230,6 +2233,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'ALREADY_JOKED: ' + (s.shortIds.filter((id) => mentioned.has(id)).join(', ') || '(none)'),
       (() => { const m = $('Memory').first().json.mem || {}; return 'WHAT YOU REMEMBER ABOUT THE ASKER (id | note):\n' + ((m.notes || []).map((n) => n.id + ' | ' + n.note).join('\n') || '(nothing yet)'); })(),
       (() => { const t = ($('Memory').first().json.mem || {}).turns || []; return t.length ? 'EARLIER IN THIS CHAT (oldest first):\n' + t.map((x) => '- They asked: ' + x.q + ' | You answered: ' + x.a).join('\n') : ''; })(),
+      s.constraints && s.constraints.feedback ? 'FEEDBACK: the asker just told you they ' + (s.constraints.feedback === 'disliked' ? 'did not enjoy ' : 'enjoyed ') + (s.constraints.feedbackGame || 'a game') + '. Open your headline "why" with one short, warm reaction to that ("Glad Got Five! landed!"), then pick games ' + (s.constraints.feedback === 'disliked' ? 'that feel different from it' : 'that share what they liked about it') + ' for the same table, and do not pick that game again. Also add it to "remember" ("Really liked Got Five!") unless WHAT YOU REMEMBER already says so.' : '',
       s.browse ? '' : 'RECENTLY_SUGGESTED (you recommended these to this person in the last two weeks; prefer a fresh pick that fits as well, and only repeat one if it is clearly the best fit or they ask for it): ' + (s.shortIds.filter((id) => (v.recent || []).includes(id) || (s.recentIds || []).includes(id)).join(', ') || '(none)'),
       s.askerName ? 'ASKER (the person typing; call them "you"): ' + s.askerName : '', s.guest || '',
       s.askerProfile ? 'ASKER PROFILE (use it when they ask for something they would like, even if they are not listed as playing):\n' + s.askerProfile : '',
@@ -3095,6 +3099,8 @@ const selfTest = wf(ID.selfTest, 'Vault — Nightly Self-Test', [
       if (t.intent && a.intent !== t.intent) p.push('answered as ' + a.intent + ', expected ' + t.intent);
       if (t.mode && a.mode !== t.mode) p.push('answered as ' + a.mode + ', expected ' + t.mode);
       if (t.offTopic && !a.offTopic) p.push('expected an off-topic redirect');
+      if (t.playerCount !== undefined && ((a.understood || {}).playerCount ?? null) !== t.playerCount) p.push('understood ' + ((a.understood || {}).playerCount ?? 'no') + ' players, expected ' + t.playerCount);
+      if (t.remembers && !(a.remembered || []).length) p.push('expected Nathan to remember something');
       return { what: t.name, ok: !p.length, problems: p };
     });
     const failed = [...db.filter((x) => !x.ok), ...nathan.filter((x) => !x.ok)];

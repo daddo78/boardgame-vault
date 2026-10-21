@@ -40,6 +40,8 @@ for (const t of tests) {
   if (t.intent && a.intent !== t.intent) problems.push('intent ' + a.intent + ', expected ' + t.intent);
   if (t.mode && a.mode !== t.mode) problems.push('mode ' + a.mode + ', expected ' + t.mode);
   if (t.offTopic && !a.offTopic) problems.push('expected an off-topic redirect');
+  if (t.playerCount !== undefined && ((a.understood || {}).playerCount ?? null) !== t.playerCount) problems.push('understood ' + ((a.understood || {}).playerCount ?? 'no') + ' players, expected ' + t.playerCount);
+  if (t.remembers && !(a.remembered || []).length) problems.push('expected Nathan to remember something');
   ran++;
   if (problems.length) { failed++; console.log('FAIL  ' + t.name + '\n      ' + problems.join('; ') + '\n      answer: ' + text.replace(/\s+/g, ' ').slice(0, 300)); }
   else console.log('PASS  ' + t.name);

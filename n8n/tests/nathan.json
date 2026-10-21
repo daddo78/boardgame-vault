@@ -190,5 +190,37 @@
     "as": "dan",
     "q": "What's the weather like today?",
     "offTopic": true
+  },
+  {
+    "name": "Four of us, under 30 minutes: a game that shines at 4",
+    "as": "dan",
+    "q": "What can four of us finish in under 30 minutes?",
+    "intent": "recommend",
+    "playerCount": 4,
+    "excludes": [
+      "a stretch",
+      "team-based sharing"
+    ]
+  },
+  {
+    "name": "\"I really liked Got Five\" is feedback: same table, remembered",
+    "as": "dan",
+    "q": "I really liked Got Five.",
+    "prev": {
+      "question": "What can four of us finish in under 30 minutes?",
+      "constraints": {
+        "intent": "recommend",
+        "playerCount": 4,
+        "maxMinutes": 30
+      },
+      "pickIds": [],
+      "setIds": []
+    },
+    "intent": "recommend",
+    "playerCount": 4,
+    "includes": [
+      "Got Five"
+    ],
+    "remembers": true
   }
 ]
