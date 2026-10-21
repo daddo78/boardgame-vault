@@ -582,6 +582,15 @@
   body.chatting #addFab { display: none !important; } /* out of the way of the reply box */
   .modal-overlay { position: fixed; inset: 0; background: rgba(20,40,90,0.45); display: none; align-items: center; justify-content: center; z-index: 100; padding: 1.5rem; }
   .modal-overlay.open { display: flex; }
+  /* What's new */
+  .news-ver { padding: 0.9rem 0; border-top: 1px solid #eadfcb; }
+  .news-ver:first-child { border-top: 0; padding-top: 0; }
+  .news-ver h3 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 800; color: var(--ink); margin: 0 0 0.3rem; }
+  .news-ver h3 span { font-family: inherit; font-weight: 600; font-size: 0.82rem; color: var(--text-muted); margin-left: 0.3rem; }
+  .news-ver h4 { font-size: 0.86rem; font-weight: 800; color: var(--brand); margin: 0.7rem 0 0.25rem; }
+  .news-ver ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; }
+  .news-ver li, .news-ver p { font-size: 0.88rem; line-height: 1.45; color: var(--ink); }
+  .news-ver p { margin: 0.5rem 0 0; color: var(--text-muted); }
   /* While a popup is open the page behind it is held in place (phones would otherwise scroll it along with the popup) */
   .modal-overlay, .modal { overscroll-behavior: contain; }
   body.modal-locked { position: fixed; left: 0; right: 0; overflow: hidden; }
@@ -746,7 +755,7 @@
       <button class="icon-btn friends-btn member-only" id="friendsBtn" type="button" title="Friends" aria-label="Friends"><i class="fa-solid fa-user-group"></i></button>
       <button class="icon-btn tip-btn" id="tipBtn" type="button" title="Tip jar" aria-label="Tip jar" hidden><i class="fa-solid fa-mug-hot"></i></button>
       <span class="total-badge" id="totalBadge" title="Games in the collection"><span id="badgeStatus"><span class="badge-spin"></span> Loading…</span><span id="badgeTotal" hidden><i class="fa-solid fa-dice"></i> <b id="totalCount"></b> games</span></span>
-      <button class="icon-btn admin-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
+      <button class="icon-btn member-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button>
     </div>
   </div>
   <header class="hero">
@@ -957,8 +966,13 @@
   <div class="modal-overlay" id="settingsModal">
     <div class="modal">
       <h2>Settings</h2>
+      <div>
+        <label style="margin-top:0;">What's new</label>
+        <p class="hint" style="margin-top:0;" id="newsVersion">The release notes for every update.</p>
+        <button class="btn" id="openNewsBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-sparkles"></i> What's new</button>
+      </div>
       <div class="owner-only">
-        <label style="margin-top:0;">Play counts</label>
+        <label>Play counts</label>
         <p class="hint" style="margin-top:0;">Pulled from your BGG plays (logged through BG Stats) every night at 4am, and for each game as you add it.</p>
         <button class="btn" id="syncPlaysBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-refresh"></i> Sync plays now</button>
         <p class="hint" id="syncPlaysStatus"></p>
@@ -974,6 +988,15 @@
       <div class="modal-actions">
         <button class="btn ghost" id="settingsCancel">Close</button>
       </div>
+    </div>
+  </div>
+
+  <!-- What's new: the release notes -->
+  <div class="modal-overlay" id="newsModal">
+    <div class="modal news">
+      <h2>What's new</h2>
+      <div id="newsBody"><div class="spinner"></div></div>
+      <div class="modal-actions"><button class="btn ghost" id="newsClose">Close</button></div>
     </div>
   </div>
 
@@ -2065,6 +2088,47 @@
       settingsModal.classList.add('open');
     });
     document.getElementById('settingsCancel').addEventListener('click', () => settingsModal.classList.remove('open'));
+    // What's new: the release notes (CHANGELOG.md, published with the site), newest first
+    const newsModal = document.getElementById('newsModal');
+    let newsText = null;
+    async function loadNews() {
+      if (newsText === null) {
+        const r = await fetch('CHANGELOG.md', { cache: 'no-cache' });
+        if (!r.ok) throw new Error('Couldn’t load the release notes. Try again in a moment.');
+        newsText = await r.text();
+      }
+      return newsText.split(/^## /m).slice(1).map((p) => p.trim().split('\n'));
+    }
+    const newsInline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>');
+    function newsHtml(versions) {
+      return versions.map((lines) => {
+        const [ver, ...when] = lines[0].split(' · ');
+        let html = '<section class="news-ver"><h3>' + esc(ver) + (when.length ? '<span>' + esc(when.join(' · ')) + '</span>' : '') + '</h3>';
+        let list = false;
+        for (const raw of lines.slice(1)) {
+          const t = raw.trim();
+          if (t.startsWith('- ')) { html += (list ? '' : '<ul>') + '<li>' + newsInline(t.slice(2)) + '</li>'; list = true; continue; }
+          if (list) { html += '</ul>'; list = false; }
+          if (!t) continue;
+          html += /^\*\*[^*]+\*\*$/.test(t) || t.startsWith('### ') ? '<h4>' + esc(t.replace(/^### |\*\*/g, '')) + '</h4>' : '<p>' + newsInline(t) + '</p>';
+        }
+        return html + (list ? '</ul>' : '') + '</section>';
+      }).join('');
+    }
+    // The cog shows which version you're on
+    document.getElementById('settingsBtn').addEventListener('click', async () => {
+      try { const [latest] = await loadNews(); if (latest) document.getElementById('newsVersion').textContent = 'You’re on ' + latest[0].replace(' · ', ', updated ') + '.'; } catch (e) {}
+    });
+    document.getElementById('openNewsBtn').addEventListener('click', async () => {
+      settingsModal.classList.remove('open');
+      newsModal.classList.add('open');
+      const body = document.getElementById('newsBody');
+      try { body.innerHTML = newsHtml(await loadNews()); }
+      catch (e) { body.innerHTML = '<p class="hint">' + esc(e.message) + '</p>'; }
+      newsModal.querySelector('.modal').scrollTop = 0;
+    });
+    document.getElementById('newsClose').addEventListener('click', () => newsModal.classList.remove('open'));
+    newsModal.addEventListener('click', (e) => { if (e.target === newsModal) newsModal.classList.remove('open'); });
     document.getElementById('syncPlaysBtn').addEventListener('click', async (e) => {
       const btn = e.currentTarget;
       const status = document.getElementById('syncPlaysStatus');
@@ -2909,7 +2973,7 @@
       setMenu(accountMenu.hidden);
     });
     document.addEventListener('click', (e) => { if (!accountMenu.hidden && !e.target.closest('.account')) setMenu(false); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal', 'adminModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal', 'adminModal', 'newsModal', 'settingsModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
     document.getElementById('menuSignOut').addEventListener('click', () => {
       setMenu(false);
       if (gisReady) google.accounts.id.disableAutoSelect();
