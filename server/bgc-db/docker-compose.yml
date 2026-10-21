@@ -2,6 +2,7 @@
 #   postgres  the data (private: only reachable from n8n, NocoDB and the backup job)
 #   nocodb    an Airtable-like grid over the data (127.0.0.1:8080, and via the Cloudflare tunnel)
 #   backup    nightly plain-SQL dump pushed to a private GitHub repo (git keeps every night)
+#   pages     rulebook pages for Nathan to read (a PDF is kept only until it has been read)
 # Secrets live in ./.env on the server (see .env.example); never commit them.
 name: bgc-db
 
@@ -60,10 +61,21 @@ services:
       - backuprepo:/repo
     entrypoint: ["/bin/sh", "/backup.sh"]
 
+  # Rulebook pages: holds an uploaded PDF only while Nathan reads it (never backed up; no published ports)
+  pages:
+    build: ./pages
+    container_name: bgc-pages
+    restart: unless-stopped
+    mem_limit: 1g
+    volumes:
+      - pagework:/work
+    networks: [n8n]
+
 volumes:
   pgdata:
   ncdata:
   backuprepo:
+  pagework:
 
 networks:
   n8n:

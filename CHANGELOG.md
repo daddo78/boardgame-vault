@@ -2,6 +2,15 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.13 · October 21, 2026
+
+**Rules answers with page numbers**
+- Add a game's rulebook once and Nathan reads every page, including the icons and the boxes on the side. Ask "How do I research a tech in SETI?" and he answers from the rulebook and tells you where: *(Rulebook, p. 16)*. Tap the page to open the official copy right there.
+- A game can have more than one document: the rulebook plus a reference guide, appendix, FAQ or solo rules. Nathan searches all of them ("per the Appendix, p. 3").
+- Games with a rulebook show a 📖 on their cover, on everyone's shelf.
+- To add one, open a game → *Rulebooks & guides*, choose the PDF, and if you can, paste the link to the official copy. Nathan takes about 10 seconds a page. We keep his reading, not the file: everyone opens the official copy from your link.
+- First ones in: SETI, Andromeda's Edge (with its EDGE cases appendix) and The Fate of the Fellowship.
+
 ## v0.12.2 · October 21, 2026
 
 - **Your plays stay up to date:** everyone's BoardGameGeek plays (including what BG Stats posts there) now sync every night. Before, they only came in once, when you connected BGG.

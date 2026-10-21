@@ -264,7 +264,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
     <li><span class="tag db">Database</span><div><b>Remember.</b> Loads what Nathan has learned about the asker (short notes, games to skip), what he suggested them in the last two weeks, and this chat so far: how it started plus the latest five turns.</div></li>
     <li><span class="tag ai">Gemini</span><div><b>Understand.</b> Turns the question into a plan: what kind of question it is (browse, recommend, person, game, buy, rules), who's playing, player count, time, weight, themes, games named.</div></li>
     <li><span class="tag code">Code</span><div><b>Firm rules.</b> These override the model's reading. "A game I don't own" means ideas to buy, "my" means the asker's shelf, "who has…" looks across friends, and "at Keith's" means Keith's shelf.</div></li>
-    <li><span class="tag db">Database</span><div><b>Look things up.</b> Finds the games named, even partial or misspelled names (<code>match_game</code>). Also gets who owns them, ideas to buy, friends' shelves, the asker's Top 10 and wishlist, and any uploaded rulebook text.</div></li>
+    <li><span class="tag db">Database</span><div><b>Look things up.</b> Finds the games named, even partial or misspelled names (<code>match_game</code>). Also gets who owns them, ideas to buy, friends' shelves, the asker's Top 10 and wishlist. For a rules question, the rulebook sections that best match its words, each with its document and page.</div></li>
     <li><span class="tag web">BGG</span><div><b>Fill the gaps.</b> If a game isn't in our catalog yet, BoardGameGeek supplies it. The most-rated exact match wins.</div></li>
     <li><span class="tag code">Code</span><div><b>Shortlist.</b> Applies the hard limits and scores the rest by the group's ratings, plays and taste. Follow-ups ("which of those are co-op?") stay within the last answer.</div></li>
     <li><span class="tag ai">Claude</span><div><b>Nathan writes the answer</b> from that shortlist only, in his voice: picks, reasons, a quip, and an honest note when nothing fits. In the same reply he notes up to two lasting facts the asker just told him ("has about an hour on weeknights").</div></li>
@@ -287,7 +287,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
         <tr><td>People</td><td class="ep"><span class="m">GET</span>people · whoami · me<br><span class="m post">POST</span>me-save</td><td>Who's logged plays with you, your role, your taste profile and Top 10</td><td class="who-pill">member</td></tr>
         <tr><td>Friends</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>friends<br><span class="m">GET</span>profile</td><td>Friend codes, connecting and removing, friends' profile pages</td><td class="who-pill">member</td></tr>
         <tr><td>Wishlists</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>wishlist</td><td>Yours or a friend's; "Got it!" moves a game onto your shelf</td><td class="who-pill">member</td></tr>
-        <tr><td>Rulebooks</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>rulebook</td><td>Upload a PDF once; everyone can open it and Nathan reads it</td><td class="who-pill">member</td></tr>
+        <tr><td>Rulebooks</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>rulebook<br><span class="m post">POST</span>rulebook-change</td><td>Add a rulebook, reference guide or appendix once for everyone; Nathan reads it page by page, then the PDF is deleted</td><td class="who-pill">member</td></tr>
         <tr><td>Nathan</td><td class="ep"><span class="m post">POST</span>ask</td><td>The question pipeline above</td><td class="who-pill">member · 30/day</td></tr>
         <tr><td>Memory</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>memory</td><td>Your latest chat to show again, what Nathan remembers, forgetting a note or everything</td><td class="who-pill">member</td></tr>
         <tr><td>Admin</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>admin<br><span class="m">GET</span>dashboard</td><td>Members, invites, admin rights, Nathan's limits; the usage dashboard</td><td class="who-pill">admin</td></tr>
@@ -348,7 +348,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
         <li><b>games</b>: the shared catalog, filled in from BGG</li>
         <li><b>shelves</b>: who owns what, favorites</li>
         <li><b>plays</b>, <b>ratings</b>: from BG Stats via BGG, and your stars</li>
-        <li><b>wishlist</b>, <b>rulebooks</b> (PDF plus extracted text)</li>
+        <li><b>wishlist</b>; <b>rule_docs</b>, <b>rule_sections</b>: the text Nathan read from each rulebook, by page (the PDFs themselves aren't kept)</li>
         <li><b>chat_turns</b>, <b>member_notes</b>: Nathan's memory. Chats are kept 6 months; notes stay until you delete them</li>
         <li><b>ask_log</b>, <b>settings</b>: question types and timings, limits, the last self-test</li>
       </ul>

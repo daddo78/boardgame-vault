@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "33a6a110-c390-48cd-83e5-4109665dcbb7",
+      "id": "7bfae9bb-2257-406c-a44c-181b8e216a8e",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "7785f89f-6b4d-4b0f-89d3-4e4b4a6b5ff0"
+      "webhookId": "fd049bcd-f90b-4315-b687-279d0137201b"
     },
     {
-      "id": "afa8d0e3-b21f-40da-84fe-7553b3110c47",
+      "id": "48d26a77-eaec-4cf9-b26a-ef0079768808",
       "name": "Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -33,11 +33,11 @@
         300
       ],
       "parameters": {
-        "jsCode": "\r\n  const F = {\r\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\r\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\r\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\r\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\r\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\r\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\r\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\r\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\r\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\r\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\r\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\r\n  };\r\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\r\n  const toGame = (r) => {\r\n    const f = r.fields || {};\r\n    return {\r\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\r\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\r\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\r\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\r\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\r\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\r\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\r\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\r\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\r\n      // Other editions whose logged plays count toward this game\r\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\r\n    };\r\n  };\r\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\r\n    ? `RECORD_ID()='${id}'`\r\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\r\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\r\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\r\n  // ---- People: Players and Ratings tables ----\r\n  const PF = {\r\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\r\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\r\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\r\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\r\n  };\r\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\r\n  const toPlayer = (r) => {\r\n    const f = r.fields || {};\r\n    let history = {};\r\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\r\n    return {\r\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\r\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\r\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\r\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\r\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\r\n    };\r\n  };\r\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\r\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\r\n  // The part of a player card that belongs to the person: only they edit it (via /me)\r\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\r\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\r\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\r\n  // Highest-priority source wins when one person has several ratings for a game\r\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\r\n  const ratingsByPlayerGame = (list) => {\r\n    const out = {};\r\n    for (const r of list) {\r\n      if (!r.gameId || !r.playerId || !r.stars) continue;\r\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\r\n      if (r.source === 'site') e.stars = r.stars;\r\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\r\n    }\r\n    return out;\r\n  };\r\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\r\n  const parseThingXml = (xml) => {\r\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\r\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\r\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\r\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\r\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\r\n    const bestWith = (s) => {\r\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\r\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\r\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\r\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\r\n      });\r\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\r\n      if (winners.length) return winners;\r\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\r\n      return top ? [top.n] : [];\r\n    };\r\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\r\n      const s = m[3];\r\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\r\n      const avg = Number(attr(s, 'average') || 0);\r\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\r\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\r\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\r\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\r\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\r\n        // An expansion's inbound links point at the base game(s) it expands\r\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\r\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\r\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\r\n    });\r\n  };\r\n  const toRating = (r) => {\r\n    const f = r.fields || {};\r\n    const src = f[RF.source];\r\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\r\n      source: typeof src === 'object' && src ? src.name : src || '' };\r\n  };\r\n\n\r\n    const item = $input.first();\r\n    const b = item.json.body || {};\r\n    const key = Object.keys(item.binary || {})[0];\r\n    const err = (status, message) => [{ json: { ok: false, status, message } }];\r\n    if (!key) return err(400, 'Choose a PDF to upload');\r\n    const f = item.binary[key];\r\n    if (!/pdf/i.test(f.mimeType || '') && !/\\.pdf$/i.test(f.fileName || '')) return err(400, 'Rulebooks need to be PDFs');\r\n    const bggId = Number(b.bggId) || 0;\r\n    if (!bggId) return err(400, 'Which game is this rulebook for?');\r\n    // Pass the file along under a fixed name for the PDF reader\r\n    return [{ json: { ok: true, email: item.json._auth.email, bggId, title: String(b.title || '').slice(0, 200), filename: String(f.fileName || 'rulebook.pdf').slice(0, 200) },\r\n      binary: { pdf: f } }];\r\n  "
+        "jsCode": "\r\n  const F = {\r\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\r\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\r\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\r\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\r\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\r\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\r\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\r\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\r\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\r\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\r\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\r\n  };\r\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\r\n  const toGame = (r) => {\r\n    const f = r.fields || {};\r\n    return {\r\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\r\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\r\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\r\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\r\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\r\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\r\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\r\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\r\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\r\n      // Other editions whose logged plays count toward this game\r\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\r\n    };\r\n  };\r\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\r\n    ? `RECORD_ID()='${id}'`\r\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\r\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\r\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\r\n  // ---- People: Players and Ratings tables ----\r\n  const PF = {\r\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\r\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\r\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\r\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\r\n  };\r\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\r\n  const toPlayer = (r) => {\r\n    const f = r.fields || {};\r\n    let history = {};\r\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\r\n    return {\r\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\r\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\r\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\r\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\r\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\r\n    };\r\n  };\r\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\r\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\r\n  // The part of a player card that belongs to the person: only they edit it (via /me)\r\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\r\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\r\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\r\n  // Highest-priority source wins when one person has several ratings for a game\r\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\r\n  const ratingsByPlayerGame = (list) => {\r\n    const out = {};\r\n    for (const r of list) {\r\n      if (!r.gameId || !r.playerId || !r.stars) continue;\r\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\r\n      if (r.source === 'site') e.stars = r.stars;\r\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\r\n    }\r\n    return out;\r\n  };\r\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\r\n  const parseThingXml = (xml) => {\r\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\r\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\r\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\r\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\r\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\r\n    const bestWith = (s) => {\r\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\r\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\r\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\r\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\r\n      });\r\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\r\n      if (winners.length) return winners;\r\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\r\n      return top ? [top.n] : [];\r\n    };\r\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\r\n      const s = m[3];\r\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\r\n      const avg = Number(attr(s, 'average') || 0);\r\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\r\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\r\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\r\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\r\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\r\n        // An expansion's inbound links point at the base game(s) it expands\r\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\r\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\r\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\r\n    });\r\n  };\r\n  const toRating = (r) => {\r\n    const f = r.fields || {};\r\n    const src = f[RF.source];\r\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\r\n      source: typeof src === 'object' && src ? src.name : src || '' };\r\n  };\r\n\n\r\n    const item = $input.first();\r\n    const b = item.json.body || {};\r\n    const key = Object.keys(item.binary || {})[0];\r\n    const err = (status, message) => [{ json: { ok: false, status, message } }];\r\n    if (!key) return err(400, 'Choose a PDF to upload');\r\n    const f = item.binary[key];\r\n    if (!/pdf/i.test(f.mimeType || '') && !/\\.pdf$/i.test(f.fileName || '')) return err(400, 'Rulebooks need to be PDFs');\r\n    const bggId = Number(b.bggId) || 0;\r\n    if (!bggId) return err(400, 'Which game is this for?');\r\n    const source = String(b.source || '').trim();\r\n    if (source && !/^https:\\/\\/\\S{4,}$/.test(source)) return err(400, 'The link to the official copy should start with https://');\r\n    return [{ json: { ok: true, email: item.json._auth.email, bggId, gameTitle: String(b.gameTitle || '').slice(0, 200), kind: String(b.kind || 'rulebook'),\r\n      title: String(b.title || '').slice(0, 120), source }, binary: { pdf: f } }];\r\n  "
       }
     },
     {
-      "id": "f0da69d5-a12d-4a46-b1fd-0a3f78283fcd",
+      "id": "60c0598f-be37-47da-aca7-fac8444a3a6f",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "a97e706f-6ab8-409b-b524-7ceea53f02b8",
+              "id": "8b18609d-44ae-4a3c-a98a-205ed113520d",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,54 +70,19 @@
       }
     },
     {
-      "id": "a4e6c97f-be1e-42da-b22c-308be7e083e2",
-      "name": "Read PDF Text",
-      "type": "n8n-nodes-base.extractFromFile",
-      "typeVersion": 1,
+      "id": "d091a2d0-9815-4491-b929-98f8b879ef3a",
+      "name": "New Doc",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         2200,
         300
       ],
       "parameters": {
-        "operation": "pdf",
-        "binaryPropertyName": "pdf",
-        "options": {
-          "keepSource": "both",
-          "joinPages": true
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "id": "b673d9f9-8978-4ac9-920e-e732840dd359",
-      "name": "PDF To Base64",
-      "type": "n8n-nodes-base.extractFromFile",
-      "typeVersion": 1,
-      "position": [
-        2420,
-        300
-      ],
-      "parameters": {
-        "operation": "binaryToPropery",
-        "binaryPropertyName": "pdf",
-        "destinationKey": "b64",
-        "options": {}
-      }
-    },
-    {
-      "id": "412ac3bc-c307-444d-a726-da6af1a43fea",
-      "name": "Save",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        2640,
-        300
-      ],
-      "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT bgc.rulebook_save($1, $2::int, $3, $4, $5, $6, nullif($7, '')::int) AS r",
+        "query": "SELECT bgc.rule_doc_new($1, $2::int, $3, $4, $5, $6) AS r",
         "options": {
-          "queryReplacement": "={{ [$('Validate').first().json.email, String($('Validate').first().json.bggId), $('Validate').first().json.title, $('Validate').first().json.filename, $json.b64, String($('Read PDF Text').first().json.text || '').replace(/\\u0000/g, '').slice(0, 600000), String($('Read PDF Text').first().json.numpages || '')] }}",
+          "queryReplacement": "={{ [$json.email, String($json.bggId), $json.gameTitle, $json.kind, $json.title, $json.source] }}",
           "queryBatching": "independently"
         }
       },
@@ -132,25 +97,25 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "b592639f-16f1-4fe4-8fa3-61e32bb0629e",
-      "name": "Result",
+      "id": "55cf9a2d-f1dc-464e-990a-4df57cdc892f",
+      "name": "With File",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2860,
+        2420,
         300
       ],
       "parameters": {
-        "jsCode": "\r\n  const F = {\r\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\r\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\r\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\r\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\r\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\r\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\r\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\r\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\r\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\r\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\r\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\r\n  };\r\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\r\n  const toGame = (r) => {\r\n    const f = r.fields || {};\r\n    return {\r\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\r\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\r\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\r\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\r\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\r\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\r\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\r\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\r\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\r\n      // Other editions whose logged plays count toward this game\r\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\r\n    };\r\n  };\r\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\r\n    ? `RECORD_ID()='${id}'`\r\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\r\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\r\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\r\n  // ---- People: Players and Ratings tables ----\r\n  const PF = {\r\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\r\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\r\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\r\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\r\n  };\r\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\r\n  const toPlayer = (r) => {\r\n    const f = r.fields || {};\r\n    let history = {};\r\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\r\n    return {\r\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\r\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\r\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\r\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\r\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\r\n    };\r\n  };\r\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\r\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\r\n  // The part of a player card that belongs to the person: only they edit it (via /me)\r\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\r\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\r\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\r\n  // Highest-priority source wins when one person has several ratings for a game\r\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\r\n  const ratingsByPlayerGame = (list) => {\r\n    const out = {};\r\n    for (const r of list) {\r\n      if (!r.gameId || !r.playerId || !r.stars) continue;\r\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\r\n      if (r.source === 'site') e.stars = r.stars;\r\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\r\n    }\r\n    return out;\r\n  };\r\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\r\n  const parseThingXml = (xml) => {\r\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\r\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\r\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\r\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\r\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\r\n    const bestWith = (s) => {\r\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\r\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\r\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\r\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\r\n      });\r\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\r\n      if (winners.length) return winners;\r\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\r\n      return top ? [top.n] : [];\r\n    };\r\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\r\n      const s = m[3];\r\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\r\n      const avg = Number(attr(s, 'average') || 0);\r\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\r\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\r\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\r\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\r\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\r\n        // An expansion's inbound links point at the base game(s) it expands\r\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\r\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\r\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\r\n    });\r\n  };\r\n  const toRating = (r) => {\r\n    const f = r.fields || {};\r\n    const src = f[RF.source];\r\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\r\n      source: typeof src === 'object' && src ? src.name : src || '' };\r\n  };\r\n\n return [{ json: $input.first().json.r }]; "
+        "jsCode": "\r\n  const F = {\r\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\r\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\r\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\r\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\r\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\r\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\r\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\r\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\r\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\r\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\r\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\r\n  };\r\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\r\n  const toGame = (r) => {\r\n    const f = r.fields || {};\r\n    return {\r\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\r\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\r\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\r\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\r\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\r\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\r\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\r\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\r\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\r\n      // Other editions whose logged plays count toward this game\r\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\r\n    };\r\n  };\r\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\r\n    ? `RECORD_ID()='${id}'`\r\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\r\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\r\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\r\n  // ---- People: Players and Ratings tables ----\r\n  const PF = {\r\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\r\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\r\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\r\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\r\n  };\r\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\r\n  const toPlayer = (r) => {\r\n    const f = r.fields || {};\r\n    let history = {};\r\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\r\n    return {\r\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\r\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\r\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\r\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\r\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\r\n    };\r\n  };\r\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\r\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\r\n  // The part of a player card that belongs to the person: only they edit it (via /me)\r\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\r\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\r\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\r\n  // Highest-priority source wins when one person has several ratings for a game\r\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\r\n  const ratingsByPlayerGame = (list) => {\r\n    const out = {};\r\n    for (const r of list) {\r\n      if (!r.gameId || !r.playerId || !r.stars) continue;\r\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\r\n      if (r.source === 'site') e.stars = r.stars;\r\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\r\n    }\r\n    return out;\r\n  };\r\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\r\n  const parseThingXml = (xml) => {\r\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\r\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\r\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\r\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\r\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\r\n    const bestWith = (s) => {\r\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\r\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\r\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\r\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\r\n      });\r\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\r\n      if (winners.length) return winners;\r\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\r\n      return top ? [top.n] : [];\r\n    };\r\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\r\n      const s = m[3];\r\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\r\n      const avg = Number(attr(s, 'average') || 0);\r\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\r\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\r\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\r\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\r\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\r\n        // An expansion's inbound links point at the base game(s) it expands\r\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\r\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\r\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\r\n    });\r\n  };\r\n  const toRating = (r) => {\r\n    const f = r.fields || {};\r\n    const src = f[RF.source];\r\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\r\n      source: typeof src === 'object' && src ? src.name : src || '' };\r\n  };\r\n\n\r\n    const r = $input.first().json.r || {};\r\n    return [{ json: r, binary: r.ok ? $('Validate').first().binary : undefined }];\r\n  "
       }
     },
     {
-      "id": "a11644e0-1f00-46c3-b4df-a1bd6a9895bf",
-      "name": "Saved?",
+      "id": "7490ab13-6e4d-4d75-9560-37a23927b122",
+      "name": "Can Add?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        3080,
+        2640,
         300
       ],
       "parameters": {
@@ -162,7 +127,7 @@
           },
           "conditions": [
             {
-              "id": "02e93b84-67d9-4d9c-b1a6-d94decbedc33",
+              "id": "b3d2c52a-94c6-4b23-aeb6-48db16b7beeb",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -178,29 +143,250 @@
       }
     },
     {
-      "id": "fb3a411a-3ac2-4204-8d31-5e24f9cf42e3",
-      "name": "Respond OK",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
+      "id": "e6cc020f-7f48-4135-9014-8951f2f521f4",
+      "name": "Store PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        300
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "=http://bgc-pages:8000/doc/{{ $json.id }}",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "pdf",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "8d9f0a71-c1b8-4635-9c89-6a9e1d4bca77",
+      "name": "Stored",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3080,
+        300
+      ],
+      "parameters": {
+        "jsCode": "\r\n  const F = {\r\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\r\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\r\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\r\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\r\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\r\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\r\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\r\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\r\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\r\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\r\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\r\n  };\r\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\r\n  const toGame = (r) => {\r\n    const f = r.fields || {};\r\n    return {\r\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\r\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\r\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\r\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\r\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\r\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\r\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\r\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\r\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\r\n      // Other editions whose logged plays count toward this game\r\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\r\n    };\r\n  };\r\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\r\n    ? `RECORD_ID()='${id}'`\r\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\r\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\r\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\r\n  // ---- People: Players and Ratings tables ----\r\n  const PF = {\r\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\r\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\r\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\r\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\r\n  };\r\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\r\n  const toPlayer = (r) => {\r\n    const f = r.fields || {};\r\n    let history = {};\r\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\r\n    return {\r\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\r\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\r\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\r\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\r\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\r\n    };\r\n  };\r\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\r\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\r\n  // The part of a player card that belongs to the person: only they edit it (via /me)\r\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\r\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\r\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\r\n  // Highest-priority source wins when one person has several ratings for a game\r\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\r\n  const ratingsByPlayerGame = (list) => {\r\n    const out = {};\r\n    for (const r of list) {\r\n      if (!r.gameId || !r.playerId || !r.stars) continue;\r\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\r\n      if (r.source === 'site') e.stars = r.stars;\r\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\r\n    }\r\n    return out;\r\n  };\r\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\r\n  const parseThingXml = (xml) => {\r\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\r\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\r\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\r\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\r\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\r\n    const bestWith = (s) => {\r\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\r\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\r\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\r\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\r\n      });\r\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\r\n      if (winners.length) return winners;\r\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\r\n      return top ? [top.n] : [];\r\n    };\r\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\r\n      const s = m[3];\r\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\r\n      const avg = Number(attr(s, 'average') || 0);\r\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\r\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\r\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\r\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\r\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\r\n        // An expansion's inbound links point at the base game(s) it expands\r\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\r\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\r\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\r\n    });\r\n  };\r\n  const toRating = (r) => {\r\n    const f = r.fields || {};\r\n    const src = f[RF.source];\r\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\r\n      source: typeof src === 'object' && src ? src.name : src || '' };\r\n  };\r\n\n\r\n    const res = $input.first().json || {};\r\n    const body = typeof res.body === 'string' ? (() => { try { return JSON.parse(res.body); } catch (e) { return {}; } })() : (res.body || {});\r\n    return [{ json: { id: $('With File').first().json.id, pages: Number(res.statusCode) === 200 ? body.pages || 0 : 0, sha: body.sha256 || '', error: body.error || '' } }];\r\n  "
+      }
+    },
+    {
+      "id": "d87e12d2-efe5-4ca9-931c-faa4e8e2ac38",
+      "name": "Queue",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         3300,
         300
       ],
       "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT CASE WHEN $2::int > 0 THEN bgc.rule_doc_stored($1::bigint, $2::int, $3) ELSE jsonb_build_object('ok', false, 'status', 400, 'message', $4::text) END AS r",
+        "options": {
+          "queryReplacement": "={{ [String($json.id), String($json.pages), $json.sha, $json.error || 'That file couldn’t be read as a PDF.'] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "589cc54f-617e-464d-8b43-db1ad870f3a7",
+      "name": "Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        300
+      ],
+      "parameters": {
+        "jsCode": "\r\n  const F = {\r\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\r\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\r\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\r\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\r\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\r\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\r\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\r\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\r\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\r\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\r\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\r\n  };\r\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\r\n  const toGame = (r) => {\r\n    const f = r.fields || {};\r\n    return {\r\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\r\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\r\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\r\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\r\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\r\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\r\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\r\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\r\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\r\n      // Other editions whose logged plays count toward this game\r\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\r\n    };\r\n  };\r\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\r\n    ? `RECORD_ID()='${id}'`\r\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\r\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\r\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\r\n  // ---- People: Players and Ratings tables ----\r\n  const PF = {\r\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\r\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\r\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\r\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\r\n  };\r\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\r\n  const toPlayer = (r) => {\r\n    const f = r.fields || {};\r\n    let history = {};\r\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\r\n    return {\r\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\r\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\r\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\r\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\r\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\r\n    };\r\n  };\r\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\r\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\r\n  // The part of a player card that belongs to the person: only they edit it (via /me)\r\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\r\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\r\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\r\n  // Highest-priority source wins when one person has several ratings for a game\r\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\r\n  const ratingsByPlayerGame = (list) => {\r\n    const out = {};\r\n    for (const r of list) {\r\n      if (!r.gameId || !r.playerId || !r.stars) continue;\r\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\r\n      if (r.source === 'site') e.stars = r.stars;\r\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\r\n    }\r\n    return out;\r\n  };\r\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\r\n  const parseThingXml = (xml) => {\r\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\r\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\r\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\r\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\r\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\r\n    const bestWith = (s) => {\r\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\r\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\r\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\r\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\r\n      });\r\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\r\n      if (winners.length) return winners;\r\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\r\n      return top ? [top.n] : [];\r\n    };\r\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\r\n      const s = m[3];\r\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\r\n      const avg = Number(attr(s, 'average') || 0);\r\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\r\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\r\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\r\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\r\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\r\n        // An expansion's inbound links point at the base game(s) it expands\r\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\r\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\r\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\r\n    });\r\n  };\r\n  const toRating = (r) => {\r\n    const f = r.fields || {};\r\n    const src = f[RF.source];\r\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\r\n      source: typeof src === 'object' && src ? src.name : src || '' };\r\n  };\r\n\n return [{ json: $input.first().json.r || { ok: false, message: 'Something went wrong. Try again.' } }]; "
+      }
+    },
+    {
+      "id": "8bde3f57-f1cd-4660-bfae-d021280df409",
+      "name": "Queued?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3740,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "0dc85992-ba9a-4c58-ae26-ea8105fd1396",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2528fdcf-d249-488f-937d-19595c69de11",
+      "name": "Docs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3960,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT bgc.rule_docs_of($1, $2::int) AS r",
+        "options": {
+          "queryReplacement": "={{ [$('Validate').first().json.email, String($('Validate').first().json.bggId)] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "cfdbb2cf-70fd-438d-8223-24ed010d3380",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        4180,
+        300
+      ],
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}",
+        "responseBody": "={{ JSON.stringify({ ...$json.r, queued: $('Result').first().json.id }) }}",
         "options": {
           "responseCode": 200
         }
       }
     },
     {
-      "id": "208f9dda-a30d-4d02-b171-99b28c5d4a18",
+      "id": "6fa06da4-f03c-4680-99a6-de4af18b857a",
+      "name": "Start Reading",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        4400,
+        300
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "BGVaultRuleRead1",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "3efa3993-d26e-45a1-bece-03192079ca68",
+      "name": "Let Go",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4620,
+        300
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://bgc-pages:8000/doc/{{ $('With File').first().json.id }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "f8e03c53-d3e9-4e4b-829c-da2fda543007",
+      "name": "Drop",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4840,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT bgc.rule_doc_drop($1::bigint)",
+        "options": {
+          "queryReplacement": "={{ [String($('With File').first().json.id)] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "BGCPostgres00001",
+          "name": "BGC Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "67d87dd4-38fb-4aba-a778-7d925a1ff386",
+      "name": "Why",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5060,
+        300
+      ],
+      "parameters": {
+        "jsCode": "\r\n  const F = {\r\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\r\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\r\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\r\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\r\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\r\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\r\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\r\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\r\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\r\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\r\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\r\n  };\r\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\r\n  const toGame = (r) => {\r\n    const f = r.fields || {};\r\n    return {\r\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\r\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\r\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\r\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\r\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\r\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\r\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\r\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\r\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\r\n      // Other editions whose logged plays count toward this game\r\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\r\n    };\r\n  };\r\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\r\n    ? `RECORD_ID()='${id}'`\r\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\r\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\r\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\r\n  // ---- People: Players and Ratings tables ----\r\n  const PF = {\r\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\r\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\r\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\r\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\r\n  };\r\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\r\n  const toPlayer = (r) => {\r\n    const f = r.fields || {};\r\n    let history = {};\r\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\r\n    return {\r\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\r\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\r\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\r\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\r\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\r\n    };\r\n  };\r\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\r\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\r\n  // The part of a player card that belongs to the person: only they edit it (via /me)\r\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\r\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\r\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\r\n  // Highest-priority source wins when one person has several ratings for a game\r\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\r\n  const ratingsByPlayerGame = (list) => {\r\n    const out = {};\r\n    for (const r of list) {\r\n      if (!r.gameId || !r.playerId || !r.stars) continue;\r\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\r\n      if (r.source === 'site') e.stars = r.stars;\r\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\r\n    }\r\n    return out;\r\n  };\r\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\r\n  const parseThingXml = (xml) => {\r\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\r\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\r\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\r\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\r\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\r\n    const bestWith = (s) => {\r\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\r\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\r\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\r\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\r\n      });\r\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\r\n      if (winners.length) return winners;\r\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\r\n      return top ? [top.n] : [];\r\n    };\r\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\r\n      const s = m[3];\r\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\r\n      const avg = Number(attr(s, 'average') || 0);\r\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\r\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\r\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\r\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\r\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\r\n        // An expansion's inbound links point at the base game(s) it expands\r\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\r\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\r\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\r\n    });\r\n  };\r\n  const toRating = (r) => {\r\n    const f = r.fields || {};\r\n    const src = f[RF.source];\r\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\r\n      source: typeof src === 'object' && src ? src.name : src || '' };\r\n  };\r\n\n return [{ json: $('Result').first().json }]; "
+      }
+    },
+    {
+      "id": "8c004d2f-bfcf-46c2-a31e-9ae34c11767f",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        3520,
+        5280,
         300
       ],
       "parameters": {
@@ -212,7 +398,7 @@
       }
     },
     {
-      "id": "4bf6a1e4-bd90-4751-9886-6fc467558b1d",
+      "id": "a68ddd56-d6f0-4feb-b774-91bfb6d43868",
       "name": "Auth: Read Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -225,7 +411,7 @@
       }
     },
     {
-      "id": "fb03234f-a314-447c-83da-d8d6a1090b72",
+      "id": "93a7d267-aefc-4682-a570-75bc2b6a851e",
       "name": "Auth: Verify With Google",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -252,7 +438,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "6c8d13e3-4c02-4420-b09c-c9f8b3629551",
+      "id": "0904995f-7b42-4477-963b-05cdfe7813c0",
       "name": "Auth: Check Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -265,7 +451,7 @@
       }
     },
     {
-      "id": "387649a8-544e-4712-92c8-f49d36081bc0",
+      "id": "89a22cd5-a7f2-45b5-9c46-abaf0fec560c",
       "name": "Token Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -282,7 +468,7 @@
           },
           "conditions": [
             {
-              "id": "1672bbcb-446d-47d4-8bb6-656fd409b2d0",
+              "id": "69ec3db7-c1a5-4338-91af-49120090775c",
               "leftValue": "={{ $json.ok === true }}",
               "rightValue": "",
               "operator": {
@@ -298,7 +484,7 @@
       }
     },
     {
-      "id": "5ca7d40e-95d9-4206-b35f-11e9390c871a",
+      "id": "d73c5d6a-dcfe-43cd-a3c8-6b254e1a8b8f",
       "name": "Auth: Find Player",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -325,7 +511,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "2260ec16-d78a-4ee7-8cd4-148d2ff96e8d",
+      "id": "17077fdf-2752-406d-a6e1-808d9f39a9b9",
       "name": "Auth: Role",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -338,7 +524,7 @@
       }
     },
     {
-      "id": "50989549-00c8-4f9e-9d02-c9a29f762f41",
+      "id": "ee8d929b-77b9-4b16-be86-e849f5995bc2",
       "name": "Member?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -355,7 +541,7 @@
           },
           "conditions": [
             {
-              "id": "fe4ffd2b-11e7-49a4-af21-7b7a244f409b",
+              "id": "e1f71f38-f7ea-4ebe-9b9e-11ba20faeb6d",
               "leftValue": "={{ $json._authOk === true }}",
               "rightValue": "",
               "operator": {
@@ -398,7 +584,7 @@
       "main": [
         [
           {
-            "node": "Read PDF Text",
+            "node": "New Doc",
             "type": "main",
             "index": 0
           }
@@ -412,29 +598,69 @@
         ]
       ]
     },
-    "Read PDF Text": {
+    "New Doc": {
       "main": [
         [
           {
-            "node": "PDF To Base64",
+            "node": "With File",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "PDF To Base64": {
+    "With File": {
       "main": [
         [
           {
-            "node": "Save",
+            "node": "Can Add?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Save": {
+    "Can Add?": {
+      "main": [
+        [
+          {
+            "node": "Store PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store PDF": {
+      "main": [
+        [
+          {
+            "node": "Stored",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stored": {
+      "main": [
+        [
+          {
+            "node": "Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue": {
       "main": [
         [
           {
@@ -449,14 +675,32 @@
       "main": [
         [
           {
-            "node": "Saved?",
+            "node": "Queued?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Saved?": {
+    "Queued?": {
+      "main": [
+        [
+          {
+            "node": "Docs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Let Go",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Docs": {
       "main": [
         [
           {
@@ -464,7 +708,44 @@
             "type": "main",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Respond OK": {
+      "main": [
+        [
+          {
+            "node": "Start Reading",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Let Go": {
+      "main": [
+        [
+          {
+            "node": "Drop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drop": {
+      "main": [
+        [
+          {
+            "node": "Why",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Why": {
+      "main": [
         [
           {
             "node": "Respond Error",

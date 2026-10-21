@@ -51,6 +51,15 @@ BEGIN
     res := res || jsonb_build_object('what', 'you can ask Nathan to forget everything', 'ok', coalesce(((bgc.memory_forget('check.member@example.invalid', NULL) ->> 'ok')::boolean), false));
     res := res || jsonb_build_object('what', '"Forget everything" deletes your notes and chats', 'ok', coalesce((NOT EXISTS (SELECT 1 FROM chat_turns t JOIN members m ON m.id = t.member_id WHERE m.google_email = 'check.member@example.invalid')
   AND NOT EXISTS (SELECT 1 FROM member_notes n JOIN members m ON m.id = n.member_id WHERE m.google_email = 'check.member@example.invalid')), false));
+    res := res || jsonb_build_object('what', 'a rulebook over 60 pages is turned away', 'ok', coalesce(((bgc.rule_doc_stored((bgc.rule_doc_new('check.member@example.invalid', 13, 'Catan', 'rulebook', '', NULL) ->> 'id')::bigint, 61, 'check-long') ->> 'status')::int = 413), false));
+    res := res || jsonb_build_object('what', 'a rulebook is queued for reading', 'ok', coalesce(((bgc.rule_doc_stored((bgc.rule_doc_new('check.member@example.invalid', 13, 'Catan', 'rulebook', '', 'https://example.invalid/catan.pdf') ->> 'id')::bigint, 4, 'check-sha') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'the same PDF twice is recognised', 'ok', coalesce(((bgc.rule_doc_stored((bgc.rule_doc_new('check.member@example.invalid', 13, 'Catan', 'reference', '', NULL) ->> 'id')::bigint, 4, 'check-sha') ->> 'duplicate')::boolean), false));
+    res := res || jsonb_build_object('what', 'a page Nathan read is saved', 'ok', coalesce(((bgc.rule_page_save((SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 3, '## Trading', false, '[{"heading": "Trading", "body": "On your turn you may trade resource cards with other players."}]') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'a rulebook with unread pages goes back in the queue', 'ok', coalesce(((bgc.rule_doc_finish((SELECT id FROM rule_docs WHERE sha256 = 'check-sha')) ->> 'status') = 'queued'), false));
+    UPDATE rule_docs SET status = 'ready' WHERE sha256 = 'check-sha';
+    res := res || jsonb_build_object('what', 'a rules question finds the right page', 'ok', coalesce(((bgc.rule_search('["Catan"]', 'can I trade with other players') -> 0 -> 'sections' -> 0 ->> 'page')::int = 3), false));
+    res := res || jsonb_build_object('what', 'someone else can''t remove your rulebook', 'ok', coalesce((NOT (bgc.rule_doc_change('nathan.schmidt@curator.invalid', (SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'remove', '{}') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'a game with a rulebook shows it on every shelf', 'ok', coalesce((bgc.rule_doc_games() @> '[13]'), false));
     res := res || jsonb_build_object('what', 'Dan''s play counts are intact (The Crew: 21)', 'ok', coalesce(((SELECT play_count FROM shelves s JOIN games g ON g.id = s.game_id WHERE s.member_id = 1 AND g.title = 'The Crew: The Quest for Planet Nine') = 21), false));
     RAISE EXCEPTION 'self-check done' USING ERRCODE = 'P0001'; -- undo everything the checks did
   EXCEPTION WHEN raise_exception THEN

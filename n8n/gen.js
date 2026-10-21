@@ -58,6 +58,8 @@ const ID = {
   adminAction: 'BGVaultAdminSet1',
   rulebookUpload: 'BGVaultRulesUp01',
   rulebookGet: 'BGVaultRulesGet1',
+  ruleChange: 'BGVaultRuleChg01',
+  ruleReader: 'BGVaultRuleRead1',
   dashboard: 'BGVaultDashbrd01',
   askTest: 'BGVaultAskTest01',
   selfTest: 'BGVaultSelfTest1',
@@ -1668,6 +1670,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '  "acrossFriends": true if they ask which friend owns something or want games from any of their friends\' shelves ("who has a co-op for 6", "can anyone lend me a party game", "which of my friends owns Brass"), else false,',
       '  "games": [for intent "game" or "rules": the official BoardGameGeek titles of the games they name, spelling corrected and completed (e.g. "Teraforming Mars" -> "Terraforming Mars", "Tanares Adventures" -> "Arena: The Contest – Tanares Adventures"). If they describe a game without naming it ("that Viking game by Uwe Rosenberg", "the trick-taking game in space"), always 2 or 3 different guesses of its official title, most likely first, so the right one is among them],',
       '  "guessed": true if "games" are your guesses from a description rather than names they typed, else false,',
+      '  "searchTerms": for intent "rules": the words to look up in the rulebook, with synonyms and the game\'s own terms (e.g. "trade trading exchange other player turn"), else "",',
       '  "personIds": [for intent "person": ids from ROSTER of who they ask about; "me", "I" and "my" mean the ASKER],',
       '  "sort": for a ranked list only: "plays" (most played), "leastPlays", "recent" (most recently played), "stale" (longest since played), "stars" (their own star ratings: "my highest rated", "games I rated best", "my top rated"), "rating" (BGG rating, only when they say BGG or "the community"), "rank" (BGG rank), "weight" (heaviest), "newest" (latest added); else null,',
       '  "limit": how many games they asked for ("top ten" = 10, "my 5 heaviest" = 5), else null,',
@@ -1739,15 +1742,15 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const across = !atFriend && (c.acrossFriends === true || /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q))
       && c.intent !== 'person';
     return [{ json: { useOwn: !onOwn && !atFriend && (forMe || followsOwn || (!aboutOpen && (/"scope"\s*:\s*"mine"/.test(text) || aboutMine))), titles, buy: c.intent === 'buy',
-      atFriend, across, rules: c.intent === 'rules', forFriends: c.intent === 'game' && /\b(friends?|who would|anyone)\b/i.test(q) } }];
+      atFriend, across, rules: c.intent === 'rules', terms: (String(c.searchTerms || '') + ' ' + q).slice(0, 600), forFriends: c.intent === 'game' && /\b(friends?|who would|anyone)\b/i.test(q) } }];
   }),
   pg('Own Shelf', "SELECT CASE WHEN $2::boolean THEN bgc.shelf_view($1, 'mine', NULL) END AS own, bgc.friend_by_name($1, $3) AS fid, " +
     "CASE WHEN bgc.friend_by_name($1, $3) IS NOT NULL THEN bgc.shelf_view($1, 'friend:' || bgc.friend_by_name($1, $3), NULL) END AS visit",
     "={{ [$('Validate').first().json.email, String($json.useOwn), $json.atFriend] }}"),
   // Games asked about (from the shared catalog, with which friends own them), ideas to buy, friends' shelves, and the asker's Top 10 and wishlist
   pg('Game Lookup', 'SELECT bgc.lookup_games($1, $2::jsonb) AS games, CASE WHEN $3::boolean THEN bgc.buy_pool($1) END AS pool, bgc.curator_card() AS curator, ' +
-    'CASE WHEN $4::boolean THEN bgc.friends_pool($1) END AS fpool, bgc.asker_extras($1) AS extras, CASE WHEN $5::boolean THEN bgc.rulebooks_for($2::jsonb) END AS rules',
-    "={{ [$('Validate').first().json.email, JSON.stringify($('Scope').first().json.titles), String($('Scope').first().json.buy), String($('Scope').first().json.across), String(!!$('Scope').first().json.rules)] }}"),
+    'CASE WHEN $4::boolean THEN bgc.friends_pool($1) END AS fpool, bgc.asker_extras($1) AS extras, CASE WHEN $5::boolean THEN bgc.rule_search($2::jsonb, $6) END AS rules',
+    "={{ [$('Validate').first().json.email, JSON.stringify($('Scope').first().json.titles), String($('Scope').first().json.buy), String($('Scope').first().json.across), String(!!$('Scope').first().json.rules), $('Scope').first().json.terms || ''] }}"),
   code('Lookup Queries', function () {
     const missing = ($input.first().json.games || []).filter((l) => !l.game).map((l) => l.asked);
     return missing.length ? missing.map((t) => ({ json: { title: t, query: t.replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim() } })) : [{ json: { none: true } }];
@@ -2081,27 +2084,24 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         }
         if (!lines.length) return [{ json: { offTopic: true, reply: 'I couldn’t find ' + (notFound.join(' or ') || 'that game') + ' on BoardGameGeek. Could you check the spelling?' } }];
         if (c.rulesQuestion) {
-          // The parts of the rulebook that match the question (plus its opening, which usually covers the goal and setup)
+          // The sections of the game's documents that best match the question, each with its document and page
           const books = $('Game Lookup').first().json.rules || [];
-          const stop = new Set('the and for with you your how what when does can are this that from have will into than then them they their there game games play playing rules rule turn'.split(' '));
-          const words = (String(v.question).toLowerCase().match(/[a-z0-9]+/g) || []).filter((w) => w.length > 2 && !stop.has(w)).map((w) => w.slice(0, 6));
-          const excerpt = (text) => {
-            const paras = String(text || '').split(/\n\s*\n|\n(?=[A-Z][A-Z ]{3,}\n)/).map((p) => p.replace(/\s+/g, ' ').trim()).filter((p) => p.length > 30);
-            const chunks = [];
-            for (const p of paras) { const last = chunks[chunks.length - 1]; if (last && last.length + p.length < 1400) chunks[chunks.length - 1] = last + ' ' + p; else chunks.push(p); }
-            const scored = chunks.map((t, i) => ({ i, t, s: words.reduce((n, w) => n + (t.toLowerCase().split(w).length - 1), 0) }));
-            const keep = new Set([0, 1]);
-            let size = (chunks[0] || '').length + (chunks[1] || '').length;
-            for (const x of [...scored].sort((a, b) => b.s - a.s)) { if (!x.s || size > 14000) break; keep.add(x.i); size += x.t.length; }
-            return [...keep].sort((a, b) => a - b).map((i) => chunks[i]).filter(Boolean).join('\n[...]\n');
-          };
           const named = (lookup.games || []).filter((l) => l.game).map((l) => l.game);
-          const rb = books.map((b) => 'RULEBOOK EXCERPTS for ' + b.title + ' (from the rulebook a member uploaded' + (b.pages ? ', ' + b.pages + ' pages' : '') + '):\n' + excerpt(b.text)).join('\n\n');
+          const sources = [];
+          const rb = books.map((b) => 'RULEBOOK EXCERPTS for ' + b.title + ' (documents: ' + (b.docs || []).map((d) => d.label + (d.title ? ' (' + d.title + ')' : '') + ', ' + d.pages + ' pages').join('; ') + '):\n' +
+            ((b.sections || []).length ? b.sections.map((x) => {
+              sources.push({ doc: x.doc, page: x.page, label: x.label, game: b.title, bggId: b.bggId, source: x.source || null });
+              return '[doc ' + x.doc + ' | ' + x.label + ', page ' + x.page + (x.heading ? ' | ' + x.heading : '') + ']\n' + x.body;
+            }).join('\n\n') : '(nothing in the documents matched this question)')).join('\n\n');
           const missing = named.filter((g) => !books.some((b) => Number(b.bggId) === Number(g.bggId)));
           return [{ json: { offTopic: false, gap: false, browse: true, mode: 'rules', matchIds: [], understood: {}, constraints: c,
             setFacts: (rb || '') + (missing.length ? (rb ? '\n\n' : '') + 'NO RULEBOOK UPLOADED for: ' + missing.map((g) => g.title).join(', ') : ''),
             shortIds: Object.keys(titles), titles, off, gameLines: lines.join('\n'), profiles: '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest: '', fromOwn: !!own,
-            rulebooks: named.map((g) => ({ bggId: g.bggId, title: g.title, has: books.some((b) => Number(b.bggId) === Number(g.bggId)) })) } }];
+            ruleSources: sources,
+            rulebooks: [...named, ...books.filter((b) => !named.some((g) => Number(g.bggId) === Number(b.bggId)))].map((g) => {
+              const b = books.find((x) => Number(x.bggId) === Number(g.bggId));
+              return { bggId: g.bggId, title: g.title, has: !!b, docs: b ? (b.docs || []).map((d) => ({ label: d.label, title: d.title || null, source: d.source || null })) : [] };
+            }) } }];
         }
         return [{ json: { offTopic: false, gap: false, browse: true, mode: 'game', matchIds: [], understood: {}, constraints: c,
           setFacts: (c.guessed ? 'GUESSED: they described a game without naming it; the CANDIDATES are your best guesses. Pick the candidate that best fits every detail of their description (theme, designer, mechanics) and lead with "Sounds like …"; mention another candidate only if it also fits, and ask them to say if you missed. Highlights: only the candidate(s) you think they mean.\n' : '') +
@@ -2195,7 +2195,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       ...(s.across ? ['SOCIAL: the CANDIDATES come from the asker\'s friends\' shelves, not the asker\'s own (never call them "your shelf"). Talk only about those friends\' copies: don\'t bring up the asker\'s own games or play counts, which are only there to show their taste. For every game you mention, say which friend owns it ("Matt has it, so ask him to bring it"), and note when the asker owns it too.'] : []),
       ...(s.visiting ? ['SOCIAL: they are playing at ' + s.visiting + '\'s place, so the CANDIDATES are ' + s.visiting + '\'s shelf. Say so naturally ("at ' + s.visiting + '\'s, I\'d pull down…").'] : []),
       ...(s.mode === 'rules' ? [
-      'FORMAT: this is a rules question. Answer it clearly and correctly in "summary": short paragraphs or numbered steps (use line breaks), no fluff, no quips. For RULEBOOK EXCERPTS: answer only from the excerpts and say "per the rulebook"; if the excerpts don\'t cover the question, say so plainly and suggest which section of the rulebook to check. For a game with NO RULEBOOK UPLOADED: start with "From memory:" and answer from what you reliably know about the game; say when you\'re not sure of a detail, never invent specifics, and suggest checking the official rulebook. Highlights: just the game asked about, with an empty or one-line "why". gap is null.',
+      'FORMAT: this is a rules question. Answer it clearly and correctly in "summary": short paragraphs or numbered steps (use line breaks), no fluff, no quips. For RULEBOOK EXCERPTS: answer only from the excerpts. Each excerpt starts with [doc <id> | <document>, page <n> | <heading>]. Say where each rule comes from in the text, like "(Rulebook, p. 9)" or "(Appendix, p. 13)", and list every excerpt you used in "sources" as {"doc": <id>, "page": <n>}. If the excerpts don\'t cover the question, say so plainly and suggest which part of the rulebook to check; "sources" is then []. For a game with NO RULEBOOK UPLOADED: start with "From memory:" and answer from what you reliably know about the game; say when you\'re not sure of a detail, never invent specifics, and suggest checking the official rulebook. Highlights: just the game asked about, with an empty or one-line "why". gap is null.',
       ] : s.mode === 'game' ? [
       'FORMAT: this is a question about specific game(s), owned or not. If they ask whether someone owns it or who has it ("does Dan own Spirit Island?", "who has Brass?"), answer that first from the facts: "ON THEIR SHELF" means the ASKER owns it, and "friends who own it" names the friends who do (if a named person is not listed there, they don\'t own it, as far as you know). Answer it directly and completely in "summary" (2-5 sentences) from the CANDIDATES facts, which come from BoardGameGeek ("genre" means its categories and main mechanics; name a few of each). If a game is not on their shelf, say so, then say honestly how well it would suit them, comparing it to games on ASKER\'S SHELF they play and love and to their PROFILE. Only when the facts name friends who own it, mention they could try that friend\'s copy first (by name); never suggest a friend\'s copy otherwise. If it looks like a great fit and they don\'t own it, you may say it could be worth buying. Never invent facts; for things BGG data doesn\'t cover (rules details, reviews, prices), say you only have BGG\'s facts. Highlights: the game(s) asked about, one sentence of "why" each. gap is null.',
       ] : s.mode === 'buy' ? [
@@ -2224,6 +2224,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       'Reply with JSON only:',
       ...(s.browse ? [
       '{"summary": "...", "highlights": [{"id": "...", "quip": "..." or "", "why": "..."}],',
+      ...(s.mode === 'rules' ? [' "sources": [{"doc": 12, "page": 9}],'] : []),
       ] : [
       '{"pick": {"id": "...", "quip": "..." or "", "why": "...", "tableFeel": "...", "swapJoke": "..." or null},',
       ' "alternative": {"id": "...", "quip": "..." or "", "why": "...", "tableFeel": "..."} or null,',
@@ -2292,7 +2293,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       const highlights = (Array.isArray(a.highlights) ? a.highlights : []).map((x) => entry(x, false)).filter(Boolean).slice(0, 5);
       if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });
       const summary = str(a.summary, s.mode === 'rules' ? 3500 : 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');
-      return [{ json: { ok: true, ...memOut, intent: 'browse', mode: s.mode || null, person: !!s.person, social: s.across ? 'friends' : s.visiting ? 'visit' : null, ...(s.rulebooks ? { rulebooks: s.rulebooks } : {}), understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
+      const known = s.ruleSources || [];
+      const sources = (Array.isArray(a.sources) ? a.sources : []).map((x) => known.find((k) => Number(k.doc) === Number(x && x.doc) && Number(k.page) === Number(x && x.page)))
+        .filter((x, i, arr) => x && arr.indexOf(x) === i).slice(0, 6);
+      return [{ json: { ok: true, ...memOut, ...(s.mode === 'rules' ? { sources } : {}), intent: 'browse', mode: s.mode || null, person: !!s.person, social: s.across ? 'friends' : s.visiting ? 'visit' : null, ...(s.rulebooks ? { rulebooks: s.rulebooks } : {}), understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),
         matchIds: s.matchIds, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}), signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];
     }
     let pick = entry(a.pick, true);
@@ -2969,11 +2973,13 @@ const adminAction = wf(ID.adminAction, 'Vault — Admin (actions)', [
 addMemberAuth(adminAction, { failTo: 'Respond Error' });
 
 // =====================================================================
-// 32. Rulebook  POST /webhook/vault/rulebook  multipart { file (PDF), bggId, title }  (member gate)
-//     Saves a game's rulebook for every member, with its text for Nathan to answer rules questions from.
-//     GET /webhook/vault/rulebook?bgg=<id>            -> { has, filename, pages, uploadedBy, ... }
-//     GET /webhook/vault/rulebook?bgg=<id>&download=1 -> the PDF
+// 32. Rulebooks  POST /webhook/vault/rulebook  multipart { file (PDF), bggId, gameTitle, kind, title, source }  (member gate)
+//     A game can have several documents (rulebook, reference guide, appendix, FAQ, solo rules), shared by every member.
+//     The PDF goes to the page service (bgc-pages) only until Nathan has read it; we keep his text, never the file.
+//     GET  /webhook/vault/rulebook?bgg=<id>   -> { docs: [...], limits }      GET ?games=1 -> { games: [bggId, ...] } (the 📖 on shelves)
+//     POST /webhook/vault/rulebook-change { id, action: 'remove' | 'edit', kind, title, source }  (who added it, or an admin)
 // =====================================================================
+const PAGES = 'http://bgc-pages:8000/doc/';
 const rulebookUpload = wf(ID.rulebookUpload, 'Vault — Rulebook (upload)', [
   webhook('Webhook', 'POST', 'vault/rulebook'),
   code('Validate', function () {
@@ -2985,46 +2991,180 @@ const rulebookUpload = wf(ID.rulebookUpload, 'Vault — Rulebook (upload)', [
     const f = item.binary[key];
     if (!/pdf/i.test(f.mimeType || '') && !/\.pdf$/i.test(f.fileName || '')) return err(400, 'Rulebooks need to be PDFs');
     const bggId = Number(b.bggId) || 0;
-    if (!bggId) return err(400, 'Which game is this rulebook for?');
-    // Pass the file along under a fixed name for the PDF reader
-    return [{ json: { ok: true, email: item.json._auth.email, bggId, title: String(b.title || '').slice(0, 200), filename: String(f.fileName || 'rulebook.pdf').slice(0, 200) },
-      binary: { pdf: f } }];
+    if (!bggId) return err(400, 'Which game is this for?');
+    const source = String(b.source || '').trim();
+    if (source && !/^https:\/\/\S{4,}$/.test(source)) return err(400, 'The link to the official copy should start with https://');
+    return [{ json: { ok: true, email: item.json._auth.email, bggId, gameTitle: String(b.gameTitle || '').slice(0, 200), kind: String(b.kind || 'rulebook'),
+      title: String(b.title || '').slice(0, 120), source }, binary: { pdf: f } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
-  { ...node('Read PDF Text', 'n8n-nodes-base.extractFromFile', 1, { operation: 'pdf', binaryPropertyName: 'pdf', options: { keepSource: 'both', joinPages: true } }),
-    onError: 'continueRegularOutput' },
-  node('PDF To Base64', 'n8n-nodes-base.extractFromFile', 1, { operation: 'binaryToPropery', binaryPropertyName: 'pdf', destinationKey: 'b64', options: {} }),
-  pg('Save', 'SELECT bgc.rulebook_save($1, $2::int, $3, $4, $5, $6, nullif($7, \'\')::int) AS r',
-    "={{ [$('Validate').first().json.email, String($('Validate').first().json.bggId), $('Validate').first().json.title, $('Validate').first().json.filename, $json.b64, String($('Read PDF Text').first().json.text || '').replace(/\\u0000/g, '').slice(0, 600000), String($('Read PDF Text').first().json.numpages || '')] }}"),
-  code('Result', function () { return [{ json: $input.first().json.r }]; }),
-  ifTrue('Saved?', '={{ $json.ok }}'),
-  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  pg('New Doc', 'SELECT bgc.rule_doc_new($1, $2::int, $3, $4, $5, $6) AS r',
+    "={{ [$json.email, String($json.bggId), $json.gameTitle, $json.kind, $json.title, $json.source] }}"),
+  code('With File', function () {
+    const r = $input.first().json.r || {};
+    return [{ json: r, binary: r.ok ? $('Validate').first().binary : undefined }];
+  }),
+  ifTrue('Can Add?', '={{ $json.ok }}'),
+  { ...node('Store PDF', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'PUT', url: '=' + PAGES + '{{ $json.id }}', sendBody: true, contentType: 'binaryData', inputDataFieldName: 'pdf',
+    options: { timeout: 120000, response: { response: { fullResponse: true, neverError: true } } },
+  }), onError: 'continueRegularOutput' },
+  code('Stored', function () {
+    const res = $input.first().json || {};
+    const body = typeof res.body === 'string' ? (() => { try { return JSON.parse(res.body); } catch (e) { return {}; } })() : (res.body || {});
+    return [{ json: { id: $('With File').first().json.id, pages: Number(res.statusCode) === 200 ? body.pages || 0 : 0, sha: body.sha256 || '', error: body.error || '' } }];
+  }),
+  pg('Queue', "SELECT CASE WHEN $2::int > 0 THEN bgc.rule_doc_stored($1::bigint, $2::int, $3) ELSE jsonb_build_object('ok', false, 'status', 400, 'message', $4::text) END AS r",
+    "={{ [String($json.id), String($json.pages), $json.sha, $json.error || 'That file couldn’t be read as a PDF.'] }}"),
+  code('Result', function () { return [{ json: $input.first().json.r || { ok: false, message: 'Something went wrong. Try again.' } }]; }),
+  ifTrue('Queued?', '={{ $json.ok }}'),
+  pg('Docs', 'SELECT bgc.rule_docs_of($1, $2::int) AS r', "={{ [$('Validate').first().json.email, String($('Validate').first().json.bggId)] }}"),
+  respond('Respond OK', "={{ JSON.stringify({ ...$json.r, queued: $('Result').first().json.id }) }}"),
+  // Start reading right away (the reader also checks the queue every few minutes)
+  { ...node('Start Reading', 'n8n-nodes-base.executeWorkflow', 1.2, {
+    source: 'database', workflowId: { __rl: true, value: ID.ruleReader, mode: 'id' }, mode: 'once', options: { waitForSubWorkflow: false },
+  }), onError: 'continueRegularOutput' },
+  // Not queued (too long, already here, not a PDF): the page service lets go of the file, and the half-made document goes too
+  { ...node('Let Go', 'n8n-nodes-base.httpRequest', 4.2, { method: 'DELETE', url: '=' + PAGES + "{{ $('With File').first().json.id }}", options: { timeout: 20000 } }), onError: 'continueRegularOutput' },
+  pg('Drop', 'SELECT bgc.rule_doc_drop($1::bigint)', "={{ [String($('With File').first().json.id)] }}"),
+  code('Why', function () { return [{ json: $('Result').first().json }]; }),
   respondError(),
-], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Read PDF Text', 0], ['Valid?', 'Respond Error', 1], ['Read PDF Text', 'PDF To Base64'],
-  ['PDF To Base64', 'Save'], ['Save', 'Result'], ['Result', 'Saved?'], ['Saved?', 'Respond OK', 0], ['Saved?', 'Respond Error', 1]]);
+], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'New Doc', 0], ['Valid?', 'Respond Error', 1], ['New Doc', 'With File'], ['With File', 'Can Add?'],
+  ['Can Add?', 'Store PDF', 0], ['Can Add?', 'Respond Error', 1], ['Store PDF', 'Stored'], ['Stored', 'Queue'], ['Queue', 'Result'], ['Result', 'Queued?'],
+  ['Queued?', 'Docs', 0], ['Queued?', 'Let Go', 1], ['Docs', 'Respond OK'], ['Respond OK', 'Start Reading'], ['Let Go', 'Drop'], ['Drop', 'Why'], ['Why', 'Respond Error']]);
 addMemberAuth(rulebookUpload, { failTo: 'Respond Error' });
 
-const rulebookGet = wf(ID.rulebookGet, 'Vault — Rulebook (info / open)', [
+const rulebookGet = wf(ID.rulebookGet, 'Vault — Rulebook (list)', [
   webhook('Webhook', 'GET', 'vault/rulebook'),
-  ifTrue('Download?', "={{ String(($json.query || {}).download || '') === '1' }}"),
-  pg('Info', 'SELECT bgc.rulebook_info($1, $2::int) AS r', "={{ [$json._auth.email, String(Number(($json.query || {}).bgg) || 0)] }}"),
+  pg('Read', "SELECT CASE WHEN $3 = '1' THEN CASE WHEN bgc.member_id($1) IS NULL THEN jsonb_build_object('ok', false, 'status', 403, 'message', 'Members only') " +
+    "ELSE jsonb_build_object('ok', true, 'games', bgc.rule_doc_games()) END ELSE bgc.rule_docs_of($1, $2::int) END AS r",
+    "={{ [$json._auth.email, String(Number(($json.query || {}).bgg) || 0), String(($json.query || {}).games || '')] }}"),
   code('Result', function () { return [{ json: $input.first().json.r }]; }),
   ifTrue('OK?', '={{ $json.ok }}'),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
-  { ...pg('File', 'SELECT * FROM bgc.rulebook_file($1, $2::int)', "={{ [$json._auth.email, String(Number(($json.query || {}).bgg) || 0)] }}"), alwaysOutputData: true },
-  code('Found?', function () {
-    const f = $input.first().json;
-    return [{ json: f && f.b64 ? { ok: true, filename: f.filename, b64: f.b64 } : { ok: false, status: 404, message: 'No rulebook for that game yet' } }];
-  }),
-  ifTrue('Have File?', '={{ $json.ok }}'),
-  node('To File', 'n8n-nodes-base.convertToFile', 1.1, { operation: 'toBinary', sourceProperty: 'b64', binaryPropertyName: 'data',
-    options: { fileName: '={{ $json.filename }}', mimeType: 'application/pdf' } }),
-  node('Respond PDF', 'n8n-nodes-base.respondToWebhook', 1.1, { respondWith: 'binary', inputDataFieldName: 'data',
-    options: { responseHeaders: { entries: [{ name: 'Content-Type', value: 'application/pdf' }, { name: 'Content-Disposition', value: '=inline; filename="{{ $(\'Found?\').first().json.filename.replace(/"/g, \'\') }}"' }] } } }),
   respondError(),
-], [['Webhook', 'Download?'], ['Download?', 'File', 0], ['Download?', 'Info', 1], ['Info', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1],
-  ['File', 'Found?'], ['Found?', 'Have File?'], ['Have File?', 'To File', 0], ['Have File?', 'Respond Error', 1], ['To File', 'Respond PDF']]);
+], [['Webhook', 'Read'], ['Read', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
 addMemberAuth(rulebookGet, { failTo: 'Respond Error' });
+
+const ruleChange = wf(ID.ruleChange, 'Vault — Rulebook (change / remove)', [
+  webhook('Webhook', 'POST', 'vault/rulebook-change'),
+  code('Validate', function () {
+    const j = $input.first().json;
+    const b = j.body || {};
+    const id = Number(b.id);
+    if (!Number.isInteger(id) || id <= 0) return [{ json: { ok: false, status: 400, message: 'Which document?' } }];
+    const patch = {};
+    for (const k of ['kind', 'title', 'source']) if (typeof b[k] === 'string') patch[k] = b[k].trim();
+    return [{ json: { ok: true, email: j._auth.email, id: String(id), action: b.action === 'remove' ? 'remove' : 'edit', patch } }];
+  }),
+  ifTrue('Valid?', '={{ $json.ok }}'),
+  pg('Change', 'SELECT bgc.rule_doc_change($1, $2::bigint, $3, $4::jsonb) AS r', '={{ [$json.email, $json.id, $json.action, JSON.stringify($json.patch)] }}'),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Change', 0], ['Valid?', 'Respond Error', 1], ['Change', 'Result'], ['Result', 'OK?'], ['OK?', 'Respond OK', 0], ['OK?', 'Respond Error', 1]]);
+addMemberAuth(ruleChange, { failTo: 'Respond Error' });
+
+// =====================================================================
+// 39. Rulebook Reader  (after each upload, and every 2 minutes): takes the next queued document and has the vision model
+//     rewrite each page from its image and the page's own text: reading order, headings, icons as [words]. The page's
+//     text is split into sections for search. When done, the page service deletes the PDF.
+// =====================================================================
+const READ_PROMPT = [
+  'You are turning ONE page of a board game rulebook into clean text that a rules assistant will search and quote with page numbers.',
+  'You get the page image and the text a PDF reader pulled from this page. That text may be out of order, split oddly, or missing words that are drawn as pictures.',
+  'Rewrite this page only, as Markdown:',
+  '- Keep every rule, number and example on the page. Do not add, guess or summarise anything that is not printed on this page.',
+  '- Follow the reading order a person would: columns, then sidebars and boxes, each where it belongs.',
+  '- Use the page\'s own headings as Markdown headings (#, ##, ###).',
+  '- Replace each icon or symbol with words in square brackets. Use its meaning only when this page makes it clear (a legend, a label, or the sentence around it says what it is). Otherwise describe what it looks like, e.g. [purple hand icon], [green leaf symbol]. Never borrow names from other games, and give different-looking icons different words.',
+  '- For a diagram, setup picture or worked example, write one short line: "Example (picture): ..." describing what it shows.',
+  '- Skip page numbers, decorative art and flavour-only captions.',
+  'Reply with the Markdown only, starting straight with the page\'s content: no remarks about the image or the extracted text.',
+].join('\n');
+const ruleReader = wf(ID.ruleReader, 'Vault — Rulebook Reader', [
+  node('When Uploaded', 'n8n-nodes-base.executeWorkflowTrigger', 1.1, { inputSource: 'passthrough' }),
+  node('Every 2 Minutes', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ field: 'minutes', minutesInterval: 2 }] } }),
+  pg('Claim', 'SELECT bgc.rule_doc_claim() AS d', null),
+  code('Pages', function () {
+    const d = $input.first().json.d;
+    if (!d || !d.id) return [];
+    const done = new Set(d.done || []);
+    const out = [];
+    for (let p = 1; p <= d.pages; p++) if (!done.has(p)) out.push({ json: { doc: d.id, page: p, pages: d.pages, label: d.label, game: d.game } });
+    return out.length ? out : [{ json: { doc: d.id, page: 0, finishOnly: true } }];
+  }),
+  ifTrue('Any Pages?', '={{ !$json.finishOnly }}'),
+  { ...node('Page', 'n8n-nodes-base.httpRequest', 4.2, { method: 'GET', url: '=' + PAGES + '{{ $json.doc }}/page/{{ $json.page }}',
+    options: { timeout: 60000, batching: { batch: { batchSize: 1, batchInterval: 0 } } } }, { retryOnFail: true, maxTries: 2, waitBetweenTries: 3000 }), onError: 'continueRegularOutput' },
+  node('Request', 'n8n-nodes-base.code', 2, { jsCode: 'const PROMPT = ' + JSON.stringify(READ_PROMPT) + ';\n' + body(function () {
+    return $input.all().map((it, i) => {
+      const p = $('Any Pages?').all()[i].json;
+      const text = String(it.json.text || '').slice(0, 9000);
+      const content = [{ type: 'text', text: PROMPT + '\n\nThis is page ' + p.page + ' of ' + p.pages + ' of the ' + p.label + ' for ' + p.game + '.\n\nTEXT FROM THE PDF READER:\n' + (text || '(none)') }];
+      if (it.json.jpeg_b64) content.push({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + it.json.jpeg_b64 } });
+      return { json: { doc: p.doc, page: p.page, pdfText: text, hasImage: !!it.json.jpeg_b64, requestBody: {
+        model: 'google/gemini-2.5-flash', models: ['google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite'], max_tokens: 6000, temperature: 0.1,
+        reasoning: { enabled: false }, provider: { data_collection: 'deny' }, messages: [{ role: 'user', content }] } } };
+    });
+  }) }),
+  // A page the page service couldn't hand over isn't read blind: it stays unread and the next pass tries again
+  ifTrue('Has Image?', '={{ $json.hasImage }}'),
+  { ...node('Read Page', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'POST', url: 'https://openrouter.ai/api/v1/chat/completions', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    sendHeaders: true, headerParameters: { parameters: [{ name: 'HTTP-Referer', value: 'https://n8n.ondorilabo.com/vault' }, { name: 'X-Title', value: 'Board Game Curator' }] },
+    ...jsonBody('={{ JSON.stringify($json.requestBody) }}'),
+    options: { timeout: 180000, batching: { batch: { batchSize: 1, batchInterval: 300 } } },
+  }, { credentials: CRED.openrouter, retryOnFail: true, maxTries: 3, waitBetweenTries: 5000 }), onError: 'continueRegularOutput' },
+  code('Sections', function () {
+    return $input.all().map((it, i) => {
+      const q = $('Has Image?').itemMatching(i).json;
+      let md = String((it.json.choices && it.json.choices[0] && it.json.choices[0].message && it.json.choices[0].message.content) || '').trim()
+        .replace(/^```(?:markdown)?\s*/i, '').replace(/\s*```$/, '');
+      // A remark before the page itself ("The PDF reader pulled no text…") isn't part of the rulebook
+      while (/^(the (pdf|extracted|provided) (reader|text)|i will|i'll|here is|here's|below is|note:)/i.test(md.split('\n')[0] || '') && !/^#/.test(md)) md = md.split('\n').slice(1).join('\n').trim();
+      const fromPdf = !md;
+      if (!md) md = q.pdfText; // the vision step failed: the page's own text is better than nothing
+      if (!String(md || '').trim()) return null; // nothing to save: the page stays unread and is tried again
+      // Sections: each heading starts one; tiny ones join the next, long ones split at paragraphs
+      const secs = [];
+      let cur = { heading: '', lines: [] };
+      for (const line of md.split('\n')) {
+        const h = line.match(/^#{1,4}\s+(.+?)\s*#*\s*$/);
+        if (h) { if (cur.lines.join('').trim()) secs.push(cur); cur = { heading: h[1].replace(/\*\*/g, '').trim(), lines: [] }; }
+        else cur.lines.push(line);
+      }
+      if (cur.lines.join('').trim() || cur.heading) secs.push(cur);
+      const out = [];
+      for (let k = 0; k < secs.length; k++) {
+        let body = secs[k].lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+        if (!body && !secs[k].heading) continue;
+        if (body.length < 120 && k + 1 < secs.length && !secs[k + 1].lines.join('').trim().startsWith('#')) {
+          secs[k + 1].lines.unshift((secs[k].heading ? secs[k].heading + ': ' : '') + body);
+          if (!secs[k + 1].heading) secs[k + 1].heading = secs[k].heading;
+          continue;
+        }
+        if (!body) body = secs[k].heading;
+        while (body.length > 2400) {
+          const cut = Math.max(body.lastIndexOf('\n\n', 2000), 800);
+          out.push({ heading: secs[k].heading, body: body.slice(0, cut).trim() });
+          body = body.slice(cut).trim();
+        }
+        out.push({ heading: secs[k].heading, body });
+      }
+      return { json: { doc: q.doc, page: q.page, markdown: md, fromPdf, sections: out } };
+    }).filter(Boolean);
+  }),
+  pg('Save Page', 'SELECT bgc.rule_page_save($1::bigint, $2::int, $3, $4::boolean, $5::jsonb) AS r',
+    '={{ [String($json.doc), String($json.page), $json.markdown, String($json.fromPdf), JSON.stringify($json.sections)] }}'),
+  code('All Read', function () { return [{ json: { doc: $('Pages').first().json.doc } }]; }),
+  pg('Finish', 'SELECT bgc.rule_doc_finish($1::bigint) AS r', '={{ [String($json.doc)] }}'),
+  ifTrue('All Done?', "={{ $json.r.status !== 'queued' }}"),
+  // The PDF isn't kept: once it's read, only Nathan's text remains (one with pages still unread keeps it for the next pass)
+  { ...node('Delete PDF', 'n8n-nodes-base.httpRequest', 4.2, { method: 'DELETE', url: '=' + PAGES + "{{ $('All Read').first().json.doc }}", options: { timeout: 20000 } }), onError: 'continueRegularOutput' },
+], [['When Uploaded', 'Claim'], ['Every 2 Minutes', 'Claim'], ['Claim', 'Pages'], ['Pages', 'Any Pages?'], ['Any Pages?', 'Page', 0], ['Any Pages?', 'All Read', 1],
+  ['Page', 'Request'], ['Request', 'Has Image?'], ['Has Image?', 'Read Page', 0], ['Read Page', 'Sections'], ['Sections', 'Save Page'], ['Save Page', 'All Read'], ['All Read', 'Finish'], ['Finish', 'All Done?'], ['All Done?', 'Delete PDF', 0]]);
 
 // =====================================================================
 // 33. Dashboard  GET /webhook/vault/dashboard  (admins): everything about how people use the site, for dashboard.html
@@ -3116,6 +3256,7 @@ const selfTest = wf(ID.selfTest, 'Vault — Nightly Self-Test', [
       if (t.offTopic && !a.offTopic) p.push('expected an off-topic redirect');
       if (t.playerCount !== undefined && ((a.understood || {}).playerCount ?? null) !== t.playerCount) p.push('understood ' + ((a.understood || {}).playerCount ?? 'no') + ' players, expected ' + t.playerCount);
       if (t.remembers && !(a.remembered || []).length) p.push('expected Nathan to remember something');
+      if (t.cites && !(a.sources || []).some((x) => !t.cites.page || x.page === t.cites.page)) p.push('expected a page from the rulebook' + (t.cites.page ? ' (p. ' + t.cites.page + ')' : ''));
       return { what: t.name, ok: !p.length, problems: p };
     });
     const failed = [...db.filter((x) => !x.ok), ...nathan.filter((x) => !x.ok)];
@@ -3192,7 +3333,7 @@ const memberPlaysNightly = wf(ID.memberPlaysNightly, 'Vault — Sync Member Play
 ], [['Nightly', 'Members'], ['Run Now', 'Members'], ['Members', 'Ready'], ['Ready', 'Sync Each']]);
 
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest, memory, memoryForget, memberPlays, memberPlaysNightly };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest, memory, memoryForget, memberPlays, memberPlaysNightly, ruleChange, ruleReader };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {

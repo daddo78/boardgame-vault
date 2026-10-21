@@ -42,6 +42,7 @@ for (const t of tests) {
   if (t.offTopic && !a.offTopic) problems.push('expected an off-topic redirect');
   if (t.playerCount !== undefined && ((a.understood || {}).playerCount ?? null) !== t.playerCount) problems.push('understood ' + ((a.understood || {}).playerCount ?? 'no') + ' players, expected ' + t.playerCount);
   if (t.remembers && !(a.remembered || []).length) problems.push('expected Nathan to remember something');
+  if (t.cites && !(a.sources || []).some((x) => !t.cites.page || x.page === t.cites.page)) problems.push('expected a page from the rulebook' + (t.cites.page ? ' (p. ' + t.cites.page + ')' : '') + ', got ' + JSON.stringify((a.sources || []).map((x) => x.label + ' p.' + x.page)));
   ran++;
   if (problems.length) { failed++; console.log('FAIL  ' + t.name + '\n      ' + problems.join('; ') + '\n      answer: ' + text.replace(/\s+/g, ' ').slice(0, 300)); }
   else console.log('PASS  ' + t.name);

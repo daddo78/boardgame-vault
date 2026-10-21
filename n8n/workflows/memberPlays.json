@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "c68a6671-7140-4cfd-8426-42dbbe85d2cd",
+      "id": "1e4be0a5-1340-479e-b9a7-a9ed2168207f",
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -18,7 +18,7 @@
       }
     },
     {
-      "id": "2d6a263d-c6a0-4e0b-a077-739f9348093b",
+      "id": "440f3a3b-73f9-4f8c-822a-d073a91a2535",
       "name": "BGG Plays",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -89,7 +89,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "1414e847-4612-455b-af1a-6cf57749eb94",
+      "id": "8f7b3912-1738-4fa2-9817-a6edf70b377d",
       "name": "Parse Plays",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -102,7 +102,7 @@
       }
     },
     {
-      "id": "1d58b963-e433-433d-a457-678b058dfbcd",
+      "id": "129f0226-3820-4d6d-ac38-1a4021c1e05a",
       "name": "Plays OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -119,7 +119,7 @@
           },
           "conditions": [
             {
-              "id": "0d5300cf-efca-4f50-8cc5-ef4a31e18b28",
+              "id": "2ad98919-c14b-47fc-80d9-e5c1227fe98e",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -135,7 +135,7 @@
       }
     },
     {
-      "id": "71ef860c-4393-4a7b-b553-43b0effa2840",
+      "id": "be726daa-8972-4336-b2b6-0eff1abc273c",
       "name": "Save Plays",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -162,7 +162,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "28195914-25cb-4285-8a3f-96375636ce6e",
+      "id": "fc3b3ad0-610b-4715-8e80-18602597139a",
       "name": "Players And Counts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -189,7 +189,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "c2a37e5a-5358-44c7-a674-3bea3cac1d03",
+      "id": "f557da64-af1c-42a8-b9f0-43ce98f35b0d",
       "name": "Done",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -216,7 +216,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "91de69d4-ee98-40fe-938d-e20706e7ca34",
+      "id": "8833efdf-6e3f-462a-9375-adec9e2afbc5",
       "name": "Failed",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,

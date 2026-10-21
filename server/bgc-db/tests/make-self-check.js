@@ -5,12 +5,12 @@ const [src, out] = process.argv.slice(2);
 const text = fs.readFileSync(src, 'utf8');
 // Each check line: SELECT pg_temp.check(<condition>, '<what>');  (may span lines)
 const body = text.slice(text.indexOf('-- Test people'), text.lastIndexOf('ROLLBACK;'));
-const stmts = body.split(/;\s*\n/).map((s) => s.trim()).filter((s) => s && !/^--/.test(s.replace(/^(--[^\n]*\n)+/, '').trim()) || /^(--[^\n]*\n)*\s*(SELECT|INSERT)/.test(s));
+const stmts = body.split(/;\s*\n/).map((s) => s.trim()).filter((s) => s && !/^--/.test(s.replace(/^(--[^\n]*\n)+/, '').trim()) || /^(--[^\n]*\n)*\s*(SELECT|INSERT|UPDATE)/.test(s));
 const lines = [];
 for (let st of stmts) {
   st = st.replace(/^(--[^\n]*\n\s*)+/, '').trim();
   if (!st) continue;
-  if (st.startsWith('INSERT')) { lines.push('    ' + st + ';'); continue; }
+  if (/^(INSERT|UPDATE)/.test(st)) { lines.push('    ' + st + ';'); continue; }
   const m = st.match(/^SELECT pg_temp\.check\(([\s\S]*),\s*('(?:[^']|'')*')\s*\)$/);
   if (!m) throw new Error('cannot read: ' + st.slice(0, 80));
   lines.push(`    res := res || jsonb_build_object('what', ${m[2]}, 'ok', coalesce((${m[1].trim()}), false));`);
