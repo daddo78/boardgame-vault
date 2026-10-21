@@ -1722,6 +1722,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     // Firm rules on top of the model's reading: "a game I don't own / don't have / not on my shelf" means buy ideas
     // (also as a follow-up), and a question about "a game" that names none is a recommendation, or a search of friends' shelves
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    // "Who has…" is about friends' copies to borrow, never ideas to buy
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
     // A question about a game or what to buy is about the asker: their shelf and taste, wherever they are
     const forMe = c.intent === 'game' || c.intent === 'buy' || c.intent === 'rules';
@@ -1794,6 +1798,10 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     // Firm rules on top of the model's reading: "a game I don't own / don't have / not on my shelf" means buy ideas
     // (also as a follow-up), and a question about "a game" that names none is a recommendation, or a search of friends' shelves
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    // "Who has…" is about friends' copies to borrow, never ideas to buy
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
     }
     const open = $('Shelf View').first().json.v;
@@ -2606,7 +2614,7 @@ const ALERT_FROM = 'Board Game Curator <alpha@ondorilabo.com>';
 const ALERT_TO = OWNER_EMAILS[0];
 const email = (name, subjectExpr, textExpr) => node(name, 'n8n-nodes-base.emailSend', 2.1, {
   fromEmail: ALERT_FROM, toEmail: ALERT_TO, subject: subjectExpr, emailFormat: 'text', text: textExpr, options: { appendAttribution: false },
-}, { credentials: CRED.smtp, ...retry });
+}, { credentials: CRED.smtp }); // no retries: Resend can accept a message and still answer "421 Timeout", and a retry sends it twice
 const errorAlert = wf(ID.errorAlert, 'Vault — Error Alert', [
   node('Error Trigger', 'n8n-nodes-base.errorTrigger', 1, {}),
   code('Compose', function () {

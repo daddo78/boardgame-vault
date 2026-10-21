@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "3203cb43-cf1d-406e-a606-d0c56c86d92f",
+      "id": "5e1c387e-2bf3-4877-a006-7affd1e606a6",
       "name": "Daily",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -24,7 +24,7 @@
       }
     },
     {
-      "id": "dd91472a-b40f-47af-9397-55fa0987a595",
+      "id": "bc683549-a168-46fa-9086-70beedd8edda",
       "name": "Read Status",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -50,7 +50,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "2ffe83b1-0f9c-4417-a0db-d7385b2af375",
+      "id": "5ab7dac7-338d-489d-8c43-6b4f04304e5c",
       "name": "Check",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -63,7 +63,7 @@
       }
     },
     {
-      "id": "52107a52-455b-4779-a02f-9973bfd3290e",
+      "id": "fb69e98d-6bee-4053-8510-1321a0e87102",
       "name": "Send?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -80,7 +80,7 @@
           },
           "conditions": [
             {
-              "id": "2223d104-0d10-43cb-8c2b-17d28a1a08a8",
+              "id": "d06439e7-6e1b-47fe-a677-a767275cb9fc",
               "leftValue": "={{ $json.send }}",
               "rightValue": "",
               "operator": {
@@ -96,7 +96,7 @@
       }
     },
     {
-      "id": "fd173784-6726-4ba1-ba21-07c3b399bfe2",
+      "id": "870ca118-1efd-4dde-9591-4bd5ebad24fa",
       "name": "Email Dan",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
@@ -119,10 +119,7 @@
           "id": "wj7wyYOWaVVIrifQ",
           "name": "Resend SMTP"
         }
-      },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000
+      }
     }
   ],
   "connections": {
