@@ -1650,17 +1650,20 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   code('Photo Request', function () {
     const v = $('Validate').first().json;
     return [{ json: { requestBody: {
-      model: '__VISION_MODEL__', models: ['google/gemini-2.5-flash', '__VISION_MODEL__'], max_tokens: 800, temperature: 0.1, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
+      model: 'google/gemini-2.5-flash', models: ['google/gemini-2.5-flash', '__VISION_MODEL__'], max_tokens: 800, temperature: 0.1, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
       messages: [{ role: 'user', content: [
         { type: 'text', text: 'A board game player attached this photo to a question for their game assistant. The question: "' + v.question.replace(/"/g, '\'') + '"\n' +
           (() => {
             const m = $('Memory').first().json;
             const earlier = ((m.mem || {}).turns || []).slice(-2).map((t) => t.q).join(' / ');
+            const shelf = [...new Set((($('Shelf View').first().json.v || {}).games || []).map((g) => toGame(g).title).filter(Boolean))].slice(0, 300);
             return (earlier ? 'Earlier in this chat they asked: ' + earlier + '\n' : '') +
-              ((m.rule_games || []).length ? 'Games we have rulebooks for (prefer these if the photo fits one): ' + m.rule_games.join('; ') + '\n' : '');
+              ((m.rule_games || []).length ? 'Games we have rulebooks for: ' + m.rule_games.join('; ') + '\n' : '') +
+              (shelf.length ? 'Games on the shelf they are using (use this list only to choose between games that BOTH fit what you see; never pick a game from it that does not match the photo): ' + shelf.join('; ') + '\n' : '');
           })() +
+          'The photo may show a box, or just components on a table: a board, cards, tokens, dice, miniatures, a player mat. Identify the game from whatever is there: art style, iconography, card layout, logos and any readable text.\n' +
           'Reply with JSON only: {"shows": "box" | "icon" | "card" | "board" | "component" | "rulebook page" | "other", ' +
-          '"games": [the official BoardGameGeek titles of any games you can identify from the photo, most likely first, else []], ' +
+          '"games": [the official BoardGameGeek titles of the games it could be, most likely first, else []], "sure": "yes" | "probably" | "guess", ' +
           '"text": "any readable text, word for word", ' +
           '"description": "one or two plain sentences of what is shown. For an icon or symbol, describe its colour and shape the way a rulebook\'s text would (e.g. purple hand icon, green leaf symbol)"}' },
         { type: 'image_url', image_url: { url: v.image } },
@@ -1673,7 +1676,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     let p = {};
     try { p = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) { p = {}; }
     const games = (Array.isArray(p.games) ? p.games : []).map((g) => String(g).trim()).filter(Boolean).slice(0, 3);
-    return [{ json: { shows: String(p.shows || 'other').slice(0, 30), games, text: String(p.text || '').slice(0, 600), description: String(p.description || 'A photo the asker attached.').slice(0, 600) } }];
+    return [{ json: { shows: String(p.shows || 'other').slice(0, 30), games, sure: ['yes', 'probably', 'guess'].includes(p.sure) ? p.sure : 'guess', text: String(p.text || '').slice(0, 600), description: String(p.description || 'A photo the asker attached.').slice(0, 600) } }];
   }),
   // Dan's shelf, or the member's own: its games, its owner's player list (from their plays) and ratings
   pg('Shelf View', 'SELECT bgc.shelf_view($1, $2, $3) AS v',
@@ -1738,8 +1741,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       (() => {
         if (!$('Photo Notes').isExecuted) return '';
         const p = $('Photo Notes').first().json;
-        return 'PHOTO: the asker attached a photo. It shows: ' + p.shows + '. ' + p.description + (p.text ? ' Readable text: "' + p.text + '".' : '') + (p.games.length ? ' It looks like it is from: ' + p.games.join(' / ') + '.' : '') + '\n' +
-          'Read the REQUEST with the photo: if it shows a game box and they ask what it is (or about it), intent "game" with games: [that title]. ' +
+        return 'PHOTO: the asker attached a photo. It shows: ' + p.shows + '. ' + p.description + (p.text ? ' Readable text: "' + p.text + '".' : '') + (p.games.length ? ' It looks like it is from: ' + p.games.join(' / ') + ' (sure: ' + p.sure + ').' : '') + '\n' +
+          'Read the REQUEST with the photo: if they ask what game it is (a box, or components on a table) or about the game in it, intent "game" with games: the photo\'s titles, most likely first. ' +
           'If it shows an icon, symbol, card or component and they ask what it means or how it works, intent "rules", games: [the game it is from, from the photo, the chat or the request], ' +
           'and searchTerms: the words a rulebook would use for it, including its look (e.g. "purple hand icon action token spend").';
       })(),
@@ -2296,7 +2299,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       model: '__ASK_MODEL__', models: ['__ASK_MODEL__', 'google/gemini-2.5-flash'], max_tokens: 2500, reasoning: { enabled: false }, provider: { data_collection: 'deny' },
       messages: [{ role: 'system', content: systemText }, { role: 'user', content: $('Photo Notes').isExecuted
         ? [{ type: 'text', text: user + '\n\nPHOTO: the asker attached the photo below (it shows: ' + $('Photo Notes').first().json.shows + ' — ' + $('Photo Notes').first().json.description + '). ' +
-            'Answer about what is in it. For an icon or component, say what it means from the RULEBOOK EXCERPTS (match it by its look) and cite the page; if the excerpts don\'t say, say so rather than guessing.' },
+            'Answer about what is in it. If they ask what game it is: name it, say what gave it away (the board, the card art, a logo), and if you are not sure say so and give your next guess too. Never mention a photo reader or how sure it was; just say it in your own words (e.g. \"I\'m fairly sure\"). For an icon or component, say what it means from the RULEBOOK EXCERPTS (match it by its look) and cite the page; if the excerpts don\'t say, say so rather than guessing. (How sure the photo reader was: ' + $('Photo Notes').first().json.sure + '.)' },
           { type: 'image_url', image_url: { url: $('Validate').first().json.image } }]
         : user }],
     } } }];
@@ -2375,9 +2378,9 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
 ], [
   ['Respond OK', 'Log Answer'], ['Log Answer', 'Save Turn'],
   ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Use Allowance', 0], ['Valid?', 'Respond Error', 1],
-  ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'Memory', 0], ['Memory', 'Photo?'], ['Photo?', 'Photo Request', 0], ['Photo?', 'Shelf View', 1], ['Photo Request', 'Look At Photo'], ['Look At Photo', 'Photo Notes'], ['Photo Notes', 'Shelf View'], ['Allowed?', 'Respond Error', 1], ['Shelf View', 'List Games'],
+  ['Use Allowance', 'Allowance Left?'], ['Allowance Left?', 'Allowed?'], ['Allowed?', 'Memory', 0], ['Memory', 'Shelf View'], ['Allowed?', 'Respond Error', 1], ['Shelf View', 'List Games'],
   ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'One More Item'], ['One More Item', 'List Ratings'],
-  ['List Ratings', 'Build Understand Request'], ['Build Understand Request', 'Understand Request'], ['Understand Request', 'Scope'], ['Scope', 'Own Shelf'], ['Own Shelf', 'Game Lookup'], ['Game Lookup', 'Lookup Queries'], ['Lookup Queries', 'Ask BGG?'],
+  ['List Ratings', 'Photo?'], ['Photo?', 'Photo Request', 0], ['Photo?', 'Build Understand Request', 1], ['Photo Request', 'Look At Photo'], ['Look At Photo', 'Photo Notes'], ['Photo Notes', 'Build Understand Request'], ['Build Understand Request', 'Understand Request'], ['Understand Request', 'Scope'], ['Scope', 'Own Shelf'], ['Own Shelf', 'Game Lookup'], ['Game Lookup', 'Lookup Queries'], ['Lookup Queries', 'Ask BGG?'],
   ['Ask BGG?', 'Game Search', 0], ['Ask BGG?', 'Shortlist', 1], ['Game Search', 'Game Candidates'], ['Game Candidates', 'Game Thing'], ['Game Thing', 'Game Choose'], ['Game Choose', 'Shortlist'],
   ['Shortlist', 'On Topic?'], ['On Topic?', 'Any Candidates?', 0], ['On Topic?', 'Off Topic', 1],
   ['Any Candidates?', 'Build Recommend Request', 0], ['Any Candidates?', 'No Candidates', 1],
