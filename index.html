@@ -424,6 +424,15 @@
   .nathan-panel.collapsed .np-thread.clamped::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 6rem; background: linear-gradient(rgba(255,255,255,0), #fff); pointer-events: none; }
   .nathan-panel.collapsed .np-compose, .nathan-panel.collapsed #npNew { display: none; }
   .nathan-panel.collapsed .np-who.empty { display: none; }
+  /* Full screen: the conversation fills the screen (a big centred panel on a computer), the reply box stays at the bottom */
+  .nathan-panel.full { position: fixed; inset: 0; z-index: 95; margin: 0; padding: 0; max-width: none; background: rgba(20,40,90,0.45); display: flex; justify-content: center; }
+  .nathan-panel.full .np-card { background: #fff; width: min(920px, 100%); height: 100%; margin: 0; border-radius: 0; border-top: 0; display: flex; flex-direction: column;
+    padding: calc(0.8rem + env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px)) calc(0.8rem + env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px)); }
+  .nathan-panel.full .np-thread { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 0.2rem; }
+  .nathan-panel.full .np-thread:empty { display: flex; }
+  .nathan-panel.full .np-compose { margin-top: 0.8rem; }
+  .nathan-panel.full .np-more, .nathan-panel.full #npHide { display: none !important; }
+  @media (min-width: 760px) { .nathan-panel.full .np-card { height: calc(100% - 3rem); margin-top: 1.5rem; border-radius: 1.25rem; box-shadow: 0 20px 50px rgba(20,40,90,0.25); } }
   .np-more { display: flex; align-items: center; justify-content: center; gap: 0.4rem; width: 100%; margin-top: 0.9rem; padding: 0.7rem 1rem; border: 1.5px solid #e6d8c3; border-radius: 999px; background: #fff; color: var(--ink); font-family: var(--font-body); font-weight: 700; font-size: 0.95rem; cursor: pointer; }
   .np-more:hover { background: #fbf3e6; }
   .np-more[hidden] { display: none; }
@@ -821,6 +830,7 @@
             <div class="np-title"><b>Nathan</b><span>Your board game curator</span></div>
             <div class="np-actions">
               <button type="button" class="btn ghost" id="npNew" title="Start a new conversation"><i class="ti ti-refresh"></i> <span>New chat</span></button>
+              <button type="button" class="mini-btn" id="npFull" title="Full screen" aria-label="Full screen"><i class="ti ti-arrows-maximize"></i></button>
               <button type="button" class="mini-btn" id="npHide" title="Close" aria-label="Close"><i class="ti ti-x"></i></button>
             </div>
           </div>
@@ -1858,7 +1868,7 @@
     // Any popup: freeze the page behind it where it is, and put you back in the same spot when it closes
     let lockedY = null;
     function syncScrollLock() {
-      const open = !!document.querySelector('.modal-overlay.open');
+      const open = !!document.querySelector('.modal-overlay.open, .nathan-panel.full');
       if (open && lockedY === null) {
         lockedY = window.scrollY;
         document.body.style.top = -lockedY + 'px';
@@ -2701,6 +2711,11 @@
     });
     // collapsed: the latest answer as an overview with "Chat more"; expanded: the whole conversation with a reply box
     function setPanel(mode) {
+      if (mode !== 'expanded' && panel.classList.contains('full')) {
+        panel.classList.remove('full');
+        const b = document.getElementById('npFull');
+        b.innerHTML = '<i class="ti ti-arrows-maximize"></i>'; b.title = b.ariaLabel = 'Full screen';
+      }
       panel.hidden = mode === 'hidden';
       if (mode === 'hidden') { document.body.classList.remove('chatting'); return; }
       panel.classList.toggle('collapsed', mode === 'collapsed');
@@ -2720,6 +2735,17 @@
       document.getElementById('npMore').hidden = !collapsed || !thread.children.length || askBusy;
     }
     document.getElementById('npMore').addEventListener('click', () => setPanel('expanded'));
+    // Full screen: the same conversation over the whole screen; the shelf behind stays where it was
+    const npFull = document.getElementById('npFull');
+    function setFull(on) {
+      if (on) setPanel('expanded');
+      panel.classList.toggle('full', on);
+      npFull.innerHTML = '<i class="ti ti-arrows-' + (on ? 'minimize' : 'maximize') + '"></i>';
+      npFull.title = npFull.ariaLabel = on ? 'Exit full screen' : 'Full screen';
+      if (on) thread.scrollTop = thread.scrollHeight;
+    }
+    npFull.addEventListener('click', () => setFull(!panel.classList.contains('full')));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && panel.classList.contains('full') && !document.querySelector('.modal-overlay.open')) setFull(false); });
     document.getElementById('npHide').addEventListener('click', () => {
       if (panel.classList.contains('expanded')) { setPanel('collapsed'); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
       else setPanel('hidden');
@@ -2730,6 +2756,8 @@
       newChat();
       askSelected.clear();
       nathanSets.length = 0;
+      // In full screen a new chat stays full screen, ready for the first question
+      if (panel.classList.contains('full')) { renderAskPlayers(); refreshClamp(); return; }
       setPanel('collapsed');
       bar.focus();
     });
@@ -3037,6 +3065,7 @@
       if (open) { openDetail(open.dataset.askOpen); return; }
       const see = e.target.closest('[data-see-all]');
       if (see) {
+        if (panel.classList.contains('full')) setFull(false); // the games are on the shelf behind
         const set = nathanSets[+see.dataset.seeAll] || null;
         const ids = set ? set.ids : null;
         if (set && set.shelf !== currentShelf()) { setShelfView(set.shelf).then(() => { askIds = ids; render(); }); return; }

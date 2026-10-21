@@ -2,6 +2,10 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.14 · October 21, 2026
+
+- **Nathan full screen:** tap ⤢ at the top of Nathan's chat to give the conversation the whole screen, with the reply box at the bottom. Tap ⤡ to go back to your shelf, right where you were.
+
 ## v0.13 · October 21, 2026
 
 **Rules answers with page numbers**
