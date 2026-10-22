@@ -87,6 +87,12 @@ SELECT pg_temp.check(bgc.log_ai('dandehaan@gmail.com', '[{"feature": "nathan", "
 SELECT pg_temp.check(EXISTS (SELECT 1 FROM ai_costs WHERE model = 'check-model' AND cost = 0.5 AND feature = 'nathan'), 'the recorded cost is there afterwards');
 SELECT pg_temp.check(NOT (bgc.costs_page('check.member@example.invalid') ->> 'ok')::boolean AND (bgc.costs_page('dandehaan@gmail.com') ->> 'ok')::boolean, 'only admins see what the site costs');
 
+-- Feedback: members send it, only admins read it or change its status
+SELECT pg_temp.check((bgc.feedback('check.member@example.invalid', '{"kind": "idea", "mood": 4, "message": "check feedback"}') ->> 'ok')::boolean, 'a member can send feedback');
+SELECT pg_temp.check(NOT (bgc.feedback('check.member@example.invalid', '{}') ->> 'ok')::boolean, 'empty feedback is turned away');
+SELECT pg_temp.check(bgc.feedback_all('check.member@example.invalid') IS NULL AND bgc.feedback_all('dandehaan@gmail.com') -> 'items' -> 0 ->> 'message' = 'check feedback', 'only admins read feedback');
+SELECT pg_temp.check(NOT (bgc.feedback('check.member@example.invalid', jsonb_build_object('action', 'status', 'status', 'done', 'id', (SELECT max(id) FROM feedback))) ->> 'ok')::boolean, 'a member can''t mark feedback done');
+
 -- People lists come from plays (1+), and Matt's counts are intact
 SELECT pg_temp.check((SELECT play_count FROM shelves s JOIN games g ON g.id = s.game_id WHERE s.member_id = 1 AND g.title = 'The Crew: The Quest for Planet Nine') = 21, 'Dan''s play counts are intact (The Crew: 21)');
 

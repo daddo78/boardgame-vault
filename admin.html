@@ -41,7 +41,7 @@
   main { min-width: 0; }
   @media (max-width: 860px) {
     .shell { grid-template-columns: minmax(0, 1fr); gap: 0.8rem; }
-    .side { position: sticky; top: 3.6rem; z-index: 4; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.25rem; background: var(--bg); padding: 0.5rem 0; }
+    .side { position: sticky; top: 3.6rem; z-index: 4; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.25rem; background: var(--bg); padding: 0.5rem 0; }
     .side a { flex-direction: column; justify-content: center; gap: 0.2rem; padding: 0.45rem 0.1rem; font-size: 0.72rem; text-align: center; }
     .side a i { width: auto; font-size: 1rem; }
     .side .count { display: none; }
@@ -130,6 +130,18 @@
   .fixed-row input, .fixed-row select { min-width: 0; border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 0.6rem; padding: 0.5rem 0.6rem; color: var(--ink); }
   @media (max-width: 520px) { .fixed-row { grid-template-columns: minmax(0, 1fr) 5.5rem 5.5rem auto; } }
   .warnbox { border-left: 5px solid var(--brand); }
+  /* Admin → Feedback */
+  .fb-list { display: grid; gap: 0.7rem; margin-top: 1rem; }
+  .fb { display: grid; gap: 0.45rem; }
+  .fb.done { opacity: 0.6; }
+  .fb .top { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .fb .top b { font-size: 1rem; }
+  .fb .mood { font-size: 1.3rem; line-height: 1; }
+  .fb .when { margin-left: auto; font-size: 0.8rem; color: var(--muted); }
+  .fb .msg { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .fb .meta { font-size: 0.75rem; color: var(--muted); overflow-wrap: anywhere; }
+  .fb .acts { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .filters { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 1rem; }
   /* Admin → Rulebooks: add one to any game */
   .rb-new { margin-top: 1rem; }
   .rb-new select { border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 0.6rem; padding: 0.6rem 0.75rem; color: var(--ink); flex: 0 1 12rem; }
@@ -161,6 +173,7 @@
       <a href="#members" data-tab="members"><i class="fa-solid fa-users"></i> Members <span class="count" id="nMembers"></span></a>
       <a href="#nathan" data-tab="nathan"><i class="fa-solid fa-comments"></i> Nathan</a>
       <a href="#rulebooks" data-tab="rulebooks"><i class="fa-solid fa-book-open"></i> Rulebooks <span class="count" id="nRules"></span></a>
+      <a href="#feedback" data-tab="feedback"><i class="fa-solid fa-envelope-open-text"></i> Feedback <span class="count" id="nFeedback"></span></a>
       <a href="#costs" data-tab="costs"><i class="fa-solid fa-coins"></i> Costs</a>
     </nav>
     <main id="app"><div class="spinner"></div></main>
@@ -181,7 +194,7 @@
   const num = (n) => n == null ? '–' : Number(n).toLocaleString();
   const KIND = { recommend: 'What to play', browse: 'Lists & top tens', person: 'About people', game: 'About a game', buy: 'Buy ideas', rules: 'Rules', 'off-topic': 'Off-topic', other: 'Other' };
   const COLORS = ['#c9342a', '#0041c2', '#ffa726', '#a3d977', '#b384dc', '#8ac4f5', '#ffd166', '#7b8494'];
-  const TABS = ['dashboard', 'members', 'nathan', 'rulebooks', 'costs'];
+  const TABS = ['dashboard', 'members', 'nathan', 'rulebooks', 'feedback', 'costs'];
   let toastTimer = null;
   function toast(msg, err) {
     const t = document.getElementById('toast');
@@ -226,6 +239,7 @@
     A = await call('/admin');
     document.getElementById('nMembers').textContent = (A.members || []).length || '';
     document.getElementById('nRules').textContent = (A.rulebooks || []).length || '';
+    document.getElementById('nFeedback').textContent = (A.feedback || {}).open || '';
     return A;
   };
 
@@ -241,6 +255,7 @@
       else if (tab === 'members') renderMembers(await loadA());
       else if (tab === 'nathan') { const [a, d] = await Promise.all([loadA(), loadD()]); renderNathan(a, d); }
       else if (tab === 'costs') renderCosts(C = await call('/costs'));
+      else if (tab === 'feedback') renderFeedback(await loadA());
       else renderRulebooks(await loadA());
     } catch (e) {
       if (e instanceof Gate) return gate(e.message, e.button);
@@ -664,6 +679,38 @@
     catch (e) { if (e instanceof Gate) return gate(e.message, e.button); toast(e.message, true); }
   }
 
+  // ================= Feedback =================
+  const FB_KIND = { idea: ['An idea', 'fa-lightbulb'], problem: ['Something’s wrong', 'fa-bug'], praise: ['Something they like', 'fa-heart'], question: ['A question', 'fa-circle-question'] };
+  const FB_FACE = ['', '😣', '😕', '🙂', '😀', '🤩'];
+  let fbShow = 'open';
+  function renderFeedback(a) {
+    const fb = a.feedback || { items: [] };
+    const items = fb.items.filter((x) => fbShow === 'all' || (fbShow === 'open' ? x.status !== 'done' : x.kind === fbShow));
+    const seg = (k, label) => '<button type="button" class="btn small' + (fbShow === k ? ' primary' : '') + '" data-fb-show="' + k + '">' + label + '</button>';
+    app.innerHTML =
+      '<h1><i class="fa-solid fa-envelope-open-text"></i> Feedback</h1><div class="sub">What members send from the cog → Send feedback. Each one is also emailed to you; reply to that email to answer them.</div>' +
+      '<div class="tiles" style="grid-template-columns: repeat(3, minmax(0, 1fr));">' + '<div class="tile"><b>' + num(fb.open) + '</b><span>New</span></div>' + '<div class="tile"><b>' + num(fb.items.length) + '</b><span>All feedback</span></div>' +
+        '<div class="tile"><b>' + (fb.mood != null ? Number(fb.mood).toFixed(1) + ' ' + FB_FACE[Math.round(fb.mood)] : '–') + '</b><span>How it’s going</span><small>' + (fb.moods ? 'average of ' + fb.moods + ', last 90 days' : 'no faces picked yet') + '</small></div></div>' +
+      '<div class="filters">' + seg('open', 'Open') + seg('all', 'All') + Object.entries(FB_KIND).map(([k, [l]]) => seg(k, l)).join('') + '</div>' +
+      (items.length ? '<div class="fb-list">' + items.map((x) => {
+        const [label, icon] = FB_KIND[x.kind] || FB_KIND.idea;
+        return '<div class="card fb' + (x.status === 'done' ? ' done' : '') + '"><div class="top">' + (x.mood ? '<span class="mood" title="' + x.mood + ' of 5">' + FB_FACE[x.mood] + '</span>' : '') +
+          '<b>' + esc(x.name || 'A former member') + '</b><span class="pill' + (x.kind === 'problem' ? ' warn' : x.kind === 'praise' ? ' ok' : '') + '"><i class="fa-solid ' + icon + '"></i> ' + label + '</span>' +
+          (x.status === 'new' ? '<span class="pill busy">New</span>' : x.status === 'done' ? '<span class="pill ok">Done</span>' : '') + '<span class="when">' + esc(ago(x.at)) + '</span></div>' +
+          (x.message ? '<div class="msg">' + esc(x.message) + '</div>' : '<div class="msg empty">No message, just a face.</div>') +
+          ((x.page || x.device) ? '<div class="meta">' + esc([x.page, x.device].filter(Boolean).join(' · ')) + '</div>' : '') +
+          '<div class="acts">' + (x.email ? '<a class="btn small" href="mailto:' + esc(x.email) + '?subject=' + encodeURIComponent('Re: your Board Game Curator feedback') + '"><i class="fa-solid fa-reply"></i> Reply</a>' : '') +
+            (x.status !== 'seen' && x.status !== 'done' ? '<button type="button" class="btn small" data-fb-status="seen" data-fb="' + x.id + '">Mark seen</button>' : '') +
+            (x.status !== 'done' ? '<button type="button" class="btn small" data-fb-status="done" data-fb="' + x.id + '"><i class="fa-solid fa-check"></i> Done</button>'
+              : '<button type="button" class="btn small" data-fb-status="new" data-fb="' + x.id + '">Reopen</button>') + '</div></div>';
+      }).join('') + '</div>'
+      : '<div class="card" style="margin-top:1rem;"><p class="empty">' + (fb.items.length ? 'Nothing here. Try All.' : 'No feedback yet. Members send it from the cog → Send feedback.') + '</p></div>');
+  }
+  async function fbStatus(id, status) {
+    try { await post('/feedback', { action: 'status', id, status }); await loadA(true); renderFeedback(A); }
+    catch (e) { if (e instanceof Gate) return gate(e.message, e.button); toast(e.message, true); }
+  }
+
   async function saveFixed() {
     const items = fixedDraft.filter((x) => String(x.name || '').trim()).map((x) => ({ name: String(x.name).trim(), amount: String(x.amount || '').replace(/[$,\s]/g, ''), per: x.per === 'year' ? 'year' : 'month' }));
     const bad = items.find((x) => !/^\d+(\.\d+)?$/.test(x.amount));
@@ -699,6 +746,10 @@
     if (e.target.closest('#rbOther')) { rbNew.game = null; return rbNewRedraw('rbQ'); }
     const pk = e.target.closest('[data-rb-pick]');
     if (pk) { rbNew.game = rbNew.hits[Number(pk.dataset.rbPick)]; return rbNewRedraw(); }
+    const fs = e.target.closest('[data-fb-show]');
+    if (fs) { fbShow = fs.dataset.fbShow; return renderFeedback(A); }
+    const fst = e.target.closest('[data-fb-status]');
+    if (fst) return fbStatus(Number(fst.dataset.fb), fst.dataset.fbStatus);
     const dr = e.target.closest('[data-doc-remove]');
     if (dr) {
       if (armed !== 'doc:' + dr.dataset.docRemove) { armed = 'doc:' + dr.dataset.docRemove; return show(); }

@@ -2,6 +2,12 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.16 · October 21, 2026
+
+- **Send feedback:** tap the ⚙️ cog → *Send feedback*. Pick a face for how it's going, say what it's about (an idea, something wrong, something you like, a question) and tell us more. Dan reads every one and can reply by email.
+
+*Behind the scenes: Admin has a Feedback page with how it's going on average, and the dashboard's game lists now count members (owned, played, rated and wished for by the most members).*
+
 ## v0.15.1 · October 21, 2026
 
 - **Find a game fast:** start typing a game's name in the Ask bar and matching games from your shelf drop down right away. Tap one to open it. When you've typed most of a name, Enter opens that game. No waiting, and it doesn't use up one of your questions. The last row always offers "Ask Nathan" instead.

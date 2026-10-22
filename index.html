@@ -353,6 +353,17 @@
   .np-compose .photo-chip { margin: 0 0 0.45rem 0.4rem; }
   body.chatting #barPhotoChip { display: none; }
   .np-bubble img.np-photo { display: block; max-width: min(220px, 100%); max-height: 220px; object-fit: cover; border-radius: 0.7rem; margin-bottom: 0.4rem; }
+  /* Send feedback: how it's going (faces), what kind (chips), and their words */
+  .fb-moods { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.4rem; margin-top: 0.4rem; }
+  .fb-moods button { border: 2px solid transparent; background: var(--exp-bg); border-radius: 0.8rem; padding: 0.45rem 0 0.35rem; cursor: pointer; font-size: 1.6rem; line-height: 1; color: var(--ink); display: grid; gap: 0.25rem; justify-items: center; font-family: var(--font-body); }
+  .fb-moods button span { font-size: 0.66rem; font-weight: 700; color: var(--text-muted); }
+  .fb-moods button.sel { border-color: var(--brand); background: #fff3ef; }
+  .fb-kinds { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
+  .fb-kinds button { border: 2px solid var(--exp-bg); background: #fff; border-radius: 999px; padding: 0.4rem 0.85rem; cursor: pointer; font-family: var(--font-body); font-weight: 700; font-size: 0.88rem; color: var(--ink); display: inline-flex; align-items: center; gap: 0.35rem; }
+  .fb-kinds button.sel { border-color: var(--brand); color: var(--brand-dark); background: #fff3ef; }
+  .fb-moods button:focus-visible, .fb-kinds button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  #fbMessage { width: 100%; min-height: 7rem; resize: vertical; background: var(--exp-bg); border: none; border-radius: 0.8rem; padding: 0.7rem 0.9rem; font-family: var(--font-body); font-size: 0.95rem; color: var(--ink); outline: none; }
+  #fbMessage:focus { box-shadow: 0 0 0 2px var(--brand) inset; }
   .mention-list { position: absolute; left: 2.6rem; top: calc(100% + 0.35rem); z-index: 20; background: #fff; border-radius: 0.9rem; box-shadow: 0 12px 30px rgba(40,25,10,0.18); padding: 0.35rem; min-width: 15rem; max-width: calc(100% - 3rem); max-height: 16rem; overflow-y: auto; }
   .mention-list[hidden] { display: none; }
   .mention-opt { display: flex; align-items: center; gap: 0.55rem; width: 100%; border: none; background: none; text-align: left; padding: 0.5rem 0.65rem; border-radius: 0.6rem; font-family: var(--font-body); font-size: 0.92rem; font-weight: 600; color: var(--ink); cursor: pointer; }
@@ -1006,6 +1017,11 @@
         <p class="hint" style="margin-top:0;" id="newsVersion">The release notes for every update.</p>
         <button class="btn" id="openNewsBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-sparkles"></i> What's new</button>
       </div>
+      <div>
+        <label>Feedback</label>
+        <p class="hint" style="margin-top:0;">An idea, something broken, or just how it's going. Dan reads every one.</p>
+        <button class="btn" id="openFeedbackBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-message-heart"></i> Send feedback</button>
+      </div>
       <div class="not-owner">
         <label>My plays</label>
         <p class="hint" style="margin-top:0;">Your plays from BoardGameGeek (and BG Stats, if it posts there) refresh every night. Just logged a game? Sync now.</p>
@@ -1029,6 +1045,35 @@
         <button class="btn ghost" id="settingsCancel">Close</button>
       </div>
     </div>
+  </div>
+
+  <!-- Send feedback -->
+  <div class="modal-overlay" id="feedbackModal">
+    <form class="modal" id="feedbackForm" novalidate>
+      <h2>Send feedback</h2>
+      <label style="margin-top:0;" id="fbMoodLabel">How's Board Game Curator working for you?</label>
+      <div class="fb-moods" role="radiogroup" aria-labelledby="fbMoodLabel">
+        <button type="button" role="radio" aria-checked="false" data-mood="1">😣<span>Not great</span></button>
+        <button type="button" role="radio" aria-checked="false" data-mood="2">😕<span>Meh</span></button>
+        <button type="button" role="radio" aria-checked="false" data-mood="3">🙂<span>Okay</span></button>
+        <button type="button" role="radio" aria-checked="false" data-mood="4">😀<span>Good</span></button>
+        <button type="button" role="radio" aria-checked="false" data-mood="5">🤩<span>Love it</span></button>
+      </div>
+      <label id="fbKindLabel">What's it about?</label>
+      <div class="fb-kinds" role="radiogroup" aria-labelledby="fbKindLabel">
+        <button type="button" role="radio" aria-checked="true" class="sel" data-kind="idea"><i class="ti ti-bulb"></i> An idea</button>
+        <button type="button" role="radio" aria-checked="false" data-kind="problem"><i class="ti ti-bug"></i> Something's wrong</button>
+        <button type="button" role="radio" aria-checked="false" data-kind="praise"><i class="ti ti-heart"></i> Something I like</button>
+        <button type="button" role="radio" aria-checked="false" data-kind="question"><i class="ti ti-help-circle"></i> A question</button>
+      </div>
+      <label for="fbMessage">Tell us more</label>
+      <textarea id="fbMessage" maxlength="2000" placeholder="What would make it better? If something broke, what were you doing?"></textarea>
+      <p class="hint">We include which page you were on and your device, to help with problems. Replies come by email.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="feedbackCancel">Cancel</button>
+        <button type="submit" class="btn primary" id="feedbackSend">Send</button>
+      </div>
+    </form>
   </div>
 
   <!-- What's new: the release notes -->
@@ -2213,6 +2258,44 @@
       newsModal.querySelector('.modal').scrollTop = 0;
     });
     document.getElementById('newsClose').addEventListener('click', () => newsModal.classList.remove('open'));
+
+    // Send feedback: a face for how it's going (optional), what it's about, and their words; Dan gets an email he can reply to
+    const feedbackModal = document.getElementById('feedbackModal');
+    const fbForm = document.getElementById('feedbackForm');
+    let fbMood = null, fbKind = 'idea';
+    const fbPick = (box, attr, val) => box.querySelectorAll('[data-' + attr + ']').forEach((b) => { const on = b.dataset[attr] === String(val); b.classList.toggle('sel', on); b.setAttribute('aria-checked', String(on)); });
+    document.getElementById('openFeedbackBtn').addEventListener('click', () => {
+      settingsModal.classList.remove('open');
+      fbMood = null; fbKind = 'idea';
+      fbPick(fbForm, 'mood', ''); fbPick(fbForm, 'kind', 'idea');
+      document.getElementById('fbMessage').value = '';
+      feedbackModal.classList.add('open');
+    });
+    fbForm.addEventListener('click', (e) => {
+      const m = e.target.closest('[data-mood]');
+      if (m) { fbMood = fbMood === Number(m.dataset.mood) ? null : Number(m.dataset.mood); fbPick(fbForm, 'mood', fbMood ?? ''); return; }
+      const k = e.target.closest('[data-kind]');
+      if (k) { fbKind = k.dataset.kind; fbPick(fbForm, 'kind', fbKind); }
+    });
+    const closeFeedback = () => feedbackModal.classList.remove('open');
+    document.getElementById('feedbackCancel').addEventListener('click', closeFeedback);
+    feedbackModal.addEventListener('click', (e) => { if (e.target === feedbackModal) closeFeedback(); });
+    fbForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = document.getElementById('fbMessage').value.trim();
+      if (!message && !fbMood) { toast('Pick a face or write a few words first.', true); document.getElementById('fbMessage').focus(); return; }
+      const send = document.getElementById('feedbackSend');
+      send.disabled = true; send.textContent = 'Sending…';
+      // Where they were and on what, so a problem can be found again
+      const where = [location.pathname + location.hash, viewingFriend() ? 'viewing a friend’s shelf' : '', document.getElementById('nathanPanel').classList.contains('full') ? 'Nathan full screen' : ''].filter(Boolean).join(' · ');
+      const device = navigator.userAgent.slice(0, 220) + ' · ' + window.innerWidth + '×' + window.innerHeight;
+      try {
+        const r = await n8nFetch('/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: fbKind, mood: fbMood, message, page: where, device }) });
+        closeFeedback();
+        toast(r.message || 'Thanks!');
+      } catch (err) { toast(err.message, true); }
+      finally { send.disabled = false; send.textContent = 'Send'; }
+    });
     newsModal.addEventListener('click', (e) => { if (e.target === newsModal) newsModal.classList.remove('open'); });
     document.getElementById('syncPlaysBtn').addEventListener('click', async (e) => {
       const btn = e.currentTarget;

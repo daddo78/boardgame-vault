@@ -63,6 +63,10 @@ BEGIN
     res := res || jsonb_build_object('what', 'an AI call''s cost can be recorded', 'ok', coalesce((bgc.log_ai('dandehaan@gmail.com', '[{"feature": "nathan", "model": "check-model", "cost": 0.5}]') IS NULL), false));
     res := res || jsonb_build_object('what', 'the recorded cost is there afterwards', 'ok', coalesce((EXISTS (SELECT 1 FROM ai_costs WHERE model = 'check-model' AND cost = 0.5 AND feature = 'nathan')), false));
     res := res || jsonb_build_object('what', 'only admins see what the site costs', 'ok', coalesce((NOT (bgc.costs_page('check.member@example.invalid') ->> 'ok')::boolean AND (bgc.costs_page('dandehaan@gmail.com') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'a member can send feedback', 'ok', coalesce(((bgc.feedback('check.member@example.invalid', '{"kind": "idea", "mood": 4, "message": "check feedback"}') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'empty feedback is turned away', 'ok', coalesce((NOT (bgc.feedback('check.member@example.invalid', '{}') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'only admins read feedback', 'ok', coalesce((bgc.feedback_all('check.member@example.invalid') IS NULL AND bgc.feedback_all('dandehaan@gmail.com') -> 'items' -> 0 ->> 'message' = 'check feedback'), false));
+    res := res || jsonb_build_object('what', 'a member can''t mark feedback done', 'ok', coalesce((NOT (bgc.feedback('check.member@example.invalid', jsonb_build_object('action', 'status', 'status', 'done', 'id', (SELECT max(id) FROM feedback))) ->> 'ok')::boolean), false));
     res := res || jsonb_build_object('what', 'Dan''s play counts are intact (The Crew: 21)', 'ok', coalesce(((SELECT play_count FROM shelves s JOIN games g ON g.id = s.game_id WHERE s.member_id = 1 AND g.title = 'The Crew: The Quest for Planet Nine') = 21), false));
     RAISE EXCEPTION 'self-check done' USING ERRCODE = 'P0001'; -- undo everything the checks did
   EXCEPTION WHEN raise_exception THEN

@@ -64,6 +64,7 @@ const ID = {
   costs: 'BGVaultCosts0001',
   costsSave: 'BGVaultCostsSav1',
   fillCatalog: 'BGVaultFillCat01',
+  feedbackSend: 'BGVaultFeedbck01',
   dashboard: 'BGVaultDashbrd01',
   askTest: 'BGVaultAskTest01',
   selfTest: 'BGVaultSelfTest1',
@@ -3002,7 +3003,7 @@ addMemberAuth(profilePage, { failTo: 'Respond Error' });
 // =====================================================================
 const admin = wf(ID.admin, 'Vault — Admin', [
   webhook('Webhook', 'GET', 'vault/admin'),
-  pg('Overview', "SELECT bgc.admin_overview($1) || CASE WHEN bgc.is_admin($1) THEN jsonb_build_object('rulebooks', bgc.rule_docs_all($1)) ELSE '{}'::jsonb END AS r", '={{ [$json._auth.email] }}'),
+  pg('Overview', "SELECT bgc.admin_overview($1) || CASE WHEN bgc.is_admin($1) THEN jsonb_build_object('rulebooks', bgc.rule_docs_all($1)) ELSE '{}'::jsonb END || jsonb_strip_nulls(jsonb_build_object('feedback', bgc.feedback_all($1))) AS r", '={{ [$json._auth.email] }}'),
   code('Result', function () { return [{ json: $input.first().json.r }]; }),
   ifTrue('OK?', '={{ $json.ok }}'),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
@@ -3468,6 +3469,44 @@ const costsSave = wf(ID.costsSave, 'Vault — Costs (fixed costs)', [
 addMemberAuth(costsSave, { failTo: 'Respond Error' });
 
 // =====================================================================
+// 43. Feedback  POST /webhook/vault/feedback { kind, mood, message, page, device }  (member gate): saved, and Dan gets
+//     an email he can reply to. Admins mark one seen or done with { action: 'status', id, status }.
+// =====================================================================
+const feedbackSend = wf(ID.feedbackSend, 'Vault — Feedback', [
+  webhook('Webhook', 'POST', 'vault/feedback'),
+  pg('Save', 'SELECT bgc.feedback($1, $2::jsonb) AS r', '={{ [$json._auth.email, JSON.stringify($json.body || {})] }}'),
+  code('Result', function () { return [{ json: $input.first().json.r }]; }),
+  ifTrue('OK?', '={{ $json.ok }}'),
+  ifTrue('New?', '={{ !!$json.id }}'),
+  code('Compose', function () {
+    const f = $input.first().json;
+    const b = $('Webhook').first().json.body || {};
+    const KIND = { idea: 'an idea', problem: 'a problem', praise: 'some praise', question: 'a question' };
+    const MOOD = ['', '1/5 (not great)', '2/5', '3/5 (okay)', '4/5', '5/5 (love it)'];
+    const first = String(f.name || 'A member').split(' ')[0];
+    const text = [
+      first + ' sent ' + (KIND[f.kind] || 'feedback') + '.', '',
+      f.mood ? 'How it\'s going: ' + MOOD[f.mood] : '',
+      f.message ? '"' + f.message + '"' : '(no message)', '',
+      'From: ' + f.name + ' <' + f.from + '>',
+      b.page ? 'Page: ' + String(b.page).slice(0, 200) : '',
+      b.device ? 'Device: ' + String(b.device).slice(0, 300) : '', '',
+      'Reply to this email to answer ' + first + '. All feedback: https://bg.ondorilabo.com/admin#feedback',
+    ].filter((x, i, all) => x !== '' || all[i - 1] !== '').join('\n');
+    return [{ json: { subject: 'Feedback from ' + first + ': ' + (KIND[f.kind] || 'feedback') + (f.mood ? ' · ' + f.mood + '/5' : ''), text, replyTo: f.from } }];
+  }),
+  { ...node('Email Dan', 'n8n-nodes-base.emailSend', 2.1, {
+    fromEmail: ALERT_FROM, toEmail: ALERT_TO, subject: '={{ $json.subject }}', emailFormat: 'text', text: '={{ $json.text }}',
+    options: { appendAttribution: false, replyTo: '={{ $json.replyTo }}' },
+  }, { credentials: CRED.smtp }), onError: 'continueRegularOutput' },
+  code('Thanks', function () { return [{ json: { ok: true, message: 'Thanks! Dan reads every one.' } }]; }),
+  respond('Respond OK', '={{ JSON.stringify($json) }}'),
+  respondError(),
+], [['Webhook', 'Save'], ['Save', 'Result'], ['Result', 'OK?'], ['OK?', 'New?', 0], ['OK?', 'Respond Error', 1],
+  ['New?', 'Compose', 0], ['New?', 'Respond OK', 1], ['Compose', 'Email Dan'], ['Email Dan', 'Thanks'], ['Thanks', 'Respond OK']]);
+addMemberAuth(feedbackSend, { failTo: 'Respond Error' });
+
+// =====================================================================
 // 42. Fill Catalog  every 10 minutes (and "Run Now"): 20 catalog games that were never looked up on BGG (they came in
 //     from logged plays) get their details and box art. Wishlist and Top 10 games first, then games on shelves.
 // =====================================================================
@@ -3500,7 +3539,7 @@ const fillCatalog = wf(ID.fillCatalog, 'Vault — Fill Catalog', [
   ['BGG Details', 'Parse Details'], ['Parse Details', 'Box Art'], ['Box Art', 'With Covers'], ['With Covers', 'Save']]);
 
 // ---------- write ----------
-const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest, memory, memoryForget, memberPlays, memberPlaysNightly, ruleChange, ruleReader, aiUsage, costs, costsSave, fillCatalog };
+const all = { errorAlert, healthCheck, shelfAdd, shelfIdentify, friends, friendsChange, getCollection, update, del, identify, iconOne, iconBatch, bggOne, bggBatch, syncPlays, photoSweep, bggSearch, addByName, whoAmI, people, rate, playerSave, playersAdmin, bggUserRatings, syncPeople, ask, me, meSave, shelf, shelfUpdate, shelfRemove, importBgg, shelfCsv, wishlist, wishChange, profilePage, admin, adminAction, rulebookUpload, rulebookGet, dashboard, askTest, selfTest, memory, memoryForget, memberPlays, memberPlaysNightly, ruleChange, ruleReader, aiUsage, costs, costsSave, fillCatalog, feedbackSend };
 const outDir = path.join(__dirname, 'workflows');
 fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
