@@ -130,6 +130,17 @@
   .fixed-row input, .fixed-row select { min-width: 0; border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 0.6rem; padding: 0.5rem 0.6rem; color: var(--ink); }
   @media (max-width: 520px) { .fixed-row { grid-template-columns: minmax(0, 1fr) 5.5rem 5.5rem auto; } }
   .warnbox { border-left: 5px solid var(--brand); }
+  /* Admin → Rulebooks: add one to any game */
+  .rb-new { margin-top: 1rem; }
+  .rb-new select { border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 0.6rem; padding: 0.6rem 0.75rem; color: var(--ink); flex: 0 1 12rem; }
+  .rb-hits { display: grid; gap: 0.25rem; max-height: 19rem; overflow-y: auto; }
+  .rb-hits button { display: flex; align-items: center; gap: 0.6rem; width: 100%; border: none; background: none; text-align: left; padding: 0.4rem 0.5rem; border-radius: 0.6rem; cursor: pointer; color: var(--ink); }
+  .rb-hits button:hover, .rb-hits button:focus-visible { background: var(--soft); outline: none; }
+  .rb-hits img, .rb-hits .ph, .rb-game img, .rb-game .ph { width: 2.4rem; height: 2.4rem; border-radius: 0.45rem; object-fit: cover; background: var(--soft); flex: none; }
+  .rb-hits b, .rb-game b { font-weight: 700; }
+  .rb-hits small, .rb-game small { display: block; color: var(--muted); font-size: 0.78rem; }
+  .rb-game { display: flex; align-items: center; gap: 0.6rem; background: var(--soft); border-radius: 0.8rem; padding: 0.5rem 0.6rem; }
+  .rb-game .btn { margin-left: auto; }
   .toast { position: fixed; left: 50%; bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: #fff; padding: 0.7rem 1.2rem; border-radius: 999px;
     font-weight: 600; font-size: 0.9rem; box-shadow: 0 8px 24px rgba(0,0,0,0.2); z-index: 50; max-width: calc(100% - 2rem); }
   .toast.err { background: var(--brand-dark); }
@@ -522,16 +533,109 @@
         y: { stacked: true, beginAtZero: true, ticks: { callback: (v) => '$' + Number(v).toFixed(v === 0 ? 0 : v < 0.01 ? 4 : v < 1 ? 3 : 2) } } },
         plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Outfit' } } }, tooltip: { callbacks: { label: (x) => x.dataset.label + ': $' + Number(x.raw).toFixed(4) } } } }) });
   }
+  app.addEventListener('input', (e) => {
+    if (e.target.id !== 'rbQ' || !rbNew) return;
+    clearTimeout(rbSearchTimer);
+    const q = e.target.value.trim();
+    rbSearchTimer = setTimeout(() => rbSearch(q), 350);
+  });
+  app.addEventListener('change', (e) => {
+    if (!e.target.matches('#rbForm input[type=file]')) return;
+    const f = e.target.files[0];
+    document.getElementById('rbFileName').textContent = f ? f.name : 'Choose the PDF';
+  });
   app.addEventListener('input', (e) => { const el = e.target.closest('[data-fx]'); if (el && fixedDraft) fixedDraft[Number(el.dataset.fx)][el.dataset.k] = el.value; });
   app.addEventListener('change', (e) => { const el = e.target.closest('select[data-fx]'); if (el && fixedDraft) fixedDraft[Number(el.dataset.fx)].per = el.value; });
 
   // ================= Rulebooks =================
+  // Adding one: search BGG for the game, then the same details as on a game (what it is, a name, the official link, the PDF)
+  const RB_KINDS = [['rulebook', 'Rulebook'], ['reference', 'Reference guide'], ['appendix', 'Appendix'], ['faq', 'FAQ'], ['solo', 'Solo rules'], ['other', 'Other']];
+  let rbNew = null;   // { q, hits, game: { bggId, title, year, thumbnail }, busy }
+  let rbPoll = null, rbSearchTimer = null;
+  function rbNewHtml() {
+    if (!rbNew) return '<div class="rb-new"><button type="button" class="btn primary" id="rbOpen"><i class="fa-solid fa-plus"></i> Add a rulebook</button></div>';
+    const g = rbNew.game;
+    const pic = (x) => x.thumbnail ? '<img src="' + esc(x.thumbnail) + '" alt="">' : '<span class="ph"></span>';
+    return '<div class="card rb-new"><h3>Add a rulebook <button type="button" class="btn small" id="rbClose">Cancel</button></h3>' +
+      (!g
+        ? '<div class="form"><input type="search" id="rbQ" placeholder="Which game? Type its name" autocomplete="off" value="' + esc(rbNew.q || '') + '" aria-label="Search for the game">' +
+          '<div class="rb-hits" id="rbHits">' + rbHitsHtml() + '</div></div>'
+        : '<form class="form" id="rbForm">' +
+            '<div class="rb-game">' + pic(g) + '<div><b>' + esc(g.title) + '</b><small>' + esc([g.year, 'BGG #' + g.bggId].filter(Boolean).join(' · ')) + '</small></div>' +
+              '<button type="button" class="btn small" id="rbOther">Change game</button></div>' +
+            '<div class="row"><select name="kind" aria-label="What it is">' + RB_KINDS.map(([v, l]) => '<option value="' + v + '">' + l + '</option>').join('') + '</select>' +
+              '<input type="text" name="title" maxlength="120" placeholder="Name (optional), e.g. Quick start"></div>' +
+            '<div class="row"><input type="url" name="source" placeholder="Link to the official copy (publisher page or PDF), https://…"></div>' +
+            '<div class="row"><label class="btn" style="cursor:pointer;"><i class="fa-solid fa-file-pdf"></i> <span id="rbFileName">Choose the PDF</span><input type="file" name="file" accept="application/pdf,.pdf" hidden></label>' +
+              '<button type="submit" class="btn primary"' + (rbNew.busy ? ' disabled' : '') + '><i class="fa-solid fa-upload"></i> ' + (rbNew.busy ? 'Uploading…' : 'Add it') + '</button>' +
+              '<a class="btn" href="https://boardgamegeek.com/boardgame/' + Number(g.bggId) + '/files" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Find it on BGG</a></div>' +
+            '<div class="note">Nathan reads it (about 10 seconds a page, up to 60 pages), then the PDF is deleted. It shows on this game, and every edition of it, on everyone’s shelf. Admins have no daily limit.</div>' +
+          '</form>') +
+      '</div>';
+  }
+  function rbHitsHtml() {
+    if (!rbNew || !rbNew.q || rbNew.q.length < 2) return '';
+    if (!rbNew.hits) return '<p class="empty">Searching BoardGameGeek…</p>';
+    if (rbNew.hits.error) return '<p class="empty">' + esc(rbNew.hits.error) + '</p>';
+    if (!rbNew.hits.length) return '<p class="empty">No BoardGameGeek matches for "' + esc(rbNew.q) + '".</p>';
+    const have = new Set((A.rulebooks || []).map((d) => d.game));
+    return rbNew.hits.slice(0, 12).map((h, k) => '<button type="button" data-rb-pick="' + k + '">' + (h.thumbnail ? '<img src="' + esc(h.thumbnail) + '" alt="" loading="lazy">' : '<span class="ph"></span>') +
+      '<span><b>' + esc(h.title) + '</b><small>' + esc([h.year, h.kind === 'expansion' ? 'Expansion' : '', have.has(h.title) ? 'Has a rulebook already' : ''].filter(Boolean).join(' · ')) + '</small></span></button>').join('');
+  }
+  async function rbSearch(q) {
+    rbNew.q = q; rbNew.hits = null;
+    const box = document.getElementById('rbHits');
+    if (box) box.innerHTML = rbHitsHtml();
+    if (q.length < 2) return;
+    try {
+      const { results } = await call('/bgg-search?q=' + encodeURIComponent(q));
+      if (!rbNew || rbNew.q !== q) return; // a newer search is in flight
+      rbNew.hits = results || [];
+    } catch (e) {
+      if (e instanceof Gate) return gate(e.message, e.button);
+      if (rbNew) rbNew.hits = { error: e.message };
+    }
+    const b = document.getElementById('rbHits');
+    if (b) b.innerHTML = rbHitsHtml();
+  }
+  async function rbUpload(form) {
+    const file = form.querySelector('input[type=file]').files[0];
+    if (!file) return toast('Choose the PDF first.', true);
+    if (file.size > 60 * 1024 * 1024) return toast('That PDF is over 60 MB. Try the publisher’s smaller version.', true);
+    const source = form.querySelector('[name=source]').value.trim();
+    if (source && !/^https:\/\/\S{4,}$/.test(source)) return toast('The link should start with https://', true);
+    const t = token();
+    if (!fresh(t)) return gate('Your sign-in expired. Sign in again to open Admin.', true);
+    const g = rbNew.game;
+    const fd = new FormData();
+    fd.append('file', file, file.name); fd.append('bggId', String(g.bggId)); fd.append('gameTitle', g.title);
+    fd.append('kind', form.querySelector('[name=kind]').value); fd.append('title', form.querySelector('[name=title]').value.trim()); fd.append('source', source);
+    const btn = form.querySelector('[type=submit]');
+    rbNew.busy = true; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-upload"></i> Uploading…';
+    try {
+      const res = await fetch(N8N + '/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + t }, body: fd });
+      const r = await res.json().catch(() => ({}));
+      if (!res.ok || !r.ok) throw new Error(r.message || 'Upload failed (' + res.status + ')');
+      rbNew = null;
+      toast('Got it. Nathan is reading ' + g.title + ' now; it takes about 10 seconds a page.');
+      await loadA(true);
+      show();
+    } catch (e) {
+      if (rbNew) rbNew.busy = false;
+      btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-upload"></i> Add it';
+      toast(e.message, true);
+    }
+  }
   function renderRulebooks(a) {
     const docs = a.rulebooks || [];
+    // While Nathan reads, the page counts tick up on their own (the add form, and anything typed in it, stays put)
+    clearTimeout(rbPoll);
+    if (docs.some((d) => d.status === 'queued' || d.status === 'reading')) rbPoll = setTimeout(rbTick, 6000);
     const st = (d) => d.status === 'ready' ? '<span class="pill ok">Ready</span>' : d.status === 'error' ? '<span class="pill warn">Couldn’t read</span>'
       : '<span class="pill busy">' + (d.status === 'queued' ? 'Waiting' : 'Reading ' + d.pagesDone + '/' + d.pages) + '</span>';
     app.innerHTML =
-      '<h1><i class="fa-solid fa-book-open"></i> Rulebooks</h1><div class="sub">Every rulebook and guide Nathan has read. Members add them from a game’s details; we keep his text and a link to the official copy, never the PDF.</div>' +
+      '<h1><i class="fa-solid fa-book-open"></i> Rulebooks</h1><div class="sub">Every rulebook and guide Nathan has read. Add one for any game here, or members add them from a game’s details; we keep his text and a link to the official copy, never the PDF.</div>' +
+      '<div id="rbNewBox">' + rbNewHtml() + '</div><div id="rbTable">' +
       (docs.length ? '<div class="table-wrap" style="margin-top:1rem;"><table style="min-width:760px;"><thead><tr><th>Game</th><th style="text-align:left;">Document</th><th>Pages</th><th>Sections</th><th style="text-align:left;">Status</th><th style="text-align:left;">Added</th><th style="text-align:left;">Official copy</th><th></th></tr></thead><tbody>' +
         docs.map((d) => '<tr><td><span class="name">' + esc(d.game) + '</span></td><td style="text-align:left;">' + esc(d.label) + (d.title ? ' · ' + esc(d.title) : '') + '</td>' +
           '<td>' + num(d.pages) + '</td><td>' + num(d.sections) + '</td><td style="text-align:left;">' + st(d) + (d.error ? '<div class="note" style="white-space:normal;">' + esc(d.error) + '</div>' : '') + '</td>' +
@@ -539,7 +643,21 @@
           '<td style="text-align:left;">' + (d.source ? '<a href="' + esc(d.source) + '" target="_blank" rel="noopener">Open</a> · ' : '') + '<button type="button" class="btn small" data-link="' + d.id + '">' + (d.source ? 'Change' : 'Add link') + '</button></td>' +
           '<td><button type="button" class="btn small danger' + (armed === 'doc:' + d.id ? ' armed' : '') + '" data-doc-remove="' + d.id + '">' + (armed === 'doc:' + d.id ? 'Tap again to remove' : 'Remove') + '</button></td></tr>').join('') +
         '</tbody></table></div>'
-        : '<div class="card" style="margin-top:1rem;"><p class="empty">No rulebooks yet. Members add them from a game’s details → Rulebooks &amp; guides.</p></div>');
+        : '<div class="card" style="margin-top:1rem;"><p class="empty">No rulebooks yet. Add one above, or members add them from a game’s details → Rulebooks &amp; guides.</p></div>') + '</div>';
+  }
+  async function rbTick() {
+    if (current !== 'rulebooks') return;
+    try { await loadA(true); } catch (e) { return; }
+    const keep = document.getElementById('rbNewBox');
+    if (current !== 'rulebooks' || !keep) return;
+    renderRulebooks(A);
+    document.getElementById('rbNewBox').replaceWith(keep);
+  }
+  function rbNewRedraw(focus) {
+    const box = document.getElementById('rbNewBox');
+    if (box) box.innerHTML = rbNewHtml();
+    const el = focus && document.getElementById(focus);
+    if (el) el.focus();
   }
   async function docChange(payload) {
     try { await post('/rulebook-change', payload); toast(payload.action === 'remove' ? 'Removed.' : 'Link saved.'); armed = null; await loadA(true); show(); }
@@ -576,6 +694,11 @@
     if (e.target.closest('#fxAdd')) { fixedDraft.push({ name: '', amount: '', per: 'month' }); return renderCosts(C); }
     const fx = e.target.closest('[data-fx-remove]');
     if (fx) { fixedDraft.splice(Number(fx.dataset.fxRemove), 1); return renderCosts(C); }
+    if (e.target.closest('#rbOpen')) { rbNew = { q: '', hits: null }; return rbNewRedraw('rbQ'); }
+    if (e.target.closest('#rbClose')) { rbNew = null; return rbNewRedraw(); }
+    if (e.target.closest('#rbOther')) { rbNew.game = null; return rbNewRedraw('rbQ'); }
+    const pk = e.target.closest('[data-rb-pick]');
+    if (pk) { rbNew.game = rbNew.hits[Number(pk.dataset.rbPick)]; return rbNewRedraw(); }
     const dr = e.target.closest('[data-doc-remove]');
     if (dr) {
       if (armed !== 'doc:' + dr.dataset.docRemove) { armed = 'doc:' + dr.dataset.docRemove; return show(); }
@@ -587,6 +710,7 @@
     if (e.target.id === 'invite') adminAct({ action: 'invite', name: document.getElementById('invName').value, email: document.getElementById('invEmail').value });
     if (e.target.id === 'limit') adminAct({ action: 'askLimit', value: Number(document.getElementById('limitValue').value) });
     if (e.target.id === 'fixedForm') saveFixed();
+    if (e.target.id === 'rbForm') rbUpload(e.target);
   });
 
   start();
