@@ -87,9 +87,13 @@ BEGIN
     'mostOwned', (SELECT coalesce(jsonb_agg(x ORDER BY (x ->> 'n')::int DESC), '[]') FROM (
       SELECT jsonb_build_object('title', g.title, 'cover', g.cover_card, 'n', count(*), 'who', string_agg(split_part(m.display_name, ' ', 1), ', ' ORDER BY m.display_name)) AS x
       FROM shelves s JOIN games g ON g.id = s.game_id JOIN members m ON m.id = s.member_id GROUP BY g.id HAVING count(*) > 1 ORDER BY count(*) DESC, g.bgg_rank NULLS LAST LIMIT 12) q),
-    'mostPlayed', (SELECT coalesce(jsonb_agg(x ORDER BY (x ->> 'n')::int DESC), '[]') FROM (
-      SELECT jsonb_build_object('title', g.title, 'cover', g.cover_card, 'n', sum(s.play_count)) AS x
-      FROM shelves s JOIN games g ON g.id = s.game_id GROUP BY g.id ORDER BY sum(s.play_count) DESC LIMIT 12) q),
+    -- Played by the most people: everyone at the table in any member's logged plays, so one person's hundreds of
+    -- games of cribbage don't freeze the list. Ties go to the game with more plays.
+    'mostPlayed', (SELECT coalesce(jsonb_agg(x ORDER BY (x ->> 'n')::int DESC, (x ->> 'plays')::int DESC), '[]') FROM (
+      SELECT jsonb_build_object('title', g.title, 'cover', g.cover_card, 'n', q.people, 'plays', q.plays) AS x
+      FROM (SELECT p.game_id, count(DISTINCT coalesce(pp.player_id::text, 'name:' || lower(btrim(pp.name)))) AS people, count(DISTINCT p.id) AS plays
+            FROM plays p JOIN play_players pp ON pp.play_id = p.id WHERE p.game_id IS NOT NULL GROUP BY p.game_id) q
+      JOIN games g ON g.id = q.game_id ORDER BY q.people DESC, q.plays DESC LIMIT 12) q),
     'topRated', (SELECT coalesce(jsonb_agg(x ORDER BY (x ->> 'avg')::numeric DESC, (x ->> 'n')::int DESC), '[]') FROM (
       SELECT jsonb_build_object('title', g.title, 'cover', g.cover_card, 'avg', round(avg(r.stars), 2), 'n', count(*)) AS x
       FROM ratings r JOIN games g ON g.id = r.game_id GROUP BY g.id HAVING count(*) >= 2 ORDER BY avg(r.stars) DESC, count(*) DESC LIMIT 12) q),

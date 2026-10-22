@@ -297,7 +297,7 @@
       '<h2><i class="fa-solid fa-dice"></i> The games</h2>' +
       '<div class="grid3">' +
         gamesCard('On the most shelves', d.mostOwned, (g) => g.n + ' shelves', (g) => g.who) +
-        gamesCard('Most played', d.mostPlayed, (g) => num(g.n) + ' plays') +
+        gamesCard('Played by the most people', d.mostPlayed, (g) => num(g.n) + ' people', (g) => num(g.plays) + (g.plays === 1 ? ' play' : ' plays')) +
         gamesCard('Highest rated by members', d.topRated, (g) => Number(g.avg).toFixed(1) + '★', (g) => g.n + ' ratings') +
         gamesCard('Most wished for', d.mostWished, (g) => g.n + (g.n === 1 ? ' wish' : ' wishes')) +
         gamesCard('Recently added', d.recentlyAdded, (g) => '', (g) => g.who + ' · ' + ago(g.at)) +
