@@ -85,7 +85,7 @@ Why: the 53 n8n workflows are mostly thin API endpoints. One small service is ho
 - [x] The OpenRouter key in `~/bgc-db/.env` on the server (placed Oct 22; never in the repo)
 
 **Phase 1: the service (`server/bgc-api`)**
-Live at https://api.ondorilabo.com since Oct 22 (14 tests, three routes ported: whoami, me, profile; ~20 MB of memory). The page doesn't use it yet. Still to try: the routes with a real member sign-in from the page.
+Live at https://api.ondorilabo.com since Oct 22 (14 tests, three routes ported: whoami, me, profile; ~20 MB of memory). The page doesn't use it yet, except Admin → Dashboard → New API check, which asks it and n8n the same with your sign-in: whoami, me and profile all gave the same answers as n8n (Oct 22).
 - [x] TypeScript on Node in Docker on the same VPS, with Hono (small, fast, standard routing) next to Postgres. No new hosting cost
 - [x] One sign-in check for every route: the Google ID token is verified on the server with Google's public keys (no extra call per request), then `bgc.sign_in` for membership and role
 - [x] Every input checked (zod), every error a plain message, only the site's address allowed (CORS), per-member rate limits, a health check
