@@ -1713,7 +1713,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '  "guessed": true if "games" are your guesses from a description rather than names they typed, else false,',
       '  "searchTerms": for intent "rules": the words to look up in the rulebook, with synonyms and the game\'s own terms (e.g. "trade trading exchange other player turn"), else "",',
       '  "personIds": [for intent "person": ids from ROSTER of who they ask about; "me", "I" and "my" mean the ASKER],',
-      '  "sort": for a ranked list only: "plays" (most played), "leastPlays", "recent" (most recently played), "stale" (longest since played), "stars" (their own star ratings: "my highest rated", "games I rated best", "my top rated"), "rating" (BGG rating, only when they say BGG or "the community"), "rank" (BGG rank), "weight" (heaviest), "newest" (latest added); else null,',
+      '  "sort": for a ranked list only: "pick" (their own all-time Top 10 from their profile: "my top ten", "my all-time favorites", when they name no other measure), "plays" (most played), "leastPlays", "recent" (most recently played), "stale" (longest since played), "stars" (their own star ratings: "my highest rated", "games I rated best", "my top rated"), "rating" (BGG rating, only when they say BGG or "the community"), "rank" (BGG rank), "weight" (heaviest), "newest" (latest added); else null,',
       '  "limit": how many games they asked for ("top ten" = 10, "my 5 heaviest" = 5), else null,',
       '  "reply": "only if onTopic is false: one friendly, lightly punny sentence from Nathan, the collection curator, steering back to board games",',
       '  "playerIds": [ids from ROSTER for people playing, named or clearly meant (first names, nicknames); when they include themselves ("for me and Brittany", "something I would like") add the ASKER id],',
@@ -1798,7 +1798,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     "={{ [$('Validate').first().json.email, String($json.useOwn), $json.atFriend] }}"),
   // Games asked about (from the shared catalog, with which friends own them), ideas to buy, friends' shelves, and the asker's Top 10 and wishlist
   pg('Game Lookup', 'SELECT bgc.lookup_games($1, $2::jsonb) AS games, CASE WHEN $3::boolean THEN bgc.buy_pool($1) END AS pool, bgc.curator_card() AS curator, ' +
-    'CASE WHEN $4::boolean THEN bgc.friends_pool($1) END AS fpool, bgc.asker_extras($1) AS extras, CASE WHEN $5::boolean THEN bgc.rule_search($2::jsonb, $6) END AS rules',
+    'CASE WHEN $4::boolean THEN bgc.friends_pool($1) END AS fpool, bgc.asker_extras($1) AS extras, (SELECT top_games FROM members WHERE google_email = $1) AS top_games, CASE WHEN $5::boolean THEN bgc.rule_search($2::jsonb, $6) END AS rules',
     "={{ [$('Validate').first().json.email, JSON.stringify($('Scope').first().json.titles), String($('Scope').first().json.buy), String($('Scope').first().json.across), String(!!$('Scope').first().json.rules), $('Scope').first().json.terms || ''] }}"),
   code('Lookup Queries', function () {
     const missing = ($input.first().json.games || []).filter((l) => !l.game).map((l) => l.asked);
@@ -1857,6 +1857,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    // "My top ten" / "my all-time favorites" with no other measure is their own Top 10 from My profile, not plays or stars
+    if (/\bmy (all[- ]time )?(top (10|ten)|favou?rite games|all[- ]time favou?rites)\b/i.test(q) && !/\b(play|played|plays|rated|rating|ratings|stars?|heaviest|weight|recent|recently|newest|added|bgg|rank|ranked)\b/i.test(q)) { c.intent = 'browse'; c.sort = 'pick'; c.limit = 10; }
     }
     const open = $('Shelf View').first().json.v;
     const scope = $('Scope').first().json;
@@ -1981,7 +1983,14 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     let fits = browse ? themed : scored;
     // A ranked browse ("my top ten most played"): order the set, keep only games that have the number, then cut to the limit
     const by = (key, dir) => (a, b) => ((b.g[key] ?? -Infinity) > (a.g[key] ?? -Infinity) ? 1 : (b.g[key] ?? -Infinity) < (a.g[key] ?? -Infinity) ? -1 : 0) * dir;
+    // The asker's own Top 10 from My profile (titles, best first); none picked yet means their most played, said as such
+    const top10 = ($('Game Lookup').first().json.top_games || []).filter((x) => x && x.title);
+    const picks = top10.map((x) => String(x.title));
+    // By BGG id (the shelf may name another edition), else by title
+    const pickAt = (g) => { const i = top10.findIndex((x) => (x.bggId && String(x.bggId) === String(g.bggId)) || normTitle(x.title) === normTitle(g.title)); return i < 0 ? null : i + 1; };
+    if (c.sort === 'pick' && !picks.length) { c.sort = 'plays'; c.noPicks = true; }
     const SORTS = {
+      pick: { cmp: (a, b) => pickAt(a.g) - pickAt(b.g), keep: (g) => pickAt(g) != null, label: 'their own all-time Top 10 from My profile, best first' },
       plays: { cmp: by('playCount', 1), keep: (g) => g.playCount > 0, label: 'most played first' },
       leastPlays: { cmp: by('playCount', -1), keep: () => true, label: 'fewest plays first' },
       recent: { cmp: by('lastPlayed', 1), keep: (g) => !!g.lastPlayed, label: 'most recently played first' },
@@ -2005,9 +2014,11 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       plays: (g) => g.playCount + ' play' + (g.playCount === 1 ? '' : 's'), leastPlays: (g) => (g.playCount || 0) + ' play' + (g.playCount === 1 ? '' : 's'),
       recent: (g) => 'last played ' + g.lastPlayed, stale: (g) => 'last played ' + g.lastPlayed,
       rating: (g) => 'BGG ' + Number(g.bggRating).toFixed(1), rank: (g) => 'BGG #' + g.rank, want: (g) => g.desireToPlay + '/5 stars', stars: (g) => g.desireToPlay + '/5 stars',
-      weight: (g) => 'weight ' + Number(g.weight).toFixed(1), newest: (g) => 'added ' + String(g.addedAt || '').slice(0, 10),
+      weight: (g) => 'weight ' + Number(g.weight).toFixed(1), newest: (g) => 'added ' + String(g.addedAt || '').slice(0, 10), pick: (g) => '#' + pickAt(g) + ' in their Top 10',
     };
-    const ranked = !gap && sorter && limit && limit <= 25 && METRIC[c.sort] ? fits.map((x, i) => (i + 1) + '. ' + x.g.title + ' (' + METRIC[c.sort](x.g) + ')').join('; ') : null;
+    // Their Top 10 is the whole list they picked, including games not on this shelf
+    const ranked = c.sort === 'pick' ? picks.map((t, i) => (i + 1) + '. ' + t + (games.some((g) => pickAt(g) === i + 1) ? '' : ' (not on the shelf)')).join('; ')
+      : !gap && sorter && limit && limit <= 25 && METRIC[c.sort] ? fits.map((x, i) => (i + 1) + '. ' + x.g.title + ' (' + METRIC[c.sort](x.g) + ')').join('; ') : null;
     const short = (gap ? loose.sort((a, b) => b.s - a.s).slice(0, 12) : fits.slice(0, 30)).map((x) => x.g);
     const matchIds = gap ? [] : fits.map((x) => x.g.id);
     // A few facts about the matching set, so a browse summary can be specific without guessing
@@ -2021,6 +2032,8 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       set.length < 2 ? '' : 'top categories: ' + tally(set.flatMap((g) => g.categories)),
       set.length < 2 ? '' : 'top mechanics: ' + tally(set.flatMap((g) => g.mechanics)),
       sorter ? 'ORDER: the CANDIDATES are ranked, ' + sorter.label + (limit ? ', top ' + limit : '') : '',
+      c.sort === 'pick' ? 'TOP 10: RANKED is the all-time Top 10 they picked themselves in My profile. Open with the whole list exactly as RANKED gives it, numbered and in their order, as their own picks (not plays or star ratings). Only after the list, one short sentence on any marked "not on the shelf"; never say all of them are on the shelf when some are marked.' : '',
+      c.noPicks ? 'NO TOP 10 YET: they asked for their top ten but haven\'t picked one in My profile, so this is their most played instead. Say that first, then suggest picking a Top 10 in My profile (under their name, top left).' : '',
       // A follow-up picks from the last answer: show that whole set (in the order asked), so "the heaviest" can be put in context
       narrow && sorter && METRIC[c.sort] ? 'ALL ' + games.length + ' GAMES FROM THE PREVIOUS ANSWER, ' + sorter.label + ': ' +
         games.filter((g) => sorter.keep(g)).map((g) => ({ g })).sort(sorter.cmp).map((x) => x.g.title + ' (' + METRIC[c.sort](x.g) + ')').join('; ') : '',

@@ -301,6 +301,8 @@
   .rate-chip small { color: var(--text-muted); font-weight: 600; margin-left: 0.2rem; }
   .modal.players-modal { max-width: 640px; position: relative; }
   .players-modal h2 { padding-right: 2.5rem; }
+  /* Settings: the X stays in view while the panel scrolls */
+  .settings-modal .detail-close { position: sticky; top: 0; float: right; margin: -0.4rem -0.4rem 0 0; }
   .pl-list { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.6rem; }
   .pl-row { display: flex; align-items: center; gap: 0.6rem; background: var(--bg); border: none; border-radius: 0.9rem; padding: 0.55rem 0.8rem; cursor: pointer; text-align: left; font-family: var(--font-body); color: var(--ink); width: 100%; }
   .pl-row:hover { background: var(--tag-bg); }
@@ -1020,8 +1022,9 @@
 
   <!-- Settings modal -->
   <div class="modal-overlay" id="settingsModal">
-    <div class="modal">
-      <h2>Settings</h2>
+    <div class="modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <button class="mini-btn detail-close" id="settingsClose" title="Close" aria-label="Close"><i class="ti ti-x"></i></button>
+      <h2 id="settingsTitle">Settings</h2>
       <div>
         <label style="margin-top:0;">What's new</label>
         <p class="hint" style="margin-top:0;" id="newsVersion">The release notes for every update.</p>
@@ -2224,6 +2227,7 @@
       settingsModal.classList.add('open');
     });
     document.getElementById('settingsCancel').addEventListener('click', () => settingsModal.classList.remove('open'));
+    document.getElementById('settingsClose').addEventListener('click', () => settingsModal.classList.remove('open'));
     // A member's own plays: the same import as "Connect BGG", run again with their username
     document.getElementById('syncMyPlaysBtn').addEventListener('click', async () => {
       try { if (!myShelf || !myShelf.bggUsername) myShelf = await n8nFetch('/shelf', { method: 'GET' }); } catch (e) {}
