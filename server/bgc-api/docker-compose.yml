@@ -1,0 +1,30 @@
+# Board Game Curator API on the Hostinger VPS (~/bgc-api, next to ~/bgc-db).
+#   bgc-api   the API (Hono on Node). No published ports: the Cloudflare tunnel reaches it as http://bgc-api:8787
+#             on the n8n network, where Postgres (bgc-postgres) also is.
+# Secrets come from ~/bgc-db/.env (deploy.sh runs: docker compose --env-file ../bgc-db/.env ...); never commit them.
+# Deploys are run by deploy.sh, which starts the new container beside the old one and only then stops the old one.
+name: bgc-api
+
+services:
+  bgc-api:
+    build: .
+    image: bgc-api:${API_TAG:-dev}
+    restart: unless-stopped
+    environment:
+      PGHOST: bgc-postgres
+      PGUSER: bgc
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: bgc
+      VERSION: ${API_TAG:-dev}
+      # Phase 2 (Nathan): OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+    mem_limit: 256m
+    stop_grace_period: 15s   # time to finish requests in flight
+    networks: [n8n]
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }
+
+networks:
+  n8n:
+    external: true
+    name: n8n-ckq4_default

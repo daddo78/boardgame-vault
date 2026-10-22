@@ -1,0 +1,27 @@
+// Who's signed in, and profiles. Ported from the n8n workflows Who Am I, My Profile and Profile Page
+// (n8n/gen.js sections 11, 19 and 30); the answers are the same JSON the page reads today.
+import { Hono } from 'hono';
+import { z } from 'zod';
+import type { AuthEnv } from '../auth.js';
+import { myProfile, profilePage, type Db } from '../db.js';
+import { fromDb, parse } from '../errors.js';
+
+const ProfileQuery = z.object({
+  friend: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional()),
+});
+
+export function profileRoutes(db: Db) {
+  return new Hono<AuthEnv>()
+    // GET /vault/whoami: right after Google sign-in, what this person may do
+    .get('/whoami', (c) => {
+      const a = c.get('auth');
+      return c.json({ ok: true, role: a.role, owner: a.role === 'owner', playerId: a.playerId, playerName: a.playerName, admin: a.admin });
+    })
+    // GET /vault/me: the signed-in person's own profile
+    .get('/me', async (c) => c.json({ ok: true, profile: (await myProfile(db, c.get('auth').email)) ?? null }))
+    // GET /vault/profile[?friend=<member id>]: your own profile, or a friend's (bgc.profile_page says who may see whom)
+    .get('/profile', async (c) => {
+      const q = parse(ProfileQuery, c.req.query(), 'That profile link doesn’t look right');
+      return c.json(fromDb(await profilePage(db, c.get('auth').email, q.friend ?? null)));
+    });
+}

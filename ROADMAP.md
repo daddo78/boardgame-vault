@@ -85,11 +85,12 @@ Why: the 53 n8n workflows are mostly thin API endpoints. One small service is ho
 - [ ] The OpenRouter key in `~/bgc-db/.env` on the server (Dan places it; never in the repo or the chat)
 
 **Phase 1: the service (`server/bgc-api`)**
-- [ ] TypeScript on Node in Docker on the same VPS, with Hono (small, fast, standard routing) next to Postgres. No new hosting cost
-- [ ] One sign-in check for every route: the Google ID token is verified on the server with Google's public keys (no extra call per request), then `bgc.sign_in` for membership and role
-- [ ] Every input checked (zod), every error a plain message, only the site's address allowed (CORS), per-member rate limits, a health check
-- [ ] The same database functions as today. They already hold the rules, so what members can see doesn't change
-- [ ] Deploys never take the site down: the new container starts, passes its health check, then takes over
+Built and tested on Dan's computer (Oct 22): 14 tests, three routes ported (whoami, me, profile). Not on the server yet; the compose service and deploy script wait for Dan's review and the tunnel hostname.
+- [ ] TypeScript on Node in Docker on the same VPS, with Hono (small, fast, standard routing) next to Postgres. No new hosting cost *(image and compose service written; not deployed)*
+- [x] One sign-in check for every route: the Google ID token is verified on the server with Google's public keys (no extra call per request), then `bgc.sign_in` for membership and role
+- [x] Every input checked (zod), every error a plain message, only the site's address allowed (CORS), per-member rate limits, a health check
+- [x] The same database functions as today. They already hold the rules, so what members can see doesn't change
+- [ ] Deploys never take the site down: the new container starts, passes its health check, then takes over *(`server/bgc-api/deploy.sh` written; first run waits for Dan)*
 
 **Phase 2: Nathan moves in (the biggest win for members)**
 - [ ] The same steps as today (understand, firm rules, look things up, shortlist, write, check, save) with the Vercel AI SDK and OpenRouter
