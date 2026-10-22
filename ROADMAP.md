@@ -81,7 +81,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 Why: the 53 n8n workflows are mostly thin API endpoints. One small service is how this is normally built: one sign-in check for every route, one deploy, one place for errors, and Nathan can stream his answers. n8n keeps what it's best at, schedules and background jobs. Start in a fresh Claude session (this one got very long and costly).
 
 **Before we start (Dan, 5 minutes)**
-- [ ] A Cloudflare tunnel hostname for the service, `api.ondorilabo.com` (Claude adds the DNS side with the Cloudflare token)
+- [x] A Cloudflare tunnel hostname for the service, `api.ondorilabo.com` → `http://bgc-api:8787` on the n8n tunnel, plus its DNS record (Oct 22; the token now has Cloudflare Tunnel: Edit)
 - [x] The OpenRouter key in `~/bgc-db/.env` on the server (placed Oct 22; never in the repo)
 
 **Phase 1: the service (`server/bgc-api`)**
