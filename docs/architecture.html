@@ -1,43 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
 <title>Board Game Curator Architecture</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: one reading column; a wide system map first, then the journeys through it (sign-in, Ask, schedules, shipping) */
+/* Layout: one reading column; a wide system map first, then the journeys through it (sign-in, Ask, schedules, shipping).
+   Branding as on the site and the history page: cream table, the red comic title, navy ink, blue for the logic. */
 :root {
-  --bg: #f6f8f5;          /* table paper, a touch of felt green */
+  --bg: #f5eee1;          /* the site's cream */
   --surface: #ffffff;
-  --ink: #18221c;
-  --muted: #5a6a60;
-  --line: #cfd9d1;
-  --felt: #1f6b4a;        /* the card table */
-  --felt-soft: #e2efe7;
-  --meeple: #c8372d;      /* the site's red */
+  --ink: #2b3445;
+  --navy: #24365a;
+  --muted: #6f7787;
+  --line: #e6dccb;
+  --felt: #0041c2;        /* the logic: the site's blue */
+  --felt-soft: #e4ecfb;
+  --meeple: #c9342a;      /* what people use: Board Game Curator red */
   --meeple-soft: #fbe6e3;
-  --amber: #a86a00;
-  --amber-soft: #fbf0d9;
-  --display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
-  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --amber: #b9820d;       /* the data: gold */
+  --amber-soft: #fff2cc;
+  --title-stroke: #4a1d12;
+  --title-shadow: #7a2416;
+  --shadow: 0 6px 20px rgba(36, 54, 90, 0.08);
+  --title: 'Luckiest Guy', 'Outfit', system-ui, sans-serif;
+  --display: 'Outfit', 'Segoe UI', system-ui, sans-serif;
+  --body: 'Outfit', 'Segoe UI', system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #111814; --surface: #18221c; --ink: #e6eee8; --muted: #9aaba0; --line: #2d3b33;
-  --felt: #5fc495; --felt-soft: #1d3328; --meeple: #ff7a6e; --meeple-soft: #3a1e1b; --amber: #e7b04a; --amber-soft: #3a2e14;
+  --bg: #161b26; --surface: #1f2636; --ink: #e9edf5; --navy: #c9d6f2; --muted: #9aa5ba; --line: #333c52;
+  --felt: #7ea6ff; --felt-soft: #22315a; --meeple: #ff6b5e; --meeple-soft: #3d2220; --amber: #f0c050; --amber-soft: #3a3220;
+  --title-stroke: #2a0d08; --title-shadow: #5a180e; --shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
   color-scheme: dark } }
 :root[data-theme="dark"] {
-  --bg: #111814; --surface: #18221c; --ink: #e6eee8; --muted: #9aaba0; --line: #2d3b33;
-  --felt: #5fc495; --felt-soft: #1d3328; --meeple: #ff7a6e; --meeple-soft: #3a1e1b; --amber: #e7b04a; --amber-soft: #3a2e14;
+  --bg: #161b26; --surface: #1f2636; --ink: #e9edf5; --navy: #c9d6f2; --muted: #9aa5ba; --line: #333c52;
+  --felt: #7ea6ff; --felt-soft: #22315a; --meeple: #ff6b5e; --meeple-soft: #3d2220; --amber: #f0c050; --amber-soft: #3a3220;
+  --title-stroke: #2a0d08; --title-shadow: #5a180e; --shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
   color-scheme: dark }
 
-body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); }
+body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); margin: 0; }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .wrap { max-width: 1040px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 72px; display: grid; gap: 56px; }
 h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
-h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; letter-spacing: -0.01em; }
-h2 { font-size: 1.6rem; font-weight: 700; }
+h1 { font: 400 clamp(2.2rem, 5.5vw, 3.6rem)/0.95 var(--title); letter-spacing: 0.02em; color: #e2382c;
+  -webkit-text-stroke: 2px var(--title-stroke); paint-order: stroke fill; text-shadow: 0 5px 0 var(--title-shadow), 0 10px 22px rgba(60, 20, 10, 0.25); }
+h2 { font-size: 1.7rem; font-weight: 800; color: var(--navy); }
 h3 { font-size: 1.1rem; font-weight: 700; }
 p { margin: 0; max-width: 65ch; }
-.eyebrow { font: 600 0.72rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--felt); }
+.eyebrow { font: 700 0.74rem/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--meeple); }
+.back { justify-self: start; font-weight: 700; font-size: 0.9rem; text-decoration: none; }
 .lede { font-size: 1.15rem; color: var(--muted); }
 code, .mono { font-family: var(--mono); font-size: 0.86em; }
 code { background: var(--felt-soft); padding: 0.1em 0.35em; border-radius: 4px; }
@@ -45,7 +60,7 @@ section { display: grid; gap: 18px; min-width: 0; }
 header { display: grid; gap: 14px; }
 
 /* System map */
-.map { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.map { overflow-x: auto; background: var(--surface); border-radius: 1rem; box-shadow: var(--shadow); padding: 12px; }
 .map svg { display: block; width: 100%; min-width: 760px; height: auto; }
 .map text { font-family: var(--body); }
 .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.85rem; color: var(--muted); }
@@ -60,7 +75,7 @@ header { display: grid; gap: 14px; }
 .steps .who { font: 0.75rem var(--mono); color: var(--muted); display: block; }
 
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.panel { background: var(--surface); border-radius: 1rem; box-shadow: var(--shadow); padding: 18px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
 .panel p, .panel li { font-size: 0.95rem; }
 .panel ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
 
@@ -70,14 +85,14 @@ header { display: grid; gap: 14px; }
 .tag.code { background: var(--felt-soft); color: var(--felt); }
 .tag.db { background: var(--amber-soft); color: var(--amber); }
 .tag.web { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
-.pipe { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.pipe { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-radius: 1rem; box-shadow: var(--shadow); background: var(--surface); overflow: hidden; }
 .pipe li { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 14px; padding: 12px 18px; border-top: 1px solid var(--line); align-items: baseline; }
 .pipe li:first-child { border-top: 0; }
 .pipe .tag { justify-self: start; }
 .pipe b { font-family: var(--display); }
 
 /* Endpoint table */
-.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.tablewrap { overflow-x: auto; border-radius: 1rem; box-shadow: var(--shadow); background: var(--surface); }
 table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 0.92rem; }
 th, td { text-align: left; padding: 9px 14px; border-top: 1px solid var(--line); vertical-align: top; }
 thead th { border-top: 0; font: 600 0.72rem var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -103,9 +118,10 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
 <div class="wrap">
 
 <header>
+  <a class="back" href="history.html">← The Board Game Curator story</a>
   <span class="eyebrow">bg.ondorilabo.com · how it fits together</span>
   <h1>Board Game Curator Architecture</h1>
-  <p class="lede">A static web page talks to about 35 n8n workflows on a small server. The workflows read and write one Postgres database and call out to Google, BoardGameGeek and AI models. Nathan, the curator, is one of those workflows.</p>
+  <p class="lede">A static web page talks to 53 n8n workflows on a small server. The workflows read and write one Postgres database and call out to Google, BoardGameGeek and AI models. Nathan, the curator, is one of those workflows.</p>
 </header>
 
 <section aria-labelledby="map-h">
@@ -122,10 +138,10 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
         .bx.felt { fill: var(--felt-soft); stroke: var(--felt); }
         .bx.red { fill: var(--meeple-soft); stroke: var(--meeple); }
         .bx.amb { fill: var(--amber-soft); stroke: var(--amber); }
-        .frame { fill: none; stroke: var(--felt); stroke-width: 1.5; stroke-dasharray: 6 5; }
+        .frame { fill: none; stroke: var(--navy); stroke-width: 1.5; stroke-dasharray: 6 5; }
         .t { fill: var(--ink); font-weight: 700; font-size: 15px; font-family: var(--display); }
         .s { fill: var(--muted); font-size: 12px; }
-        .k { fill: var(--felt); font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; }
+        .k { fill: var(--navy); font-family: var(--body); font-weight: 800; font-size: 11px; letter-spacing: 0.1em; }
         .lbl { fill: var(--muted); font-family: var(--mono); font-size: 10.5px; }
         .ln { fill: none; stroke: var(--muted); stroke-width: 1.5; }
         .ln.d { stroke-dasharray: 4 4; }
@@ -169,8 +185,8 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
       <text class="s" x="336" y="184">Every page action is a webhook. Each one</text>
       <text class="s" x="336" y="200">checks the Google token and membership</text>
       <text class="s" x="336" y="216">first, then does its work.</text>
-      <rect class="chip" x="336" y="234" width="122" height="26" rx="13"/><text class="ct" x="350" y="251">33 webhooks</text>
-      <rect class="chip" x="466" y="234" width="138" height="26" rx="13"/><text class="ct" x="479" y="251">6 scheduled jobs</text>
+      <rect class="chip" x="336" y="234" width="122" height="26" rx="13"/><text class="ct" x="350" y="251">53 workflows</text>
+      <rect class="chip" x="466" y="234" width="138" height="26" rx="13"/><text class="ct" x="479" y="251">9 scheduled jobs</text>
       <rect class="chip" x="336" y="268" width="122" height="26" rx="13"/><text class="ct" x="352" y="285">Ask (Nathan)</text>
       <rect class="chip" x="466" y="268" width="138" height="26" rx="13"/><text class="ct" x="482" y="285">Error Alert</text>
       <text class="s" x="336" y="316">Built by n8n/gen.js, shipped by deploy.sh</text>
@@ -219,9 +235,9 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
 
       <rect class="bx" x="412" y="420" width="180" height="100" rx="10"/>
       <text class="t" x="426" y="446">OpenRouter</text>
-      <text class="s" x="426" y="468">Gemini 2.5 Flash Lite</text>
-      <text class="s" x="426" y="484">Claude Haiku 5.5</text>
-      <text class="s" x="426" y="500">(each has a fallback)</text>
+      <text class="s" x="426" y="468">Flash Lite: reads questions</text>
+      <text class="s" x="426" y="484">Claude Haiku 5.5: answers</text>
+      <text class="s" x="426" y="500">2.5 Flash: rulebooks, photos</text>
 
       <rect class="bx" x="608" y="420" width="180" height="100" rx="10"/>
       <text class="t" x="622" y="446">Gmail</text>
@@ -306,7 +322,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
         <div><time>4:00</time><span>Sync Dan's plays from BoardGameGeek</span></div>
         <div><time>4:30</time><span>Sync every other member's plays from their BGG account (they can also tap "Sync my plays" in the cog)</span></div>
         <div><time>4:20</time><span>Sync people: who has logged plays with whom, and their BGG ratings</span></div>
-        <div><time>5:40</time><span>Self-test: 41 database checks, then 18 real questions to Nathan. Emails Dan only if something fails</span></div>
+        <div><time>5:40</time><span>Self-test: 52 database checks, then 24 real questions to Nathan. Emails Dan only if something fails</span></div>
         <div><time>9:00</time><span>Health check: emails Dan if the database backup hasn't run in 26 hours</span></div>
         <div><time>nightly</time><span>Backup: both databases dumped to the private GitHub repo</span></div>
       </div>
@@ -316,6 +332,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
       <ul>
         <li><b>Every 15 minutes:</b> a photo sweep finishes any box photo an earlier run left half done.</li>
         <li><b>Every 2 minutes:</b> the rulebook reader picks up the next uploaded rulebook, if any.</li>
+        <li><b>Every 10 minutes:</b> Fill Catalog gets BGG details and box art for 20 games that came in without them (wishlists and Top 10s first).</li>
         <li><b>Every hour:</b> records what the site's OpenRouter key has spent and the account balance, for Admin → Costs. Each AI call also records its own cost.</li>
         <li><b>On any failure:</b> the Error Alert workflow emails Dan which workflow broke and where.</li>
       </ul>
@@ -334,9 +351,9 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
     <li><div><b>Edit the source</b><span class="who">index.html · n8n/gen.js · server/bgc-db/schema/NNN_*.sql</span>Workflows are written as code in one file, never clicked together in the n8n editor.</div></li>
     <li><div><b>Apply database changes</b><span class="who">psql &lt; schema/022_match_unfilled.sql</span>Each schema file is numbered and safe to run again.</div></li>
     <li><div><b>Deploy the workflows</b><span class="who">n8n/deploy.sh ask</span>Generates the workflow JSON, imports and publishes it, then restarts n8n and waits until it answers.</div></li>
-    <li><div><b>Run the checks</b><span class="who">bgc.self_check(): 41 rules, rolled back afterwards</span>The deploy fails if any check fails. It covers membership, privacy, ratings, wishlists, admin, game matching and Nathan's memory. <code>node n8n/test-nathan.js</code> runs the 18 Nathan questions.</div></li>
-    <li><div><b>Push the page</b><span class="who">git push → GitHub Pages</span>The site updates within a minute or two.</div></li>
-    <li><div><b>Tell the testers</b><span class="who">CHANGELOG.md → node tools/post-update.js v0.12</span>Posts that version's notes to the bgc-testers channel on Discord.</div></li>
+    <li><div><b>Run the checks</b><span class="who">bgc.self_check(): 52 rules, rolled back afterwards</span>The deploy fails if any check fails. It covers membership, privacy, ratings, wishlists, admin, game matching and Nathan's memory. <code>node n8n/test-nathan.js</code> runs the 24 Nathan questions.</div></li>
+    <li><div><b>Push the page</b><span class="who">git push → GitHub Pages → node tools/purge-cache.js</span>Once GitHub has published it, clearing Cloudflare's cache makes it live right away.</div></li>
+    <li><div><b>Tell the testers</b><span class="who">CHANGELOG.md → node tools/post-update.js v0.15.1</span>Posts that version's notes to the bgc-testers channel on Discord.</div></li>
   </ol>
 </section>
 
@@ -367,5 +384,5 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
   </div>
 </section>
 
-<footer>Board Game Curator · v0.12 · October 2026. Drawn from the live code: n8n/gen.js, server/bgc-db/schema and n8n/deploy.sh.</footer>
+<footer>Board Game Curator · v0.15.1 · October 2026. Drawn from the live code: n8n/gen.js, server/bgc-db/schema and n8n/deploy.sh.</footer>
 </div>

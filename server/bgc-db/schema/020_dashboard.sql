@@ -87,13 +87,22 @@ BEGIN
     'mostOwned', (SELECT coalesce(jsonb_agg(x ORDER BY (x ->> 'n')::int DESC), '[]') FROM (
       SELECT jsonb_build_object('title', g.title, 'cover', g.cover_card, 'n', count(*), 'who', string_agg(split_part(m.display_name, ' ', 1), ', ' ORDER BY m.display_name)) AS x
       FROM shelves s JOIN games g ON g.id = s.game_id JOIN members m ON m.id = s.member_id GROUP BY g.id HAVING count(*) > 1 ORDER BY count(*) DESC, g.bgg_rank NULLS LAST LIMIT 12) q),
-    -- Played by the most people: everyone at the table in any member's logged plays, so one person's hundreds of
-    -- games of cribbage don't freeze the list. Ties go to the game with more plays.
+    -- Played by the most members: a member counts when they logged a play of the game, or were at the table in
+    -- someone else's (a player linked to them, or their BGG username), so one person's hundreds of games of cribbage
+    -- don't freeze the list. Ties go to the game with more plays.
     'mostPlayed', (SELECT coalesce(jsonb_agg(x ORDER BY (x ->> 'n')::int DESC, (x ->> 'plays')::int DESC), '[]') FROM (
-      SELECT jsonb_build_object('title', g.title, 'cover', g.cover_card, 'n', q.people, 'plays', q.plays) AS x
-      FROM (SELECT p.game_id, count(DISTINCT coalesce(pp.player_id::text, 'name:' || lower(btrim(pp.name)))) AS people, count(DISTINCT p.id) AS plays
-            FROM plays p JOIN play_players pp ON pp.play_id = p.id WHERE p.game_id IS NOT NULL GROUP BY p.game_id) q
-      JOIN games g ON g.id = q.game_id ORDER BY q.people DESC, q.plays DESC LIMIT 12) q),
+      SELECT jsonb_build_object('title', g.title, 'cover', g.cover_card, 'n', count(*),
+          'who', string_agg(split_part(m.display_name, ' ', 1), ', ' ORDER BY m.display_name),
+          'plays', (SELECT count(*) FROM plays p2 WHERE p2.game_id = g.id)) AS x
+      FROM (SELECT p.game_id, p.owner_id AS member_id FROM plays p WHERE p.game_id IS NOT NULL
+            UNION
+            SELECT p.game_id, pl.linked_member_id FROM plays p JOIN play_players pp ON pp.play_id = p.id JOIN players pl ON pl.id = pp.player_id
+            WHERE pl.linked_member_id IS NOT NULL AND p.game_id IS NOT NULL
+            UNION
+            SELECT p.game_id, mm.id FROM plays p JOIN play_players pp ON pp.play_id = p.id JOIN members mm ON lower(mm.bgg_username) = lower(nullif(pp.bgg_user, ''))
+            WHERE p.game_id IS NOT NULL) who
+      JOIN games g ON g.id = who.game_id JOIN members m ON m.id = who.member_id
+      GROUP BY g.id ORDER BY count(*) DESC, (SELECT count(*) FROM plays p2 WHERE p2.game_id = g.id) DESC LIMIT 12) q),
     'topRated', (SELECT coalesce(jsonb_agg(x ORDER BY (x ->> 'avg')::numeric DESC, (x ->> 'n')::int DESC), '[]') FROM (
       SELECT jsonb_build_object('title', g.title, 'cover', g.cover_card, 'avg', round(avg(r.stars), 2), 'n', count(*)) AS x
       FROM ratings r JOIN games g ON g.id = r.game_id GROUP BY g.id HAVING count(*) >= 2 ORDER BY avg(r.stars) DESC, count(*) DESC LIMIT 12) q),

@@ -1,0 +1,703 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>The Board Game Curator Story</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Outfit:wght@400;500;600;700;800&display=swap">
+<style>
+  /* Layout: the site's own look (cream table, red title in comic type, navy ink). A hero with Nathan, then a
+     game-board path of dated milestones grouped into eras, then the cost of the work, then the system as it runs today. */
+  :root {
+    --bg: #f5eee1;          /* the site's cream */
+    --surface: #ffffff;
+    --raised: #fbf6ec;
+    --ink: #2b3445;
+    --navy: #24365a;
+    --muted: #6f7787;
+    --brand: #c9342a;       /* Board Game Curator red */
+    --brand-dark: #93231b;
+    --blue: #0041c2;
+    --blue-soft: #e4ecfb;
+    --gold: #ffd166;
+    --gold-dark: #b9820d;
+    --gold-soft: #fff2cc;
+    --green: #2f7a1c;
+    --green-soft: #e6f3dc;
+    --red-soft: #fbe6e3;
+    --line: #e6dccb;
+    --path: #d8c9b0;
+    --shadow: 0 6px 20px rgba(36, 54, 90, 0.08);
+    --title-stroke: #4a1d12;
+    --title-shadow: #7a2416;
+    --display: 'Luckiest Guy', 'Outfit', system-ui, sans-serif;
+    --body: 'Outfit', 'Segoe UI', system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #161b26; --surface: #1f2636; --raised: #252d40; --ink: #e9edf5; --navy: #c9d6f2; --muted: #9aa5ba;
+    --brand: #ff6b5e; --brand-dark: #ff8f84; --blue: #7ea6ff; --blue-soft: #22315a; --gold: #ffd166; --gold-dark: #f0c050; --gold-soft: #3a3220;
+    --green: #8fd46c; --green-soft: #1f3420; --red-soft: #3d2220; --line: #333c52; --path: #3c4660; --shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    --title-stroke: #2a0d08; --title-shadow: #5a180e; color-scheme: dark } }
+  :root[data-theme="dark"] {
+    --bg: #161b26; --surface: #1f2636; --raised: #252d40; --ink: #e9edf5; --navy: #c9d6f2; --muted: #9aa5ba;
+    --brand: #ff6b5e; --brand-dark: #ff8f84; --blue: #7ea6ff; --blue-soft: #22315a; --gold: #ffd166; --gold-dark: #f0c050; --gold-soft: #3a3220;
+    --green: #8fd46c; --green-soft: #1f3420; --red-soft: #3d2220; --line: #333c52; --path: #3c4660; --shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    --title-stroke: #2a0d08; --title-shadow: #5a180e; color-scheme: dark }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  h1, h2, h3 { margin: 0; text-wrap: balance; }
+  h2 { font: 800 1.7rem/1.2 var(--body); color: var(--navy); }
+  h3 { font: 700 1.1rem/1.3 var(--body); color: var(--ink); }
+  p { margin: 0; }
+  a { color: var(--blue); }
+  code { font-size: 0.86em; background: var(--blue-soft); color: var(--navy); padding: 0.08em 0.35em; border-radius: 4px; }
+  .page { max-width: 1000px; margin: 0 auto; padding-block: 2.5rem 4rem; display: grid; gap: 3.5rem; }
+  .icon { width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-fill { fill: currentColor; stroke: none; }
+  .eyebrow { font: 700 0.74rem/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand); }
+  .sub { color: var(--muted); max-width: 66ch; }
+  section { display: grid; gap: 1.2rem; min-width: 0; }
+  .sec-head { display: grid; gap: 0.45rem; }
+
+  /* ---------- hero ---------- */
+  .hero { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.6rem; align-items: center; }
+  .hero img { width: 8.5rem; height: 8.5rem; border-radius: 50%; background: #0b8fc0; border: 4px solid var(--surface); box-shadow: var(--shadow); }
+  .hero-copy { display: grid; gap: 0.7rem; min-width: 0; }
+  .title { font: 400 clamp(2.3rem, 6vw, 4rem)/0.95 var(--display); letter-spacing: 0.02em; color: #e2382c;
+    -webkit-text-stroke: 2px var(--title-stroke); paint-order: stroke fill; text-shadow: 0 5px 0 var(--title-shadow), 0 10px 22px rgba(60, 20, 10, 0.25); }
+  .tag { font: 400 clamp(1rem, 2vw, 1.3rem)/1.2 var(--display); color: var(--navy); letter-spacing: 0.03em; }
+  .lede { font-size: 1.08rem; color: var(--ink); max-width: 62ch; }
+  @media (max-width: 600px) { .hero { grid-template-columns: minmax(0, 1fr); justify-items: start; } .hero img { width: 6rem; height: 6rem; } }
+
+  .then-now { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 1rem; align-items: stretch; }
+  .tn-card { background: var(--surface); border-radius: 1rem; padding: 1.3rem 1.4rem; box-shadow: var(--shadow); display: grid; gap: 0.8rem; align-content: start; min-width: 0; }
+  .tn-label { font: 700 0.74rem/1 var(--body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .tn-now { border: 2px solid var(--brand); }
+  .tn-now .tn-label { color: var(--brand); }
+  .tn-card ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.6rem; }
+  .tn-card li { display: grid; grid-template-columns: 1.2rem minmax(0, 1fr); gap: 0.6rem; font-size: 0.95rem; }
+  .tn-card li .icon { color: var(--muted); margin-top: 0.2rem; }
+  .tn-now li .icon { color: var(--brand); }
+  .tn-arrow { display: flex; align-items: center; color: var(--gold-dark); font-size: 1.6rem; }
+  @media (max-width: 700px) { .then-now { grid-template-columns: minmax(0, 1fr); } .tn-arrow { justify-content: center; } .tn-arrow .icon { transform: rotate(90deg); } }
+
+  /* ---------- numbers ---------- */
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
+  .stats.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 700px) { .stats, .stats.three { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .stat { background: var(--surface); border-radius: 0.9rem; padding: 0.9rem 1rem; box-shadow: var(--shadow); display: grid; gap: 0.15rem; align-content: start; }
+  .stat b { font: 400 1.9rem/1 var(--display); color: var(--brand); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 0.8rem; color: var(--muted); font-weight: 600; line-height: 1.35; }
+
+  /* ---------- the path ---------- */
+  .era { display: grid; gap: 1.2rem; }
+  .era-label { display: flex; align-items: center; gap: 0.8rem; font: 800 0.8rem/1.2 var(--body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy); }
+  .era-label::after { content: ''; flex: 1; height: 2px; background: var(--line); }
+  .era-label .new { font-size: 0.66rem; letter-spacing: 0.08em; color: var(--brand); background: var(--red-soft); padding: 0.2rem 0.5rem; border-radius: 999px; }
+  .spine { position: relative; list-style: none; margin: 0; padding: 0; display: grid; gap: 1.3rem; }
+  .spine::before { content: ''; position: absolute; left: 1.15rem; top: 0.4rem; bottom: 0.4rem; width: 4px; margin-left: -2px;
+    background: repeating-linear-gradient(to bottom, var(--path) 0 10px, transparent 10px 16px); border-radius: 2px; }
+  .node { position: relative; padding-left: 3.2rem; }
+  .node-badge { position: absolute; left: 0; top: 0; width: 2.3rem; height: 2.3rem; border-radius: 50%; background: var(--surface); border: 3px solid var(--gold);
+    display: flex; align-items: center; justify-content: center; z-index: 1; box-shadow: var(--shadow); font-size: 1.05rem; color: var(--brand); }
+  .node.crisis .node-badge { border-color: var(--brand); background: var(--red-soft); }
+  .node-card { background: var(--surface); border-radius: 0.9rem; padding: 1.05rem 1.25rem; box-shadow: var(--shadow); display: grid; gap: 0.4rem; min-width: 0; }
+  .node.crisis .node-card { box-shadow: var(--shadow), inset 0 0 0 2px var(--red-soft); }
+  .node-date { font: 700 0.72rem/1.2 var(--body); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+  .node p { font-size: 0.95rem; }
+  .metric { justify-self: start; margin-top: 0.2rem; font-size: 0.78rem; font-weight: 700; color: var(--navy); background: var(--blue-soft); padding: 0.2rem 0.65rem; border-radius: 999px; }
+  .node.crisis .metric { color: var(--brand-dark); background: var(--red-soft); }
+  @media (min-width: 780px) {
+    .spine::before { left: 50%; }
+    .node { padding-left: 0; display: flex; justify-content: flex-end; }
+    .node[data-side="right"] { justify-content: flex-start; }
+    .node-badge { left: 50%; margin-left: -1.15rem; }
+    .node-card { width: calc(50% - 2.6rem); }
+  }
+
+  /* ---------- the work ---------- */
+  .panel { background: var(--surface); border-radius: 1rem; box-shadow: var(--shadow); padding: 1.1rem 1.25rem; display: grid; gap: 0.7rem; align-content: start; min-width: 0; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1rem; }
+  .days { display: grid; gap: 0.5rem; }
+  .day { display: grid; grid-template-columns: 4.6rem minmax(0, 1fr) 4.8rem; gap: 0.7rem; align-items: center; font-size: 0.88rem; }
+  .day .d { font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+  .day .h { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .bar { position: relative; height: 0.9rem; background: var(--raised); border-radius: 999px; overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; background: var(--brand); border-radius: 999px; }
+  .bar i + i { background: repeating-linear-gradient(45deg, var(--brand) 0 4px, transparent 4px 8px); opacity: 0.45; }
+  .day.idle .d, .day.idle .h { color: var(--muted); font-weight: 600; }
+  .day.idle .bar { background: transparent; border: 1px dashed var(--line); }
+  .key { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.8rem; color: var(--muted); }
+  .key span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .key i { width: 1.4rem; height: 0.6rem; border-radius: 999px; background: var(--brand); display: inline-block; }
+  .key i.est { background: repeating-linear-gradient(45deg, var(--brand) 0 4px, transparent 4px 8px); opacity: 0.6; }
+  .rows { display: grid; gap: 0; }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; padding: 0.5rem 0; border-top: 1px solid var(--line); font-size: 0.92rem; }
+  .row:first-child { border-top: 0; }
+  .row b { font-variant-numeric: tabular-nums; color: var(--navy); white-space: nowrap; }
+  .note { font-size: 0.86rem; color: var(--muted); max-width: 70ch; }
+
+  /* ---------- architecture ---------- */
+  .map { overflow-x: auto; background: var(--surface); border-radius: 1rem; box-shadow: var(--shadow); padding: 12px; }
+  .map svg { display: block; width: 100%; min-width: 780px; height: auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.85rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; border: 2px solid; display: inline-block; }
+  .pipe { list-style: none; margin: 0; padding: 0; background: var(--surface); border-radius: 1rem; box-shadow: var(--shadow); overflow: hidden; }
+  .pipe li { display: grid; grid-template-columns: 6.6rem minmax(0, 1fr); gap: 1rem; padding: 0.7rem 1.2rem; border-top: 1px solid var(--line); align-items: baseline; font-size: 0.93rem; }
+  .pipe li:first-child { border-top: 0; }
+  .pill { justify-self: start; font: 700 0.68rem/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase; padding: 0.3rem 0.55rem; border-radius: 0.4rem; white-space: nowrap; }
+  .pill.ai { background: var(--red-soft); color: var(--brand-dark); }
+  .pill.code { background: var(--blue-soft); color: var(--navy); }
+  .pill.db { background: var(--gold-soft); color: var(--gold-dark); }
+  .pill.web { background: var(--raised); color: var(--muted); border: 1px solid var(--line); }
+  @media (max-width: 520px) { .pipe li { grid-template-columns: minmax(0, 1fr); gap: 0.35rem; } .day { grid-template-columns: 3.9rem minmax(0, 1fr) 4.4rem; } }
+  .clock { display: grid; border-left: 2px solid var(--brand); margin-left: 6px; }
+  .clock div { display: grid; grid-template-columns: 4.8rem minmax(0, 1fr); gap: 0.8rem; padding: 0.4rem 0 0.4rem 1.1rem; position: relative; font-size: 0.9rem; }
+  .clock div::before { content: ""; position: absolute; left: -7px; top: 0.8rem; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--brand); }
+  .clock time { font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums; }
+  .panel ul { margin: 0; padding-left: 1.1em; display: grid; gap: 0.35rem; font-size: 0.92rem; }
+  .cta { justify-self: start; display: inline-flex; align-items: center; gap: 0.5rem; background: var(--brand); color: #fff; text-decoration: none; font-weight: 700; padding: 0.6rem 1.1rem; border-radius: 999px; }
+  .cta:hover { background: var(--brand-dark); }
+  .cta:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  footer { text-align: center; color: var(--muted); font-size: 0.86rem; display: grid; gap: 0.3rem; }
+  footer b { font: 400 1.1rem/1 var(--display); color: var(--brand); letter-spacing: 0.03em; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11L12 4l8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-5h4v5h3a1 1 0 0 0 1-1v-9"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3L20 8"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-14 5.3L4 16"/><path d="M4 20v-4h4"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7l1.5-3h5L16 7"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><circle cx="7" cy="7.5" r="1"/><circle cx="7" cy="16.5" r="1"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.7 10.7c.6.5 1 1.2 1.1 2h5.2c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/></symbol>
+    <symbol id="i-xcircle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5l5 5m0-5l-5 5"/></symbol>
+    <symbol id="i-robot" viewBox="0 0 24 24"><rect x="5" y="9" width="14" height="10" rx="2"/><circle cx="9.5" cy="14" r="1.2"/><circle cx="14.5" cy="14" r="1.2"/><path d="M12 9V6"/><circle cx="12" cy="4.5" r="1.3"/><path d="M3 13h2m14 0h2"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M10 11v6M14 11v6"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 2-.9 2-2 0-.5-.2-1-.5-1.4-.3-.4-.1-1 .4-1.1 3.4-.6 6.1-3.5 6.1-6.5 0-3.9-3.6-7-8-7z"/><circle cx="8" cy="11" r="1"/><circle cx="12" cy="8" r="1"/><circle cx="16" cy="11" r="1"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15"/><path d="M4 10h16M9 5v15M15 5v15"/><rect x="10.5" y="15" width="3" height="5"/></symbol>
+    <symbol id="i-meeple" viewBox="0 0 24 24"><path d="M9 20h-5a1 1 0 0 1 -1 -1c0 -2 3.378 -4.907 4 -6c-1 0 -4 -.5 -4 -2c0 -2 4 -3.5 6 -4c0 -1.5 .5 -4 3 -4s3 2.5 3 4c2 .5 6 2 6 4c0 1.5 -3 2 -4 2c.622 1.093 4 4 4 6a1 1 0 0 1 -1 1h-5c-1 0 -2 -4 -3 -4s-2 4 -3 4z"/></symbol>
+    <symbol id="i-cloudoff" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M16 17H6a4 4 0 0 1-1-7.9A5 5 0 0 1 14 7"/><path d="M17.7 8.3A5 5 0 0 1 18 18h-1.5"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M4 6l1.5 3L9 8"/></symbol>
+    <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M12 2c3 2 5 6 5 10 0 1.7-.4 3.2-1 4.5L12 20l-4-3.5A11 11 0 0 1 7 12c0-4 2-8 5-10z"/><circle cx="12" cy="10" r="1.8"/><path d="M9 17l-2 3M15 17l2 3"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-5 5.5-5s4.9 2 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.2c2.3.2 4.2 2 4.7 4.8"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+    <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 6 1V5a3 3 0 0 0-3-1z"/><path d="M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-6 1"/></symbol>
+    <symbol id="i-coins" viewBox="0 0 24 24"><ellipse cx="9" cy="7" rx="5" ry="2.5"/><path d="M4 7v4c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5V7"/><path d="M10 15.5c.9 1.2 3 2 5 2 2.8 0 5-1.1 5-2.5v-4c0-1.4-2.2-2.5-5-2.5"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5L12 13l8.5-6.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.2l2.5 2.5 4.5-5"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4 3.5"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+
+  <!-- ===================== HERO ===================== -->
+  <header style="display:grid; gap:2rem;">
+    <div class="hero">
+      <img src="nathan.png" alt="Nathan, the site's curator: a cartoon man with glasses and a plaid shirt">
+      <div class="hero-copy">
+        <span class="eyebrow">Production history · October 11–21, 2026</span>
+        <h1 class="title">Board Game Curator</h1>
+        <span class="tag">From a garage shelf tracker to a curator for friends</span>
+        <p class="lede">Eleven days, three homes for the data, one near-total wipe, and a curator named Nathan. This is how a page for tracking one shelf became an invite-only site where friends share their collections and an AI curator reads their rulebooks.</p>
+      </div>
+    </div>
+
+    <div class="then-now">
+      <div class="tn-card">
+        <span class="tn-label">Started as · Oct 11</span>
+        <ul>
+          <li><svg class="icon"><use href="#i-home"/></svg><span>A web page to track one shelf</span></li>
+          <li><svg class="icon"><use href="#i-refresh"/></svg><span>Two-way sync with BoardGameGeek, planned</span></li>
+          <li><svg class="icon"><use href="#i-database"/></svg><span>n8n as the database</span></li>
+          <li><svg class="icon"><use href="#i-camera"/></svg><span>Cover art found by an AI agent</span></li>
+        </ul>
+      </div>
+      <div class="tn-arrow"><svg class="icon"><use href="#i-arrow"/></svg></div>
+      <div class="tn-card tn-now">
+        <span class="tn-label">Became · Oct 21</span>
+        <ul>
+          <li><svg class="icon"><use href="#i-users"/></svg><span>An invite-only site: every member has a shelf, friends connect by code</span></li>
+          <li><svg class="icon"><use href="#i-chat"/></svg><span>Nathan, an AI curator who remembers you, reads photos, and cites rulebook pages</span></li>
+          <li><svg class="icon"><use href="#i-database"/></svg><span>Postgres for the data, 53 n8n workflows for the logic, all on one VPS</span></li>
+          <li><svg class="icon"><use href="#i-image"/></svg><span>A 1,685-game catalog with BoardGameGeek box art, and plays synced nightly</span></li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================== WHERE IT STANDS ===================== -->
+  <section aria-labelledby="now-h">
+    <div class="sec-head">
+      <span class="eyebrow">Where it stands tonight</span>
+      <h2 id="now-h">The site by the numbers</h2>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>6</b><span>members, 5 with shelves</span></div>
+      <div class="stat"><b>1,223</b><span>games on members' shelves</span></div>
+      <div class="stat"><b>1,685</b><span>games in the shared catalog, 1,678 filled in from BGG</span></div>
+      <div class="stat"><b>8,184</b><span>plays logged, back to February 2010</span></div>
+      <div class="stat"><b>414</b><span>people who've played at the table</span></div>
+      <div class="stat"><b>108</b><span>rulebook pages Nathan has read, in 561 sections</span></div>
+      <div class="stat"><b>11</b><span>releases to testers, v0.8 to v0.15.1</span></div>
+      <div class="stat"><b>52</b><span>database checks on every deploy, plus 24 test questions for Nathan</span></div>
+    </div>
+  </section>
+
+  <!-- ===================== THE PATH ===================== -->
+  <section aria-labelledby="path-h">
+    <div class="sec-head">
+      <span class="eyebrow">The path</span>
+      <h2 id="path-h">How it got here</h2>
+      <p class="sub">Red spaces are the setbacks. Dates are from git commits, server logs and API responses.</p>
+    </div>
+
+    <div class="era">
+      <div class="era-label">Genesis · Oct 11</div>
+      <ol class="spine">
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-bulb"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 11 · evening</span><h3>The spark</h3>
+            <p>"I'm creating a web page for my board game collection. I want it to connect to BoardGameGeek and keep a database on n8n." A dark-themed "Vault" prototype goes up the same evening on GitHub Pages at bg.ondorilabo.com.</p></div>
+        </li>
+        <li class="node crisis" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-xcircle"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 11</span><h3>BGG hits a wall</h3>
+            <p>Every BoardGameGeek API call comes back 401. Their API now requires a registered app and an approved token, about a week's wait with no guarantee. BGG is set aside, not patched around.</p>
+            <span class="metric">3 workflows unpublished, kept for later</span></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-robot"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 11</span><h3>Teaching an agent not to make things up</h3>
+            <p>Asking a model for a cover-art URL gets confident, broken links. The fix: the model finds a real product page, then plain code reads that page's own <code>og:image</code> tag and checks it's really an image.</p>
+            <span class="metric">25% → 68% of covers found</span></div>
+        </li>
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-trash"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 11</span><h3>Everyday use</h3>
+            <p>Delete with a confirmation, thumbnails twice as big, and a real phone layout. The page starts to feel like something to use every day.</p></div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="era">
+      <div class="era-label">Identity and scale · Oct 11–12</div>
+      <ol class="spine">
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-palette"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 11–12</span><h3>Finding a face</h3>
+            <p>Dan's own navy-and-gold garage logo arrives, and the page's palette, type and header are rebuilt around it as Game Garage Collection.</p></div>
+        </li>
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-building"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 12</span><h3>The real shelf</h3>
+            <p>A 260-row spreadsheet of the actual collection is reconciled against what's live: 112 games updated, 104 added. For the first time the page matches the shelf.</p>
+            <span class="metric">216 games, numbered 1–216</span></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon icon-fill"><use href="#i-meeple"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 12</span><h3>An icon for every game</h3>
+            <p>Each game gets an icon picked by AI from the real 5,200-icon Tabler catalog and checked against it, so nothing renders broken. Sharper prompts push the generic meeple fallback down.</p>
+            <span class="metric">33% → 23% → 5.5% → 4% fallback</span></div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="era">
+      <div class="era-label">Crisis and resilience · Oct 17–18</div>
+      <ol class="spine">
+        <li class="node crisis" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-cloudoff"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 17</span><h3>The tunnel falls over</h3>
+            <p>n8n goes dark with Cloudflare Tunnel error 1033. The tunnel ran on a home connection, and Docker gave n8n a new random port on every restart.</p></div>
+        </li>
+        <li class="node crisis" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-server"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 17</span><h3>Moving house</h3>
+            <p>n8n and its own tunnel are rebuilt together on a Hostinger VPS, on one Docker network with no ports open to the internet. The home connection is out of the loop.</p></div>
+        </li>
+        <li class="node crisis" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-history"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 17</span><h3>Lost, and found</h3>
+            <p>A VPS restore wipes n8n's workflows and data. All 216 games are rebuilt from migration files still on disk and reseeded into a new Airtable base within the hour.</p>
+            <span class="metric">0 games lost</span></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-shield"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 18 · morning</span><h3>Locking the doors</h3>
+            <p>Every change now needs a Google sign-in, and only a server-confirmed owner sees the editing controls. A working BGG token finally arrives, for ratings and checking titles.</p></div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="era">
+      <div class="era-label">Meet Nathan · Oct 18 <span class="new">New since the first write-up</span></div>
+      <ol class="spine">
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-chat"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 18 · 11:30</span><h3>Ask becomes Ask Nathan</h3>
+            <p>A question box that knows who's playing, their ratings and their play history picks games with reasons. Within half an hour it has a name: Nathan, the collection's curator.</p></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-sparkle"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 18 · afternoon</span><h3>Board Game Curator</h3>
+            <p>The site is renamed around him: an illustrated hero of Nathan with his magnifying glass, the red comic title, and the line "Your collection cataloged and cultivated with love." The search bar becomes his Ask bar, and his answers read like an AI overview that filters the shelf.</p></div>
+        </li>
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-database"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 18 · evening</span><h3>A real database</h3>
+            <p>Airtable lasts a day. Postgres moves in beside n8n on the server, with NocoDB as a spreadsheet view and a nightly backup to a private GitHub repo. By 10 pm the live site runs on it.</p>
+            <span class="metric">Third home for the data in 8 days</span></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-users"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 18 · late</span><h3>Friends get shelves</h3>
+            <p>Friends get their own shelves imported from BoardGameGeek, and visitors see a welcome page. The collection, people and Nathan become members-only.</p></div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="era">
+      <div class="era-label">A site for friends · Oct 19 <span class="new">New</span></div>
+      <ol class="spine">
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-gauge"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 19 · morning</span><h3>Faster, watched, and fair</h3>
+            <p>Failure alerts email Dan when a workflow breaks or a backup stalls. Turning off the models' thinking speeds Nathan up. Each member gets 30 questions a day, with a quiet counter.</p>
+            <span class="metric">10.7 s → 6.4 s per answer</span></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-users"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 19</span><h3>Friend codes</h3>
+            <p>Enter a friend's code and you're connected. @mention a friend and Nathan knows their taste and plays. Your own shelf is home; a friend's opens view-only.</p></div>
+        </li>
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-refresh"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 19 · night</span><h3>Your shelf is what you own</h3>
+            <p>BGG brings in plays only, never games. Add games by name (pick several at once), by photo, or from a spreadsheet. Nathan learns facts about any game, "would I like it?", and what to buy next.</p></div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="era">
+      <div class="era-label">Nathan grows up · Oct 20 <span class="new">New</span></div>
+      <ol class="spine">
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-users"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 20 · afternoon</span><h3>Profiles, wishlists, Top 10s</h3>
+            <p>Profile pages, a Top 10 of all time, and wishlists friends can see as gift ideas. Nathan gets social: "what can we play at Keith's?", "who has a co-op for 2?", "which friends would love Brass?"</p></div>
+        </li>
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-check"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 20 · evening</span><h3>Tests, dashboard, release notes</h3>
+            <p>A demo member with 150 games and about 960 plays to test against. Database checks on every deploy, a nightly self-test, an admin dashboard, and release notes posted to the testers' Discord.</p>
+            <span class="metric">31 checks and 18 questions on day one</span></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-brain"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 20 · late</span><h3>Nathan gets to know you</h3>
+            <p>Chats are saved, and he keeps short notes ("only has an hour on weeknights", "stop suggesting Cascadia") with an "I'll remember…" line under his answer. He stops repeating himself by remembering two weeks of picks. Members see and delete what he remembers.</p></div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="era">
+      <div class="era-label">Reading the rules · Oct 21 <span class="new">New</span></div>
+      <ol class="spine">
+        <li class="node crisis" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-mail"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 21 · 7:25</span><h3>Double emails, jumping popups</h3>
+            <p>A mail server's "try again" reply made the nightly report arrive twice, so email retries come out. On phones, scrolling a popup scrolled the shelf behind it; popups now hold the page still.</p></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-refresh"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 21 · morning</span><h3>Everyone's plays, every night</h3>
+            <p>Every member's BoardGameGeek plays (and what BG Stats posts there) sync at 4:30 am, or now with "Sync my plays". What's new moves into the cog, read straight from the release notes.</p></div>
+        </li>
+        <li class="node crisis" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-book"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 21 · 10:21</span><h3>Rulebooks, with page numbers</h3>
+            <p>Docling ran out of memory on the server, so a vision model reads each rulebook page by page instead, icons and sidebars included. The PDF is deleted after; the text and a link to the official copy stay. Nathan answers "(Rulebook, p. 16)" for anyone, whatever edition they own.</p>
+            <span class="metric">SETI, Andromeda's Edge + appendix, Fate of the Fellowship</span></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-camera"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 21 · late morning</span><h3>Show Nathan a photo</h3>
+            <p>Snap an icon and ask what it means, and he finds it in the rulebook. Snap a box, a board, or just the components on the table, and he names the game. Plus full-screen chat and a back-to-top button.</p></div>
+        </li>
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-shield"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 21 · afternoon</span><h3>An admin portal and a costs page</h3>
+            <p>Invites now send a welcome email. Dashboard, members, Nathan's settings and every rulebook move into one admin portal, with a Costs page that reads exact AI spending from OpenRouter every hour.</p>
+            <span class="metric">52 database checks</span></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-search"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 21 · evening</span><h3>Box art for everything, instant search</h3>
+            <p>A background job fills in every catalog game that never got its BGG details, 20 every 10 minutes. Typing a game's name finds it on your shelf instantly. Admins upload rulebooks for any game, and a Cloudflare token makes each update live within minutes.</p>
+            <span class="metric">455 games without art → 7</span></div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== THE WORK ===================== -->
+  <section aria-labelledby="cost-h">
+    <div class="sec-head">
+      <span class="eyebrow">Time and work</span>
+      <h2 id="cost-h">What it took</h2>
+      <p class="sub">Rebuilt from git commit timestamps. Commits come in bursts, so the solid bar counts work between commits less than 75 minutes apart; the striped part adds gaps up to 3 hours, which were usually work that hadn't been committed yet. Read the hours as a range, not an invoice.</p>
+    </div>
+
+    <div class="stats three">
+      <div class="stat"><b>11</b><span>calendar days, Oct 11 → Oct 21</span></div>
+      <div class="stat"><b>6</b><span>days of building; 5 days untouched</span></div>
+      <div class="stat"><b>37–47</b><span>hours of active build time</span></div>
+      <div class="stat"><b>142</b><span>commits in 15 sittings</span></div>
+      <div class="stat"><b>74,487</b><span>lines added, 33,809 removed</span></div>
+      <div class="stat"><b>53</b><span>n8n workflows, written as code</span></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel" aria-label="Estimated active hours per day">
+        <h3>Hours by day</h3>
+        <div class="days">
+          <div class="day"><span class="d">Oct 11</span><span class="bar"><i style="width:36.6%"></i></span><span class="h">4.5 h</span></div>
+          <div class="day idle"><span class="d">12–16</span><span class="bar"></span><span class="h">idle</span></div>
+          <div class="day"><span class="d">Oct 17</span><span class="bar"><i style="width:35.8%"></i></span><span class="h">4.4 h</span></div>
+          <div class="day"><span class="d">Oct 18</span><span class="bar"><i style="width:74%"></i><i style="left:74%; width:26%"></i></span><span class="h">9–12 h</span></div>
+          <div class="day"><span class="d">Oct 19</span><span class="bar"><i style="width:34.1%"></i><i style="left:34.1%; width:7.4%"></i></span><span class="h">4–5 h</span></div>
+          <div class="day"><span class="d">Oct 20</span><span class="bar"><i style="width:64.2%"></i><i style="left:64.2%; width:17.1%"></i></span><span class="h">8–10 h</span></div>
+          <div class="day"><span class="d">Oct 21</span><span class="bar"><i style="width:57.7%"></i><i style="left:57.7%; width:27.7%"></i></span><span class="h">7–10.5 h</span></div>
+        </div>
+        <div class="key"><span><i></i>Commit bursts</span><span><i class="est"></i>Likely work between them</span></div>
+      </div>
+
+      <div class="panel">
+        <h3>What got built</h3>
+        <div class="rows">
+          <div class="row"><span>The shelf page (<code>index.html</code>)</span><b>3,508 lines</b></div>
+          <div class="row"><span>Workflow generator (<code>n8n/gen.js</code>)</span><b>3,512 lines</b></div>
+          <div class="row"><span>Admin portal (<code>admin.html</code>)</span><b>719 lines</b></div>
+          <div class="row"><span>Database changes, numbered and re-runnable</span><b>31 files</b></div>
+          <div class="row"><span>Releases with notes for testers</span><b>11</b></div>
+          <div class="row"><span>Times the data moved house</span><b>3</b></div>
+          <div class="row"><span>Kinds of question Nathan tells apart</span><b>6</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>What the site spends on AI</h3>
+        <div class="rows">
+          <div class="row"><span>Spent on the site's OpenRouter key so far (every answer, photo, rulebook page, test and icon)</span><b>$4.50</b></div>
+          <div class="row"><span>Key limit</span><b>$10.00</b></div>
+          <div class="row"><span>One question to Nathan, on average</span><b>about $0.0013</b></div>
+          <div class="row"><span>Reading a rulebook</span><b>once, then free to ask</b></div>
+        </div>
+        <p class="note">Exact figures come from Admin → Costs, which reads OpenRouter every hour. Hosting (the Hostinger VPS) and domains are fixed costs, not listed here.</p>
+      </div>
+      <div class="panel">
+        <h3>What it cost to build</h3>
+        <p class="note">The building was done in long Claude Code sessions: dozens of tool calls an hour, data migrations, server work over SSH, and repeated workflow deploys and test runs. That's a multi-million-token project, but no usage meter is visible from inside these sessions, so a dollar figure here would be made up. The real number is in the Claude app's usage settings or the Anthropic Console.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ARCHITECTURE ===================== -->
+  <section aria-labelledby="arch-h">
+    <div class="sec-head">
+      <span class="eyebrow">Attached · the current architecture</span>
+      <h2 id="arch-h">How it runs today</h2>
+      <p class="sub">A static page talks to 53 n8n workflows on one small server. The workflows read and write one Postgres database and call Google, BoardGameGeek and AI models. Nathan is one of those workflows.</p>
+    </div>
+
+    <div class="map" role="img" aria-label="Diagram: members' browsers load the page from GitHub Pages through Cloudflare and call n8n through a Cloudflare tunnel. n8n runs on a Hostinger VPS beside Postgres, a page reader for rulebooks, NocoDB and a backup job. n8n calls Google, BoardGameGeek, OpenRouter and email. Backups go to a private GitHub repo.">
+      <svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" style="fill: var(--muted)"/>
+          </marker>
+        </defs>
+        <style>
+          .bx { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+          .bx.use { fill: var(--red-soft); stroke: var(--brand); }
+          .bx.logic { fill: var(--blue-soft); stroke: var(--blue); }
+          .bx.data { fill: var(--gold-soft); stroke: var(--gold-dark); }
+          .frame { fill: none; stroke: var(--navy); stroke-width: 1.5; stroke-dasharray: 6 5; }
+          .t { fill: var(--ink); font: 700 15px var(--body); }
+          .s { fill: var(--muted); font: 12px var(--body); }
+          .k { fill: var(--navy); font: 800 11px var(--body); letter-spacing: 0.1em; }
+          .lbl { fill: var(--muted); font: 600 10.5px var(--body); }
+          .ln { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+          .ln.d { stroke-dasharray: 4 4; }
+          .chip { fill: var(--surface); stroke: var(--blue); stroke-width: 1; }
+          .ct { fill: var(--blue); font: 700 11px var(--body); }
+        </style>
+
+        <rect class="bx use" x="20" y="40" width="230" height="150" rx="12"/>
+        <text class="t" x="36" y="68">Members' browsers</text>
+        <text class="s" x="36" y="92">Shelves, friends, wishlists,</text>
+        <text class="s" x="36" y="108">rulebooks, Ask Nathan, photos</text>
+        <text class="s" x="36" y="132">admin.html: the admin portal</text>
+        <text class="s" x="36" y="156">Sign in with Google; the ID</text>
+        <text class="s" x="36" y="172">token goes with every request</text>
+
+        <rect class="bx" x="20" y="240" width="230" height="90" rx="12"/>
+        <text class="t" x="36" y="268">GitHub Pages</text>
+        <text class="s" x="36" y="290">The static page, no build step,</text>
+        <text class="s" x="36" y="306">cached by Cloudflare</text>
+        <path class="ln" d="M135,240 V194" marker-end="url(#ah)"/>
+        <text class="lbl" x="142" y="222">serves page</text>
+
+        <rect class="bx" x="320" y="30" width="300" height="50" rx="10"/>
+        <text class="t" x="336" y="61">Cloudflare</text>
+        <text class="s" x="430" y="61">DNS, cache, tunnel to server</text>
+        <path class="ln" d="M250,58 H316" marker-end="url(#ah)"/>
+        <text class="lbl" x="258" y="50">HTTPS</text>
+
+        <rect class="frame" x="300" y="100" width="690" height="270" rx="14"/>
+        <text class="k" x="316" y="122">HOSTINGER VPS · DOCKER</text>
+        <path class="ln" d="M470,80 V128" marker-end="url(#ah)"/>
+        <text class="lbl" x="478" y="110">/webhook/vault/*</text>
+
+        <rect class="bx logic" x="320" y="134" width="300" height="216" rx="12"/>
+        <text class="t" x="336" y="162">n8n workflows</text>
+        <text class="s" x="336" y="184">Every page action is a webhook. Each checks</text>
+        <text class="s" x="336" y="200">the Google token and membership first.</text>
+        <rect class="chip" x="336" y="216" width="128" height="26" rx="13"/><text class="ct" x="352" y="233">53 workflows</text>
+        <rect class="chip" x="472" y="216" width="132" height="26" rx="13"/><text class="ct" x="486" y="233">9 scheduled jobs</text>
+        <rect class="chip" x="336" y="250" width="128" height="26" rx="13"/><text class="ct" x="352" y="267">Ask (Nathan)</text>
+        <rect class="chip" x="472" y="250" width="132" height="26" rx="13"/><text class="ct" x="486" y="267">Rulebook reader</text>
+        <rect class="chip" x="336" y="284" width="128" height="26" rx="13"/><text class="ct" x="352" y="301">Fill Catalog</text>
+        <rect class="chip" x="472" y="284" width="132" height="26" rx="13"/><text class="ct" x="486" y="301">Error Alert</text>
+        <text class="s" x="336" y="336">Built by n8n/gen.js, shipped by deploy.sh</text>
+
+        <rect class="bx data" x="690" y="134" width="280" height="116" rx="12"/>
+        <text class="t" x="706" y="162">Postgres · schema bgc</text>
+        <text class="s" x="706" y="184">Members, games, shelves, plays,</text>
+        <text class="s" x="706" y="200">friends, wishlists, rulebook text,</text>
+        <text class="s" x="706" y="216">Nathan's memory, AI costs. Rules</text>
+        <text class="s" x="706" y="232">live in SQL functions.</text>
+        <path class="ln" d="M624,192 H686" marker-start="url(#ah)" marker-end="url(#ah)"/>
+        <text class="lbl" x="638" y="184">SQL</text>
+
+        <rect class="bx" x="690" y="264" width="88" height="86" rx="10"/>
+        <text class="t" x="702" y="290">Pages</text>
+        <text class="s" x="702" y="310">Rulebook</text>
+        <text class="s" x="702" y="326">page images</text>
+        <rect class="bx" x="786" y="264" width="88" height="86" rx="10"/>
+        <text class="t" x="798" y="290">NocoDB</text>
+        <text class="s" x="798" y="310">Spreadsheet</text>
+        <text class="s" x="798" y="326">view for Dan</text>
+        <rect class="bx" x="882" y="264" width="88" height="86" rx="10"/>
+        <text class="t" x="894" y="290">Backup</text>
+        <text class="s" x="894" y="310">Nightly</text>
+        <text class="s" x="894" y="326">SQL dump</text>
+        <path class="ln" d="M624,300 Q660,300 686,306" marker-end="url(#ah)"/>
+        <path class="ln" d="M830,250 V262"/>
+        <path class="ln" d="M926,250 V262"/>
+
+        <text class="k" x="20" y="420">OUTSIDE SERVICES</text>
+        <path class="ln" d="M470,350 V398 H110 M470,398 H698 M110,398 V436 M306,398 V436 M502,398 V436 M698,398 V436"/>
+        <path class="ln" d="M110,430 V438" marker-end="url(#ah)"/><path class="ln" d="M306,430 V438" marker-end="url(#ah)"/>
+        <path class="ln" d="M502,430 V438" marker-end="url(#ah)"/><path class="ln" d="M698,430 V438" marker-end="url(#ah)"/>
+        <path class="ln d" d="M20,175 H8 V490 H16" marker-end="url(#ah)"/>
+        <path class="ln" d="M926,350 V438" marker-end="url(#ah)"/>
+
+        <rect class="bx" x="20" y="440" width="180" height="104" rx="10"/>
+        <text class="t" x="34" y="466">Google</text>
+        <text class="s" x="34" y="488">Sign-in in the browser;</text>
+        <text class="s" x="34" y="504">n8n checks each token</text>
+
+        <rect class="bx" x="216" y="440" width="180" height="104" rx="10"/>
+        <text class="t" x="230" y="466">BoardGameGeek</text>
+        <text class="s" x="230" y="488">Game details, search,</text>
+        <text class="s" x="230" y="504">box art, everyone's plays</text>
+        <text class="s" x="230" y="520">(BG Stats posts there)</text>
+
+        <rect class="bx" x="412" y="440" width="180" height="104" rx="10"/>
+        <text class="t" x="426" y="466">OpenRouter</text>
+        <text class="s" x="426" y="488">Gemini 2.5 Flash Lite: reads</text>
+        <text class="s" x="426" y="504">Claude Haiku 5.5: answers</text>
+        <text class="s" x="426" y="520">Gemini 2.5 Flash: pages, photos</text>
+
+        <rect class="bx" x="608" y="440" width="180" height="104" rx="10"/>
+        <text class="t" x="622" y="466">Email</text>
+        <text class="s" x="622" y="488">Invites to new members;</text>
+        <text class="s" x="622" y="504">alerts and the nightly</text>
+        <text class="s" x="622" y="520">check report to Dan</text>
+
+        <rect class="bx" x="804" y="440" width="180" height="104" rx="10"/>
+        <text class="t" x="818" y="466">GitHub (private)</text>
+        <text class="s" x="818" y="488">Backup repo: every</text>
+        <text class="s" x="818" y="504">night is a version you</text>
+        <text class="s" x="818" y="520">can restore</text>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="border-color: var(--brand); background: var(--red-soft)"></i>What people use</span>
+      <span><i class="sw" style="border-color: var(--blue); background: var(--blue-soft)"></i>The logic</span>
+      <span><i class="sw" style="border-color: var(--gold-dark); background: var(--gold-soft)"></i>The data</span>
+      <span><i class="sw" style="border-color: var(--line); background: var(--surface)"></i>Hosting and outside services</span>
+    </div>
+
+    <h3 style="margin-top:0.8rem;">How Nathan answers a question</h3>
+    <ol class="pipe">
+      <li><span class="pill db">Database</span><span><b>Count and remember.</b> Uses one of the member's 30 daily questions, then loads what Nathan knows about them, his picks for them in the last two weeks, and this chat so far.</span></li>
+      <li><span class="pill ai">Gemini</span><span><b>Understand.</b> Turns the question (and any photo) into a plan: what kind of question, who's playing, player count, time, weight, games named.</span></li>
+      <li><span class="pill code">Code</span><span><b>Firm rules.</b> "A game I don't own" means ideas to buy, "my" means the asker's shelf, "who has…" looks across friends' shelves.</span></li>
+      <li><span class="pill db">Database</span><span><b>Look things up.</b> Finds games even from partial or misspelled names, who owns them, friends' shelves, Top 10s, wishlists, and for rules questions the best-matching rulebook sections with their pages.</span></li>
+      <li><span class="pill web">BGG</span><span><b>Fill the gaps.</b> A game that isn't in the catalog yet comes from BoardGameGeek.</span></li>
+      <li><span class="pill code">Code</span><span><b>Shortlist.</b> Hard limits first, then scores by the group's ratings, plays, taste, and how good the game is at this player count.</span></li>
+      <li><span class="pill ai">Claude</span><span><b>Nathan writes the answer</b> from the shortlist only, in his voice, citing rulebook pages, and notes anything worth remembering about the asker.</span></li>
+      <li><span class="pill code">Code</span><span><b>Check and save.</b> Drops any game that wasn't on the shortlist, saves the turn and what he learned, and logs the question's kind, time and cost (never its words).</span></li>
+    </ol>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>What runs on its own (Eastern)</h3>
+        <div class="clock">
+          <div><time>4:00</time><span>Sync Dan's plays from BoardGameGeek</span></div>
+          <div><time>4:20</time><span>Sync people and their BGG ratings</span></div>
+          <div><time>4:30</time><span>Sync every member's plays</span></div>
+          <div><time>5:40</time><span>Self-test: 52 checks and 24 questions; emails Dan only on a failure</span></div>
+          <div><time>9:00</time><span>Health check on the nightly backup</span></div>
+          <div><time>2 min</time><span>Rulebook reader picks up the next upload</span></div>
+          <div><time>10 min</time><span>Fill Catalog: BGG details and box art for 20 games</span></div>
+          <div><time>hourly</time><span>AI spending and balance from OpenRouter</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>How a change ships</h3>
+        <ul>
+          <li>Edit the page, <code>n8n/gen.js</code>, or a numbered SQL file.</li>
+          <li>Apply database changes; each file is safe to run again.</li>
+          <li><code>deploy.sh</code> generates and publishes the workflows, restarts n8n, and fails if any of the 52 checks fail.</li>
+          <li><code>git push</code> to GitHub Pages, then clear Cloudflare's cache so it's live in a minute or two.</li>
+          <li>Post the version's notes to the testers' Discord, only when Dan says so.</li>
+        </ul>
+        <a class="cta" href="https://bg.ondorilabo.com/docs/architecture.html" target="_blank" rel="noopener">Open the full architecture page <svg class="icon"><use href="#i-arrow"/></svg></a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <b>Built in public, broken in public, fixed in public.</b>
+    <span>Board Game Curator · v0.15.1 · October 21, 2026. Numbers from the live database, git history and OpenRouter.</span>
+  </footer>
+</div>
