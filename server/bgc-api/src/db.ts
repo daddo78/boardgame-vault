@@ -5,6 +5,8 @@ import pg from 'pg';
 export interface Db {
   // One row's first column, e.g. one('SELECT bgc.my_profile($1)', [email])
   one<T>(sql: string, params: unknown[]): Promise<T | null>;
+  // The first row, by column name (Nathan's steps read several columns at once, as from n8n's Postgres node)
+  row<T = Record<string, any>>(sql: string, params: unknown[]): Promise<T | null>;
   ping(): Promise<void>;
   close(): Promise<void>;
 }
@@ -17,6 +19,10 @@ export function pgDb(url: string | undefined): Db {
     async one<T>(sql: string, params: unknown[]) {
       const r = await pool.query({ text: sql, values: params, rowMode: 'array' });
       return (r.rows[0]?.[0] ?? null) as T | null;
+    },
+    async row<T>(sql: string, params: unknown[]) {
+      const r = await pool.query(sql, params);
+      return (r.rows[0] ?? null) as T | null;
     },
     async ping() { await pool.query('SELECT 1'); },
     close: () => pool.end(),

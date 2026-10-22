@@ -7,13 +7,16 @@ import type { Config } from './config.js';
 import type { Db } from './db.js';
 import { ApiError, onError } from './errors.js';
 import { perMember, rateLimiter } from './rateLimit.js';
+import type { Fetch } from './nathan/openrouter.js';
+import { askRoutes } from './routes/ask.js';
+import { nathanModeRoutes } from './routes/nathanMode.js';
 import { profileRoutes } from './routes/profile.js';
 
-export type Deps = { db: Db; verify: VerifyToken; config: Config; now?: () => number };
+export type Deps = { db: Db; verify: VerifyToken; config: Config; now?: () => number; fetch?: Fetch };
 
 const LOCALHOST = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
 
-export function createApp({ db, verify, config, now }: Deps) {
+export function createApp({ db, verify, config, now, fetch }: Deps) {
   const app = new Hono<AuthEnv>();
   app.onError(onError);
   app.notFound((c) => c.json({ ok: false, message: 'There’s nothing here' }, 404));
@@ -34,7 +37,10 @@ export function createApp({ db, verify, config, now }: Deps) {
     allowHeaders: ['Authorization', 'Content-Type'],
     maxAge: 600,
   }));
-  app.use(bodyLimit({ maxSize: 1024 * 1024, onError: () => { throw new ApiError(413, 'That’s too big to send in one go'); } }));
+  // 1 MB, except a question to Nathan, which can carry a photo
+  const tooBig = () => { throw new ApiError(413, 'That’s too big to send in one go'); };
+  const small = bodyLimit({ maxSize: 1024 * 1024, onError: tooBig }), large = bodyLimit({ maxSize: 4 * 1024 * 1024, onError: tooBig });
+  app.use((c, next) => (c.req.path.startsWith('/vault/ask') ? large : small)(c, next));
 
   // For Docker and the deploy script: up, and can reach the database
   app.get('/health', async (c) => {
@@ -47,6 +53,8 @@ export function createApp({ db, verify, config, now }: Deps) {
   vault.use(memberGate({ db, verify, ownerEmails: config.ownerEmails }));
   vault.use(perMember(rateLimiter(config.ratePerMinute, now)));
   vault.route('/', profileRoutes(db));
+  vault.route('/', askRoutes(config.openrouterKey ? { db, openrouterKey: config.openrouterKey, bggToken: config.bggToken, fetch } : null));
+  vault.route('/', nathanModeRoutes(db, !!config.openrouterKey));
   app.route('/vault', vault);
 
   return app;

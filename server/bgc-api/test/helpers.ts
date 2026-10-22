@@ -44,7 +44,7 @@ export function fakeDb(overrides: Partial<Record<string, (params: unknown[]) => 
     down() { up = false; },
     async one<T>(sql: string, params: unknown[]) {
       calls.push({ sql, params });
-      const fn = Object.keys(answers).find((k) => sql.includes(k + '('));
+      const fn = Object.keys(answers).find((k) => sql.includes(k + '(')) ?? Object.keys(answers).find((k) => sql.includes(k));
       if (!fn) throw new Error('fake db: no answer for ' + sql);
       return (await answers[fn](params)) as T;
     },
@@ -59,6 +59,12 @@ export function makeApp(opts: { db?: ReturnType<typeof fakeDb>; env?: Record<str
   const config = loadConfig({ DATABASE_URL: 'postgres://unused', GOOGLE_CLIENT_ID: CLIENT_ID, OWNER_EMAILS: OWNER, LOG_REQUESTS: 'false', ...opts.env });
   const app = createApp({ db, verify: googleVerifier(CLIENT_ID, googleKeys), config, now: opts.now });
   return { app, db };
+}
+
+// With Nathan: a stand-in OpenRouter (fetch) and his settings
+export function makeAppWith(opts: { db: Db; fetch: typeof fetch; env?: Record<string, string> }) {
+  const config = loadConfig({ DATABASE_URL: 'postgres://unused', GOOGLE_CLIENT_ID: CLIENT_ID, OWNER_EMAILS: OWNER, LOG_REQUESTS: 'false', OPENROUTER_API_KEY: 'sk-test', ...opts.env });
+  return createApp({ db: opts.db, verify: googleVerifier(CLIENT_ID, googleKeys), config, fetch: opts.fetch });
 }
 
 export const get = (app: ReturnType<typeof makeApp>['app'], path: string, headers: Record<string, string> = {}) =>

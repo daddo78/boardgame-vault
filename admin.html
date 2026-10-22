@@ -491,6 +491,9 @@
     app.innerHTML =
       '<h1><i class="fa-solid fa-comments"></i> Nathan</h1><div class="sub">The curator: how much he’s asked, his daily limit, and the nightly check</div>' +
       selfTestHtml(d.selfTest) +
+      '<div class="card" style="margin-top:0.9rem;"><h3>Nathan’s new service <small>answers appear as he writes, with a Stop button</small></h3>' +
+        '<span class="seg" id="nathanMode"><button data-mode="off">Off</button><button data-mode="admins">Admins only</button><button data-mode="everyone">Everyone</button></span>' +
+        '<div class="note" id="nathanModeNote" style="margin:0.5rem 0 0;">Checking…</div></div>' +
       '<div class="tiles five">' +
         '<div class="tile"><b>' + num(a.totals.questionsToday) + '</b><span>Questions today</span></div>' +
         '<div class="tile"><b>' + num(a.totals.questions7) + '</b><span>This week</span></div>' +
@@ -512,6 +515,30 @@
           '<div class="note">' + num(m.questions7) + ' this week · ' + num(m.questionsAll) + ' all time</div>' +
           '<div class="acts" style="margin-top:0.6rem;"><button type="button" class="btn small" data-reset="' + m.id + '"><i class="fa-solid fa-rotate-left"></i> Reset today’s questions</button></div></div>').join('') + '</div>'
         : '<p class="empty">Nobody has asked Nathan anything yet today.</p>');
+    loadNathanMode();
+  }
+  // Who gets Nathan from api.ondorilabo.com instead of n8n. If the new service is down, everyone gets n8n anyway.
+  const MODE_NOTE = { off: 'Everyone gets Nathan from n8n, as before.', admins: 'Admins get the new service; everyone else gets n8n.', everyone: 'Everyone gets the new service (n8n if it can’t be reached).' };
+  async function apiCall(path, opts = {}) {
+    const res = await fetch(API + path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + token() } });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.message || 'The new service didn’t answer (' + res.status + ')');
+    return body;
+  }
+  function showNathanMode(mode) {
+    document.querySelectorAll('#nathanMode button').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
+    document.getElementById('nathanModeNote').textContent = MODE_NOTE[mode] || '';
+  }
+  async function loadNathanMode() {
+    const seg = document.getElementById('nathanMode');
+    try { showNathanMode((await apiCall('/nathan-mode')).mode); }
+    catch (e) { document.getElementById('nathanModeNote').textContent = 'Couldn’t reach the new service: ' + e.message; }
+    seg.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-mode]');
+      if (!b) return;
+      try { showNathanMode((await apiCall('/nathan-mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: b.dataset.mode }) })).mode); toast('Saved'); }
+      catch (err) { toast(err.message, true); }
+    });
   }
 
   // ================= Costs =================

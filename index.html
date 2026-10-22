@@ -288,6 +288,11 @@
   .ask-actions .btn { flex: 1 1 auto; }
   .ask-thinking { display: flex; align-items: center; gap: 0.7rem; margin-top: 1.2rem; color: var(--text-muted); font-size: 0.9rem; }
   .ask-thinking .spinner { margin: 0; }
+  /* While Nathan writes (new service): Stop, and what's kept if he stops or the connection drops */
+  .n-stop { margin-left: auto; border: 0; border-radius: 999px; padding: 0.3rem 0.8rem; background: var(--tag-bg); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+  .n-writing { margin-top: 0.7rem; }
+  .n-cut { margin: 0.7rem 0 0; }
+  .n-cut .linklike { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--accent); text-decoration: underline; cursor: pointer; }
   .ratings-block { display: flex; flex-direction: column; gap: 0.5rem; }
   .rate-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; background: var(--bg); border-radius: 0.9rem; padding: 0.45rem 0.7rem; }
   .rate-row .who { font-weight: 700; font-size: 0.88rem; min-width: 5.5rem; }
@@ -1230,6 +1235,7 @@
     const isAdmin = () => isOwner() || !!(myRole() || {}).admin;
     const myPlayerId = () => (myRole() || {}).playerId || null;
     function setToken(t) {
+      nathanViaApi = null; // ask the switch again for whoever is signed in now
       try { profile = t ? decodeJwt(t) : null; idToken = t || null; } catch (e) { profile = null; idToken = null; }
       try { idToken ? localStorage.setItem(LS_TOKEN, idToken) : localStorage.removeItem(LS_TOKEN); } catch (e) {}
       updateAuthUi();
@@ -1410,6 +1416,19 @@
       }
       const ct = res.headers.get('content-type') || '';
       return ct.includes('application/json') ? res.json() : res.text();
+    }
+
+    // Nathan from the new service (api.ondorilabo.com), for whoever the admin switch says (Admin → Nathan);
+    // n8n for everyone else, and whenever the new service can't be reached
+    const API = 'https://api.ondorilabo.com/vault';
+    var nathanViaApi = null; // null: not asked yet for this sign-in
+    async function useNathanApi() {
+      if (nathanViaApi !== null) return nathanViaApi;
+      try {
+        const r = await fetch(API + '/nathan-mode', { headers: { Authorization: 'Bearer ' + await ensureToken() }, signal: AbortSignal.timeout(4000) });
+        nathanViaApi = r.ok && !!(await r.json()).useApi;
+      } catch (e) { nathanViaApi = false; }
+      return nathanViaApi;
     }
 
     // Loading and errors show in the total badge in the top bar, not in the hero
@@ -3203,6 +3222,58 @@
       if (!box.value.trim()) box.placeholder = 'Ask about the photo, e.g. "what does this icon mean?"';
     });
     document.addEventListener('click', (e) => { if (e.target.closest('[data-photo-remove]')) { pendingPhoto = null; renderPhotoChips(); } });
+    // Nathan from the new service, streamed: his words appear as he writes them, with a Stop button.
+    // Returns null when the service can't be reached or is down before it starts, so the question goes to n8n instead.
+    let askStop = null, retryAsk = null;
+    const STOP_BTN = '<button type="button" class="n-stop" data-ask-stop><i class="ti ti-player-stop-filled"></i> Stop</button>';
+    async function askViaApi(payload, turn) {
+      const ctl = new AbortController();
+      askStop = ctl;
+      const body = turn.querySelector('.np-body');
+      body.querySelector('.ask-thinking').insertAdjacentHTML('beforeend', STOP_BTN);
+      let words = false, done = null;
+      const cut = (stopped) => Object.assign(new Error(stopped ? 'Stopped' : 'Lost'), { stopped, partial: words });
+      try {
+        let res;
+        try {
+          res = await fetch(API + '/ask/stream', { method: 'POST', signal: ctl.signal,
+            headers: { Authorization: 'Bearer ' + await ensureToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        } catch (e) { if (ctl.signal.aborted) throw cut(true); return null; }
+        if (res.status === 401) throw handleUnauthorized();
+        if (res.status >= 500 || !res.body) return null;
+        if (!res.ok) { let m = ''; try { m = (await res.json()).message || ''; } catch (e) {} throw new Error('n8n request failed (' + res.status + ') ' + m); }
+        const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+        let buf = '';
+        try {
+          for (;;) {
+            const { value, done: end } = await reader.read();
+            if (end) break;
+            buf += value;
+            let i;
+            while ((i = buf.indexOf('\n\n')) >= 0) {
+              const block = buf.slice(0, i); buf = buf.slice(i + 2);
+              const ev = (block.match(/^event: ?(.*)$/m) || [])[1], data = (block.match(/^data: ?(.*)$/m) || [])[1];
+              if (!ev || !data) continue;
+              const d = JSON.parse(data);
+              if (ev === 'partial') {
+                const r = d.summary !== undefined ? { intent: 'browse', summary: d.summary, highlights: d.highlights } : { intent: 'recommend', pick: d.pick, alternative: d.alternative };
+                if (!(r.summary || (r.highlights || []).length || r.pick)) continue;
+                words = true;
+                body.innerHTML = nathanAnswerHtml(r) + '<div class="ask-thinking n-writing"><div class="spinner"></div><span>Nathan is writing…</span>' + STOP_BTN + '</div>';
+                refreshClamp();
+              } else if (ev === 'done') done = d;
+              else if (ev === 'error') throw new Error('n8n request failed (' + d.status + ') ' + d.message);
+            }
+          }
+        } catch (e) {
+          if (ctl.signal.aborted) throw cut(true);
+          if (/^n8n request failed/.test(e.message) && !words) throw e;
+          throw cut(false);
+        }
+        if (!done) throw cut(ctl.signal.aborted);
+        return done;
+      } finally { askStop = null; }
+    }
     async function askNathan(text, followUp) {
       if (asks && asks.left <= 0) { renderAskMeter(); return; }
       const photo = pendingPhoto;
@@ -3210,6 +3281,7 @@
       const input = followUp ? npInput : bar;
       if (question.length < 3) { input.focus(); return; }
       if (askBusy) return;
+      retryAsk = { text: question, followUp, photo };
       // Anyone written out in full as @Name counts, even if they weren't picked from the list
       for (const p of people.players) if (question.toLowerCase().includes('@' + p.name.toLowerCase())) askSelected.add(p.id);
       askBusy = true;
@@ -3235,8 +3307,9 @@
       refreshClamp();
       (followUp ? turn : panel).scrollIntoView({ behavior: 'smooth', block: followUp ? 'nearest' : 'start' });
       try {
-        const r = await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], recent: recentPicks().map((x) => x.id), chatKey, image: photo, shelf: currentShelf() }) });
+        const payload = { question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], recent: recentPicks().map((x) => x.id), chatKey, image: photo, shelf: currentShelf() };
+        const r = (await useNathanApi() && await askViaApi(payload, turn))
+          || await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (r.chatKey) chatKey = r.chatKey;
         if (r.pick || (r.highlights || []).length) {
           // The whole answer (all ten of a top ten), so "which of those…" narrows it instead of starting over
@@ -3247,6 +3320,15 @@
         turn.querySelector('.np-body').innerHTML = nathanAnswerHtml(r);
         if (asks) { asks.left = Math.max(0, asks.left - 1); renderAskMeter(); }
       } catch (err) {
+        if (err.stopped !== undefined) {
+          // Stopped, or the connection dropped while he wrote: keep what he wrote so far, and offer to ask again
+          const b = turn.querySelector('.np-body');
+          if (!err.partial) b.innerHTML = '';
+          b.querySelectorAll('.ask-thinking').forEach((x) => x.remove());
+          b.insertAdjacentHTML('beforeend', '<p class="ask-note n-cut">' + (err.stopped ? 'You stopped Nathan' + (err.partial ? ' partway.' : '.') : 'Nathan lost his train of thought.') +
+            ' <button type="button" class="linklike" data-ask-retry>Ask again</button></p>');
+          return;
+        }
         const raw = String(err.message || '');
         // The AI service busy or down: say so kindly instead of showing the raw error
         const busy = /too many requests|rate.?limit|overloaded|temporarily|\((5\d\d)\)/i.test(raw) && !/questions for today/i.test(raw);
@@ -3260,6 +3342,8 @@
       }
     }
     thread.addEventListener('click', (e) => {
+      if (e.target.closest('[data-ask-stop]')) { if (askStop) askStop.abort(); return; }
+      if (e.target.closest('[data-ask-retry]') && retryAsk && !askBusy) { pendingPhoto = retryAsk.photo; askNathan(retryAsk.text, retryAsk.followUp); return; }
       const open = e.target.closest('[data-ask-open]');
       if (open) { openDetail(open.dataset.askOpen); return; }
       const see = e.target.closest('[data-see-all]');

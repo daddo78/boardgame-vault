@@ -16,7 +16,8 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGDATABASE: bgc
       VERSION: ${API_TAG:-dev}
-      # Phase 2 (Nathan): OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      BGG_TOKEN: ${BGG_TOKEN:-}
     mem_limit: 256m
     stop_grace_period: 15s   # time to finish requests in flight
     networks: [n8n]

@@ -2,6 +2,7 @@
 // Real AI calls, but they don't use anyone's daily allowance. About 15 seconds a question.
 //   node test-nathan.js            all questions
 //   node test-nathan.js shame      only questions whose name contains "shame"
+//   TARGET=api node test-nathan.js the same questions to the new API (server/bgc-api), with when his first words came
 // Exit code 1 if any check fails.
 const { execFileSync } = require('child_process');
 const path = require('path');
@@ -21,9 +22,15 @@ for (const t of tests) {
   if (only && !t.name.toLowerCase().includes(only)) continue;
   const who = WHO[t.as];
   const env = { ...process.env, JSON: '1', ROLE: who.role, SHELF: t.shelf || who.shelf, PREV: t.prev ? JSON.stringify(t.prev) : '' };
-  let a;
+  let a, time = '';
   try {
-    const out = execFileSync('bash', [path.join(__dirname, 'test-ask.sh'), t.q, who.email], { env, cwd: __dirname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 180000 });
+    const out = process.env.TARGET === 'api'
+      ? execFileSync('ssh', ['-i', path.join(require('os').homedir(), '.ssh/claude_hostinger'), 'claude-ops@148.230.83.130',
+          'docker exec -i $(docker ps -q --filter label=com.docker.compose.service=bgc-api | head -1) node dist/tools/askAs.js -'],
+          { input: JSON.stringify({ email: who.email, question: t.q, shelf: t.shelf || who.shelf, previous: t.prev || null, stream: true }), encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 180000 })
+      : execFileSync('bash', [path.join(__dirname, 'test-ask.sh'), t.q, who.email], { env, cwd: __dirname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 180000 });
+    const tl = out.split('\n').find((l) => l.startsWith('@@TIME '));
+    if (tl) { const [first, total] = tl.slice(7).split(' ').map(Number); time = '  (first words ' + (first / 1000).toFixed(1) + ' s, done ' + (total / 1000).toFixed(1) + ' s)'; }
     const line = out.split('\n').find((l) => l.startsWith('@@JSON '));
     a = line ? JSON.parse(line.slice(7)) : { error: 'no answer' };
   } catch (e) { a = { error: String(e.message).slice(0, 200) }; }
@@ -44,8 +51,8 @@ for (const t of tests) {
   if (t.remembers && !(a.remembered || []).length) problems.push('expected Nathan to remember something');
   if (t.cites && !(a.sources || []).some((x) => !t.cites.page || x.page === t.cites.page)) problems.push('expected a page from the rulebook' + (t.cites.page ? ' (p. ' + t.cites.page + ')' : '') + ', got ' + JSON.stringify((a.sources || []).map((x) => x.label + ' p.' + x.page)));
   ran++;
-  if (problems.length) { failed++; console.log('FAIL  ' + t.name + '\n      ' + problems.join('; ') + '\n      answer: ' + text.replace(/\s+/g, ' ').slice(0, 300)); }
-  else console.log('PASS  ' + t.name);
+  if (problems.length) { failed++; console.log('FAIL  ' + t.name + time + '\n      ' + problems.join('; ') + '\n      answer: ' + text.replace(/\s+/g, ' ').slice(0, 300)); }
+  else console.log('PASS  ' + t.name + time);
   sleep(8000); // gentle on the AI service
 }
 console.log('\n' + (ran - failed) + ' of ' + ran + ' passed');

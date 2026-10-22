@@ -16,6 +16,9 @@ const Env = z.object({
   RATE_PER_MINUTE: z.coerce.number().int().positive().default(120),
   VERSION: z.string().default('dev'),
   LOG_REQUESTS: z.enum(['true', 'false']).default('true'),
+  // Nathan: without the OpenRouter key his routes say he isn't set up; without the BGG token he can't look up games we don't know
+  OPENROUTER_API_KEY: z.string().optional(),
+  BGG_TOKEN: z.string().optional(),
 });
 
 export type Config = {
@@ -28,6 +31,8 @@ export type Config = {
   ratePerMinute: number;
   version: string;
   logRequests: boolean;
+  openrouterKey: string | undefined;
+  bggToken: string | undefined;
 };
 
 const list = (s: string) => s.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
@@ -47,5 +52,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     ratePerMinute: e.RATE_PER_MINUTE,
     version: e.VERSION,
     logRequests: e.LOG_REQUESTS === 'true',
+    openrouterKey: e.OPENROUTER_API_KEY || undefined,
+    bggToken: e.BGG_TOKEN || undefined,
   };
 }
