@@ -210,7 +210,7 @@
     <div class="hero">
       <img src="nathan.png" alt="Nathan, the site's curator: a cartoon man with glasses and a plaid shirt">
       <div class="hero-copy">
-        <span class="eyebrow">Production history · October 11–21, 2026</span>
+        <span class="eyebrow">Production history · October 11–21, 2026 · <a href="#next">what's next</a></span>
         <h1 class="title">Board Game Curator</h1>
         <span class="tag">From a garage shelf tracker to a curator for friends</span>
         <p class="lede">Eleven days, three homes for the data, one near-total wipe, and a curator named Nathan. This is how a page for tracking one shelf became an invite-only site where friends share their collections and an AI curator reads their rulebooks.</p>
@@ -693,6 +693,30 @@
           <li>Post the version's notes to the testers' Discord, only when Dan says so.</li>
         </ul>
         <a class="cta" href="https://bg.ondorilabo.com/docs/architecture.html" target="_blank" rel="noopener">Open the full architecture page <svg class="icon"><use href="#i-arrow"/></svg></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== WHAT'S NEXT ===================== -->
+  <section aria-labelledby="next-h" id="next">
+    <div class="sec-head">
+      <span class="eyebrow">The roadmap · starting Sunday, October 25</span>
+      <h2 id="next-h">What's next: Nathan's own service</h2>
+      <p class="sub">Most of the 53 n8n workflows are really small web endpoints. The usual way to build that is one small service: one sign-in check for every request, one deploy, one place to look when something breaks. Nathan moves first, because it's the change members will feel: his answers start appearing in about a second instead of after six. n8n keeps the scheduled jobs it's good at.</p>
+    </div>
+    <div class="grid2" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));">
+        <div class="panel"><span class="node-date">Phase 1 · the foundation</span><h3>The service</h3><ul><li>A small TypeScript service in Docker on the same server, beside the database. No new hosting cost</li><li>Every request checks the Google sign-in and membership the same way, in one place</li><li>Inputs checked, plain error messages, per-member limits, and only our site can call it</li><li>The same database functions as today, so what members can see doesn’t change</li><li>Updates go out without the site blinking: the new version starts and proves it’s healthy before taking over</li></ul></div>
+        <div class="panel"><span class="node-date">Phase 2 · the big one</span><h3>Nathan moves in</h3><ul><li><b>Answers stream:</b> his first words in about a second, the rest appearing as he writes</li><li>A Stop button while he writes, Retry if something fails, and a half-written answer is kept</li><li>The 24 test questions run in seconds, old and new side by side on the same questions</li><li>Admins try him first, then everyone; if the new service is ever down, the page quietly uses the old one</li><li>Done when: first words under 1.5 s, full answers no slower than today, 24 of 24 tests, no higher cost</li></ul></div>
+        <div class="panel"><span class="node-date">Phase 3 · after Nathan</span><h3>Everything else</h3><ul><li>About 30 small endpoints (shelf, ratings, wishlist, friends, profile, rulebooks, feedback, admin) become routes in the service</li><li>The page loads with one request instead of several, so your shelf appears faster</li><li>Each area switches over only once its checks pass; the old version is retired a week later</li></ul></div>
+        <div class="panel"><span class="node-date">Phase 4 · no change</span><h3>What stays in n8n</h3><ul><li>Nightly play sync, Fill Catalog, the rulebook reader, cost readings, the backup check and failure alerts</li><li>Scheduled background work is what n8n does best, with a history of every run to look back on</li></ul></div>
+    </div>
+    <div class="panel">
+      <h3>Before we start</h3>
+      <div class="rows">
+        <div class="row"><span>A web address for the service through the Cloudflare tunnel (<code>api.ondorilabo.com</code>)</span><b>Dan · 2 min</b></div>
+        <div class="row"><span>The OpenRouter key placed on the server, never in the code or the chat</span><b>Dan · 2 min</b></div>
+        <div class="row"><span>A fresh Claude session, so the work fits in the weekly allowance</span><b>Sunday</b></div>
+        <div class="row"><span>Also waiting: an email when the AI balance runs low, and the scrollbar fix in the next release notes</span><b>small</b></div>
       </div>
     </div>
   </section>

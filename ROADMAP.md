@@ -75,7 +75,42 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [x] Nathan full screen: pop the chat out to fill the screen (phones especially)
 - [x] Photos in the chat: attach a picture to a question ("what does this icon mean?", "what game is this?"); the vision model reads it with the game's rulebook
 - [ ] Search by meaning (pgvector) if full-text search misses questions phrased very differently from the rulebook
-- [ ] Move Nathan off n8n into his own small service (`server/bgc-api`, TypeScript + Vercel AI SDK, free) in Docker on the same Hostinger VPS, reached through the existing Cloudflare tunnel (e.g. api.ondorilabo.com). Same prompts, firm rules, SQL functions and 18-question test set. Gains: answers stream in as he writes, tests run locally in seconds, deploys don't restart n8n. Run old and new side by side behind a switch before moving everyone. Needs from Dan: the tunnel hostname, and the OpenRouter key in `~/bgc-db/.env`. Do it when one of these happens: dozens of users, streaming wanted, Nathan gets tools (add to wishlist, etc.), or deploy/test friction slows work
+- [ ] Move Nathan off n8n into his own service: planned, see section 7
+
+## 7. Next: Nathan's own service and one API (starting Sunday, Oct 25)
+Why: the 53 n8n workflows are mostly thin API endpoints. One small service is how this is normally built: one sign-in check for every route, one deploy, one place for errors, and Nathan can stream his answers. n8n keeps what it's best at, schedules and background jobs. Start in a fresh Claude session (this one got very long and costly).
+
+**Before we start (Dan, 5 minutes)**
+- [ ] A Cloudflare tunnel hostname for the service, `api.ondorilabo.com` (Claude adds the DNS side with the Cloudflare token)
+- [ ] The OpenRouter key in `~/bgc-db/.env` on the server (Dan places it; never in the repo or the chat)
+
+**Phase 1: the service (`server/bgc-api`)**
+- [ ] TypeScript on Node in Docker on the same VPS, with Hono (small, fast, standard routing) next to Postgres. No new hosting cost
+- [ ] One sign-in check for every route: the Google ID token is verified on the server with Google's public keys (no extra call per request), then `bgc.sign_in` for membership and role
+- [ ] Every input checked (zod), every error a plain message, only the site's address allowed (CORS), per-member rate limits, a health check
+- [ ] The same database functions as today. They already hold the rules, so what members can see doesn't change
+- [ ] Deploys never take the site down: the new container starts, passes its health check, then takes over
+
+**Phase 2: Nathan moves in (the biggest win for members)**
+- [ ] The same steps as today (understand, firm rules, look things up, shortlist, write, check, save) with the Vercel AI SDK and OpenRouter
+- [ ] Answers stream: his first words in about a second, the rest appearing as he writes, instead of a 6-second wait
+- [ ] A Stop button while he writes, Retry when something fails, and a partial answer is kept rather than lost
+- [ ] The 24-question test set runs against the service in seconds, old and new compared on the same questions, plus memory follow-ups
+- [ ] Each call's cost and time still logged for Admin → Costs and the dashboard; question text still never in the metrics
+- [ ] A switch per member: admins first, then everyone. If the new service is down, the page falls back to the n8n version
+- [ ] Done when: first words under 1.5 s, full answers no slower than today, 24/24 tests, cost per question no higher
+
+**Phase 3: the other endpoints**
+- [ ] The ~30 thin endpoints (shelf, ratings, wishlist, friends, profile, rulebooks, feedback, admin) become routes, one file per area
+- [ ] The page opens with one request for everything it needs (shelf, people, friends, your profile) instead of several, so it loads faster
+- [ ] Each area switches over only after its checks pass; the old webhooks are retired a week later
+
+**Phase 4: what stays in n8n**
+- [ ] Schedules and background work: nightly play sync, Fill Catalog, the rulebook reader, cost readings, the backup check, failure alerts. They're fine where they are; revisit later
+
+**Small things waiting**
+- [ ] Release notes: add "pages no longer jump sideways when a popup opens" to the next version
+- [ ] Email Dan when the OpenRouter balance or key runs low (under $2)
 
 ## 5. Data cleanup
 - [x] Count plays logged under other editions: games can list extra BGG ids (`ExtraBGGIds`); Catan counts Catan: 3D Edition, and Camel Up is re-linked to the Second Edition you own. Most unmatched plays (~330) turned out to be games not in the collection.
