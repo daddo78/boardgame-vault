@@ -53,6 +53,10 @@
   html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   /* Nothing should ever scroll the page sideways (clip, unlike hidden, keeps the sticky toolbar working) */
   html, body { overflow-x: clip; }
+  /* The scrollbar's space is always kept, so the page doesn't jump sideways when it appears or goes (a short filtered
+     list, a popup locking the page); while a popup is open the page keeps its scrollbar for the same reason */
+  html { scrollbar-gutter: stable; }
+  html:has(body.modal-locked) { overflow-y: scroll; }
   body { background-color: var(--bg); color: var(--text); font-family: var(--font-body); line-height: 1.5; padding-bottom: 5rem; }
   /* Slim top bar above the hero */
   .topbar { background: #f7f1e6; height: 3.6rem; display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; border-bottom: 1px solid #eadfcb; position: relative; z-index: 3; }
