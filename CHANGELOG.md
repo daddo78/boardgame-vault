@@ -2,6 +2,12 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.15.1 · October 21, 2026
+
+- **Find a game fast:** start typing a game's name in the Ask bar and matching games from your shelf drop down right away. Tap one to open it. When you've typed most of a name, Enter opens that game. No waiting, and it doesn't use up one of your questions. The last row always offers "Ask Nathan" instead.
+- **Bigger 📷 button** in the Ask bar and the reply box, easier to tap on a phone.
+- **Wishlist box art:** games on wishlists and Top 10s that came in without a cover now get one within about 10 minutes.
+
 ## v0.15 · October 21, 2026
 
 *Behind the scenes: Admin is now its own page with the dashboard, members and invites, Nathan's settings and the nightly check, and every rulebook in one place, plus a Costs page: exact AI spending by feature, the OpenRouter balance, and hosting costs.*
