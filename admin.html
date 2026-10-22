@@ -282,7 +282,7 @@
     const tile = (n, label, small) => '<div class="tile"><b>' + n + '</b><span>' + label + '</span>' + (small ? '<small>' + small + '</small>' : '') + '</div>';
     app.innerHTML =
       '<h1><i class="fa-solid fa-chart-line"></i> Dashboard</h1>' +
-      '<div class="sub">How people use Board Game Curator · updated ' + esc(new Date(d.generatedAt).toLocaleString()) + ' · times are Eastern</div>' + selfTestHtml(d.selfTest) +
+      '<div class="sub">How people use Board Game Curator · updated ' + esc(new Date(d.generatedAt).toLocaleString()) + ' · times are Eastern</div>' + selfTestHtml(d.selfTest) + apiCheckHtml() +
       '<div class="tiles">' +
         tile(num(k.members), 'Members') + tile(num(k.activeToday), 'Active today') + tile(num(k.active7), 'Active this week') + tile(num(k.active30), 'Active this month', 'avg ' + num(k.avgDaily30) + ' a day') +
         tile(num(k.questions7), 'Questions this week') + tile(num(k.questions30), 'Questions this month', num(k.questionsAll) + ' all time') +
@@ -318,6 +318,7 @@
         gamesCard('Wished for by the most members', d.mostWished, (g) => g.n + (g.n === 1 ? ' member' : ' members')) +
         gamesCard('Recently added by members', d.recentlyAdded, (g) => '', (g) => g.who + ' · ' + ago(g.at)) +
       '</div>';
+    document.getElementById('apiCheckGo').addEventListener('click', runApiCheck);
     document.getElementById('range').addEventListener('click', (e) => { const b = e.target.closest('[data-days]'); if (b) { days = Number(b.dataset.days); document.querySelectorAll('#range button').forEach((x) => x.classList.toggle('on', x === b)); drawActivity(); } });
     drawActivity();
     drawNathan();
@@ -332,6 +333,33 @@
       '<i class="fa-solid ' + (bad ? 'fa-triangle-exclamation' : 'fa-circle-check') + '" style="color:' + (bad ? 'var(--brand)' : 'var(--ok)') + ';"></i>' +
       '<div><b>Nightly check ' + (bad ? 'found ' + bad + ' problem' + (bad === 1 ? '' : 's') : 'passed') + '</b><div class="note" style="margin:0;">' + esc(ago(t.at)) + ' · site rules ' + t.dbPassed + '/' + t.dbTotal + ' · Nathan questions ' + t.nathanPassed + '/' + t.nathanTotal + '</div>' +
       (bad ? '<div class="note" style="margin:0.3rem 0 0;">' + t.failures.map((f) => esc(f.what) + (f.problems && f.problems.length ? ': ' + esc(f.problems.join('; ')) : '')).join('<br>') + '</div>' : '') + '</div></div>';
+  }
+  // The new API (Roadmap 7): ask it and n8n the same three things with your sign-in, and compare the answers
+  const API = 'https://api.ondorilabo.com/vault';
+  function apiCheckHtml() {
+    return '<div class="card" style="margin-top:0.9rem;"><h3>New API check <small>api.ondorilabo.com and n8n, asked the same with your sign-in</small></h3>' +
+      '<button type="button" class="btn small" id="apiCheckGo">Run check</button><div class="note" id="apiCheckOut" style="margin:0.5rem 0 0;"></div></div>';
+  }
+  async function runApiCheck() {
+    const out = document.getElementById('apiCheckOut');
+    const t = token();
+    if (!fresh(t)) { out.textContent = 'Your sign-in expired. Refresh the page to sign in again.'; return; }
+    out.textContent = 'Checking…';
+    const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((key) => [key, x[key]])) : x));
+    const ask = async (base, p) => {
+      const t0 = performance.now();
+      try { const r = await fetch(base + p, { headers: { Authorization: 'Bearer ' + t } }); return { status: r.status, body: await r.json().catch(() => null), ms: Math.round(performance.now() - t0) }; }
+      catch (e) { return { status: 0, body: null, ms: Math.round(performance.now() - t0) }; }
+    };
+    const rows = [];
+    for (const p of ['/whoami', '/me', '/profile']) {
+      const [a, n] = await Promise.all([ask(API, p), ask(N8N, p)]);
+      const same = a.status === 200 && n.status === 200 && canon(a.body) === canon(n.body);
+      const why = a.status === 0 ? 'couldn’t reach the API' : a.status !== 200 ? 'API said ' + a.status + ': ' + ((a.body || {}).message || '') : same ? 'same answer as n8n' : 'answers differ from n8n';
+      rows.push((same ? '✅ ' : '❌ ') + '<b>' + p.slice(1) + '</b> · ' + esc(why) + ' · API ' + a.ms + ' ms, n8n ' + n.ms + ' ms');
+      if (!same && a.status === 200) console.log('API check ' + p, { api: a.body, n8n: n.body });
+    }
+    out.innerHTML = rows.join('<br>');
   }
   function socialHtml(d) {
     const s = d.askSocial || {};
