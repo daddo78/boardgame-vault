@@ -3313,6 +3313,11 @@ const askTest = (() => {
   quiet('Log Answer', 'return $input.all();');
   quiet('Save Turn', 'return $input.all();');
   for (const n of w.nodes.filter((x) => x.type === 'n8n-nodes-base.respondToWebhook')) quiet(n.name, 'return $input.all();');
+  // The self-test reads what the last step returns, so end on Nathan's answer (not the logging steps after it, like Log Cost)
+  let last = 'Respond OK';
+  while (w.connections[last]) last = w.connections[last].main[0][0].node;
+  w.nodes.push({ id: 'answer', name: 'Answer', type: 'n8n-nodes-base.code', typeVersion: 2, position: [0, 600], parameters: { jsCode: "return [{ json: $('Respond OK').first().json }];" } });
+  w.connections[last] = { main: [[{ node: 'Answer', type: 'main', index: 0 }]] };
   return w;
 })();
 
