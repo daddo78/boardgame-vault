@@ -93,12 +93,13 @@ Live at https://api.ondorilabo.com since Oct 22 (14 tests, three routes ported: 
 - [x] Deploys never take the site down: the new container starts, passes its health check, then takes over (`server/bgc-api/deploy.sh`; a redeploy under steady requests answered 43 of 43)
 
 **Phase 2: Nathan moves in (the biggest win for members)**
-- [ ] The same steps as today (understand, firm rules, look things up, shortlist, write, check, save) with the Vercel AI SDK and OpenRouter
-- [ ] Answers stream: his first words in about a second, the rest appearing as he writes, instead of a 6-second wait
-- [ ] A Stop button while he writes, Retry when something fails, and a partial answer is kept rather than lost
-- [ ] The 24-question test set runs against the service in seconds, old and new compared on the same questions, plus memory follow-ups
-- [ ] Each call's cost and time still logged for Admin → Costs and the dashboard; question text still never in the metrics
-- [ ] A switch per member: admins first, then everyone. If the new service is down, the page falls back to the n8n version
+Built and on the server (Oct 22), switched off for members until Dan turns it on in Admin → Nathan.
+- [x] The same steps as today (understand, firm rules, look things up, shortlist, write, check, save) with OpenRouter. His steps are copied word for word from `n8n/gen.js` (`server/bgc-api/scripts/extract-nathan.cjs`), so old and new can't drift apart; plain OpenRouter calls instead of the Vercel AI SDK, so the requests are exactly n8n's
+- [ ] Answers stream: his first words in about a second, the rest appearing as he writes, instead of a 6-second wait *(first words now ~2.2 s: understanding the question comes first and takes ~1.5 s)*
+- [x] A Stop button while he writes, Retry ("Ask again") when something fails, and a partial answer is kept rather than lost
+- [x] The 24-question test set runs against the service, old and new compared on the same questions (`TARGET=api node test-nathan.js`: 25/25 on Oct 22). Memory follow-ups still to add
+- [x] Each call's cost and time still logged for Admin → Costs and the dashboard; question text still never in the metrics (same database calls as n8n, checked in the API tests)
+- [x] A switch: Admin → Nathan → Off / Admins only / Everyone (Off for now). If the new service can't be reached, the page asks n8n instead
 - [ ] Done when: first words under 1.5 s, full answers no slower than today, 24/24 tests, cost per question no higher
 
 **Phase 3: the other endpoints**
