@@ -8,7 +8,7 @@ Live at **https://bg.ondorilabo.com** (GitHub Pages, custom domain via Cloudflar
 
 - **Cards** show full-bleed square box art (falling back to the icon), title, year, designers and BGG rank, BGG rating, player count (with BGG's "best with" poll), play time, weight, genre/type tags, a two-line description, your desire-to-play stars, play count and last played, and buttons to favorite (heart), flag for thinning, or remove the game (trash, with confirmation).
 - **Click a card** for the full view: play stats with a **Log play** button, a stat grid, BGG mechanics and categories, owned expansions, a BoardGameGeek link, and Delete.
-- **Filters**: search (title, genre, mechanics, designers, expansions), genre, desire-to-play rating, player count, length, weight, favorites-only, thinning-only. **Sorts** include favorites first, most/least played, recently played, longest since played, BGG rating and weight. On phones the filters fold behind a "Filters" button.
+- **Filters**: search (title, genre, mechanics, designers, expansions), genre, desire-to-play rating, player count, length, weight, favorites-only, culling-only. **Sorts** include favorites first, most/least played, recently played, longest since played, BGG rating and weight. On phones the filters fold behind a "Filters" button.
 - **Add games** (+ button): **by name** (search BGG, pick the edition, or add a game that isn't on BGG as is) or **by photo** (one box or a shelf section). Owned games are refused, expansions of owned games are attached to them, and new games are looked up on BGG and given an icon.
 
 ## Ask Nathan: what should we play?
@@ -94,7 +94,7 @@ Each card uses a Tabler Icons outline glyph (`<i class="ti ti-{icon}">`), loaded
 
 ## Sign-in and security
 
-Anyone can browse the collection. Changing it (ratings, favorites, thinning, adding or deleting games, photo and name lookups, icon and BGG refreshes, play syncs) requires signing in with Google as the owner.
+Anyone can browse the collection. Changing it (ratings, favorites, culling, adding or deleting games, photo and name lookups, icon and BGG refreshes, play syncs) requires signing in with Google as the owner.
 
 - The page uses Google Identity Services ("Sign in with Google", client ID in `index.html` and `n8n/gen.js`). The Google ID token is kept in the browser and sent as `Authorization: Bearer <token>` with every change. When it expires (about hourly) the page renews it silently.
 - Every change webhook starts with a sign-in gate (`addAuth` in `gen.js`): Google's tokeninfo endpoint verifies the token, then n8n requires this client ID, a verified email, and an address in `OWNER_EMAILS`. Anything else gets a 401 before any work is done. A photo upload is deleted first.

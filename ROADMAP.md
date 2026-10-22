@@ -14,12 +14,12 @@ Things that pass in testing but haven't been tried for real yet:
 Friends sign in, build their own shelf, and see their friends' shelves. Runs on our own server: Postgres + NocoDB on the Hostinger VPS (`server/bgc-db/`), with n8n doing the work.
 
 **Agreed decisions**
-- Shared game catalog: one row per game with the BGG facts; each person's shelf row holds everything personal (favorite, wants-to-play, thinning, plays, notes, expansions owned, extra BGG ids)
+- Shared game catalog: one row per game with the BGG facts; each person's shelf row holds everything personal (favorite, wants-to-play, culling, plays, notes, expansions owned, extra BGG ids)
 - Friend connections by code: each member has a code to share; entering someone's code connects you both right away (no browsing the member list). You see a member's shelf only if you are friends; Dan's collection is visible to every member
 - BGC stars are each person's own rating; BGG ratings are kept separate, out of 10; nobody rates for someone else
 - People speak for themselves: each member sets their own taste profile (complexity, conflict, luck, table talk, theme, likes, dislikes); nobody writes notes or dials about someone else. People who never join are known only from play history
 - Friend takes: you can fill in the same card (dials, likes, dislikes) about a friend. Takes are private to the writer: the friend never sees them, and Nathan uses a take only when its writer is the one asking. Nathan weighs a person's own words above a friend's take, and both above plays
-- Private to the owner: the thinning list, and plays with people other than the viewer
+- Private to the owner: the culling list, and plays with people other than the viewer
 - Friends see: shelf, favorites, wants-to-play, BGC ratings, play counts, and full details of plays they were part of
 - Dan is the admin: invites and removes members (Google test users, under Google's 100-user limit). A removed member's shelf and ratings are kept, in case they come back
 - Nathan: 30 questions per person per day
@@ -87,5 +87,5 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [ ] Move to boardgamecurator.com (on hold; bought through Cloudflare, nameservers already Cloudflare, no DNS records yet). Dan: two CNAMEs (`@` and `www` → `daddo78.github.io`, DNS only) and the Google OAuth client's origins/redirect (`https://boardgamecurator.com`, `www`, and `/`). Claude: `CNAME` file, links in tools/post-update.js, docs/architecture.html and README, test sign-in, then Enforce HTTPS and a 301 redirect rule from bg.ondorilabo.com. Testers sign in once more; the server stays n8n.ondorilabo.com
 - [ ] Player pages: each person's top games, win rate, favorites
 - [ ] Game night log: who came and what was played
-- [ ] Thinning helper: suggest what to let go using thinning flags plus play data
+- [ ] Culling helper: suggest what to let go using culling flags plus play data
 - [ ] Shareable filtered lists ("our party games")

@@ -539,6 +539,12 @@
   .tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.66rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.02em; }
   .tag-genre { background: var(--soft-gray); color: #2b3445; }
   .tag-type { background: #cfd7e3; color: #2b3445; }
+  .exp-item a { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--text-muted); }
+  .exp-item a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .exp-item a i { font-size: 0.8em; color: var(--text-muted); }
+  .exp-remove { margin-left: auto; border: none; background: none; color: var(--text-muted); cursor: pointer; border-radius: 999px; padding: 0.15rem 0.45rem; font-family: var(--font-body); font-size: 0.8rem; font-weight: 700; flex-shrink: 0; min-width: 1.8rem; min-height: 1.8rem; }
+  .exp-remove:hover { background: var(--exp-bg); color: var(--ink); }
+  .exp-remove.armed { background: var(--danger); color: #fff; }
   .tag-thin { background: #fde8e6; color: #c4524a; }
   .tag-exp { background: var(--exp-bg); color: var(--ink); }
   .tag-plain { background: var(--exp-bg); color: var(--ink); text-transform: none; font-size: 0.75rem; font-weight: 600; }
@@ -916,7 +922,7 @@
         <option value="weight-asc">Lightest First</option>
       </select>
       <button class="pill" id="favFilterBtn"><i class="fa-solid fa-heart"></i> Favorites</button>
-      <button class="pill edit-only" id="thinFilterBtn">Thinning only</button>
+      <button class="pill edit-only" id="thinFilterBtn">Culling only</button>
       </div>
       <button type="button" class="pill clear-pill" id="clearAll" hidden><i class="ti ti-x"></i> <span>Remove filter</span></button>
     </div>
@@ -1865,7 +1871,7 @@
             (g.bggRating ? '<div class="score" title="BGG average rating">' + Number(g.bggRating).toFixed(1) + '<small>BGG</small></div>' : '') +
             (g.rank ? '<div class="score rank" title="BGG overall rank">#' + g.rank + '<small>BGG</small></div>' : '') +
             (rbGames.has(Number(g.bggId)) ? '<span class="rb-flag" title="Rulebook here: ask Nathan about the rules"><i class="fa-solid fa-book-open"></i></span>' : '') +
-            (g.thinningCandidate ? '<span class="thin-flag"' + (rbGames.has(Number(g.bggId)) ? ' style="bottom:2.5rem;"' : '') + '>Thinning</span>' : '') +
+            (g.thinningCandidate ? '<span class="thin-flag"' + (rbGames.has(Number(g.bggId)) ? ' style="bottom:2.5rem;"' : '') + '>Culling</span>' : '') +
             (exp ? '<span class="exp-flag" title="' + esc(g.expansions.join(' · ')) + '"><i class="ti ti-puzzle-2"></i>+' + exp + ' expansion' + (exp > 1 ? 's' : '') + '</span>' : '')) +
           '<div class="card-body">' +
           '<div class="card-heading"><h2 class="game-title">' + esc(g.title) + '</h2>' +
@@ -1876,7 +1882,7 @@
             '<div class="plays' + (plays ? '' : ' never') + '" title="Plays logged on BGG">' +
               (plays ? '<i class="ti ti-player-play"></i>' + esc(plays) : 'Not played yet') + '</div>' +
             favButton(g, 'mini-btn edit-only') +
-            '<button class="mini-btn edit-only' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" title="' + (g.thinningCandidate ? 'Unmark thinning candidate' : 'Mark for thinning') + '"><i class="ti ti-scale"></i></button>' +
+            '<button class="mini-btn edit-only' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" title="' + (g.thinningCandidate ? 'Keep it after all' : 'Mark for culling') + '"><i class="ti ti-scale"></i></button>' +
             '<button class="mini-btn danger edit-only" data-delete="' + esc(g.id) + '" title="Remove from collection"><i class="ti ti-trash"></i></button>' +
           '</div>' +
           '</div>';
@@ -2045,7 +2051,7 @@
           '</div>' +
           '<div class="detail-row edit-only">' +
             '<span style="display:flex; gap:0.5rem; margin-left:auto;">' + favButton(g, 'btn') +
-            '<button class="btn' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" style="flex:0 0 auto;"><i class="ti ti-scale"></i> ' + (g.thinningCandidate ? 'Thinning candidate' : 'Mark for thinning') + '</button></span>' +
+            '<button class="btn' + (g.thinningCandidate ? ' on' : '') + '" data-thin="' + esc(g.id) + '" style="flex:0 0 auto;"><i class="ti ti-scale"></i> ' + (g.thinningCandidate ? 'Marked for culling' : 'Mark for culling') + '</button></span>' +
           '</div>' +
           (stats.length ? '<div class="stat-grid">' + stats.join('') + '</div>' : '') +
           ratingsHtml(g) +
@@ -2055,7 +2061,10 @@
             (g.type ? '<span class="tag tag-type">' + esc(g.type) + '</span>' : '') +
           '</div>' +
           (g.desc ? '<p class="detail-desc">' + esc(g.desc) + '</p>' : '') +
-          ((g.expansions || []).length ? '<div><div class="section-label">Expansions owned</div><ul>' + g.expansions.map(e => '<li class="exp-item"><span class="exp-dot"></span>' + esc(e) + '</li>').join('') + '</ul></div>' : '') +
+          ((g.expansions || []).length ? '<div><div class="section-label">Expansions owned</div><ul>' + g.expansions.map((e, i) => '<li class="exp-item"><span class="exp-dot"></span>' +
+            '<a href="' + esc(expansionLink(g, e)) + '" target="_blank" rel="noopener" title="Look it up on BoardGameGeek">' + esc(e) + ' <i class="ti ti-external-link"></i></a>' +
+            '<button type="button" class="exp-remove edit-only' + (expConfirm === g.id + ':' + i ? ' armed' : '') + '" data-exp-remove="' + i + '" data-exp-game="' + esc(g.id) + '" aria-label="Remove ' + esc(e) + '">' +
+              (expConfirm === g.id + ':' + i ? 'Remove?' : '<i class="ti ti-x"></i>') + '</button></li>').join('') + '</ul></div>' : '') +
           ((g.mechanics || []).length ? '<div><div class="section-label">Mechanics</div><div class="tags">' + chips(g.mechanics) + '</div></div>' : '') +
           ((g.categories || []).length ? '<div><div class="section-label">Categories</div><div class="tags">' + chips(g.categories) + '</div></div>' : '') +
           '<div class="detail-actions">' +
@@ -2595,6 +2604,27 @@
       return '<div class="rate-stars">' + h + '</div>';
     }
     // Stars are each person's own BGC rating; BGG ratings are shown apart, out of 10
+    // An expansion's BGG page: a search for the base game plus its name ("Pantheon Expansion" → "A Feast for Odin Pantheon")
+    function expansionLink(g, e) {
+      const name = String(e).replace(/\b(expansion|box|pack)\b/gi, '').replace(/\s+/g, ' ').trim();
+      const base = String(g.title || '').toLowerCase();
+      const q = name.toLowerCase().startsWith(base.split(':')[0]) ? name : g.title + ' ' + name;
+      return 'https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=' + encodeURIComponent(q);
+    }
+    let expConfirm = null; // "gameId:index" waiting for a second tap
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-exp-remove]');
+      if (!b) { if (expConfirm && !e.target.closest('.exp-remove')) { expConfirm = null; } return; }
+      const id = b.dataset.expGame, i = Number(b.dataset.expRemove);
+      const g = collection.find(x => String(x.id) === id);
+      if (!g || !canEdit()) return;
+      if (expConfirm !== id + ':' + i) { expConfirm = id + ':' + i; renderDetail(); return; }
+      expConfirm = null;
+      const gone = g.expansions[i];
+      updateGame(g.id, { expansions: g.expansions.filter((_, k) => k !== i) }).then(() => { renderDetail(); toast('Removed ' + gone + '.'); });
+      renderDetail();
+    });
+
     function ratingsHtml(g) {
       const byPlayer = (people.ratings || {})[g.id] || {};
       const name = (id) => (people.players.find(p => p.id === id) || {}).name || 'Someone';
@@ -2605,7 +2635,7 @@
       const bgg = Object.entries(byPlayer).filter(([, r]) => r.bgg).sort((x, y) => y[1].bgg - x[1].bgg);
       const others = bgc.filter(([pid]) => pid !== me);
       const avg = bgc.length ? bgc.reduce((n, [, r]) => n + r.stars, 0) / bgc.length : 0;
-      return '<div class="ratings-block"><div class="section-label" style="margin:0;">Ratings' + (bgc.length ? ' · ' + avg.toFixed(1) + '★ from ' + bgc.length + (bgc.length === 1 ? ' person' : ' people') : '') + '</div>' +
+      return '<div class="ratings-block"><div class="section-label" style="margin:0;">Ratings' + (bgc.length > 1 ? ' · ' + avg.toFixed(1) + '★ average' : '') + '</div>' +
         rows.join('') +
         (others.length ? '<div class="rate-list">' + others.map(([pid, r]) => '<span class="rate-chip">' + esc(firstName(name(pid))) + ' ' + r.stars + ' <i class="fa-solid fa-star"></i></span>').join('') + '</div>'
           : (!rows.length ? '<p class="hint" style="margin:0;">No ratings yet.</p>' : '')) +

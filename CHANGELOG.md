@@ -5,6 +5,9 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 ## v0.16 · October 21, 2026
 
 - **Send feedback:** tap the ⚙️ cog → *Send feedback*. Pick a face for how it's going, say what it's about (an idea, something wrong, something you like, a question) and tell us more. Dan reads every one and can reply by email.
+- **Expansions you can tap:** in a game's details, each expansion you own opens on BoardGameGeek. On your own shelf, tap the × next to one (then *Remove?*) to take it off.
+- **"Culling" instead of "thinning":** mark a game for culling, and filter to *Culling only*.
+- A game's ratings only show an average when more than one person has rated it.
 
 *Behind the scenes: Admin has a Feedback page with how it's going on average, and the dashboard's game lists now count members (owned, played, rated and wished for by the most members).*
 

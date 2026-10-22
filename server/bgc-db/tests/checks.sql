@@ -87,6 +87,10 @@ SELECT pg_temp.check(bgc.log_ai('dandehaan@gmail.com', '[{"feature": "nathan", "
 SELECT pg_temp.check(EXISTS (SELECT 1 FROM ai_costs WHERE model = 'check-model' AND cost = 0.5 AND feature = 'nathan'), 'the recorded cost is there afterwards');
 SELECT pg_temp.check(NOT (bgc.costs_page('check.member@example.invalid') ->> 'ok')::boolean AND (bgc.costs_page('dandehaan@gmail.com') ->> 'ok')::boolean, 'only admins see what the site costs');
 
+-- Expansions: the owner can remove one from a game on their shelf
+SELECT pg_temp.check((bgc.shelf_update('dandehaan@gmail.com', (SELECT legacy_id FROM shelves WHERE member_id = 1 AND cardinality(expansions) > 1 ORDER BY legacy_id LIMIT 1),
+  jsonb_build_object('expansions', (SELECT to_jsonb(expansions[2:]) FROM shelves WHERE member_id = 1 AND cardinality(expansions) > 1 ORDER BY legacy_id LIMIT 1))) ->> 'ok')::boolean, 'removing an expansion is saved');
+
 -- Feedback: members send it, only admins read it or change its status
 SELECT pg_temp.check((bgc.feedback('check.member@example.invalid', '{"kind": "idea", "mood": 4, "message": "check feedback"}') ->> 'ok')::boolean, 'a member can send feedback');
 SELECT pg_temp.check(NOT (bgc.feedback('check.member@example.invalid', '{}') ->> 'ok')::boolean, 'empty feedback is turned away');
