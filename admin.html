@@ -358,8 +358,8 @@
     rulebooks: ['/rulebook?games=1', '/rulebook?bgg={bgg}'],
     admin: ['/admin', '/dashboard', '/costs', '/players-admin'],
   };
-  // Parts of an answer that change between two asks a moment apart
-  const VOLATILE = ['generatedAt'];
+  // Parts of an answer that change between two asks a moment apart (each ask is itself a visit: bgc.sign_in counts it)
+  const VOLATILE = ['generatedAt', 'lastSeen', 'visits', 'visits30'];
   function apiCheckHtml() {
     return '<div class="card" style="margin-top:0.9rem;"><h3>New API <small>which parts of the site api.ondorilabo.com serves instead of n8n</small></h3>' +
       '<div class="note" style="margin:0 0 0.6rem;">Run the check, then turn an area on (admins first) once all its answers match n8n. If the new service can’t be reached, the site asks n8n anyway. Nathan has his own switch under <a href="#nathan">Nathan</a>.</div>' +
