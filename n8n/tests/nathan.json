@@ -320,8 +320,7 @@
     "excludes": [
       "SETI",
       "Fliptown"
-    ],
-    "asks": false
+    ]
   },
   {
     "name": "A first game night with new people: one question back",
@@ -329,5 +328,53 @@
     "q": "I have some friends coming over who have never played board games. What should we play?",
     "intent": "recommend",
     "asks": true
+  },
+  {
+    "name": "Remembered: a game they are burned out on stays out of the picks",
+    "as": "dan",
+    "q": "What can four of us finish in under 30 minutes?",
+    "memory": {
+      "notes": [
+        "Burned out on Point Salad; don't suggest it"
+      ],
+      "skipBgg": [
+        274960
+      ]
+    },
+    "intent": "recommend",
+    "playerCount": 4,
+    "excludes": [
+      "Point Salad"
+    ]
+  },
+  {
+    "name": "Remembered: likes shown in the answer (\"I know you like...\")",
+    "as": "dan",
+    "q": "Pick something for two of us tonight.",
+    "memory": {
+      "notes": [
+        "Loves co-op games; dislikes direct conflict"
+      ]
+    },
+    "intent": "recommend",
+    "includesAny": [
+      "co-op",
+      "cooperative",
+      "together"
+    ]
+  },
+  {
+    "name": "A mood isn't remembered (\"I'm tired tonight\")",
+    "as": "dan",
+    "q": "I'm really tired tonight, something light for two of us?",
+    "intent": "recommend",
+    "remembers": false
+  },
+  {
+    "name": "A lasting dislike is remembered (\"I hate trivia games\")",
+    "as": "dan",
+    "q": "I hate trivia games. What should four of us play tonight?",
+    "intent": "recommend",
+    "remembers": true
   }
 ]

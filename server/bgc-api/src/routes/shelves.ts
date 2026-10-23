@@ -51,9 +51,10 @@ export function shelfRoutes(db: Db) {
     .get('/people', async (c) => {
       const { shelf = '' } = parse(PeopleQuery, c.req.query());
       const a = c.get('auth');
+      // The shelf view without its games (with_games false, schema/039): the people and their ratings are all this needs
       const r = await db.one<Record<string, any>>(
         "SELECT jsonb_build_object('v', v, 'mine', bgc.my_ratings_on($1, (v ->> 'ownerId')::bigint), 'used', bgc.asks_used($1), 'lim', bgc.ask_limit()) " +
-        'FROM (SELECT bgc.shelf_view($1, $2, $3) AS v) q',
+        'FROM (SELECT bgc.shelf_view($1, $2, $3, false, false) AS v) q',
         [a.email, /^(mine|friend:\d+)$/.test(shelf) ? shelf : 'main', a.playerId]);
       const sv = r?.v || {};
       const players = (sv.players || []).map(toPlayer).map(publicPlayer)

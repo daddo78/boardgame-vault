@@ -1989,6 +1989,9 @@ export const STEPS = {
       : Math.max(Number(c.playerCount) || 0, group.length + (Number(c.unknownPeople) || 0)) || null;
     // "With my kids" is never a solo game: the asker plus one child, or two when they say kids
     if (kids && c.intent !== 'browse' && count === 1) count = c.kids === 'several' ? 3 : 2;
+    // Their ages listed ("they are 7 and 9"): those kids plus the asker, at least
+    const kidAges = kids ? (v.question.match(/\b([1-9]|1[0-7])\b(?!\s*(min|minutes|hours?|players?|people|of us))/gi) || []).length : 0;
+    if (kidAges && c.intent !== 'browse' && !(count >= kidAges + 1)) count = kidAges + 1;
     const ages = [Number(c.youngestAge) || null, ...(c.intent === 'browse' ? [] : group.map((p) => p.age))].filter((a) => a > 0); // a browse is about the shelf, not who's playing
     const youngest = ages.length ? Math.min(...ages) : null;
     const kidsNoAge = kids && !youngest; // ages unknown: leave out the teen-and-up games (BGG 13+), and favor younger and lighter ones
@@ -2484,7 +2487,6 @@ export const STEPS = {
       '',
       'MEMORY: you are getting to know the ASKER over time. WHAT YOU REMEMBER is from earlier chats: let it shape your picks quietly, and mention it only when it matters ("I know you like weeknights short"). Never suggest a game they asked you not to.',
       'In "remember", list 0-2 lasting facts the ASKER just told you about THEMSELVES in this REQUEST: stable likes and dislikes, how long or heavy they like games, who they usually play with and when, or a game they don\'t want suggested (put its title in "skip"). Not one-off moods or plans ("tonight", "I\'m tired", "this weekend"), not facts about other people, not things you only inferred from data, and not facts already in WHAT YOU REMEMBER (if the new fact changes one, set "replaces" to that note\'s id). Write each note in the third person, under 15 words. Whenever the REQUEST states a lasting preference, record it, even when the same request also asks for a game for tonight. Words like "usually", "always", "never", "on weeknights", "I like", "I hate" or "I\'m burned out on" signal one. Examples: "on weeknights I only have about an hour, so I like shorter games. What should I play tonight?" -> {"note": "Has about an hour on weeknights; likes shorter games"}; "please stop suggesting Cascadia, I\'m burned out on it" -> {"note": "Burned out on Cascadia; don\'t suggest it", "skip": "Cascadia"}; "I hate trivia games" -> {"note": "Dislikes trivia games"}; "I really liked Got Five" -> {"note": "Really liked Got Five!"}; "my wife and I play on Sunday mornings" -> {"note": "Plays with their partner on Sunday mornings"}. Tonight\'s mood or situation is not a lasting fact: "I\'m tired tonight, something light" -> [] and "we have 3 tonight" -> []. A request that only asks for a game teaches nothing: then "remember" is [].',
-      ...(s.browse ? [] : ['ONE QUESTION: if one fact you were not told would clearly change your pick (the kids\' ages, how many are playing, how long they have, whether the group is new to board games), put one short, friendly question about it in "ask": under 20 words, ending in "?". For example, friends coming over who have never played, with no number given: ask how many are coming, and never assume one. Still make your best pick now; the question is for a sharper pick next time. Most answers need no question: leave "ask" empty when the REQUEST already says enough, when it answers a question you asked before, or when the answer would not change your pick. Never ask in "why" or the sign-off.']),
       '',
       'Reply with JSON only:',
       ...(s.browse ? [
@@ -2497,7 +2499,7 @@ export const STEPS = {
       ]),
       ' "gap": {"missing": "...", "consider": "Game title" or null} or null,',
       ' "remember": [{"note": "...", "replaces": note id or null, "skip": "Game title" or null}],',
-      ...(s.browse ? [] : [' "ask": "one short question" or "",']),
+      ...(s.browse ? [] : [' "ask": "" or, only when one fact you were not told would clearly change your pick (the kids\' ages, how many are coming, how long they have), one short friendly question about it ending in "?"; still make your best pick now, and never assume a number they did not give",']),
       ' "signoff": "an optional short corny sign-off, or empty"}',
     ].join('\n');
     const systemText = system.split('{SHELF_OWNER}').join(s.ownerName || 'Dan');
@@ -2511,6 +2513,9 @@ export const STEPS = {
       (() => { const m = $('Memory').first().json.mem || {}; return 'WHAT YOU REMEMBER ABOUT THE ASKER (id | note):\n' + ((m.notes || []).map((n) => n.id + ' | ' + n.note).join('\n') || '(nothing yet)'); })(),
       (() => { const t = ($('Memory').first().json.mem || {}).turns || []; return t.length ? 'EARLIER IN THIS CHAT (oldest first):\n' + t.map((x) => '- They asked: ' + x.q + ' | You answered: ' + x.a).join('\n') : ''; })(),
       s.constraints && s.constraints.feedback ? 'FEEDBACK: the asker just told you they ' + (s.constraints.feedback === 'disliked' ? 'did not enjoy ' : 'enjoyed ') + (s.constraints.feedbackGame || 'a game') + '. Open your headline "why" with one short, warm reaction to that ("Glad Got Five! landed!"), then pick games ' + (s.constraints.feedback === 'disliked' ? 'that feel different from it' : 'that share what they liked about it') + ' for the same table, and do not pick that game again. Also add it to "remember" ("Really liked Got Five!") unless WHAT YOU REMEMBER already says so.' : '',
+      // A lasting like or dislike in the words ("I hate trivia games"): the model saved it only 1 time in 3 without this nudge
+      !(s.constraints && s.constraints.feedback) && /\b(i|we)\s+(really\s+|just\s+|absolutely\s+)?(hate|love|adore|can't stand|cannot stand|don't like|do not like|dislike|always|never|usually|prefer)\b|\bburned out on\b|\bon weeknights\b/i.test(v.question)
+        ? 'LASTING PREFERENCE: the REQUEST tells you something lasting about the ASKER (a like or dislike, a habit, a game they are tired of). Add it to "remember" unless WHAT YOU REMEMBER already says so; a game they don\'t want goes in "skip".' : '',
       s.browse ? '' : 'RECENTLY_SUGGESTED (you recommended these to this person in the last two weeks; prefer a fresh pick that fits as well, and only repeat one if it is clearly the best fit or they ask for it): ' + (s.shortIds.filter((id) => (v.recent || []).includes(id) || (s.recentIds || []).includes(id)).join(', ') || '(none)'),
       s.askerName ? 'ASKER (the person typing; call them "you"): ' + s.askerName : '', s.guest || '',
       s.askerProfile ? 'ASKER PROFILE (use it when they ask for something they would like, even if they are not listed as playing):\n' + s.askerProfile : '',
@@ -2689,8 +2694,14 @@ export const STEPS = {
     const alternative = entry(a.alternative, true);
     const avoid = entry(a.avoid, false);
     const gap = gapOf();
-    // One question that would sharpen the next pick ("How old are they?"), shown after the answer
-    const ask = str(a.ask, 160);
+    // One question that would sharpen the next pick ("How old are they?"), shown after the answer. Nathan asks what he
+    // notices; the two gaps that matter most are asked here when he doesn't (a longer rule made him forget his notes)
+    // (not on a follow-up: that's usually the answer to his question)
+    const u = s.understood || {};
+    const ask = /\?$/.test(str(a.ask, 160)) ? str(a.ask, 160)
+      : $('Validate').first().json.previous ? ''
+      : u.kids && !u.youngestAge ? 'How old are your kids?'
+      : !u.playerCount && !(u.players || []).length ? 'How many of you are playing?' : '';
     return [{ json: { ok: true, ...memOut, intent: 'recommend', social: s.across ? 'friends' : s.visiting ? 'visit' : null, matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, ask: /\?$/.test(ask) ? ask : '', fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}),
       signoff: str(a.signoff, 200), pickIds: [pick, alternative].filter(Boolean).map((x) => x.id), model: $input.first().json.model || null } }];
   

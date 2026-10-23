@@ -1,6 +1,7 @@
 // Ask Nathan as a member, from inside the container (no Google sign-in, no web route): for the question set.
 //   docker exec <bgc-api container> node dist/tools/askAs.js '<json>'   (or '-', with the json on stdin)
-//   json: { email, question, shelf?, previous?, chatKey?, memory?: false, save?: true, stream?: true }
+//   json: { email, question, shelf?, previous?, chatKey?, memory?: false, save?: true, stream?: true,
+//           testMemory?: { notes: ['Burned out on Point Salad; don't suggest it'], skipBgg: [274960] } }  (in place of their own notes)
 // Prints one line "@@JSON <answer>" (as n8n/test-ask.sh does) and "@@TIME <ms to first words> <ms total>".
 // Doesn't use the member's daily allowance; costs are logged as "tests"; the chat is saved only with save: true.
 import { loadConfig } from '../config.js';
@@ -21,7 +22,7 @@ try {
   const t0 = Date.now();
   let first = 0;
   const r = await askNathan({ db, openrouterKey: config.openrouterKey, bggToken: config.bggToken }, auth,
-    { question: a.question, shelf: a.shelf || 'main', previous: a.previous ?? null, chatKey: a.chatKey || '', noMemory: a.memory === false, test: true },
+    { question: a.question, shelf: a.shelf || 'main', previous: a.previous ?? null, chatKey: a.chatKey || '', noMemory: a.memory === false, test: true, ...(a.testMemory ? { testMemory: a.testMemory } : {}) },
     a.stream ? { partial: (p) => { if (!first && p && JSON.stringify(p).match(/"(summary|why)":"[^"]/)) first = Date.now() - t0; } } : {});
   const total = Date.now() - t0;
   await r.after(!!a.save);

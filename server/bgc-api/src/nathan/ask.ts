@@ -83,7 +83,11 @@ export async function askNathan(deps: NathanDeps, auth: Auth, body: unknown, ev:
       [v.email, v.chatKey, String(v.memory)]),
     db.row('SELECT bgc.shelf_view($1, $2, $3, true) AS v', [v.email, v.shelf, v.askerId]),
   ]);
-  put('Memory', mem);
+  // A test run can start Nathan with given notes in place of the asker's own (tools/askAs.ts; never from the web),
+  // as if an earlier chat had taught him them
+  const tm = v.test ? (body as any)?.testMemory : null;
+  put('Memory', tm ? { ...mem, mem: { notes: (tm.notes || []).map((note: string, i: number) => ({ id: 900000 + i, note: String(note) })),
+    skipBgg: (tm.skipBgg || []).map(Number), recentBgg: [], turns: [] } } : mem);
   const shelfView = (shelf: any) => {
     put('Shelf View', shelf);
     for (const n of ['List Games', 'One Item', 'List Players', 'One More Item', 'List Ratings']) step(n, ran.get(n === 'List Games' ? 'Shelf View' : 'List Games')!);

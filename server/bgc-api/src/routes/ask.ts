@@ -31,6 +31,7 @@ export function askRoutes(deps: NathanDeps | null) {
   const body = async (c: any) => {
     const b = parse(AskBody, await c.req.json().catch(() => null), 'That question didn’t come through. Try again.');
     delete (b as any).test; // test runs come only from inside the server (tools/askAs.ts), never over the web
+    delete (b as any).testMemory;
     return b;
   };
 
