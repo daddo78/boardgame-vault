@@ -11,6 +11,7 @@ import type { Fetch } from './nathan/openrouter.js';
 import { adminRoutes } from './routes/admin.js';
 import { areaRoutes } from './routes/areas.js';
 import { askRoutes } from './routes/ask.js';
+import { bggRoutes } from './routes/bgg.js';
 import { nathanModeRoutes } from './routes/nathanMode.js';
 import { profileRoutes } from './routes/profile.js';
 import { rulebookRoutes } from './routes/rulebooks.js';
@@ -62,6 +63,7 @@ export function createApp({ db, verify, config, now, fetch }: Deps) {
   vault.route('/', wishlistRoutes(db));
   vault.route('/', rulebookRoutes(db));
   vault.route('/', adminRoutes(db));
+  vault.route('/', bggRoutes({ db, bggToken: config.bggToken, fetch }));
   vault.route('/', areaRoutes(db, !!config.openrouterKey));
   vault.route('/', askRoutes(config.openrouterKey ? { db, openrouterKey: config.openrouterKey, bggToken: config.bggToken, fetch } : null));
   vault.route('/', nathanModeRoutes(db, !!config.openrouterKey));
