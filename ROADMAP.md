@@ -93,7 +93,7 @@ Live at https://api.ondorilabo.com since Oct 22 (14 tests, three routes ported: 
 - [x] Deploys never take the site down: the new container starts, passes its health check, then takes over (`server/bgc-api/deploy.sh`; a redeploy under steady requests answered 43 of 43)
 
 **Phase 2: Nathan moves in (the biggest win for members)**
-Built and on the server (Oct 22), switched off for members until Dan turns it on in Admin → Nathan.
+On for everyone since Oct 22. Admin → Nathan keeps an Off switch as an undo until about Nov 6; then the switch and n8n's Ask workflow go, the API's copy of Nathan becomes the one that's edited (no more copying from gen.js), and the nightly self-test asks the API.
 - [x] The same steps as today (understand, firm rules, look things up, shortlist, write, check, save) with OpenRouter. His steps are copied word for word from `n8n/gen.js` (`server/bgc-api/scripts/extract-nathan.cjs`), so old and new can't drift apart; plain OpenRouter calls instead of the Vercel AI SDK, so the requests are exactly n8n's
 - [ ] Answers stream: his first words in about a second, the rest appearing as he writes, instead of a 6-second wait *(first words now ~2.2 s: understanding the question comes first and takes ~1.5 s)*
 - [x] A Stop button while he writes, Retry ("Ask again") when something fails, and a partial answer is kept rather than lost
