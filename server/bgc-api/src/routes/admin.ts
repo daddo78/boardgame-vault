@@ -1,10 +1,13 @@
 // Admin reads: the Admin overview, the dashboard, costs, and Dan's people list. Ported from the n8n workflows Admin,
-// Dashboard, Costs (GET) and Players Admin (n8n/gen.js sections 31, 33, 41 and 15). The bgc.* functions say who's an admin.
+// Dashboard, Costs and Players Admin (n8n/gen.js sections 31, 33, 41 and 15), with Save Player and fixed costs.
+// The bgc.* functions say who's an admin.
 import { Hono } from 'hono';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
 import { ApiError, fromDb } from '../errors.js';
 import { toPlayer } from '../shape.gen.js';
+import { validated } from '../writes.js';
+import { body, ownerOnly } from './shelves.js';
 
 const PLAYERS_TABLE = 'tblNahVdHDueJJ0w4';
 
@@ -25,5 +28,20 @@ export function adminRoutes(db: Db) {
         .map(({ history, ...p }: any) => ({ ...p, games: Object.keys(history).length, plays: Object.values(history).reduce((n: number, h: any) => n + (h.plays || 0), 0) }))
         .sort((a: any, b: any) => (b.active - a.active) || (b.plays - a.plays) || a.name.localeCompare(b.name));
       return c.json({ players });
+    })
+    // POST /vault/player-save { id?, name, aliases, active, googleEmail, bggUsername }: a card in Dan's people (owner only; Save Player)
+    .post('/player-save', async (c) => {
+      ownerOnly(c);
+      const v = await validated('playerSave', c);
+      const payload = JSON.stringify({ fields: v.fields, typecast: true, returnFieldsByFieldId: true });
+      const rec = v.id
+        ? await db.one("SELECT at.request($1, 'PATCH', $2, $3::jsonb, '')", [PLAYERS_TABLE, '/' + v.id, payload])
+        : await db.one("SELECT at.request($1, 'POST', '', $2::jsonb, '')", [PLAYERS_TABLE, payload]);
+      return c.json({ ok: true, player: toPlayer(rec || {}) });
+    })
+    // POST /vault/costs { fixed: [{ name, amount, per }] }: the fixed costs on Admin → Costs (bgc.costs_fixed_save checks admins)
+    .post('/costs', async (c) => {
+      const b = await body(c);
+      return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.costs_fixed_save($1, $2::jsonb)', [c.get('auth').email, JSON.stringify(Array.isArray(b.fixed) ? b.fixed.slice(0, 20) : [])])));
     });
 }

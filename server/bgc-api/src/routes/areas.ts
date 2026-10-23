@@ -22,6 +22,9 @@ export const AREAS = {
   accountChanges: ['POST /me-save', 'POST /memory'],
   wishlistChanges: ['POST /wishlist'],
   rulebookChanges: ['POST /rulebook-change'],
+  shelfChanges: ['POST /rate', 'POST /shelf-update', 'POST /shelf-remove', 'POST /update', 'POST /delete'],
+  friendChanges: ['POST /friends'],
+  adminChanges: ['POST /player-save', 'POST /costs'],
 } as const;
 type Area = keyof typeof AREAS;
 

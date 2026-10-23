@@ -1,12 +1,14 @@
 // Shelves: Dan's collection, your own shelf, a friend's shelf, and the people and ratings that go with a shelf.
 // Ported from the n8n workflows Get Collection, My Shelf, Friends (GET) and People (n8n/gen.js sections 1, 21, 29
-// and 12). Rows are shaped by n8n's own code (shape.gen.ts), so the answers are the same JSON the page reads today.
+// and 12), and their changes (Rate Game, Update / Remove My Shelf, Friends, Update / Delete Game). Rows are shaped by
+// n8n's own code (shape.gen.ts), and inputs checked by its Validate nodes (validate.gen.ts).
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
 import { ApiError, fromDb, parse } from '../errors.js';
 import { publicPlayer, ratingsByPlayerGame, toGame, toPlayer, toRating } from '../shape.gen.js';
+import { validated } from '../writes.js';
 
 const GAMES_TABLE = 'tblbGc0UuDxIPP2a8';
 const ASK_PER_MEMBER = 30; // as in gen.js, when the database has no limit set
@@ -64,5 +66,66 @@ export function shelfRoutes(db: Db) {
       const lim = Number(r?.lim) || ASK_PER_MEMBER;
       return c.json({ players, ratings: best, me: sv.askerKey || null, owner: sv.ownerKey || null, mine: r?.mine || {}, shelf: sv.shelf,
         asks: { limit: lim, left: Math.max(0, lim - used) } });
+    })
+
+    // ---- Changes (Rate Game, Update / Remove My Shelf, Friends add / remove, and Dan's Update / Delete Game) ----
+    // POST /vault/rate { gameId, stars (0 clears) }: your own stars, for yourself only
+    .post('/rate', async (c) => {
+      const v = await validated('rate', c);
+      return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.rate($1, $2, $3::numeric)', [v.email, v.gameId, String(v.stars)])));
+    })
+    // POST /vault/shelf-update { id, fields: { favorite?, desireToPlay?, thinningCandidate?, expansions? } }: your own copy
+    .post('/shelf-update', async (c) => {
+      const b = await body(c);
+      return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.shelf_update($1, $2, $3::jsonb)', [c.get('auth').email, String(b.id || ''), JSON.stringify(b.fields || {})])));
+    })
+    // POST /vault/shelf-remove { id }: take a game off your own shelf
+    .post('/shelf-remove', async (c) => {
+      const b = await body(c);
+      return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.shelf_remove($1, $2)', [c.get('auth').email, String(b.id || '')])));
+    })
+    // POST /vault/friends { action: 'add', code } | { action: 'remove', id }: entering a code connects you both right away
+    .post('/friends', async (c) => {
+      const b = await body(c);
+      const email = c.get('auth').email;
+      const r = String(b.action || 'add') === 'remove'
+        ? await db.one<Record<string, any>>("SELECT bgc.remove_friend($1, nullif($2, '')::bigint)", [email, String(Number(b.id) || '')])
+        : await db.one<Record<string, any>>('SELECT bgc.add_friend($1, $2)', [email, String(b.code || '')]);
+      return c.json(fromDb(r));
+    })
+    // POST /vault/update { id, fields }: Dan changes a game in his collection (the owner only, as in n8n)
+    .post('/update', async (c) => {
+      ownerOnly(c);
+      const v = await validated('update', c);
+      const rec = await findGame(db, v.formula, v.id);
+      await db.one("SELECT at.request($1, 'PATCH', $2, $3::jsonb, '')", [GAMES_TABLE, '/' + rec.id, JSON.stringify({ fields: v.fields, typecast: true, returnFieldsByFieldId: true })]);
+      return c.json({ ok: true, id: v.id });
+    })
+    // POST /vault/delete { id }: Dan removes a game from his collection (the owner only)
+    .post('/delete', async (c) => {
+      ownerOnly(c);
+      const v = await validated('del', c);
+      const rec = await findGame(db, v.formula, v.id);
+      await db.one("SELECT at.request($1, 'DELETE', $2, 'null'::jsonb, '')", [GAMES_TABLE, '/' + rec.id]);
+      return c.json({ ok: true, id: v.id, title: toGame(rec).title });
     });
+}
+
+// The request body as an object (n8n's webhook hands the workflow {} for anything else)
+export const body = async (c: any): Promise<Record<string, any>> => {
+  const b = await c.req.json().catch(() => null);
+  return b && typeof b === 'object' && !Array.isArray(b) ? b : {};
+};
+
+// Dan's own collection and people: the owner only, with n8n's message
+export const ownerOnly = (c: any) => {
+  if (c.get('auth').role !== 'owner') throw new ApiError(401, 'Sign in as the collection owner to make changes');
+};
+
+// One of Dan's games by its id (as n8n's Find Record), or n8n's 404
+async function findGame(db: Db, formula: string, id: string) {
+  const r = await db.one<{ records?: any[] }>("SELECT at.request($1, 'GET', '', 'null'::jsonb, $2)", [GAMES_TABLE, formula]);
+  const rec = r?.records?.[0];
+  if (!rec) throw new ApiError(404, 'Game not found: ' + id);
+  return rec;
 }

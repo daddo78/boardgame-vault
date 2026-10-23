@@ -352,9 +352,11 @@
   // The check asks both the same things with your sign-in and compares the answers; turn an area on once it's all ✅.
   const API = 'https://api.ondorilabo.com/vault';
   const AREA_NAMES = { account: 'Account (sign-in, profiles, Nathan’s memory)', shelves: 'Shelves (collection, your shelf, friends, people)', wishlist: 'Wishlists', rulebooks: 'Rulebooks', admin: 'Admin (this page)',
-    accountChanges: 'Account changes (saving your profile, forgetting notes)', wishlistChanges: 'Wishlist changes (add, remove, “Got it!”)', rulebookChanges: 'Rulebook changes (admins editing or removing a document)' };
+    accountChanges: 'Account changes (saving your profile, forgetting notes)', wishlistChanges: 'Wishlist changes (add, remove, “Got it!”)', rulebookChanges: 'Rulebook changes (admins editing or removing a document)',
+    shelfChanges: 'Shelf changes (stars, favorites, want-to-play, thinning, removing a game)', friendChanges: 'Friend changes (adding by code, removing)',
+    adminChanges: 'Admin changes (saving a player card, fixed costs)' };
   // Only admins use these, so "Admins only" and "Everyone" would be the same: a plain Off / On ("On" is admins)
-  const ADMIN_AREAS = ['admin', 'rulebookChanges'];
+  const ADMIN_AREAS = ['admin', 'rulebookChanges', 'adminChanges'];
   const modeOf = (a, m) => (ADMIN_AREAS.includes(a) && m === 'everyone' ? 'admins' : m);
   // What the check asks in each area; {friend} and {bgg} are filled from n8n's own answers
   const AREA_CHECKS = {
