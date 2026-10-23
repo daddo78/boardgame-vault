@@ -111,7 +111,8 @@ On for everyone since Oct 22. Admin → Nathan keeps an Off switch as an undo un
 - [x] More changes ported, each behind its own switch (off): stars, your shelf's favorite / want-to-play / thinning and removing (shelf changes; also Dan's own collection edits and deletes), adding and removing friends (friend changes), player cards and fixed costs (admin changes). 39 API tests; each one run on the real database as Dan and as a member inside a transaction that was rolled back *(Oct 23)*
 - [ ] Feedback and admin invites send email (needs mail in the API)
 - [ ] Writes that call BGG or AI: bgg-search, add, identify, rulebook upload (bulk BGG and CSV imports may stay in n8n)
-- [ ] The page opens with one request for everything it needs (shelf, people, friends, your profile) instead of several, so it loads faster
+- [x] ~~The page opens with one request for everything it needs~~ Dropped after measuring *(Oct 23)*: the page already asks for the shelf, people and friends at the same time, so it waits for the slowest (people), not their sum; one combined answer would hold the games back until the people were ready. People was slow because each person's play history compared every play with every game on the shelf. Migration 038 makes it a plain lookup (same answers for all 414 people): people on Dan's shelf 336 -> 240 ms, on a friend's 844-game shelf 3.7 -> 1.2 s, and Nathan reads the same view
+- [ ] Maybe: /people still builds the shelf's games and throws them away (~70 ms on Dan's shelf, ~190 ms on a big one)
 - [ ] Each area switches over only after its checks pass; the old webhooks are retired a week later
 
 **Phase 4: what stays in n8n**
