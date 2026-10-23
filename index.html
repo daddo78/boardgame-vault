@@ -264,6 +264,8 @@
   .n-sign { margin-top: 0.9rem; font-weight: 800; color: var(--ink); }
   .n-memo { margin: 0.8rem 0 0; font-size: 0.86rem; color: var(--text-muted); display: flex; gap: 0.4rem; align-items: baseline; flex-wrap: wrap; }
   .n-memo .linklike { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--accent); text-decoration: underline; cursor: pointer; }
+  .n-ages { margin: 0.8rem 0 0; font-size: 0.92rem; font-weight: 600; color: var(--ink); display: flex; gap: 0.4rem; align-items: baseline; }
+  .n-ages i { color: var(--brand); }
   .n-sign span { display: block; font-weight: 500; color: var(--text-muted); font-style: italic; margin-top: 0.15rem; }
   .ask-modal h2 { padding-right: 2.5rem; }
   .ask-form { display: flex; gap: 0.5rem; align-items: flex-end; margin-top: 0.9rem; }
@@ -3102,7 +3104,8 @@
       if (!u) return '';
       const bits = [];
       if (u.players && u.players.length) bits.push('<i class="ti ti-users"></i>' + esc(u.players.map(firstName).join(', ')));
-      if (u.playerCount) bits.push(u.playerCount + ' players');
+      if (u.playerCount) bits.push(u.playerCount + (u.playerCount === 1 ? ' player' : ' players'));
+      if (u.kids && !u.youngestAge) bits.push('with kids');
       if (u.maxMinutes) bits.push('≤ ' + u.maxMinutes + ' min');
       if (u.youngestAge) bits.push('ages ' + u.youngestAge + '+');
       if (u.coop === true) bits.push('co-op');
@@ -3142,7 +3145,11 @@
         : head + gap + nathanCard(r.pick, 'headline') + nathanCard(r.alternative, 'alternative') + nathanCard(r.avoid, 'avoid');
       const memo = (r.remembered || []).length ? '<p class="n-memo"><span><i class="ti ti-notebook"></i> I’ll remember: ' + r.remembered.map(esc).join('; ') + '.</span>' +
         '<button type="button" class="linklike" data-open-memory>What I remember</button></p>' : '';
-      return body + (r.signoff ? '<div class="n-sign">' + (r.intent === 'browse' ? '' : 'And that’s what’s hitting the table!') + '<span>' + esc(r.signoff) + '</span></div>' : '') + memo;
+      // Kids at the table but no ages: he picked for "kids" in general, and asks for the ages to do better
+      const u = r.understood || {};
+      const askAges = r.intent !== 'browse' && u.kids && !u.youngestAge
+        ? '<p class="n-ages"><i class="ti ti-message-question"></i> If you tell me how old they are, I can make an even better recommendation.</p>' : '';
+      return body + (r.signoff ? '<div class="n-sign">' + (r.intent === 'browse' ? '' : 'And that’s what’s hitting the table!') + '<span>' + esc(r.signoff) + '</span></div>' : '') + askAges + memo;
     }
     // The question as a bubble, with each @Full Name highlighted
     function bubbleHtml(q) {

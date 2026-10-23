@@ -1979,10 +1979,19 @@ export const STEPS = {
     const byName = Object.fromEntries(players.map((p) => [p.name.toLowerCase(), p]));
     const group = [...new Set([...(v.playerIds || []), ...(Array.isArray(c.playerIds) ? c.playerIds : [])])]
       .map((id) => byId[id] || (own && openNames[id] ? byName[openNames[id]] : null)).filter(Boolean);
-    const count = c.intent === 'browse' ? (Number(c.playerCount) || null)
+    // Kids at the table ("what should I play with my kids"), from the words. Not asked of the model: a "kids" field in
+    // Understand made flash-lite misread other questions (SETI rules as a recommendation, 3 times in 7).
+    // Kept in the constraints, so a follow-up ("they're 7 and 9") is still about the kids
+    const kids = /\b(kids?|children|child|sons?|daughters?|grandkids|grandchildren|\d+[- ]years?[- ]olds?)\b/i.test(v.question)
+      || !!(v.previous && v.previous.constraints && v.previous.constraints.kids);
+    if (kids) c.kids = /\b(kids|children|sons|daughters|grandkids|grandchildren)\b/i.test(v.question) ? 'several' : (v.previous && v.previous.constraints && v.previous.constraints.kids) || 'one';
+    let count = c.intent === 'browse' ? (Number(c.playerCount) || null)
       : Math.max(Number(c.playerCount) || 0, group.length + (Number(c.unknownPeople) || 0)) || null;
+    // "With my kids" is never a solo game: the asker plus one child, or two when they say kids
+    if (kids && c.intent !== 'browse' && count === 1) count = c.kids === 'several' ? 3 : 2;
     const ages = [Number(c.youngestAge) || null, ...(c.intent === 'browse' ? [] : group.map((p) => p.age))].filter((a) => a > 0); // a browse is about the shelf, not who's playing
     const youngest = ages.length ? Math.min(...ages) : null;
+    const kidsNoAge = kids && !youngest; // ages unknown: leave out the teen-and-up games (BGG 13+), and favor younger and lighter ones
     const maxMin = Number(c.maxMinutes) || null;
     const wMin = c.weight && Number(c.weight.min) || null, wMax = c.weight && Number(c.weight.max) || null;
     const words = (list) => (Array.isArray(list) ? list : []).map((s) => String(s).toLowerCase().trim()).filter((s) => s.length > 2);
@@ -2023,6 +2032,7 @@ export const STEPS = {
       if (count && (!g.minPlayers || !g.maxPlayers || count < g.minPlayers || count > g.maxPlayers)) continue;
       if (maxMin && (!(g.maxTime || g.minTime) || (g.maxTime || g.minTime) > maxMin * 1.1)) continue; // "under an hour" means the whole game fits
       if (youngest && g.minAge && g.minAge > youngest + 1) continue;
+      if (kidsNoAge && g.minAge && g.minAge > 12) continue;
       if (wMax && (!g.weight || g.weight > wMax + 0.3)) continue;
       if (wMin && (!g.weight || g.weight < wMin - 0.3)) continue;
       if (c.freshness === 'stale' && daysSince(g.lastPlayed) < 183) continue; // "haven't played in a while": not in the last ~6 months
@@ -2037,6 +2047,7 @@ export const STEPS = {
       s += want.filter((w) => h.includes(w)).length * 2.5;
       s += (g.desireToPlay || 0) * 0.4 + (g.favorite ? 1 : 0) - (g.thinningCandidate ? 0.5 : 0);
       s += ((g.bggRating || 6.5) - 6.5) * 0.5;
+      if (kids) s += (g.minAge ? (12 - g.minAge) * 0.5 : -1) - (g.weight ? Math.max(0, g.weight - 2.2) * 1.5 : 0); // 8+ and light beats 12+ and medium
       if (g.owners && g.mine) s -= 2.5; // "who has…": you're looking to borrow, so games you already own come last
       const groupStars = group.map((p) => fit(rate[p.id + '|' + g.id])).filter(Boolean);
       if (groupStars.length) s += (groupStars.reduce((a, b) => a + b, 0) / groupStars.length - 3) * 1.2;
@@ -2292,7 +2303,7 @@ export const STEPS = {
         understood: { players: ppl.map((p) => p.name) }, constraints: c, shortIds: pick.map((g) => g.id),
         titles: Object.fromEntries(pick.map((g) => [g.id, g.title])), gameLines: pick.map((g) => line(g, ppl)).join('\n'), profiles: '', ownerName: shelfOwner, guest, fromOwn: !!own } }];
     }
-    const understood = { players: group.map((p) => p.name), playerCount: count, maxMinutes: maxMin, youngestAge: c.youngestAge ? youngest : null,
+    const understood = { players: group.map((p) => p.name), playerCount: count, maxMinutes: maxMin, youngestAge: c.youngestAge ? youngest : null, kids: kids || null,
       weight: c.weight || null, coop: c.coop ?? null, themes: want, avoid, freshness: c.freshness || null, mood: c.mood || '' };
     return [{ json: { offTopic: false, gap, browse, matchIds, setFacts, understood, constraints: c, shortIds: short.map((g) => g.id),
       titles: Object.fromEntries(short.map((g) => [g.id, g.title])),
@@ -2465,6 +2476,8 @@ export const STEPS = {
       ] : [
       'FORMAT: one headline pick and one contrasting alternative (for example lighter, faster, or a different feel). The headline must fit the request without excuses: if it is not at its best at the asked player count ("best at 2 or 3" for four of you) and another good candidate is, pick that one instead. For each, a short vivid table-feel picture (1-3 sentences) of what playing it actually feels like.',
       'Keep each entry scannable: "why" is 2-4 sentences, data and people fit first.',
+      'Choose both games before you write. Each entry\'s "why" is about the game with that entry\'s id: never change your mind or think aloud in it ("wait", "let me reconsider"), and never argue for a different game inside it.',
+      ...(s.understood && s.understood.kids ? ['KIDS: children are playing (UNDERSTOOD.kids). Unless UNDERSTOOD.youngestAge says otherwise, their ages are unknown: pick from the games with the lowest BGG age and weight, and say the BGG age for each pick. Don\'t ask for their ages: the page asks after your answer.'] : []),
       ]),
       '',
       'HONEST GAPS: if GAP is true (nothing meets the hard limits), or the kind of game asked for (a genre, theme or mechanic) is not really on the shelf, say so plainly in gap.missing (one sentence, no guessing), make your pick the closest match, and you may name ONE real, well-known game not on this shelf that fills the gap in gap.consider (only if you are sure it exists). Never present it as owned. If the shelf has a true match, gap is null.',

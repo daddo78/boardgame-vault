@@ -286,5 +286,37 @@
     "cites": {
       "page": 13
     }
+  },
+  {
+    "name": "\"With my kids\" picks a kid-friendly game, never a 14+ one",
+    "as": "dan",
+    "q": "What should I play with my kids this weekend?",
+    "intent": "recommend",
+    "playerCount": 3,
+    "excludes": [
+      "SETI",
+      "Fliptown",
+      "reconsider",
+      "Hmm, wait"
+    ]
+  },
+  {
+    "name": "\"They are 7 and 9\" after \"with my kids\" keeps the kids: three players, ages 7+",
+    "as": "dan",
+    "q": "They are 7 and 9",
+    "prev": {
+      "question": "What should I play with my kids this weekend?",
+      "constraints": {
+        "intent": "recommend",
+        "kids": "several",
+        "playerCount": null
+      }
+    },
+    "intent": "recommend",
+    "playerCount": 3,
+    "excludes": [
+      "SETI",
+      "Fliptown"
+    ]
   }
 ]
