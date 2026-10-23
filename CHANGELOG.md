@@ -2,6 +2,15 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.17 · October 23, 2026
+
+- **Nathan answers as he writes:** ask him something and he starts answering in about 2 seconds, with his words appearing as he writes them. Changed your mind? Tap *Stop*. Whatever he's written so far stays, with *Ask again* if you want the whole answer. If your connection drops partway, you keep what he wrote and can tap *Ask again* too.
+- **"My top ten":** ask Nathan for "my top ten" or "my all-time favorites" and he gives you the Top 10 you picked in My profile, in your order, and says which ones aren't on your shelf. Haven't picked one yet? He shows your most played instead and tells you where to pick yours.
+- The ⚙️ cog's Settings panel has an X at the top that stays in view as you scroll.
+- No more sideways jump when a page gets long enough to scroll, or when a popup opens.
+
+*Behind the scenes: Nathan now runs on his own server, and the rest of the app is lined up to move there next.*
+
 ## v0.16 · October 21, 2026
 
 - **Send feedback:** tap the ⚙️ cog → *Send feedback*. Pick a face for how it's going, say what it's about (an idea, something wrong, something you like, a question) and tell us more. Dan reads every one and can reply by email.

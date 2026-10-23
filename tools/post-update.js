@@ -1,6 +1,7 @@
 // Posts one version's release notes from CHANGELOG.md to the testers' Discord channel.
 //   node tools/post-update.js v0.11            post it
 //   node tools/post-update.js v0.11 --dry-run  show what would be posted
+//   node tools/post-update.js v0.11 --again    post a version that was already posted
 // The channel's webhook link lives outside the repo, in %USERPROFILE%\.bgc\discord-webhook.txt (never committed).
 const fs = require('fs');
 const os = require('os');
@@ -39,6 +40,11 @@ if ((parts[parts.length - 1] + LINK).length <= 1990) parts[parts.length - 1] += 
 
 if (dry) { parts.forEach((p, i) => console.log('--- message ' + (i + 1) + ' of ' + parts.length + ' (' + p.length + ' chars) ---\n' + p + '\n')); process.exit(0); }
 
+// Each post is noted in %USERPROFILE%\.bgc\discord-posted.txt, so a version isn't posted twice by mistake
+const posted = path.join(os.homedir(), '.bgc', 'discord-posted.txt');
+const already = fs.existsSync(posted) && fs.readFileSync(posted, 'utf8').split('\n').some((l) => l.split(' ')[0] === version);
+if (already && flag !== '--again') { console.error(version + ' was already posted (see ' + posted + '). Add --again to post it anyway.'); process.exit(1); }
+
 const file = path.join(os.homedir(), '.bgc', 'discord-webhook.txt');
 if (!fs.existsSync(file)) { console.error('No webhook yet. Put the channel’s webhook link in ' + file); process.exit(1); }
 const url = fs.readFileSync(file, 'utf8').trim();
@@ -51,5 +57,6 @@ if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(ur
     if (!res.ok) { console.error('Discord said ' + res.status + ': ' + (await res.text()).slice(0, 200)); process.exit(1); }
     await new Promise((r) => setTimeout(r, 800));
   }
+  fs.appendFileSync(posted, version + ' ' + new Date().toISOString() + '\n');
   console.log('Posted ' + version + ' to Discord (' + parts.length + ' message' + (parts.length === 1 ? '' : 's') + ').');
 })();
