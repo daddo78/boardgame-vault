@@ -5,7 +5,7 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "15f3b15e-74ec-4c38-bae7-b2c3209edb6f",
+      "id": "ab2f424a-468a-438d-87fd-a1614c310b8f",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,10 +21,10 @@
           "allowedOrigins": "*"
         }
       },
-      "webhookId": "aa0fb428-c844-4493-ba56-f26767c43bcd"
+      "webhookId": "df58390c-b531-43db-b007-6aaf95b7bb6b"
     },
     {
-      "id": "8a2f49ac-e38b-456f-9698-f664733c6213",
+      "id": "e1fe829d-336d-4eda-b930-82b39c7b75db",
       "name": "Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -37,7 +37,7 @@
       }
     },
     {
-      "id": "791c6274-2f8a-4610-b445-b2a95ddb1260",
+      "id": "3588d06a-7a63-4dec-8a80-cff4e6fc6356",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "fa57772b-066a-49d0-aec2-1f6045d4a76f",
+              "id": "3e44a843-251e-4972-af33-0ac447f3353f",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,7 +70,7 @@
       }
     },
     {
-      "id": "7455529b-a238-410b-8cfb-68effecc9f1e",
+      "id": "49834923-5bab-4cad-b9ea-91a4e441482a",
       "name": "Use Allowance",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -97,7 +97,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "05b92946-5e6f-4cf1-9d2e-ad847abec024",
+      "id": "9f955a8d-6ddf-4cde-9664-b48b5bfa632f",
       "name": "Allowance Left?",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -110,7 +110,7 @@
       }
     },
     {
-      "id": "f968db54-b98f-4877-bdda-968a1a97fff1",
+      "id": "1152cdf4-54ea-4270-bcae-71f25084784f",
       "name": "Allowed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -127,7 +127,7 @@
           },
           "conditions": [
             {
-              "id": "a2dfc6a7-8cf4-492c-a0c5-6d111fb07ddc",
+              "id": "c9b3015b-1c71-4a2d-b9cc-313cc12a31fb",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -143,7 +143,7 @@
       }
     },
     {
-      "id": "81e8b4f4-64d7-442b-a0f6-520e34999f72",
+      "id": "a128b536-5856-4eb3-bd8d-e13a7823f5e2",
       "name": "Memory",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -170,7 +170,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "b35ab652-c388-40aa-a6a5-b357bcf65939",
+      "id": "11b27786-bca5-454e-885a-69908e4000ff",
       "name": "Photo?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -187,7 +187,7 @@
           },
           "conditions": [
             {
-              "id": "5add6768-8184-4386-ad8c-37dc8fd3e229",
+              "id": "847a5699-4b9c-4279-9624-caab1d136efb",
               "leftValue": "={{ !!$('Validate').first().json.image }}",
               "rightValue": "",
               "operator": {
@@ -203,7 +203,7 @@
       }
     },
     {
-      "id": "10172ccc-6536-4297-a97b-ecda431956ce",
+      "id": "85e73d36-460f-4985-beb3-fa3dbc6f3c11",
       "name": "Photo Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -216,7 +216,7 @@
       }
     },
     {
-      "id": "7a8daae4-5664-427f-8053-5d2a13e0902d",
+      "id": "104b4150-9bdc-478e-b7fa-82c41e4b24e6",
       "name": "Look At Photo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -261,7 +261,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "e6b19e02-07c1-4360-9691-3c89f57bc81c",
+      "id": "29a857cb-a4ed-4dc2-aca1-e787bcc35711",
       "name": "Photo Notes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -274,7 +274,7 @@
       }
     },
     {
-      "id": "178c5dde-8b1e-4602-a614-07c5b8af34be",
+      "id": "46717351-2274-4f31-8cb0-c847db3b7bc2",
       "name": "Shelf View",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -301,7 +301,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "a2d9de5b-2562-499f-aac1-f65c052e6643",
+      "id": "a507670b-0936-4783-87ff-8bd5689c218a",
       "name": "List Games",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -314,7 +314,7 @@
       }
     },
     {
-      "id": "5fb0e504-158a-4e0e-a352-77ba80d51a18",
+      "id": "e954d338-1b56-4965-b0a9-c5a6493d22ea",
       "name": "One Item",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -327,7 +327,7 @@
       }
     },
     {
-      "id": "f6fd8c62-d567-4380-b788-4b04c05cd320",
+      "id": "ffb5b1fe-aec6-4f09-aa57-012a29e9dfe7",
       "name": "List Players",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -340,7 +340,7 @@
       }
     },
     {
-      "id": "1f4fef62-5f77-4a55-a7fe-c9dccfd00576",
+      "id": "e70107d2-88b0-4e8e-ace5-45ab614d8c2f",
       "name": "One More Item",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -353,7 +353,7 @@
       }
     },
     {
-      "id": "f4f92120-9d77-4315-9f6f-51f9a548044e",
+      "id": "54841827-bd43-4a8d-8766-136067cec53e",
       "name": "List Ratings",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -366,7 +366,7 @@
       }
     },
     {
-      "id": "452e41ba-80e5-4d11-a002-ed2c03d3f289",
+      "id": "87c32a1b-6a8d-40f6-8e0a-081dc2812f12",
       "name": "Build Understand Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -379,7 +379,7 @@
       }
     },
     {
-      "id": "41fa39eb-b159-4553-9a4f-cc37a317dbd5",
+      "id": "9846e43f-aa52-4eb3-b5ab-336407b5f9a0",
       "name": "Understand Request",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -423,7 +423,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "4c73f65c-5079-4be9-b1fd-42beed8f0e25",
+      "id": "637db94c-3d8a-4275-865c-63159ddfc367",
       "name": "Scope",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -436,7 +436,7 @@
       }
     },
     {
-      "id": "599894dd-8fc1-40c1-84f7-298969f9b4e4",
+      "id": "6eab4307-e819-4cb7-8fea-55265691e42a",
       "name": "Own Shelf",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -463,7 +463,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "65404074-036d-4f5a-8580-346a70c58abf",
+      "id": "aebc9072-6b38-4b18-bd84-9f460e8079c9",
       "name": "Game Lookup",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -490,7 +490,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "95918c83-9735-454e-b75e-adc2ebb4f602",
+      "id": "1d425300-c044-483f-9ada-95527d7ae945",
       "name": "Lookup Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -503,7 +503,7 @@
       }
     },
     {
-      "id": "e88571c4-1ce6-43fa-ad6f-daf1e2cf9b47",
+      "id": "a71f4961-4030-4c58-bc52-2bdf2966b8bc",
       "name": "Ask BGG?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -520,7 +520,7 @@
           },
           "conditions": [
             {
-              "id": "a88cc2bb-070f-4cd1-9a31-cca2d4506087",
+              "id": "a240264e-3a57-4a21-9550-b0c9043a3c6d",
               "leftValue": "={{ !$json.none }}",
               "rightValue": "",
               "operator": {
@@ -536,7 +536,7 @@
       }
     },
     {
-      "id": "642b4148-290a-4434-81d8-885626d16cbb",
+      "id": "9fc848b0-3499-452f-bea2-4cc4abbb4fde",
       "name": "Game Search",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -587,7 +587,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "4f1575cd-6b4e-4a92-80d4-cfeb0ae72f2c",
+      "id": "e2ebc891-3e96-4ae2-8014-79dd67dfc4d9",
       "name": "Game Candidates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -600,7 +600,7 @@
       }
     },
     {
-      "id": "f90f71cc-ac1c-4178-a0c3-497bef538a24",
+      "id": "39bd42a4-342c-4c74-b588-9e13e2611ff1",
       "name": "Game Thing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -651,7 +651,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "06460679-a667-4e95-ae6b-757d2c7fa147",
+      "id": "6c5f8679-3c2c-42d8-89ac-6aa9dd00f67f",
       "name": "Game Choose",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -664,7 +664,7 @@
       }
     },
     {
-      "id": "f1f13f4b-6f6b-4e38-becd-3fca4638fc21",
+      "id": "7072909e-99bc-4080-aff1-dd87d8ef0fb5",
       "name": "Shortlist",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -677,7 +677,7 @@
       }
     },
     {
-      "id": "bcd40b01-b982-4b58-b818-e7b4f9914915",
+      "id": "19a51208-a3f3-4f5a-97d5-488417244171",
       "name": "On Topic?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -694,7 +694,7 @@
           },
           "conditions": [
             {
-              "id": "57b40b6d-fca4-458f-b7f2-1b480ba8b58d",
+              "id": "3f6a5790-0fa9-4844-877d-a442230c56d0",
               "leftValue": "={{ !$json.offTopic }}",
               "rightValue": "",
               "operator": {
@@ -710,7 +710,7 @@
       }
     },
     {
-      "id": "db613c69-eee4-4478-9bcc-776b98ca3cae",
+      "id": "0cd43cd8-5de8-4407-9ff2-632affa1ce89",
       "name": "Any Candidates?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -727,7 +727,7 @@
           },
           "conditions": [
             {
-              "id": "53517be3-5dea-4de0-b09e-38245536d99f",
+              "id": "a3d79b9b-310c-4da8-96ca-25ccd68b8128",
               "leftValue": "={{ $json.shortIds.length > 0 }}",
               "rightValue": "",
               "operator": {
@@ -743,7 +743,7 @@
       }
     },
     {
-      "id": "07e392cb-1826-4271-9057-c786ac6982d5",
+      "id": "746c207b-bcd2-48b9-b5cd-dbe60a8c3482",
       "name": "Build Recommend Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -752,11 +752,11 @@
         300
       ],
       "parameters": {
-        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n      // Other editions whose logged plays count toward this game\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n  // ---- People: Players and Ratings tables ----\n  const PF = {\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\n  };\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\n  const toPlayer = (r) => {\n    const f = r.fields || {};\n    let history = {};\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\n    return {\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\n    };\n  };\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\n  // The part of a player card that belongs to the person: only they edit it (via /me)\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\n  // Highest-priority source wins when one person has several ratings for a game\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\n  const ratingsByPlayerGame = (list) => {\n    const out = {};\n    for (const r of list) {\n      if (!r.gameId || !r.playerId || !r.stars) continue;\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\n      if (r.source === 'site') e.stars = r.stars;\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\n    }\n    return out;\n  };\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\n  const parseThingXml = (xml) => {\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\n    const bestWith = (s) => {\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\n      });\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\n      if (winners.length) return winners;\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\n      return top ? [top.n] : [];\n    };\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\n      const s = m[3];\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\n      const avg = Number(attr(s, 'average') || 0);\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\n        // An expansion's inbound links point at the base game(s) it expands\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\n    });\n  };\n  const toRating = (r) => {\n    const f = r.fields || {};\n    const src = f[RF.source];\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\n      source: typeof src === 'object' && src ? src.name : src || '' };\n  };\n\n    const v = $('Validate').first().json;\n    const s = $input.first().json;\n    const mentioned = new Set(v.mentioned || []);\n    const system = [\n      'You are Nathan Schmidt, the warm, welcoming and meticulous curator of Board Game Curator. This shelf is the board game collection of {SHELF_OWNER} (never say \"owner\", say {SHELF_OWNER}).',\n      'Your job: get the right game from THIS shelf to the table for the right people, mood and occasion. You speak like an enthusiastic, articulate host walking a friend through the game room shelves.',\n      '',\n      'GROUNDING (most important):',\n      '- Recommend only games from CANDIDATES, by id. Never invent games, numbers or rules.',\n      '- Cite the key metrics from the candidate facts: the best player count (\"the BGG community poll says it is best at 4\"), play time, BGG weight, and primary mechanics. These facts come from BoardGameGeek, so you may attribute them to BGG.',\n      '- Do not quote forums, Reddit or reviews: you have no access to them.',\n      '- Plays are a hint, not a verdict: \"Keith has played it 12 times\" suggests he does not mind it, not that he loves it. Only a BGC or BGG rating says how much someone likes a game; say which one you mean.',\n      '- Fit to the people comes first: each person\\'s dials, likes, dislikes and notes; their plays, wins and ratings on each candidate; {SHELF_OWNER}\\'s own star ratings and favorites; a game {SHELF_OWNER} may give away is a good last-chance pick. Name people by first name. Be kind about people and never judge anyone\\'s taste: party games and heavy economic games deserve equal respect.',\n      '',\n      'VOICE:',\n      '- You are talking with the ASKER: always call them \"you\" (never by their name, never \"he\" or \"she\"). Use first names only for other people.',\n      ...($('Shelf View').first().json.v.askerName !== 'Nathan Schmidt' ? [\n      '- You ARE Nathan Schmidt. Facts explicitly about Nathan Schmidt (his profile, his own shelf, his plays and ratings) are about you: say them in the first person (\"I love engine builders\", \"I\\'ve played Ark Nova 39 times\", \"on my shelf\"). Everything else (the plays, wins and stars in CANDIDATES) belongs to the shelf owner or the people named, never to you, and the shelf you are picking from is theirs: say \"your shelf\" or \"{SHELF_OWNER}\\'s shelf\", never \"my shelf\".',\n      ] : []),\n      '- Warm and enthusiastically corny: wholesome dad jokes and puns about cardboard and meeples, gentle self-deprecating humor about shelf space and the shelf of shame. Humor is a light flourish and never crowds out the recommendation.',\n      '- First mention: for a title NOT in ALREADY_JOKED, open its entry with a one-line dad-joke quip about that game. For titles in ALREADY_JOKED, leave quip empty.',\n      '- Only if you are confident the game has an unlimited or substitutable component pool, or it supports an expanded player count, add exactly this joke in swapJoke: \"The [component] can be substituted as needed, so if you ever run short, feel free to use a suitable replacement… like [funny, semi-related household item].\" Otherwise null.',\n      '',\n      // Social answers: across friends' shelves say who owns each pick; at a friend's place it's their shelf\n      ...(s.across ? ['SOCIAL: the CANDIDATES come from the asker\\'s friends\\' shelves, not the asker\\'s own (never call them \"your shelf\"). Talk only about those friends\\' copies: don\\'t bring up the asker\\'s own games or play counts, which are only there to show their taste. For every game you mention, say which friend owns it (\"Matt has it, so ask him to bring it\"), and note when the asker owns it too.'] : []),\n      ...(s.visiting ? ['SOCIAL: they are playing at ' + s.visiting + '\\'s place, so the CANDIDATES are ' + s.visiting + '\\'s shelf. Say so naturally (\"at ' + s.visiting + '\\'s, I\\'d pull down…\").'] : []),\n      ...(s.mode === 'rules' ? [\n      'FORMAT: this is a rules question. Answer it clearly and correctly in \"summary\": short paragraphs or numbered steps (use line breaks), no fluff, no quips. For RULEBOOK EXCERPTS: answer only from the excerpts. Each excerpt starts with [doc <id> | <document>, page <n> | <heading>]. Say where each rule comes from in the text, like \"(Rulebook, p. 9)\" or \"(Appendix, p. 13)\", and list every excerpt you used in \"sources\" as {\"doc\": <id>, \"page\": <n>}. If the excerpts don\\'t cover the question, say so plainly and suggest which part of the rulebook to check; \"sources\" is then []. For a game with NO RULEBOOK UPLOADED: start with \"From memory:\" and answer from what you reliably know about the game; say when you\\'re not sure of a detail, never invent specifics, and suggest checking the official rulebook. Highlights: just the game asked about, with an empty or one-line \"why\". gap is null.',\n      ] : s.mode === 'game' ? [\n      'FORMAT: this is a question about specific game(s), owned or not. If they ask whether someone owns it or who has it (\"does Dan own Spirit Island?\", \"who has Brass?\"), answer that first from the facts: \"ON THEIR SHELF\" means the ASKER owns it, and \"friends who own it\" names the friends who do (if a named person is not listed there, they don\\'t own it, as far as you know). Answer it directly and completely in \"summary\" (2-5 sentences) from the CANDIDATES facts, which come from BoardGameGeek (\"genre\" means its categories and main mechanics; name a few of each). If a game is not on their shelf, say so, then say honestly how well it would suit them, comparing it to games on ASKER\\'S SHELF they play and love and to their PROFILE. Only when the facts name friends who own it, mention they could try that friend\\'s copy first (by name); never suggest a friend\\'s copy otherwise. If it looks like a great fit and they don\\'t own it, you may say it could be worth buying. Never invent facts; for things BGG data doesn\\'t cover (rules details, reviews, prices), say you only have BGG\\'s facts. Highlights: the game(s) asked about, one sentence of \"why\" each. gap is null.',\n      ] : s.mode === 'buy' ? [\n      'FORMAT: they want ideas for games to buy. Every CANDIDATE is a game they don\\'t own. Pick the 3 that best fit their taste (ASKER\\'S SHELF, PROFILE) and anything in the request. In \"summary\" (2-4 sentences) name your 3 picks and why, tied to games they already play and love. Only mention a friend owning a pick when the facts list that friend (then suggest trying their copy first). Highlights: the 3 picks, each with one or two sentences of \"why\". gap is null.',\n      ] : s.person ? [\n      'FORMAT: this is a question about a person, not a request for a game. In \"summary\" (3-6 sentences) tell them what you know, warmly and specifically: their own words first (likes, dislikes, dials, about), then their play history here (plays, wins, most played, rated 4+), and what that says about their taste. Speak to the ASKER as \"you\" when the question is about them; use first names for anyone else.',\n      'Use only the facts in SET FACTS. If the profile is empty, say so kindly: when it is the ASKER\\'s own, suggest filling in My profile (under their name, top left of the site) so you can do better; for anyone else, suggest nudging that person to fill in theirs. Then pick 3 to 5 highlights from CANDIDATES that best show their taste (most played or rated highest), each with one sentence of \"why\". gap is null.',\n      ] : s.browse ? [\n      'FORMAT: this is a question about what is on the shelf, not a request for one game. Sum up the matching games in \"summary\" (2-4 sentences): use the exact COUNT from SET FACTS, then what kinds they are (weights, lengths, mechanics, sub-themes) and any pattern in plays or favorites. Then pick 3 to 5 varied highlights from CANDIDATES that show the range (for example a favorite, a light one, a heavy one, one that is never played), each with one sentence of \"why\".',\n      ...(s.ranked ? [\n      'RANKED (the exact answer, in order): ' + s.ranked,\n      ] : [\n      'If SET FACTS has an ORDER, it is a ranked list: name the games in order with their numbers (e.g. \"The Crew leads with 21 plays\").',\n      ]),\n      'Answer the question fully in the summary, in natural sentences: if they ask for ten, name all ten (with their numbers, in order); if they ask whether they own something, say yes or no first. Never stop at a sample of what they asked for. Then add a sentence on what it says about their taste. Make the highlights 3 to 5 of the most interesting games from the answer.',\n      ] : [\n      'FORMAT: one headline pick and one contrasting alternative (for example lighter, faster, or a different feel). The headline must fit the request without excuses: if it is not at its best at the asked player count (\"best at 2 or 3\" for four of you) and another good candidate is, pick that one instead. For each, a short vivid table-feel picture (1-3 sentences) of what playing it actually feels like.',\n      'Keep each entry scannable: \"why\" is 2-4 sentences, data and people fit first.',\n      'Choose both games before you write. Each entry\\'s \"why\" is about the game with that entry\\'s id: never change your mind or think aloud in it (\"wait\", \"let me reconsider\"), and never argue for a different game inside it.',\n      ...(s.understood && s.understood.kids ? ['KIDS: children are playing (UNDERSTOOD.kids). Unless UNDERSTOOD.youngestAge says otherwise, their ages are unknown: pick from the games with the lowest BGG age and weight, and say the BGG age for each pick. Don\\'t ask for their ages: the page asks after your answer.'] : []),\n      ]),\n      '',\n      'HONEST GAPS: if GAP is true (nothing meets the hard limits), or the kind of game asked for (a genre, theme or mechanic) is not really on the shelf, say so plainly in gap.missing (one sentence, no guessing), make your pick the closest match, and you may name ONE real, well-known game not on this shelf that fills the gap in gap.consider (only if you are sure it exists). Never present it as owned. If the shelf has a true match, gap is null.',\n      '',\n      'MEMORY: you are getting to know the ASKER over time. WHAT YOU REMEMBER is from earlier chats: let it shape your picks quietly, and mention it only when it matters (\"I know you like weeknights short\"). Never suggest a game they asked you not to.',\n      'In \"remember\", list 0-2 lasting facts the ASKER just told you about THEMSELVES in this REQUEST: stable likes and dislikes, how long or heavy they like games, who they usually play with and when, or a game they don\\'t want suggested (put its title in \"skip\"). Not one-off moods or plans (\"tonight\", \"I\\'m tired\", \"this weekend\"), not facts about other people, not things you only inferred from data, and not facts already in WHAT YOU REMEMBER (if the new fact changes one, set \"replaces\" to that note\\'s id). Write each note in the third person, under 15 words. Whenever the REQUEST states a lasting preference, record it, even when the same request also asks for a game for tonight. Words like \"usually\", \"always\", \"never\", \"on weeknights\", \"I like\", \"I hate\" or \"I\\'m burned out on\" signal one. Examples: \"on weeknights I only have about an hour, so I like shorter games. What should I play tonight?\" -> {\"note\": \"Has about an hour on weeknights; likes shorter games\"}; \"please stop suggesting Cascadia, I\\'m burned out on it\" -> {\"note\": \"Burned out on Cascadia; don\\'t suggest it\", \"skip\": \"Cascadia\"}; \"I hate trivia games\" -> {\"note\": \"Dislikes trivia games\"}; \"I really liked Got Five\" -> {\"note\": \"Really liked Got Five!\"}; \"my wife and I play on Sunday mornings\" -> {\"note\": \"Plays with their partner on Sunday mornings\"}. Tonight\\'s mood or situation is not a lasting fact: \"I\\'m tired tonight, something light\" -> [] and \"we have 3 tonight\" -> []. A request that only asks for a game teaches nothing: then \"remember\" is [].',\n      '',\n      'Reply with JSON only:',\n      ...(s.browse ? [\n      '{\"summary\": \"...\", \"highlights\": [{\"id\": \"...\", \"quip\": \"...\" or \"\", \"why\": \"...\"}],',\n      ...(s.mode === 'rules' ? [' \"sources\": [{\"doc\": 12, \"page\": 9}],'] : []),\n      ] : [\n      '{\"pick\": {\"id\": \"...\", \"quip\": \"...\" or \"\", \"why\": \"...\", \"tableFeel\": \"...\", \"swapJoke\": \"...\" or null},',\n      ' \"alternative\": {\"id\": \"...\", \"quip\": \"...\" or \"\", \"why\": \"...\", \"tableFeel\": \"...\"} or null,',\n      ' \"avoid\": {\"id\": \"...\", \"why\": \"...\"} or null (only if a candidate would clearly flop tonight),',\n      ]),\n      ' \"gap\": {\"missing\": \"...\", \"consider\": \"Game title\" or null} or null,',\n      ' \"remember\": [{\"note\": \"...\", \"replaces\": note id or null, \"skip\": \"Game title\" or null}],',\n      ' \"signoff\": \"an optional short corny sign-off, or empty\"}',\n    ].join('\\n');\n    const systemText = system.split('{SHELF_OWNER}').join(s.ownerName || 'Dan');\n    const user = [\n      'REQUEST: ' + v.question,\n      v.previous ? 'This follows up on: ' + v.previous.question : '',\n      'UNDERSTOOD: ' + JSON.stringify(s.understood),\n      'GAP: ' + (s.gap ? 'true' : 'false'),\n      s.setFacts ? (s.person ? 'SET FACTS (about the people asked about):\\n' : s.mode === 'rules' ? '' : s.mode ? 'ABOUT THE ASKER:\\n' : 'SET FACTS (all games that match):\\n') + s.setFacts : '',\n      'ALREADY_JOKED: ' + (s.shortIds.filter((id) => mentioned.has(id)).join(', ') || '(none)'),\n      (() => { const m = $('Memory').first().json.mem || {}; return 'WHAT YOU REMEMBER ABOUT THE ASKER (id | note):\\n' + ((m.notes || []).map((n) => n.id + ' | ' + n.note).join('\\n') || '(nothing yet)'); })(),\n      (() => { const t = ($('Memory').first().json.mem || {}).turns || []; return t.length ? 'EARLIER IN THIS CHAT (oldest first):\\n' + t.map((x) => '- They asked: ' + x.q + ' | You answered: ' + x.a).join('\\n') : ''; })(),\n      s.constraints && s.constraints.feedback ? 'FEEDBACK: the asker just told you they ' + (s.constraints.feedback === 'disliked' ? 'did not enjoy ' : 'enjoyed ') + (s.constraints.feedbackGame || 'a game') + '. Open your headline \"why\" with one short, warm reaction to that (\"Glad Got Five! landed!\"), then pick games ' + (s.constraints.feedback === 'disliked' ? 'that feel different from it' : 'that share what they liked about it') + ' for the same table, and do not pick that game again. Also add it to \"remember\" (\"Really liked Got Five!\") unless WHAT YOU REMEMBER already says so.' : '',\n      s.browse ? '' : 'RECENTLY_SUGGESTED (you recommended these to this person in the last two weeks; prefer a fresh pick that fits as well, and only repeat one if it is clearly the best fit or they ask for it): ' + (s.shortIds.filter((id) => (v.recent || []).includes(id) || (s.recentIds || []).includes(id)).join(', ') || '(none)'),\n      s.askerName ? 'ASKER (the person typing; call them \"you\"): ' + s.askerName : '', s.guest || '',\n      s.askerProfile ? 'ASKER PROFILE (use it when they ask for something they would like, even if they are not listed as playing):\\n' + s.askerProfile : '',\n      '', 'PEOPLE PLAYING:', s.profiles || '(not specified; recommend for the group described in the request)',\n      '', 'CANDIDATES (id | title | facts | how each person relates to it):', s.gameLines,\n    ].filter((l) => l !== '').join('\\n');\n    return [{ json: { ...s, requestBody: {\n      // Google Vertex first: Haiku's first words came ~0.2 s sooner there than on the default route (Oct 23); others if it's down\n      model: 'anthropic/claude-haiku-5.5', models: ['anthropic/claude-haiku-5.5', 'google/gemini-2.5-flash'], max_tokens: 2500, reasoning: { enabled: false }, provider: { order: ['google-vertex'], data_collection: 'deny' }, usage: { include: true },\n      messages: [{ role: 'system', content: systemText }, { role: 'user', content: $('Photo Notes').isExecuted\n        ? [{ type: 'text', text: user + '\\n\\nPHOTO: the asker attached the photo below (it shows: ' + $('Photo Notes').first().json.shows + ' — ' + $('Photo Notes').first().json.description + '). ' +\n            'Answer about what is in it. If they ask what game it is: name it, say what gave it away (the board, the card art, a logo), and if you are not sure say so and give your next guess too. Never mention a photo reader or how sure it was; just say it in your own words (e.g. \\\"I\\'m fairly sure\\\"). For an icon or component, say what it means from the RULEBOOK EXCERPTS (match it by its look) and cite the page; if the excerpts don\\'t say, say so rather than guessing. (How sure the photo reader was: ' + $('Photo Notes').first().json.sure + '.)' },\n          { type: 'image_url', image_url: { url: $('Validate').first().json.image } }]\n        : user }],\n    } } }];\n  "
+        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n      // Other editions whose logged plays count toward this game\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n  // ---- People: Players and Ratings tables ----\n  const PF = {\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\n  };\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\n  const toPlayer = (r) => {\n    const f = r.fields || {};\n    let history = {};\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\n    return {\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\n    };\n  };\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\n  // The part of a player card that belongs to the person: only they edit it (via /me)\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\n  // Highest-priority source wins when one person has several ratings for a game\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\n  const ratingsByPlayerGame = (list) => {\n    const out = {};\n    for (const r of list) {\n      if (!r.gameId || !r.playerId || !r.stars) continue;\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\n      if (r.source === 'site') e.stars = r.stars;\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\n    }\n    return out;\n  };\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\n  const parseThingXml = (xml) => {\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\n    const bestWith = (s) => {\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\n      });\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\n      if (winners.length) return winners;\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\n      return top ? [top.n] : [];\n    };\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\n      const s = m[3];\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\n      const avg = Number(attr(s, 'average') || 0);\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\n        // An expansion's inbound links point at the base game(s) it expands\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\n    });\n  };\n  const toRating = (r) => {\n    const f = r.fields || {};\n    const src = f[RF.source];\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\n      source: typeof src === 'object' && src ? src.name : src || '' };\n  };\n\n    const v = $('Validate').first().json;\n    const s = $input.first().json;\n    const mentioned = new Set(v.mentioned || []);\n    const system = [\n      'You are Nathan Schmidt, the warm, welcoming and meticulous curator of Board Game Curator. This shelf is the board game collection of {SHELF_OWNER} (never say \"owner\", say {SHELF_OWNER}).',\n      'Your job: get the right game from THIS shelf to the table for the right people, mood and occasion. You speak like an enthusiastic, articulate host walking a friend through the game room shelves.',\n      '',\n      'GROUNDING (most important):',\n      '- Recommend only games from CANDIDATES, by id. Never invent games, numbers or rules.',\n      '- Cite the key metrics from the candidate facts: the best player count (\"the BGG community poll says it is best at 4\"), play time, BGG weight, and primary mechanics. These facts come from BoardGameGeek, so you may attribute them to BGG.',\n      '- Do not quote forums, Reddit or reviews: you have no access to them.',\n      '- Plays are a hint, not a verdict: \"Keith has played it 12 times\" suggests he does not mind it, not that he loves it. Only a BGC or BGG rating says how much someone likes a game; say which one you mean.',\n      '- Fit to the people comes first: each person\\'s dials, likes, dislikes and notes; their plays, wins and ratings on each candidate; {SHELF_OWNER}\\'s own star ratings and favorites; a game {SHELF_OWNER} may give away is a good last-chance pick. Name people by first name. Be kind about people and never judge anyone\\'s taste: party games and heavy economic games deserve equal respect.',\n      '',\n      'VOICE:',\n      '- You are talking with the ASKER: always call them \"you\" (never by their name, never \"he\" or \"she\"). Use first names only for other people.',\n      ...($('Shelf View').first().json.v.askerName !== 'Nathan Schmidt' ? [\n      '- You ARE Nathan Schmidt. Facts explicitly about Nathan Schmidt (his profile, his own shelf, his plays and ratings) are about you: say them in the first person (\"I love engine builders\", \"I\\'ve played Ark Nova 39 times\", \"on my shelf\"). Everything else (the plays, wins and stars in CANDIDATES) belongs to the shelf owner or the people named, never to you, and the shelf you are picking from is theirs: say \"your shelf\" or \"{SHELF_OWNER}\\'s shelf\", never \"my shelf\".',\n      ] : []),\n      '- Warm and enthusiastically corny: wholesome dad jokes and puns about cardboard and meeples, gentle self-deprecating humor about shelf space and the shelf of shame. Humor is a light flourish and never crowds out the recommendation.',\n      '- First mention: for a title NOT in ALREADY_JOKED, open its entry with a one-line dad-joke quip about that game. For titles in ALREADY_JOKED, leave quip empty.',\n      '- Only if you are confident the game has an unlimited or substitutable component pool, or it supports an expanded player count, add exactly this joke in swapJoke: \"The [component] can be substituted as needed, so if you ever run short, feel free to use a suitable replacement… like [funny, semi-related household item].\" Otherwise null.',\n      '',\n      // Social answers: across friends' shelves say who owns each pick; at a friend's place it's their shelf\n      ...(s.across ? ['SOCIAL: the CANDIDATES come from the asker\\'s friends\\' shelves, not the asker\\'s own (never call them \"your shelf\"). Talk only about those friends\\' copies: don\\'t bring up the asker\\'s own games or play counts, which are only there to show their taste. For every game you mention, say which friend owns it (\"Matt has it, so ask him to bring it\"), and note when the asker owns it too.'] : []),\n      ...(s.visiting ? ['SOCIAL: they are playing at ' + s.visiting + '\\'s place, so the CANDIDATES are ' + s.visiting + '\\'s shelf. Say so naturally (\"at ' + s.visiting + '\\'s, I\\'d pull down…\").'] : []),\n      ...(s.mode === 'rules' ? [\n      'FORMAT: this is a rules question. Answer it clearly and correctly in \"summary\": short paragraphs or numbered steps (use line breaks), no fluff, no quips. For RULEBOOK EXCERPTS: answer only from the excerpts. Each excerpt starts with [doc <id> | <document>, page <n> | <heading>]. Say where each rule comes from in the text, like \"(Rulebook, p. 9)\" or \"(Appendix, p. 13)\", and list every excerpt you used in \"sources\" as {\"doc\": <id>, \"page\": <n>}. If the excerpts don\\'t cover the question, say so plainly and suggest which part of the rulebook to check; \"sources\" is then []. For a game with NO RULEBOOK UPLOADED: start with \"From memory:\" and answer from what you reliably know about the game; say when you\\'re not sure of a detail, never invent specifics, and suggest checking the official rulebook. Highlights: just the game asked about, with an empty or one-line \"why\". gap is null.',\n      ] : s.mode === 'game' ? [\n      'FORMAT: this is a question about specific game(s), owned or not. If they ask whether someone owns it or who has it (\"does Dan own Spirit Island?\", \"who has Brass?\"), answer that first from the facts: \"ON THEIR SHELF\" means the ASKER owns it, and \"friends who own it\" names the friends who do (if a named person is not listed there, they don\\'t own it, as far as you know). Answer it directly and completely in \"summary\" (2-5 sentences) from the CANDIDATES facts, which come from BoardGameGeek (\"genre\" means its categories and main mechanics; name a few of each). If a game is not on their shelf, say so, then say honestly how well it would suit them, comparing it to games on ASKER\\'S SHELF they play and love and to their PROFILE. Only when the facts name friends who own it, mention they could try that friend\\'s copy first (by name); never suggest a friend\\'s copy otherwise. If it looks like a great fit and they don\\'t own it, you may say it could be worth buying. Never invent facts; for things BGG data doesn\\'t cover (rules details, reviews, prices), say you only have BGG\\'s facts. Highlights: the game(s) asked about, one sentence of \"why\" each. gap is null.',\n      ] : s.mode === 'buy' ? [\n      'FORMAT: they want ideas for games to buy. Every CANDIDATE is a game they don\\'t own. Pick the 3 that best fit their taste (ASKER\\'S SHELF, PROFILE) and anything in the request. In \"summary\" (2-4 sentences) name your 3 picks and why, tied to games they already play and love. Only mention a friend owning a pick when the facts list that friend (then suggest trying their copy first). Highlights: the 3 picks, each with one or two sentences of \"why\". gap is null.',\n      ] : s.person ? [\n      'FORMAT: this is a question about a person, not a request for a game. In \"summary\" (3-6 sentences) tell them what you know, warmly and specifically: their own words first (likes, dislikes, dials, about), then their play history here (plays, wins, most played, rated 4+), and what that says about their taste. Speak to the ASKER as \"you\" when the question is about them; use first names for anyone else.',\n      'Use only the facts in SET FACTS. If the profile is empty, say so kindly: when it is the ASKER\\'s own, suggest filling in My profile (under their name, top left of the site) so you can do better; for anyone else, suggest nudging that person to fill in theirs. Then pick 3 to 5 highlights from CANDIDATES that best show their taste (most played or rated highest), each with one sentence of \"why\". gap is null.',\n      ] : s.browse ? [\n      'FORMAT: this is a question about what is on the shelf, not a request for one game. Sum up the matching games in \"summary\" (2-4 sentences): use the exact COUNT from SET FACTS, then what kinds they are (weights, lengths, mechanics, sub-themes) and any pattern in plays or favorites. Then pick 3 to 5 varied highlights from CANDIDATES that show the range (for example a favorite, a light one, a heavy one, one that is never played), each with one sentence of \"why\".',\n      ...(s.ranked ? [\n      'RANKED (the exact answer, in order): ' + s.ranked,\n      ] : [\n      'If SET FACTS has an ORDER, it is a ranked list: name the games in order with their numbers (e.g. \"The Crew leads with 21 plays\").',\n      ]),\n      'Answer the question fully in the summary, in natural sentences: if they ask for ten, name all ten (with their numbers, in order); if they ask whether they own something, say yes or no first. Never stop at a sample of what they asked for. Then add a sentence on what it says about their taste. Make the highlights 3 to 5 of the most interesting games from the answer.',\n      ] : [\n      'FORMAT: one headline pick and one contrasting alternative (for example lighter, faster, or a different feel). The headline must fit the request without excuses: if it is not at its best at the asked player count (\"best at 2 or 3\" for four of you) and another good candidate is, pick that one instead. For each, a short vivid table-feel picture (1-3 sentences) of what playing it actually feels like.',\n      'Keep each entry scannable: \"why\" is 2-4 sentences, data and people fit first.',\n      'Choose both games before you write. Each entry\\'s \"why\" is about the game with that entry\\'s id: never change your mind or think aloud in it (\"wait\", \"let me reconsider\"), and never argue for a different game inside it.',\n      ...(s.understood && s.understood.kids ? ['KIDS: children are playing (UNDERSTOOD.kids). Unless UNDERSTOOD.youngestAge says otherwise, their ages are unknown: pick from the games with the lowest BGG age and weight, and say the BGG age for each pick. Their ages are then the one thing to \"ask\".'] : []),\n      ]),\n      '',\n      'HONEST GAPS: if GAP is true (nothing meets the hard limits), or the kind of game asked for (a genre, theme or mechanic) is not really on the shelf, say so plainly in gap.missing (one sentence, no guessing), make your pick the closest match, and you may name ONE real, well-known game not on this shelf that fills the gap in gap.consider (only if you are sure it exists). Never present it as owned. If the shelf has a true match, gap is null.',\n      '',\n      'MEMORY: you are getting to know the ASKER over time. WHAT YOU REMEMBER is from earlier chats: let it shape your picks quietly, and mention it only when it matters (\"I know you like weeknights short\"). Never suggest a game they asked you not to.',\n      'In \"remember\", list 0-2 lasting facts the ASKER just told you about THEMSELVES in this REQUEST: stable likes and dislikes, how long or heavy they like games, who they usually play with and when, or a game they don\\'t want suggested (put its title in \"skip\"). Not one-off moods or plans (\"tonight\", \"I\\'m tired\", \"this weekend\"), not facts about other people, not things you only inferred from data, and not facts already in WHAT YOU REMEMBER (if the new fact changes one, set \"replaces\" to that note\\'s id). Write each note in the third person, under 15 words. Whenever the REQUEST states a lasting preference, record it, even when the same request also asks for a game for tonight. Words like \"usually\", \"always\", \"never\", \"on weeknights\", \"I like\", \"I hate\" or \"I\\'m burned out on\" signal one. Examples: \"on weeknights I only have about an hour, so I like shorter games. What should I play tonight?\" -> {\"note\": \"Has about an hour on weeknights; likes shorter games\"}; \"please stop suggesting Cascadia, I\\'m burned out on it\" -> {\"note\": \"Burned out on Cascadia; don\\'t suggest it\", \"skip\": \"Cascadia\"}; \"I hate trivia games\" -> {\"note\": \"Dislikes trivia games\"}; \"I really liked Got Five\" -> {\"note\": \"Really liked Got Five!\"}; \"my wife and I play on Sunday mornings\" -> {\"note\": \"Plays with their partner on Sunday mornings\"}. Tonight\\'s mood or situation is not a lasting fact: \"I\\'m tired tonight, something light\" -> [] and \"we have 3 tonight\" -> []. A request that only asks for a game teaches nothing: then \"remember\" is [].',\n      ...(s.browse ? [] : ['ONE QUESTION: if one fact you were not told would clearly change your pick (the kids\\' ages, how many are playing, how long they have, whether the group is new to board games), put one short, friendly question about it in \"ask\": under 20 words, ending in \"?\". For example, friends coming over who have never played, with no number given: ask how many are coming, and never assume one. Still make your best pick now; the question is for a sharper pick next time. Most answers need no question: leave \"ask\" empty when the REQUEST already says enough, when it answers a question you asked before, or when the answer would not change your pick. Never ask in \"why\" or the sign-off.']),\n      '',\n      'Reply with JSON only:',\n      ...(s.browse ? [\n      '{\"summary\": \"...\", \"highlights\": [{\"id\": \"...\", \"quip\": \"...\" or \"\", \"why\": \"...\"}],',\n      ...(s.mode === 'rules' ? [' \"sources\": [{\"doc\": 12, \"page\": 9}],'] : []),\n      ] : [\n      '{\"pick\": {\"id\": \"...\", \"quip\": \"...\" or \"\", \"why\": \"...\", \"tableFeel\": \"...\", \"swapJoke\": \"...\" or null},',\n      ' \"alternative\": {\"id\": \"...\", \"quip\": \"...\" or \"\", \"why\": \"...\", \"tableFeel\": \"...\"} or null,',\n      ' \"avoid\": {\"id\": \"...\", \"why\": \"...\"} or null (only if a candidate would clearly flop tonight),',\n      ]),\n      ' \"gap\": {\"missing\": \"...\", \"consider\": \"Game title\" or null} or null,',\n      ' \"remember\": [{\"note\": \"...\", \"replaces\": note id or null, \"skip\": \"Game title\" or null}],',\n      ...(s.browse ? [] : [' \"ask\": \"one short question\" or \"\",']),\n      ' \"signoff\": \"an optional short corny sign-off, or empty\"}',\n    ].join('\\n');\n    const systemText = system.split('{SHELF_OWNER}').join(s.ownerName || 'Dan');\n    const user = [\n      'REQUEST: ' + v.question,\n      v.previous ? 'This follows up on: ' + v.previous.question : '',\n      'UNDERSTOOD: ' + JSON.stringify(s.understood),\n      'GAP: ' + (s.gap ? 'true' : 'false'),\n      s.setFacts ? (s.person ? 'SET FACTS (about the people asked about):\\n' : s.mode === 'rules' ? '' : s.mode ? 'ABOUT THE ASKER:\\n' : 'SET FACTS (all games that match):\\n') + s.setFacts : '',\n      'ALREADY_JOKED: ' + (s.shortIds.filter((id) => mentioned.has(id)).join(', ') || '(none)'),\n      (() => { const m = $('Memory').first().json.mem || {}; return 'WHAT YOU REMEMBER ABOUT THE ASKER (id | note):\\n' + ((m.notes || []).map((n) => n.id + ' | ' + n.note).join('\\n') || '(nothing yet)'); })(),\n      (() => { const t = ($('Memory').first().json.mem || {}).turns || []; return t.length ? 'EARLIER IN THIS CHAT (oldest first):\\n' + t.map((x) => '- They asked: ' + x.q + ' | You answered: ' + x.a).join('\\n') : ''; })(),\n      s.constraints && s.constraints.feedback ? 'FEEDBACK: the asker just told you they ' + (s.constraints.feedback === 'disliked' ? 'did not enjoy ' : 'enjoyed ') + (s.constraints.feedbackGame || 'a game') + '. Open your headline \"why\" with one short, warm reaction to that (\"Glad Got Five! landed!\"), then pick games ' + (s.constraints.feedback === 'disliked' ? 'that feel different from it' : 'that share what they liked about it') + ' for the same table, and do not pick that game again. Also add it to \"remember\" (\"Really liked Got Five!\") unless WHAT YOU REMEMBER already says so.' : '',\n      s.browse ? '' : 'RECENTLY_SUGGESTED (you recommended these to this person in the last two weeks; prefer a fresh pick that fits as well, and only repeat one if it is clearly the best fit or they ask for it): ' + (s.shortIds.filter((id) => (v.recent || []).includes(id) || (s.recentIds || []).includes(id)).join(', ') || '(none)'),\n      s.askerName ? 'ASKER (the person typing; call them \"you\"): ' + s.askerName : '', s.guest || '',\n      s.askerProfile ? 'ASKER PROFILE (use it when they ask for something they would like, even if they are not listed as playing):\\n' + s.askerProfile : '',\n      '', 'PEOPLE PLAYING:', s.profiles || '(not specified; recommend for the group described in the request)',\n      '', 'CANDIDATES (id | title | facts | how each person relates to it):', s.gameLines,\n    ].filter((l) => l !== '').join('\\n');\n    return [{ json: { ...s, requestBody: {\n      // Google Vertex first: Haiku's first words came ~0.2 s sooner there than on the default route (Oct 23); others if it's down\n      model: 'anthropic/claude-haiku-5.5', models: ['anthropic/claude-haiku-5.5', 'google/gemini-2.5-flash'], max_tokens: 2500, reasoning: { enabled: false }, provider: { order: ['google-vertex'], data_collection: 'deny' }, usage: { include: true },\n      messages: [{ role: 'system', content: systemText }, { role: 'user', content: $('Photo Notes').isExecuted\n        ? [{ type: 'text', text: user + '\\n\\nPHOTO: the asker attached the photo below (it shows: ' + $('Photo Notes').first().json.shows + ' — ' + $('Photo Notes').first().json.description + '). ' +\n            'Answer about what is in it. If they ask what game it is: name it, say what gave it away (the board, the card art, a logo), and if you are not sure say so and give your next guess too. Never mention a photo reader or how sure it was; just say it in your own words (e.g. \\\"I\\'m fairly sure\\\"). For an icon or component, say what it means from the RULEBOOK EXCERPTS (match it by its look) and cite the page; if the excerpts don\\'t say, say so rather than guessing. (How sure the photo reader was: ' + $('Photo Notes').first().json.sure + '.)' },\n          { type: 'image_url', image_url: { url: $('Validate').first().json.image } }]\n        : user }],\n    } } }];\n  "
       }
     },
     {
-      "id": "f965ad38-0794-4819-b9b1-5f7ba8c12a55",
+      "id": "0bc73b8e-7217-4622-b673-1296ed01891f",
       "name": "Recommend",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -800,7 +800,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "11f225f1-1eae-4ce0-9172-63365d726650",
+      "id": "c0c438ac-12c5-4c39-b92d-1b1422e15116",
       "name": "Check Answer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -809,11 +809,11 @@
         300
       ],
       "parameters": {
-        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n      // Other editions whose logged plays count toward this game\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n  // ---- People: Players and Ratings tables ----\n  const PF = {\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\n  };\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\n  const toPlayer = (r) => {\n    const f = r.fields || {};\n    let history = {};\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\n    return {\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\n    };\n  };\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\n  // The part of a player card that belongs to the person: only they edit it (via /me)\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\n  // Highest-priority source wins when one person has several ratings for a game\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\n  const ratingsByPlayerGame = (list) => {\n    const out = {};\n    for (const r of list) {\n      if (!r.gameId || !r.playerId || !r.stars) continue;\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\n      if (r.source === 'site') e.stars = r.stars;\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\n    }\n    return out;\n  };\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\n  const parseThingXml = (xml) => {\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\n    const bestWith = (s) => {\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\n      });\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\n      if (winners.length) return winners;\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\n      return top ? [top.n] : [];\n    };\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\n      const s = m[3];\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\n      const avg = Number(attr(s, 'average') || 0);\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\n        // An expansion's inbound links point at the base game(s) it expands\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\n    });\n  };\n  const toRating = (r) => {\n    const f = r.fields || {};\n    const src = f[RF.source];\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\n      source: typeof src === 'object' && src ? src.name : src || '' };\n  };\n\n    const s = $('Build Recommend Request').first().json;\n    const text = $input.first().json.choices?.[0]?.message?.content || '';\n    let a = {};\n    // The JSON, even when the model writes a sentence (or a stray brace) before it\n    for (let i = text.indexOf('{'); i >= 0 && !Object.keys(a).length; i = text.indexOf('{', i + 1)) {\n      try { a = JSON.parse(text.slice(i, text.lastIndexOf('}') + 1)); } catch (e) {}\n    }\n    const allowed = new Set(s.shortIds);\n    const seen = new Set();\n    // Nathan talks to the asker as \"you\": drop their name when he addresses them with it (\"Yes, Dan, …\", \"Good news, Nathan:\", \"…, Dan.\")\n    const askerFirst = String($('Shelf View').first().json.v.askerName || '').split(' ')[0].replace(/[^\\p{L}'-]/gu, '');\n    const unname = (t) => !askerFirst ? t : t\n      .replace(new RegExp('(^|[.!?]\\\\s+)((?:Yes|No|Good news|Great news|Well|So|Okay|Ok|Alright|Hey|Ah|Oh)\\\\s*)?,?\\\\s*' + askerFirst + '\\\\s*[,:]\\\\s*', 'g'), (m, lead, word) => lead + (word ? word.trim() + ', ' : ''))\n      .replace(new RegExp(',\\\\s*' + askerFirst + '(?=[.!?,:;])', 'g'), '')\n      .replace(/(^|[.!?]\\s+)([a-z])/g, (m, lead, ch) => lead + ch.toUpperCase());\n    const str = (v, n) => unname(String(v || '').trim()).slice(0, n);\n    const entry = (x, withFeel) => {\n      if (!x || !allowed.has(String(x.id)) || seen.has(String(x.id))) return null;\n      seen.add(String(x.id));\n      const off = (s.off || []).find((o) => o.id === String(x.id)); // a game not on their shelf: BGG link, cover, friends who have it\n      return { id: String(x.id), title: s.titles[x.id], quip: str(x.quip, 200), why: str(x.why, 700),\n        ...(withFeel ? { tableFeel: str(x.tableFeel, 400) } : {}), ...(x.swapJoke ? { swapJoke: str(x.swapJoke, 300) } : {}), ...(off ? { off } : {}) };\n    };\n    // \"Not on your shelf, but worth a look\" must really not be on the shelf\n    const sl = $('Own Shelf').first().json;\n    const onShelf = new Set(((sl.visit || sl.own || $('Shelf View').first().json.v).games || []).map((r) => toGame(r).title.toLowerCase()));\n    const consider = (t) => (t && !onShelf.has(t.toLowerCase()) ? t : null);\n    const learn = (Array.isArray(a.remember) ? a.remember : []).filter((l) => l && typeof l.note === 'string' && l.note.trim().length >= 4).slice(0, 2)\n      .map((l) => ({ note: str(l.note, 160), replaces: /^\\d+$/.test(String(l.replaces ?? '')) ? String(l.replaces) : null, skip: l.skip ? str(l.skip, 120) : null }));\n    const memOut = learn.length ? { learn, remembered: learn.map((l) => l.note) } : {};\n    const gapOf = () => (s.gap || (a.gap && a.gap.missing)) ? { missing: str(a.gap && a.gap.missing, 300) || 'Nothing on the shelf matches every part of that.', consider: consider(str(a.gap && a.gap.consider, 80)) } : null;\n    if (s.browse) {\n      const highlights = (Array.isArray(a.highlights) ? a.highlights : []).map((x) => entry(x, false)).filter(Boolean).slice(0, 5);\n      if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });\n      const summary = str(a.summary, s.mode === 'rules' ? 3500 : 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');\n      const known = s.ruleSources || [];\n      const sources = (Array.isArray(a.sources) ? a.sources : []).map((x) => known.find((k) => Number(k.doc) === Number(x && x.doc) && Number(k.page) === Number(x && x.page)))\n        .filter((x, i, arr) => x && arr.indexOf(x) === i).slice(0, 6);\n      return [{ json: { ok: true, ...memOut, ...(s.mode === 'rules' ? { sources } : {}), intent: 'browse', mode: s.mode || null, person: !!s.person, social: s.across ? 'friends' : s.visiting ? 'visit' : null, ...(s.rulebooks ? { rulebooks: s.rulebooks } : {}), understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),\n        matchIds: s.matchIds, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}), signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];\n    }\n    let pick = entry(a.pick, true);\n    // Model failed or went off-list: fall back to the top of the scored shortlist\n    if (!pick && s.shortIds.length) { const id = s.shortIds[0]; seen.add(id); pick = { id, title: s.titles[id], quip: '', why: 'The best fit on the shelf for what you described.', tableFeel: '' }; }\n    const alternative = entry(a.alternative, true);\n    const avoid = entry(a.avoid, false);\n    const gap = gapOf();\n    return [{ json: { ok: true, ...memOut, intent: 'recommend', social: s.across ? 'friends' : s.visiting ? 'visit' : null, matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}),\n      signoff: str(a.signoff, 200), pickIds: [pick, alternative].filter(Boolean).map((x) => x.id), model: $input.first().json.model || null } }];\n  "
+        "jsCode": "  const F = {\n    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',\n    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',\n    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',\n    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',\n    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',\n    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',\n    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',\n    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',\n    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',\n    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',\n    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',\n  };\n  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };\n  const toGame = (r) => {\n    const f = r.fields || {};\n    return {\n      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,\n      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',\n      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],\n      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',\n      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),\n      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,\n      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),\n      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),\n      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,\n      // Other editions whose logged plays count toward this game\n      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),\n    };\n  };\n  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)\n    ? `RECORD_ID()='${id}'`\n    : `{GameID}='${String(id).replace(/'/g, \"\\\\'\")}'`;\n  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')\n    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();\n  // ---- People: Players and Ratings tables ----\n  const PF = {\n    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',\n    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',\n    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',\n    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',\n  };\n  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };\n  const toPlayer = (r) => {\n    const f = r.fields || {};\n    let history = {};\n    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}\n    return {\n      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),\n      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',\n      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,\n      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,\n      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,\n    };\n  };\n  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)\n  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };\n  // The part of a player card that belongs to the person: only they edit it (via /me)\n  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,\n    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });\n  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());\n  // Highest-priority source wins when one person has several ratings for a game\n  // BGC stars come only from the person themselves (\"site\"); BGG ratings are kept apart, out of 10 (stored as stars x2)\n  const ratingsByPlayerGame = (list) => {\n    const out = {};\n    for (const r of list) {\n      if (!r.gameId || !r.playerId || !r.stars) continue;\n      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });\n      if (r.source === 'site') e.stars = r.stars;\n      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);\n    }\n    return out;\n  };\n  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids\n  const parseThingXml = (xml) => {\n    const decode = (s) => s.replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\\\s[^>]*value=\"([^\"]*)\"')); return m ? m[1] : null; };\n    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };\n    const links = (s, type) => [...s.matchAll(new RegExp('<link type=\"' + type + '\" id=\"\\\\d+\" value=\"([^\"]*)\"', 'g'))].map((m) => decode(m[1]));\n    // \"Best with\": player counts where Best is the top vote in BGG's suggested_numplayers poll\n    const bestWith = (s) => {\n      const poll = (s.match(/<poll name=\"suggested_numplayers\"[\\s\\S]*?<\\/poll>/) || [''])[0];\n      const rows = [...poll.matchAll(/<results numplayers=\"(\\d+)\">([\\s\\S]*?)<\\/results>/g)].map((m) => {\n        const votes = (label) => Number((m[2].match(new RegExp('value=\"' + label + '\" numvotes=\"(\\\\d+)\"')) || [])[1] || 0);\n        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };\n      });\n      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);\n      if (winners.length) return winners;\n      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];\n      return top ? [top.n] : [];\n    };\n    return [...String(xml || '').matchAll(/<item type=\"([^\"]+)\" id=\"(\\d+)\">([\\s\\S]*?)<\\/item>/g)].map((m) => {\n      const s = m[3];\n      const rank = (s.match(/<rank type=\"subtype\"[^>]*name=\"boardgame\"[^>]*value=\"(\\d+)\"/) || [])[1];\n      const avg = Number(attr(s, 'average') || 0);\n      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type=\"primary\"[^>]*value=\"([^\"]*)\"/) || [])[1] || ''),\n        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,\n        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),\n        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),\n        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),\n        // An expansion's inbound links point at the base game(s) it expands\n        baseIds: [...s.matchAll(/<link type=\"boardgameexpansion\" id=\"(\\d+)\"[^>]*inbound=\"true\"/g)].map((x) => Number(x[1])),\n        description: decode(decode((s.match(/<description>([\\s\\S]*?)<\\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\\d+;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 700) || null,\n        picId: (s.match(/<image>[^<]*\\/pic(\\d+)\\.[a-z]+<\\/image>/) || [])[1] || null };\n    });\n  };\n  const toRating = (r) => {\n    const f = r.fields || {};\n    const src = f[RF.source];\n    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,\n      source: typeof src === 'object' && src ? src.name : src || '' };\n  };\n\n    const s = $('Build Recommend Request').first().json;\n    const text = $input.first().json.choices?.[0]?.message?.content || '';\n    let a = {};\n    // The JSON, even when the model writes a sentence (or a stray brace) before it\n    for (let i = text.indexOf('{'); i >= 0 && !Object.keys(a).length; i = text.indexOf('{', i + 1)) {\n      try { a = JSON.parse(text.slice(i, text.lastIndexOf('}') + 1)); } catch (e) {}\n    }\n    const allowed = new Set(s.shortIds);\n    const seen = new Set();\n    // Nathan talks to the asker as \"you\": drop their name when he addresses them with it (\"Yes, Dan, …\", \"Good news, Nathan:\", \"…, Dan.\")\n    const askerFirst = String($('Shelf View').first().json.v.askerName || '').split(' ')[0].replace(/[^\\p{L}'-]/gu, '');\n    const unname = (t) => !askerFirst ? t : t\n      .replace(new RegExp('(^|[.!?]\\\\s+)((?:Yes|No|Good news|Great news|Well|So|Okay|Ok|Alright|Hey|Ah|Oh)\\\\s*)?,?\\\\s*' + askerFirst + '\\\\s*[,:]\\\\s*', 'g'), (m, lead, word) => lead + (word ? word.trim() + ', ' : ''))\n      .replace(new RegExp(',\\\\s*' + askerFirst + '(?=[.!?,:;])', 'g'), '')\n      .replace(/(^|[.!?]\\s+)([a-z])/g, (m, lead, ch) => lead + ch.toUpperCase());\n    const str = (v, n) => unname(String(v || '').trim()).slice(0, n);\n    const entry = (x, withFeel) => {\n      if (!x || !allowed.has(String(x.id)) || seen.has(String(x.id))) return null;\n      seen.add(String(x.id));\n      const off = (s.off || []).find((o) => o.id === String(x.id)); // a game not on their shelf: BGG link, cover, friends who have it\n      return { id: String(x.id), title: s.titles[x.id], quip: str(x.quip, 200), why: str(x.why, 700),\n        ...(withFeel ? { tableFeel: str(x.tableFeel, 400) } : {}), ...(x.swapJoke ? { swapJoke: str(x.swapJoke, 300) } : {}), ...(off ? { off } : {}) };\n    };\n    // \"Not on your shelf, but worth a look\" must really not be on the shelf\n    const sl = $('Own Shelf').first().json;\n    const onShelf = new Set(((sl.visit || sl.own || $('Shelf View').first().json.v).games || []).map((r) => toGame(r).title.toLowerCase()));\n    const consider = (t) => (t && !onShelf.has(t.toLowerCase()) ? t : null);\n    const learn = (Array.isArray(a.remember) ? a.remember : []).filter((l) => l && typeof l.note === 'string' && l.note.trim().length >= 4).slice(0, 2)\n      .map((l) => ({ note: str(l.note, 160), replaces: /^\\d+$/.test(String(l.replaces ?? '')) ? String(l.replaces) : null, skip: l.skip ? str(l.skip, 120) : null }));\n    const memOut = learn.length ? { learn, remembered: learn.map((l) => l.note) } : {};\n    const gapOf = () => (s.gap || (a.gap && a.gap.missing)) ? { missing: str(a.gap && a.gap.missing, 300) || 'Nothing on the shelf matches every part of that.', consider: consider(str(a.gap && a.gap.consider, 80)) } : null;\n    if (s.browse) {\n      const highlights = (Array.isArray(a.highlights) ? a.highlights : []).map((x) => entry(x, false)).filter(Boolean).slice(0, 5);\n      if (!highlights.length) for (const id of s.shortIds.slice(0, 3)) highlights.push({ id, title: s.titles[id], quip: '', why: '' });\n      const summary = str(a.summary, s.mode === 'rules' ? 3500 : 900) || (s.matchIds.length ? 'You have ' + s.matchIds.length + ' games like that on the shelf.' : '');\n      const known = s.ruleSources || [];\n      const sources = (Array.isArray(a.sources) ? a.sources : []).map((x) => known.find((k) => Number(k.doc) === Number(x && x.doc) && Number(k.page) === Number(x && x.page)))\n        .filter((x, i, arr) => x && arr.indexOf(x) === i).slice(0, 6);\n      return [{ json: { ok: true, ...memOut, ...(s.mode === 'rules' ? { sources } : {}), intent: 'browse', mode: s.mode || null, person: !!s.person, social: s.across ? 'friends' : s.visiting ? 'visit' : null, ...(s.rulebooks ? { rulebooks: s.rulebooks } : {}), understood: s.understood, constraints: s.constraints, summary, highlights, gap: gapOf(),\n        matchIds: s.matchIds, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}), signoff: str(a.signoff, 200), pickIds: highlights.map((x) => x.id), model: $input.first().json.model || null } }];\n    }\n    let pick = entry(a.pick, true);\n    // Model failed or went off-list: fall back to the top of the scored shortlist\n    if (!pick && s.shortIds.length) { const id = s.shortIds[0]; seen.add(id); pick = { id, title: s.titles[id], quip: '', why: 'The best fit on the shelf for what you described.', tableFeel: '' }; }\n    const alternative = entry(a.alternative, true);\n    const avoid = entry(a.avoid, false);\n    const gap = gapOf();\n    // One question that would sharpen the next pick (\"How old are they?\"), shown after the answer\n    const ask = str(a.ask, 160);\n    return [{ json: { ok: true, ...memOut, intent: 'recommend', social: s.across ? 'friends' : s.visiting ? 'visit' : null, matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, ask: /\\?$/.test(ask) ? ask : '', fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}),\n      signoff: str(a.signoff, 200), pickIds: [pick, alternative].filter(Boolean).map((x) => x.id), model: $input.first().json.model || null } }];\n  "
       }
     },
     {
-      "id": "abe5ed34-500c-45d2-86c2-80fa16b399b1",
+      "id": "e210ada0-2814-460a-983a-8749550584d1",
       "name": "No Candidates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -826,7 +826,7 @@
       }
     },
     {
-      "id": "a143690f-3eb4-4555-9edb-358ef2d4cbb5",
+      "id": "cf40ad42-94be-41cf-98b7-5653f625c1b1",
       "name": "Off Topic",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -839,7 +839,7 @@
       }
     },
     {
-      "id": "bfe812b1-82c9-4866-9ba8-90e435d3cbd3",
+      "id": "7bbee8ae-bf4c-472a-aaba-77c13a7faa8c",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -856,7 +856,7 @@
       }
     },
     {
-      "id": "d3d828c7-a27c-4d02-9779-7fbdb0fb4ca9",
+      "id": "ea253b11-2618-4f28-80f3-dc9ee2b55bfd",
       "name": "Log Answer",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -884,7 +884,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "057b4026-3cfd-40b2-a853-7b0dc0794789",
+      "id": "3539b2e0-19da-4520-a14b-f0e79aa7dd14",
       "name": "Log Cost",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -912,7 +912,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "e09cea56-62e4-417a-8416-a2861ac7d70e",
+      "id": "b584e0ed-320f-4db2-bcf6-7b1736f59ea4",
       "name": "Save Turn",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -940,7 +940,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "b4084024-c68f-47ca-aaec-d9eb665b787e",
+      "id": "a4504b32-34c9-4073-913d-03075cc03f98",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -957,7 +957,7 @@
       }
     },
     {
-      "id": "ac784e05-7481-435e-99e3-e42224d14f79",
+      "id": "e223bfd3-8ef2-40ff-96df-a876e6e60e1e",
       "name": "Auth: Read Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -970,7 +970,7 @@
       }
     },
     {
-      "id": "aa621f4f-8c9a-4584-998c-6fa6eb07b3d9",
+      "id": "e7189875-b609-46f8-9e21-194b8e606b03",
       "name": "Auth: Verify With Google",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -997,7 +997,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "45ec81e2-835d-4eef-a82f-7710f61e3852",
+      "id": "8a6615ac-0a0c-42f2-b78d-fc29c2f65c89",
       "name": "Auth: Check Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1010,7 +1010,7 @@
       }
     },
     {
-      "id": "b7bf491b-2f2a-4e1a-9083-215938a80131",
+      "id": "31c98a8b-8539-43e2-9d10-792a6178d974",
       "name": "Token Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -1027,7 +1027,7 @@
           },
           "conditions": [
             {
-              "id": "14b3ad8a-4756-464b-b0e6-c1eef141acad",
+              "id": "10412120-95c9-46a0-9fa1-faa1be884327",
               "leftValue": "={{ $json.ok === true }}",
               "rightValue": "",
               "operator": {
@@ -1043,7 +1043,7 @@
       }
     },
     {
-      "id": "b5b44f27-a6be-42e8-9ecb-cc4702c7fc0b",
+      "id": "cac0a83c-0f4a-45b8-94cf-69b41b2704e1",
       "name": "Auth: Find Player",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -1070,7 +1070,7 @@
       "waitBetweenTries": 5000
     },
     {
-      "id": "c3a049a9-e416-4cba-a04c-112efbdc6f85",
+      "id": "22d90553-d6d4-47fa-bb90-b85882a075b0",
       "name": "Auth: Role",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1083,7 +1083,7 @@
       }
     },
     {
-      "id": "bf7ebf25-2c02-4dc2-8ef1-b19c40738082",
+      "id": "eb3ebaee-6d37-40b8-8f8d-9d9cee01b55f",
       "name": "Member?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -1100,7 +1100,7 @@
           },
           "conditions": [
             {
-              "id": "6de96b25-b337-4c26-9e99-ae69a718e11f",
+              "id": "aa879f63-935d-4b92-b52a-f718638e8693",
               "leftValue": "={{ $json._authOk === true }}",
               "rightValue": "",
               "operator": {

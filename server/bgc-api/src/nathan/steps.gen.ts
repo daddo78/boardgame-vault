@@ -2477,13 +2477,14 @@ export const STEPS = {
       'FORMAT: one headline pick and one contrasting alternative (for example lighter, faster, or a different feel). The headline must fit the request without excuses: if it is not at its best at the asked player count ("best at 2 or 3" for four of you) and another good candidate is, pick that one instead. For each, a short vivid table-feel picture (1-3 sentences) of what playing it actually feels like.',
       'Keep each entry scannable: "why" is 2-4 sentences, data and people fit first.',
       'Choose both games before you write. Each entry\'s "why" is about the game with that entry\'s id: never change your mind or think aloud in it ("wait", "let me reconsider"), and never argue for a different game inside it.',
-      ...(s.understood && s.understood.kids ? ['KIDS: children are playing (UNDERSTOOD.kids). Unless UNDERSTOOD.youngestAge says otherwise, their ages are unknown: pick from the games with the lowest BGG age and weight, and say the BGG age for each pick. Don\'t ask for their ages: the page asks after your answer.'] : []),
+      ...(s.understood && s.understood.kids ? ['KIDS: children are playing (UNDERSTOOD.kids). Unless UNDERSTOOD.youngestAge says otherwise, their ages are unknown: pick from the games with the lowest BGG age and weight, and say the BGG age for each pick. Their ages are then the one thing to "ask".'] : []),
       ]),
       '',
       'HONEST GAPS: if GAP is true (nothing meets the hard limits), or the kind of game asked for (a genre, theme or mechanic) is not really on the shelf, say so plainly in gap.missing (one sentence, no guessing), make your pick the closest match, and you may name ONE real, well-known game not on this shelf that fills the gap in gap.consider (only if you are sure it exists). Never present it as owned. If the shelf has a true match, gap is null.',
       '',
       'MEMORY: you are getting to know the ASKER over time. WHAT YOU REMEMBER is from earlier chats: let it shape your picks quietly, and mention it only when it matters ("I know you like weeknights short"). Never suggest a game they asked you not to.',
       'In "remember", list 0-2 lasting facts the ASKER just told you about THEMSELVES in this REQUEST: stable likes and dislikes, how long or heavy they like games, who they usually play with and when, or a game they don\'t want suggested (put its title in "skip"). Not one-off moods or plans ("tonight", "I\'m tired", "this weekend"), not facts about other people, not things you only inferred from data, and not facts already in WHAT YOU REMEMBER (if the new fact changes one, set "replaces" to that note\'s id). Write each note in the third person, under 15 words. Whenever the REQUEST states a lasting preference, record it, even when the same request also asks for a game for tonight. Words like "usually", "always", "never", "on weeknights", "I like", "I hate" or "I\'m burned out on" signal one. Examples: "on weeknights I only have about an hour, so I like shorter games. What should I play tonight?" -> {"note": "Has about an hour on weeknights; likes shorter games"}; "please stop suggesting Cascadia, I\'m burned out on it" -> {"note": "Burned out on Cascadia; don\'t suggest it", "skip": "Cascadia"}; "I hate trivia games" -> {"note": "Dislikes trivia games"}; "I really liked Got Five" -> {"note": "Really liked Got Five!"}; "my wife and I play on Sunday mornings" -> {"note": "Plays with their partner on Sunday mornings"}. Tonight\'s mood or situation is not a lasting fact: "I\'m tired tonight, something light" -> [] and "we have 3 tonight" -> []. A request that only asks for a game teaches nothing: then "remember" is [].',
+      ...(s.browse ? [] : ['ONE QUESTION: if one fact you were not told would clearly change your pick (the kids\' ages, how many are playing, how long they have, whether the group is new to board games), put one short, friendly question about it in "ask": under 20 words, ending in "?". For example, friends coming over who have never played, with no number given: ask how many are coming, and never assume one. Still make your best pick now; the question is for a sharper pick next time. Most answers need no question: leave "ask" empty when the REQUEST already says enough, when it answers a question you asked before, or when the answer would not change your pick. Never ask in "why" or the sign-off.']),
       '',
       'Reply with JSON only:',
       ...(s.browse ? [
@@ -2496,6 +2497,7 @@ export const STEPS = {
       ]),
       ' "gap": {"missing": "...", "consider": "Game title" or null} or null,',
       ' "remember": [{"note": "...", "replaces": note id or null, "skip": "Game title" or null}],',
+      ...(s.browse ? [] : [' "ask": "one short question" or "",']),
       ' "signoff": "an optional short corny sign-off, or empty"}',
     ].join('\n');
     const systemText = system.split('{SHELF_OWNER}').join(s.ownerName || 'Dan');
@@ -2687,7 +2689,9 @@ export const STEPS = {
     const alternative = entry(a.alternative, true);
     const avoid = entry(a.avoid, false);
     const gap = gapOf();
-    return [{ json: { ok: true, ...memOut, intent: 'recommend', social: s.across ? 'friends' : s.visiting ? 'visit' : null, matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}),
+    // One question that would sharpen the next pick ("How old are they?"), shown after the answer
+    const ask = str(a.ask, 160);
+    return [{ json: { ok: true, ...memOut, intent: 'recommend', social: s.across ? 'friends' : s.visiting ? 'visit' : null, matchIds: s.matchIds, understood: s.understood, constraints: s.constraints, pick, alternative, avoid, gap, ask: /\?$/.test(ask) ? ask : '', fromOwn: !!s.fromOwn, ...(s.visitShelf ? { visitShelf: s.visitShelf } : {}),
       signoff: str(a.signoff, 200), pickIds: [pick, alternative].filter(Boolean).map((x) => x.id), model: $input.first().json.model || null } }];
   
   },
