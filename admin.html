@@ -351,7 +351,10 @@
   // The check asks both the same things with your sign-in and compares the answers; turn an area on once it's all ✅.
   const API = 'https://api.ondorilabo.com/vault';
   const AREA_NAMES = { account: 'Account (sign-in, profiles, Nathan’s memory)', shelves: 'Shelves (collection, your shelf, friends, people)', wishlist: 'Wishlists', rulebooks: 'Rulebooks', admin: 'Admin (this page)',
-    accountChanges: 'Account changes (saving your profile, forgetting notes)', wishlistChanges: 'Wishlist changes (add, remove, “Got it!”)', rulebookChanges: 'Rulebook changes (edit or remove a document)' };
+    accountChanges: 'Account changes (saving your profile, forgetting notes)', wishlistChanges: 'Wishlist changes (add, remove, “Got it!”)', rulebookChanges: 'Rulebook changes (admins editing or removing a document)' };
+  // Only admins use these, so "Admins only" and "Everyone" would be the same: a plain Off / On ("On" is admins)
+  const ADMIN_AREAS = ['admin', 'rulebookChanges'];
+  const modeOf = (a, m) => (ADMIN_AREAS.includes(a) && m === 'everyone' ? 'admins' : m);
   // What the check asks in each area; {friend} and {bgg} are filled from n8n's own answers
   const AREA_CHECKS = {
     account: ['/whoami', '/me', '/profile', '/profile?friend={friend}', '/memory?chat=none'],
@@ -375,14 +378,15 @@
     catch (e) { box.innerHTML = '<div class="note">Couldn’t reach the new service: ' + esc(e.message) + '</div>'; return; }
     box.innerHTML = Object.keys(AREA_NAMES).map((a) => '<div style="padding:0.45rem 0; border-top:1px solid var(--soft);">' +
       '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between;"><b>' + esc(AREA_NAMES[a]) + '</b>' +
-      '<span class="seg" data-area="' + a + '">' + ['off', 'admins', 'everyone'].map((m) => '<button type="button" data-mode="' + m + '"' + (areas[a] === m ? ' class="on"' : '') + '>' + { off: 'Off', admins: 'Admins only', everyone: 'Everyone' }[m] + '</button>').join('') + '</span></div>' +
+      '<span class="seg" data-area="' + a + '">' + (ADMIN_AREAS.includes(a) ? ['off', 'admins'] : ['off', 'admins', 'everyone']).map((m) => '<button type="button" data-mode="' + m + '"' + (modeOf(a, areas[a]) === m ? ' class="on"' : '') + '>' +
+        (ADMIN_AREAS.includes(a) ? { off: 'Off', admins: 'On' } : { off: 'Off', admins: 'Admins only', everyone: 'Everyone' })[m] + '</button>').join('') + '</span></div>' +
       '<div class="note" id="apiCheck-' + a + '" style="margin:0.25rem 0 0;">' + (AREA_CHECKS[a] ? '' : 'Changes aren’t made twice to compare: they’re covered by the API tests and a run on the real database before each goes live.') + '</div></div>').join('');
     box.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-mode]'), seg = b && b.closest('[data-area]');
       if (!seg) return;
       try {
         const r = await apiCall('/api-areas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ area: seg.dataset.area, mode: b.dataset.mode }) });
-        seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.mode === r.areas[seg.dataset.area]));
+        seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.mode === modeOf(seg.dataset.area, r.areas[seg.dataset.area])));
         apiRoutesP = null; // this page follows the switches too
         toast('Saved. Pages pick it up the next time they load.');
       } catch (err) { toast(err.message, true); }
