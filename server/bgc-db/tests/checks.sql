@@ -80,6 +80,7 @@ SELECT pg_temp.check((bgc.rule_doc_finish((SELECT id FROM rule_docs WHERE sha256
 UPDATE rule_docs SET status = 'ready' WHERE sha256 = 'check-sha';
 SELECT pg_temp.check((bgc.rule_search('["Catan"]', 'can I trade with other players') -> 0 -> 'sections' -> 0 ->> 'page')::int = 3, 'a rules question finds the right page');
 SELECT pg_temp.check(NOT (bgc.rule_doc_change('nathan.schmidt@curator.invalid', (SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'remove', '{}') ->> 'ok')::boolean, 'someone else can''t remove your rulebook');
+SELECT pg_temp.check(NOT (bgc.rule_doc_change('check.member@example.invalid', (SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'edit', '{"kind": "faq"}') ->> 'ok')::boolean, 'only admins change a rulebook, not the member who added it');
 SELECT pg_temp.check(bgc.rule_doc_games() @> '[13]', 'a game with a rulebook shows it on every shelf');
 
 -- Costs: an AI call's cost is recorded, and only admins see the Costs page
