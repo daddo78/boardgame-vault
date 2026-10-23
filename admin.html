@@ -145,6 +145,7 @@
   .filters { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 1rem; }
   /* Admin → Rulebooks: add one to any game */
   .rb-new { margin-top: 1rem; }
+  .rb-title { display: block; margin-top: 0.3rem; width: 100%; min-width: 9rem; border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 0.5rem; padding: 0.25rem 0.45rem; color: var(--ink); font-size: 0.85rem; }
   .rb-kind { border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 0.5rem; padding: 0.25rem 0.4rem; color: var(--ink); font-size: 0.85rem; }
   .rb-new select { border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 0.6rem; padding: 0.6rem 0.75rem; color: var(--ink); flex: 0 1 12rem; }
   .rb-hits { display: grid; gap: 0.25rem; max-height: 19rem; overflow-y: auto; }
@@ -691,6 +692,14 @@
   app.addEventListener('input', (e) => { const el = e.target.closest('[data-fx]'); if (el && fixedDraft) fixedDraft[Number(el.dataset.fx)][el.dataset.k] = el.value; });
   // A document's type, changed right in the Rulebooks list
   app.addEventListener('change', (e) => { const k = e.target.closest('select[data-doc-kind]'); if (k) docChange({ id: Number(k.dataset.docKind), kind: k.value }); });
+  // ...and its name, saved when you leave the box or press Enter (only if it changed)
+  app.addEventListener('change', (e) => {
+    const t = e.target.closest('input[data-doc-title]');
+    if (!t) return;
+    const doc = (A.rulebooks || []).find((d) => d.id === Number(t.dataset.docTitle));
+    if (doc && (doc.title || '') !== t.value.trim()) docChange({ id: doc.id, title: t.value.trim() });
+  });
+  app.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.closest('input[data-doc-title]')) e.target.blur(); });
   app.addEventListener('change', (e) => { const el = e.target.closest('select[data-fx]'); if (el && fixedDraft) fixedDraft[Number(el.dataset.fx)].per = el.value; });
 
   // ================= Rulebooks =================
@@ -784,7 +793,8 @@
       '<div id="rbNewBox">' + rbNewHtml() + '</div><div id="rbTable">' +
       (docs.length ? '<div class="table-wrap" style="margin-top:1rem;"><table style="min-width:760px;"><thead><tr><th>Game</th><th style="text-align:left;">Document</th><th>Pages</th><th>Sections</th><th style="text-align:left;">Status</th><th style="text-align:left;">Added</th><th style="text-align:left;">Official copy</th><th></th></tr></thead><tbody>' +
         docs.map((d) => '<tr><td><span class="name">' + esc(d.game) + '</span></td><td style="text-align:left;"><select class="rb-kind" data-doc-kind="' + d.id + '" aria-label="Document type">' +
-            RB_KINDS.map(([v, l]) => '<option value="' + v + '"' + (v === d.kind ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' + (d.title ? ' · ' + esc(d.title) : '') + '</td>' +
+            RB_KINDS.map(([v, l]) => '<option value="' + v + '"' + (v === d.kind ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
+            '<input type="text" class="rb-title" data-doc-title="' + d.id + '" maxlength="120" value="' + esc(d.title || '') + '" placeholder="Name (optional)" aria-label="Document name"></td>' +
           '<td>' + num(d.pages) + '</td><td>' + num(d.sections) + '</td><td style="text-align:left;">' + st(d) + (d.error ? '<div class="note" style="white-space:normal;">' + esc(d.error) + '</div>' : '') + '</td>' +
           '<td style="text-align:left;">' + esc(d.uploadedBy || '–') + ' · ' + esc(ago(d.added)) + '</td>' +
           '<td style="text-align:left;">' + (d.source ? '<a href="' + esc(d.source) + '" target="_blank" rel="noopener">Open</a> · ' : '') + '<button type="button" class="btn small" data-link="' + d.id + '">' + (d.source ? 'Change' : 'Add link') + '</button></td>' +
@@ -807,7 +817,7 @@
     if (el) el.focus();
   }
   async function docChange(payload) {
-    try { await post('/rulebook-change', payload); toast(payload.action === 'remove' ? 'Removed.' : payload.kind ? 'Type saved.' : 'Link saved.'); armed = null; await loadA(true); show(); }
+    try { await post('/rulebook-change', payload); toast(payload.action === 'remove' ? 'Removed.' : payload.kind ? 'Type saved.' : 'title' in payload ? 'Name saved.' : 'Link saved.'); armed = null; await loadA(true); show(); }
     catch (e) { if (e instanceof Gate) return gate(e.message, e.button); toast(e.message, true); }
   }
 
