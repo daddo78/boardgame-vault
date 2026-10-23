@@ -3203,6 +3203,13 @@ addMemberAuth(ruleChange, { failTo: 'Respond Error' });
 //     rewrite each page from its image and the page's own text: reading order, headings, icons as [words]. The page's
 //     text is split into sections for search. When done, the page service deletes the PDF.
 // =====================================================================
+// After the last page: what the document is and its own name, from its first pages (only fills gaps; see schema/037)
+const NAME_PROMPT = [
+  'From the pages themselves, say what it is and give its own name:',
+  '- kind: "rulebook" (the base game\'s main rules), "expansion" (rules for an expansion or add-on with its own box or pack), "reference" (player aid, cheat sheet, quick reference), "appendix" (glossary, card or icon list, edge cases, almanac), "faq" (FAQ or errata), "solo" (solo rules), or "other".',
+  '- name: the name printed for THIS document or expansion, without the game\'s own name, e.g. "The Norwegians", "The Edge Cases", "Quick Start". Always name an expansion. For the base game\'s main rulebook the name is "" (never a section heading such as "Overview" or "Goal of the game"). Normal capitalization, not all caps.',
+  'Reply with JSON only: {"kind": "...", "name": "..."}',
+].join('\n');
 const READ_PROMPT = [
   'You are turning ONE page of a board game rulebook into clean text that a rules assistant will search and quote with page numbers.',
   'You get the page image and the text a PDF reader pulled from this page. That text may be out of order, split oddly, or missing words that are drawn as pictures.',
@@ -3297,8 +3304,31 @@ const ruleReader = wf(ID.ruleReader, 'Vault — Rulebook Reader', [
   ifTrue('All Done?', "={{ $json.r.status !== 'queued' }}"),
   // The PDF isn't kept: once it's read, only Nathan's text remains (one with pages still unread keeps it for the next pass)
   { ...node('Delete PDF', 'n8n-nodes-base.httpRequest', 4.2, { method: 'DELETE', url: '=' + PAGES + "{{ $('All Read').first().json.doc }}", options: { timeout: 20000 } }), onError: 'continueRegularOutput' },
+  // Then its type and name, when someone left the type on Rulebook or gave no name
+  pg('Naming Pages', 'SELECT bgc.rule_doc_naming($1::bigint) AS n', "={{ [String($('All Read').first().json.doc)] }}"),
+  node('Name Request', 'n8n-nodes-base.code', 2, { jsCode: 'const PROMPT = ' + JSON.stringify(NAME_PROMPT) + ';\n' + body(function () {
+    const n = $input.first().json.n || {};
+    if (!n.need || !n.text) return [];
+    const label = { rulebook: 'rulebook', expansion: 'expansion rulebook', reference: 'reference guide', appendix: 'appendix', faq: 'FAQ', solo: 'solo rules', other: 'document' }[n.kind] || 'document';
+    const text = 'Below are the first pages of a rules document someone added for the board game "' + n.game + '" (they said it is a ' + label + ', but they may have left the default).\n' + PROMPT + '\n\nPAGES:\n' + n.text;
+    return [{ json: { doc: n.doc, requestBody: { model: 'google/gemini-2.5-flash-lite', max_tokens: 80, temperature: 0, reasoning: { enabled: false },
+      provider: { data_collection: 'deny' }, usage: { include: true }, messages: [{ role: 'user', content: text }] } } }];
+  }) }),
+  { ...openrouter('Name It'), onError: 'continueRegularOutput' },
+  code('Name Found', function () {
+    const r = $input.first().json || {};
+    const out = String((r.choices && r.choices[0] && r.choices[0].message && r.choices[0].message.content) || '');
+    let o = {};
+    try { o = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)); } catch (e) { return []; }
+    const u = r.usage || {};
+    return [{ json: { doc: $('Name Request').first().json.doc, kind: String(o.kind || ''), name: String(o.name || '').trim().slice(0, 120),
+      cost: [{ feature: 'rulebook', model: r.model || null, cost: u.cost, in: u.prompt_tokens, out: u.completion_tokens }] } }];
+  }),
+  pg('Save Name', 'SELECT bgc.rule_doc_autoname($1::bigint, $2, $3) AS r, bgc.log_ai(NULL, $4::jsonb) AS c',
+    '={{ [String($json.doc), $json.kind, $json.name, JSON.stringify($json.cost)] }}'),
 ], [['When Uploaded', 'Claim'], ['Every 2 Minutes', 'Claim'], ['Claim', 'Pages'], ['Pages', 'Any Pages?'], ['Any Pages?', 'Page', 0], ['Any Pages?', 'All Read', 1],
-  ['Page', 'Request'], ['Request', 'Has Image?'], ['Has Image?', 'Read Page', 0], ['Read Page', 'Sections'], ['Sections', 'Save Page'], ['Save Page', 'All Read'], ['All Read', 'Finish'], ['Finish', 'All Done?'], ['All Done?', 'Delete PDF', 0]]);
+  ['Page', 'Request'], ['Request', 'Has Image?'], ['Has Image?', 'Read Page', 0], ['Read Page', 'Sections'], ['Sections', 'Save Page'], ['Save Page', 'All Read'], ['All Read', 'Finish'], ['Finish', 'All Done?'], ['All Done?', 'Delete PDF', 0],
+  ['All Done?', 'Naming Pages', 0], ['Naming Pages', 'Name Request'], ['Name Request', 'Name It'], ['Name It', 'Name Found'], ['Name Found', 'Save Name']]);
 
 // =====================================================================
 // 33. Dashboard  GET /webhook/vault/dashboard  (admins): everything about how people use the site, for the admin portal (admin.html)

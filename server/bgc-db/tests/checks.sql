@@ -82,6 +82,9 @@ SELECT pg_temp.check((bgc.rule_search('["Catan"]', 'can I trade with other playe
 SELECT pg_temp.check(NOT (bgc.rule_doc_change('nathan.schmidt@curator.invalid', (SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'remove', '{}') ->> 'ok')::boolean, 'someone else can''t remove your rulebook');
 SELECT pg_temp.check(NOT (bgc.rule_doc_change('check.member@example.invalid', (SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'edit', '{"kind": "faq"}') ->> 'ok')::boolean, 'only admins change a rulebook, not the member who added it');
 SELECT pg_temp.check(bgc.rule_doc_games() @> '[13]', 'a game with a rulebook shows it on every shelf');
+SELECT pg_temp.check((bgc.rule_doc_autoname((SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'expansion', 'The Seafarers') ->> 'title') = 'The Seafarers', 'a rulebook left unnamed gets the name found on its pages');
+SELECT pg_temp.check((bgc.rule_doc_autoname((SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'faq', 'Something else') ->> 'title') = 'The Seafarers', 'a name already there is never replaced');
+SELECT pg_temp.check((SELECT kind FROM rule_docs WHERE sha256 = 'check-sha') = 'expansion', 'a type left on Rulebook is corrected once, then kept');
 
 -- Costs: an AI call's cost is recorded, and only admins see the Costs page
 SELECT pg_temp.check(bgc.log_ai('dandehaan@gmail.com', '[{"feature": "nathan", "model": "check-model", "cost": 0.5}]') IS NULL, 'an AI call''s cost can be recorded');
