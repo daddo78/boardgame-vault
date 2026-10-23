@@ -1312,7 +1312,7 @@
         box.dataset.drawn = String(gisReady);
         box.innerHTML = '';
         if (gisReady) google.accounts.id.renderButton(box, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', logo_alignment: 'left' });
-        else box.innerHTML = '<button class="btn primary" type="button" onclick="openSignIn()">Sign in with Google</button>';
+        else box.innerHTML = '<button class="btn primary" type="button" onclick="quickSignIn()">Sign in with Google</button>';
       }
     }
     function landingNotice(msg) {
@@ -1339,6 +1339,15 @@
         // Google's script hasn't loaded (slow, or blocked): our own button tries again, then falls back to Google's sign-in page
         box.innerHTML = '<button class="btn primary" type="button" data-google-fallback><i class="fa-brands fa-google"></i> Sign in with Google</button>';
       }
+    }
+    // Signed out, the top bar's button goes straight to Google's own account chooser ("Continue as Dan": one click, or
+    // none when the browser remembers you). Our sign-in box with Google's button is only for when Google can't show
+    // it (blocked, recently dismissed, or Google's script not loaded): that box was an extra click every time
+    function quickSignIn() {
+      initGoogle();
+      if (!gisReady) return openSignIn();
+      try { google.accounts.id.prompt((n) => { if (n.isSkippedMoment() || (n.isNotDisplayed && n.isNotDisplayed())) openSignIn(); }); }
+      catch (e) { openSignIn(); }
     }
     document.getElementById('googleSignIn').addEventListener('click', async (e) => {
       const b = e.target.closest('[data-google-fallback]');
@@ -3392,7 +3401,7 @@
     const accountMenu = document.getElementById('accountMenu');
     const setMenu = (open) => { accountMenu.hidden = !open; document.getElementById('authBtn').setAttribute('aria-expanded', String(open)); };
     document.getElementById('authBtn').addEventListener('click', (e) => {
-      if (!signedIn()) { openSignIn(); return; }
+      if (!signedIn()) { quickSignIn(); return; }
       e.stopPropagation();
       document.getElementById('menuProfile').hidden = !isMember();
       setMenu(accountMenu.hidden);
