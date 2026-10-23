@@ -1971,7 +1971,7 @@
     const rbCache = {};
     let rbGames = new Set(); // games with a document ready (the 📖 on every shelf)
     let rbPoll = null;
-    const RB_KINDS = [['rulebook', 'Rulebook'], ['reference', 'Reference guide / cheat sheet'], ['appendix', 'Appendix'], ['faq', 'FAQ / errata'], ['solo', 'Solo rules'], ['other', 'Other']];
+    const RB_KINDS = [['rulebook', 'Rulebook'], ['expansion', 'Expansion rulebook'], ['reference', 'Reference guide / cheat sheet'], ['appendix', 'Appendix'], ['faq', 'FAQ / errata'], ['solo', 'Solo rules'], ['other', 'Other']];
     async function loadRbGames() {
       if (!isMember()) return;
       try { const r = await n8nFetch('/rulebook?games=1', { method: 'GET' }); rbGames = new Set((r.games || []).map(Number)); render(); } catch (e) {}

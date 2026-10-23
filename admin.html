@@ -145,6 +145,7 @@
   .filters { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 1rem; }
   /* Admin → Rulebooks: add one to any game */
   .rb-new { margin-top: 1rem; }
+  .rb-kind { border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 0.5rem; padding: 0.25rem 0.4rem; color: var(--ink); font-size: 0.85rem; }
   .rb-new select { border: 1px solid #e3d9c5; background: #fffdf9; border-radius: 0.6rem; padding: 0.6rem 0.75rem; color: var(--ink); flex: 0 1 12rem; }
   .rb-hits { display: grid; gap: 0.25rem; max-height: 19rem; overflow-y: auto; }
   .rb-hits button { display: flex; align-items: center; gap: 0.6rem; width: 100%; border: none; background: none; text-align: left; padding: 0.4rem 0.5rem; border-radius: 0.6rem; cursor: pointer; color: var(--ink); }
@@ -684,11 +685,13 @@
     document.getElementById('rbFileName').textContent = f ? f.name : 'Choose the PDF';
   });
   app.addEventListener('input', (e) => { const el = e.target.closest('[data-fx]'); if (el && fixedDraft) fixedDraft[Number(el.dataset.fx)][el.dataset.k] = el.value; });
+  // A document's type, changed right in the Rulebooks list
+  app.addEventListener('change', (e) => { const k = e.target.closest('select[data-doc-kind]'); if (k) docChange({ id: Number(k.dataset.docKind), kind: k.value }); });
   app.addEventListener('change', (e) => { const el = e.target.closest('select[data-fx]'); if (el && fixedDraft) fixedDraft[Number(el.dataset.fx)].per = el.value; });
 
   // ================= Rulebooks =================
   // Adding one: search BGG for the game, then the same details as on a game (what it is, a name, the official link, the PDF)
-  const RB_KINDS = [['rulebook', 'Rulebook'], ['reference', 'Reference guide'], ['appendix', 'Appendix'], ['faq', 'FAQ'], ['solo', 'Solo rules'], ['other', 'Other']];
+  const RB_KINDS = [['rulebook', 'Rulebook'], ['expansion', 'Expansion rulebook'], ['reference', 'Reference guide'], ['appendix', 'Appendix'], ['faq', 'FAQ'], ['solo', 'Solo rules'], ['other', 'Other']];
   let rbNew = null;   // { q, hits, game: { bggId, title, year, thumbnail }, busy }
   let rbPoll = null, rbSearchTimer = null;
   function rbNewHtml() {
@@ -702,7 +705,7 @@
         : '<form class="form" id="rbForm">' +
             '<div class="rb-game">' + pic(g) + '<div><b>' + esc(g.title) + '</b><small>' + esc([g.year, 'BGG #' + g.bggId].filter(Boolean).join(' · ')) + '</small></div>' +
               '<button type="button" class="btn small" id="rbOther">Change game</button></div>' +
-            '<div class="row"><select name="kind" aria-label="What it is">' + RB_KINDS.map(([v, l]) => '<option value="' + v + '">' + l + '</option>').join('') + '</select>' +
+            '<div class="row"><select name="kind" aria-label="What it is">' + RB_KINDS.map(([v, l]) => '<option value="' + v + '"' + (v === (g.kind === 'expansion' ? 'expansion' : 'rulebook') ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
               '<input type="text" name="title" maxlength="120" placeholder="Name (optional), e.g. Quick start"></div>' +
             '<div class="row"><input type="url" name="source" placeholder="Link to the official copy (publisher page or PDF), https://…"></div>' +
             '<div class="row"><label class="btn" style="cursor:pointer;"><i class="fa-solid fa-file-pdf"></i> <span id="rbFileName">Choose the PDF</span><input type="file" name="file" accept="application/pdf,.pdf" hidden></label>' +
@@ -776,7 +779,8 @@
       '<h1><i class="fa-solid fa-book-open"></i> Rulebooks</h1><div class="sub">Every rulebook and guide Nathan has read. Add one for any game here, or members add them from a game’s details; we keep his text and a link to the official copy, never the PDF.</div>' +
       '<div id="rbNewBox">' + rbNewHtml() + '</div><div id="rbTable">' +
       (docs.length ? '<div class="table-wrap" style="margin-top:1rem;"><table style="min-width:760px;"><thead><tr><th>Game</th><th style="text-align:left;">Document</th><th>Pages</th><th>Sections</th><th style="text-align:left;">Status</th><th style="text-align:left;">Added</th><th style="text-align:left;">Official copy</th><th></th></tr></thead><tbody>' +
-        docs.map((d) => '<tr><td><span class="name">' + esc(d.game) + '</span></td><td style="text-align:left;">' + esc(d.label) + (d.title ? ' · ' + esc(d.title) : '') + '</td>' +
+        docs.map((d) => '<tr><td><span class="name">' + esc(d.game) + '</span></td><td style="text-align:left;"><select class="rb-kind" data-doc-kind="' + d.id + '" aria-label="Document type">' +
+            RB_KINDS.map(([v, l]) => '<option value="' + v + '"' + (v === d.kind ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' + (d.title ? ' · ' + esc(d.title) : '') + '</td>' +
           '<td>' + num(d.pages) + '</td><td>' + num(d.sections) + '</td><td style="text-align:left;">' + st(d) + (d.error ? '<div class="note" style="white-space:normal;">' + esc(d.error) + '</div>' : '') + '</td>' +
           '<td style="text-align:left;">' + esc(d.uploadedBy || '–') + ' · ' + esc(ago(d.added)) + '</td>' +
           '<td style="text-align:left;">' + (d.source ? '<a href="' + esc(d.source) + '" target="_blank" rel="noopener">Open</a> · ' : '') + '<button type="button" class="btn small" data-link="' + d.id + '">' + (d.source ? 'Change' : 'Add link') + '</button></td>' +
@@ -799,7 +803,7 @@
     if (el) el.focus();
   }
   async function docChange(payload) {
-    try { await post('/rulebook-change', payload); toast(payload.action === 'remove' ? 'Removed.' : 'Link saved.'); armed = null; await loadA(true); show(); }
+    try { await post('/rulebook-change', payload); toast(payload.action === 'remove' ? 'Removed.' : payload.kind ? 'Type saved.' : 'Link saved.'); armed = null; await loadA(true); show(); }
     catch (e) { if (e instanceof Gate) return gate(e.message, e.button); toast(e.message, true); }
   }
 
