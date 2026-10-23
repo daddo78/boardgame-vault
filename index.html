@@ -1235,7 +1235,7 @@
     const isAdmin = () => isOwner() || !!(myRole() || {}).admin;
     const myPlayerId = () => (myRole() || {}).playerId || null;
     function setToken(t) {
-      nathanViaApi = null; // ask the switch again for whoever is signed in now
+      apiRoutesP = null; // ask the switches again for whoever is signed in now
       try { profile = t ? decodeJwt(t) : null; idToken = t || null; } catch (e) { profile = null; idToken = null; }
       try { idToken ? localStorage.setItem(LS_TOKEN, idToken) : localStorage.removeItem(LS_TOKEN); } catch (e) {}
       updateAuthUi();
@@ -1269,7 +1269,7 @@
       const who = profile && (profile.email || profile.name);
       let res;
       try {
-        res = await fetch(n8nBase() + '/whoami', { headers: { Authorization: 'Bearer ' + idToken } });
+        res = await routedFetch('/whoami', { headers: { Authorization: 'Bearer ' + idToken } });
       } catch (e) {
         toast('Couldn’t confirm your sign-in. Check your connection and try again.', true);
         setToken(null);
@@ -1404,10 +1404,9 @@
 
     // auth: send the owner's Google token (true for everything except reading the collection)
     async function n8nFetch(path, opts, auth = true) {
-      const base = n8nBase();
       const o = { ...(opts || {}) };
       if (auth) o.headers = { ...(o.headers || {}), Authorization: 'Bearer ' + await ensureToken() };
-      const res = await fetch(base + path, o);
+      const res = await routedFetch(path, o, auth);
       if (res.status === 401) throw handleUnauthorized();
       if (!res.ok) {
         let detail = '';
@@ -1418,18 +1417,39 @@
       return ct.includes('application/json') ? res.json() : res.text();
     }
 
-    // Nathan from the new service (api.ondorilabo.com), for whoever the admin switch says (Admin → Nathan);
-    // n8n for everyone else, and whenever the new service can't be reached
+    // Which requests go to the new service (api.ondorilabo.com) instead of n8n, e.g. 'GET /shelf' or 'POST /ask' (Nathan).
+    // Admin turns each area on (Roadmap 7, Phase 3). Asked once per sign-in; meanwhile the list this browser last saw is
+    // used, so loading never waits for it. Anything the new service can't answer goes to n8n.
     const API = 'https://api.ondorilabo.com/vault';
-    var nathanViaApi = null; // null: not asked yet for this sign-in
-    async function useNathanApi() {
-      if (nathanViaApi !== null) return nathanViaApi;
-      try {
-        const r = await fetch(API + '/nathan-mode', { headers: { Authorization: 'Bearer ' + await ensureToken() }, signal: AbortSignal.timeout(4000) });
-        nathanViaApi = r.ok && !!(await r.json()).useApi;
-      } catch (e) { nathanViaApi = false; }
-      return nathanViaApi;
+    const LS_API_ROUTES = 'vault_api_routes';
+    var apiRoutesP = null; // null: not asked yet for this sign-in
+    function apiRoutes() {
+      if (apiRoutesP) return apiRoutesP;
+      const sub = profile && profile.sub, t = idToken;
+      if (!t) return Promise.resolve(new Set());
+      const asked = (async () => {
+        try {
+          const r = await fetch(API + '/routes', { headers: { Authorization: 'Bearer ' + t }, signal: AbortSignal.timeout(4000) });
+          const routes = r.ok ? (await r.json()).routes || [] : [];
+          try { localStorage.setItem(LS_API_ROUTES, JSON.stringify({ sub, routes })); } catch (e) {}
+          return new Set(routes);
+        } catch (e) { return new Set(); }
+      })();
+      let saved = null;
+      try { const s = JSON.parse(localStorage.getItem(LS_API_ROUTES) || 'null'); if (s && s.sub === sub) saved = new Set(s.routes || []); } catch (e) {}
+      const p = apiRoutesP = saved ? Promise.resolve(saved) : asked;
+      if (saved) asked.then((fresh) => { if (apiRoutesP === p) apiRoutesP = Promise.resolve(fresh); });
+      return p;
     }
+    // The new service when its area is on for you, else n8n; n8n also when the new service can't be reached
+    async function routedFetch(path, o, auth = true) {
+      const key = (o.method || 'GET').toUpperCase() + ' ' + path.split('?')[0];
+      if (auth && (await apiRoutes()).has(key)) {
+        try { const r = await fetch(API + path, o); if (r.status < 502) return r; } catch (e) {}
+      }
+      return fetch(n8nBase() + path, o);
+    }
+    const useNathanApi = async () => (await apiRoutes()).has('POST /ask');
 
     // Loading and errors show in the total badge in the top bar, not in the hero
     function setSyncStatus(msg, isErr) {

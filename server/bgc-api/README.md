@@ -13,10 +13,27 @@ The Board Game Curator API (ROADMAP section 7). TypeScript on Node with Hono, in
 | `GET /vault/whoami` | Who Am I | `bgc.sign_in` |
 | `GET /vault/me` | My Profile | `bgc.my_profile` |
 | `GET /vault/profile[?friend=id]` | Profile Page | `bgc.profile_page` |
+| `GET /vault/memory[?chat=key]` | Nathan Memory | `bgc.memory_page` |
+| `GET /vault/collection` | Get Collection | `at.request` (Dan's games) |
+| `GET /vault/shelf` | My Shelf | `bgc.shelf` |
+| `GET /vault/friends[?shelf=id]` | Friends | `bgc.friends`, `bgc.friend_shelf` |
+| `GET /vault/people[?shelf=mine\|friend:id]` | People | `bgc.shelf_view`, `bgc.my_ratings_on`, `bgc.asks_used` |
+| `GET /vault/wishlist[?friend=id]` | Wishlist | `bgc.wishlist` |
+| `GET /vault/rulebook?bgg=id \| ?games=1` | Rulebook (list) | `bgc.rule_docs_of`, `bgc.rule_doc_games` |
+| `GET /vault/admin`, `/dashboard`, `/costs` | Admin, Dashboard, Costs | `bgc.admin_overview`, `bgc.dashboard`, `bgc.costs_page` |
+| `GET /vault/players-admin` | Players Admin | `at.request` (Dan's people) |
+| `GET /vault/routes` | | which requests the page sends here, from the area switches |
+| `GET/POST /vault/api-areas` | | `settings` key `api_areas`: each area off / admins / everyone |
 | `POST /vault/ask` | Ask Nathan | Nathan's steps (below) |
 | `POST /vault/ask/stream` | | the same, streamed as he writes (Server-Sent Events) |
 | `GET/POST /vault/nathan-mode` | | `settings` key `nathan_api`: off / admins / everyone |
 | `GET /health` | | `SELECT 1` |
+
+## Moving the site over, one area at a time
+
+`src/routes/areas.ts` groups the routes into areas (account, shelves, wishlist, rulebooks, admin). Admin → Dashboard → New API runs every read against this service and n8n with your sign-in and shows where answers differ; each area then has its own switch (off / admins only / everyone). The page asks `GET /vault/routes` once per sign-in and sends only those requests here, anything else (and anything this service can't answer) to n8n.
+
+Games and people are shaped by n8n's own code: `src/shape.gen.ts` is `prelude()` from `n8n/gen.js`, copied by the same script as Nathan's steps.
 
 ## Nathan
 

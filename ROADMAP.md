@@ -103,7 +103,12 @@ On for everyone since Oct 22. Admin → Nathan keeps an Off switch as an undo un
 - [x] Done when: first words in about 2 s (was "under 1.5 s"; 2.2 s is plenty while the words stream), full answers no slower than today (5.1 → 4.8 s), 24/24 tests (25/25), cost per question no higher (writing $0.00073 → $0.00072). Met Oct 23
 
 **Phase 3: the other endpoints**
-- [ ] The ~30 thin endpoints (shelf, ratings, wishlist, friends, profile, rulebooks, feedback, admin) become routes, one file per area
+- [x] One switch point: the page (and Admin) send a request to the API only when its area is on (`GET /vault/routes`), n8n otherwise and whenever the API can't be reached. Areas: account, shelves, wishlist, rulebooks, admin; each off / admins only / everyone (Admin → Dashboard → New API). Nathan's switch now comes through the same list *(Oct 23)*
+- [x] The check: New API asks the API and n8n every read with your sign-in (20 of them, friend and rulebook ones filled from n8n's answers) and shows where answers differ *(Oct 23)*
+- [x] Reads ported, one file per area: whoami, me, profile, memory; collection, shelf, people, friends; wishlist; rulebook; admin, dashboard, costs, players-admin. Games and people are shaped by n8n's own code (`shape.gen.ts`, copied from gen.js). 29 API tests; every read answered against the real database as Dan and as a member (the slowest: a friend's people, 3.9 s, the same query n8n runs) *(Oct 23; no area switched on yet)*
+- [ ] Dan: run the New API check, then turn areas on (admins first)
+- [ ] Writes: rate, wishlist, friends, shelf update and remove, profile save, memory forget, player save, rulebook change, feedback
+- [ ] Writes that call BGG or AI: bgg-search, add, identify, rulebook upload (bulk BGG and CSV imports may stay in n8n)
 - [ ] The page opens with one request for everything it needs (shelf, people, friends, your profile) instead of several, so it loads faster
 - [ ] Each area switches over only after its checks pass; the old webhooks are retired a week later
 

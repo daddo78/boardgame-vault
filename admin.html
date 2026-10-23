@@ -217,12 +217,23 @@
     };
     draw();
   }
+  // Requests whose area is switched on for you (New API, on the Dashboard) go to api.ondorilabo.com, as on the shelf;
+  // n8n otherwise, and whenever the new service can't be reached
+  let apiRoutesP = null;
+  const apiRoutes = () => (apiRoutesP ??= fetch('https://api.ondorilabo.com/vault/routes', { headers: { Authorization: 'Bearer ' + token() }, signal: AbortSignal.timeout(4000) })
+    .then((r) => (r.ok ? r.json() : {})).then((b) => new Set(b.routes || [])).catch(() => new Set()));
+  async function routedFetch(path, o) {
+    if ((await apiRoutes()).has((o.method || 'GET').toUpperCase() + ' ' + path.split('?')[0])) {
+      try { const r = await fetch('https://api.ondorilabo.com/vault' + path, o); if (r.status < 502) return r; } catch (e) {}
+    }
+    return fetch(N8N + path, o);
+  }
   class Gate extends Error { constructor(msg, button) { super(msg); this.button = button; } }
   async function call(path, opts = {}) {
     const t = token();
     if (!fresh(t)) throw new Gate('Sign in with your Google account to open Admin. It’s for admins only.', true);
     let res;
-    try { res = await fetch(N8N + path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + t } }); }
+    try { res = await routedFetch(path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + t } }); }
     catch (e) { throw new Gate('Couldn’t reach the server. Check your connection and refresh.', false); }
     if (res.status === 401) { try { localStorage.removeItem(LS_TOKEN); } catch (e) {} throw new Gate('Your sign-in expired. Sign in again to open Admin.', true); }
     if (res.status === 403) throw new Gate('Admin is for admins only.', false);
@@ -319,6 +330,7 @@
         gamesCard('Recently added by members', d.recentlyAdded, (g) => '', (g) => g.who + ' · ' + ago(g.at)) +
       '</div>';
     document.getElementById('apiCheckGo').addEventListener('click', runApiCheck);
+    loadApiAreas();
     document.getElementById('range').addEventListener('click', (e) => { const b = e.target.closest('[data-days]'); if (b) { days = Number(b.dataset.days); document.querySelectorAll('#range button').forEach((x) => x.classList.toggle('on', x === b)); drawActivity(); } });
     drawActivity();
     drawNathan();
@@ -334,32 +346,87 @@
       '<div><b>Nightly check ' + (bad ? 'found ' + bad + ' problem' + (bad === 1 ? '' : 's') : 'passed') + '</b><div class="note" style="margin:0;">' + esc(ago(t.at)) + ' · site rules ' + t.dbPassed + '/' + t.dbTotal + ' · Nathan questions ' + t.nathanPassed + '/' + t.nathanTotal + '</div>' +
       (bad ? '<div class="note" style="margin:0.3rem 0 0;">' + t.failures.map((f) => esc(f.what) + (f.problems && f.problems.length ? ': ' + esc(f.problems.join('; ')) : '')).join('<br>') + '</div>' : '') + '</div></div>';
   }
-  // The new API (Roadmap 7): ask it and n8n the same three things with your sign-in, and compare the answers
+  // The new API (Roadmap 7, Phase 3): each area of the site moves from n8n to api.ondorilabo.com behind its own switch.
+  // The check asks both the same things with your sign-in and compares the answers; turn an area on once it's all ✅.
   const API = 'https://api.ondorilabo.com/vault';
+  const AREA_NAMES = { account: 'Account (sign-in, profiles, Nathan’s memory)', shelves: 'Shelves (collection, your shelf, friends, people)', wishlist: 'Wishlists', rulebooks: 'Rulebooks', admin: 'Admin (this page)' };
+  // What the check asks in each area; {friend} and {bgg} are filled from n8n's own answers
+  const AREA_CHECKS = {
+    account: ['/whoami', '/me', '/profile', '/profile?friend={friend}', '/memory?chat=none'],
+    shelves: ['/collection', '/shelf', '/people', '/people?shelf=mine', '/people?shelf=friend:{friend}', '/friends', '/friends?shelf={friend}'],
+    wishlist: ['/wishlist', '/wishlist?friend={friend}'],
+    rulebooks: ['/rulebook?games=1', '/rulebook?bgg={bgg}'],
+    admin: ['/admin', '/dashboard', '/costs', '/players-admin'],
+  };
+  // Parts of an answer that change between two asks a moment apart
+  const VOLATILE = ['generatedAt'];
   function apiCheckHtml() {
-    return '<div class="card" style="margin-top:0.9rem;"><h3>New API check <small>api.ondorilabo.com and n8n, asked the same with your sign-in</small></h3>' +
-      '<button type="button" class="btn small" id="apiCheckGo">Run check</button><div class="note" id="apiCheckOut" style="margin:0.5rem 0 0;"></div></div>';
+    return '<div class="card" style="margin-top:0.9rem;"><h3>New API <small>which parts of the site api.ondorilabo.com serves instead of n8n</small></h3>' +
+      '<div class="note" style="margin:0 0 0.6rem;">Run the check, then turn an area on (admins first) once all its answers match n8n. If the new service can’t be reached, the site asks n8n anyway. Nathan has his own switch under <a href="#nathan">Nathan</a>.</div>' +
+      '<button type="button" class="btn small" id="apiCheckGo">Run check</button>' +
+      '<div id="apiAreas" style="margin-top:0.6rem;"><div class="note">Checking the switches…</div></div></div>';
+  }
+  async function loadApiAreas() {
+    const box = document.getElementById('apiAreas');
+    let areas;
+    try { areas = (await apiCall('/api-areas')).areas; }
+    catch (e) { box.innerHTML = '<div class="note">Couldn’t reach the new service: ' + esc(e.message) + '</div>'; return; }
+    box.innerHTML = Object.keys(AREA_NAMES).map((a) => '<div style="padding:0.45rem 0; border-top:1px solid var(--soft);">' +
+      '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between;"><b>' + esc(AREA_NAMES[a]) + '</b>' +
+      '<span class="seg" data-area="' + a + '">' + ['off', 'admins', 'everyone'].map((m) => '<button type="button" data-mode="' + m + '"' + (areas[a] === m ? ' class="on"' : '') + '>' + { off: 'Off', admins: 'Admins only', everyone: 'Everyone' }[m] + '</button>').join('') + '</span></div>' +
+      '<div class="note" id="apiCheck-' + a + '" style="margin:0.25rem 0 0;"></div></div>').join('');
+    box.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-mode]'), seg = b && b.closest('[data-area]');
+      if (!seg) return;
+      try {
+        const r = await apiCall('/api-areas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ area: seg.dataset.area, mode: b.dataset.mode }) });
+        seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.mode === r.areas[seg.dataset.area]));
+        apiRoutesP = null; // this page follows the switches too
+        toast('Saved. Pages pick it up the next time they load.');
+      } catch (err) { toast(err.message, true); }
+    });
   }
   async function runApiCheck() {
-    const out = document.getElementById('apiCheckOut');
     const t = token();
-    if (!fresh(t)) { out.textContent = 'Your sign-in expired. Refresh the page to sign in again.'; return; }
-    out.textContent = 'Checking…';
-    const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((key) => [key, x[key]])) : x));
+    if (!fresh(t)) { toast('Your sign-in expired. Refresh the page to sign in again.', true); return; }
+    const canon = (v) => JSON.stringify(v, (k, x) => (VOLATILE.includes(k) ? undefined : x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((key) => [key, x[key]])) : x));
+    // Where two answers part ways, e.g. "items[3].playCount", for the console
+    const diff = (a, b, at = '') => {
+      if (canon(a) === canon(b)) return [];
+      if (a && b && typeof a === 'object' && typeof b === 'object') {
+        const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => !VOLATILE.includes(k));
+        return keys.flatMap((k) => diff(a[k], b[k], at + (Array.isArray(a) ? '[' + k + ']' : (at ? '.' : '') + k)));
+      }
+      return [at || '(whole answer)'];
+    };
     const ask = async (base, p) => {
       const t0 = performance.now();
       try { const r = await fetch(base + p, { headers: { Authorization: 'Bearer ' + t } }); return { status: r.status, body: await r.json().catch(() => null), ms: Math.round(performance.now() - t0) }; }
       catch (e) { return { status: 0, body: null, ms: Math.round(performance.now() - t0) }; }
     };
-    const rows = [];
-    for (const p of ['/whoami', '/me', '/profile']) {
-      const [a, n] = await Promise.all([ask(API, p), ask(N8N, p)]);
-      const same = a.status === 200 && n.status === 200 && canon(a.body) === canon(n.body);
-      const why = a.status === 0 ? 'couldn’t reach the API' : a.status !== 200 ? 'API said ' + a.status + ': ' + ((a.body || {}).message || '') : same ? 'same answer as n8n' : 'answers differ from n8n';
-      rows.push((same ? '✅ ' : '❌ ') + '<b>' + p.slice(1) + '</b> · ' + esc(why) + ' · API ' + a.ms + ' ms, n8n ' + n.ms + ' ms');
-      if (!same && a.status === 200) console.log('API check ' + p, { api: a.body, n8n: n.body });
+    const fill = {};
+    const n8nFriends = await ask(N8N, '/friends'), n8nRules = await ask(N8N, '/rulebook?games=1');
+    fill.friend = (((n8nFriends.body || {}).friends || [])[0] || {}).id;
+    fill.bgg = ((n8nRules.body || {}).games || [])[0];
+    for (const [area, paths] of Object.entries(AREA_CHECKS)) {
+      const out = document.getElementById('apiCheck-' + area);
+      if (!out) continue;
+      out.textContent = 'Checking…';
+      const rows = [];
+      for (const raw of paths) {
+        const missing = (raw.match(/\{(\w+)\}/g) || []).find((m) => fill[m.slice(1, -1)] == null);
+        if (missing) { rows.push('➖ <b>' + esc(raw.slice(1)) + '</b> · skipped, no ' + missing.slice(1, -1) + ' to try it with'); continue; }
+        const p = raw.replace(/\{(\w+)\}/g, (m, k) => encodeURIComponent(fill[k]));
+        const [a, n] = await Promise.all([ask(API, p), ask(N8N, p)]);
+        const same = a.status === n.status && canon(a.body) === canon(n.body);
+        const why = a.status === 0 ? 'couldn’t reach the API' : same ? 'same answer as n8n' + (a.status !== 200 ? ' (' + a.status + ')' : '')
+          : a.status !== n.status ? 'API said ' + a.status + ', n8n ' + n.status + ((a.body || {}).message ? ': ' + a.body.message : '')
+          : 'differs at ' + diff(a.body, n.body).slice(0, 3).join(', ');
+        rows.push((same ? '✅ ' : '❌ ') + '<b>' + esc(p.slice(1)) + '</b> · ' + esc(why) + ' · API ' + a.ms + ' ms, n8n ' + n.ms + ' ms');
+        if (!same) console.log('API check ' + p, { api: a, n8n: n });
+      }
+      out.innerHTML = rows.join('<br>');
     }
-    out.innerHTML = rows.join('<br>');
   }
   function socialHtml(d) {
     const s = d.askSocial || {};

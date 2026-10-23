@@ -8,9 +8,14 @@ import type { Db } from './db.js';
 import { ApiError, onError } from './errors.js';
 import { perMember, rateLimiter } from './rateLimit.js';
 import type { Fetch } from './nathan/openrouter.js';
+import { adminRoutes } from './routes/admin.js';
+import { areaRoutes } from './routes/areas.js';
 import { askRoutes } from './routes/ask.js';
 import { nathanModeRoutes } from './routes/nathanMode.js';
 import { profileRoutes } from './routes/profile.js';
+import { rulebookRoutes } from './routes/rulebooks.js';
+import { shelfRoutes } from './routes/shelves.js';
+import { wishlistRoutes } from './routes/wishlist.js';
 
 export type Deps = { db: Db; verify: VerifyToken; config: Config; now?: () => number; fetch?: Fetch };
 
@@ -53,6 +58,11 @@ export function createApp({ db, verify, config, now, fetch }: Deps) {
   vault.use(memberGate({ db, verify, ownerEmails: config.ownerEmails }));
   vault.use(perMember(rateLimiter(config.ratePerMinute, now)));
   vault.route('/', profileRoutes(db));
+  vault.route('/', shelfRoutes(db));
+  vault.route('/', wishlistRoutes(db));
+  vault.route('/', rulebookRoutes(db));
+  vault.route('/', adminRoutes(db));
+  vault.route('/', areaRoutes(db, !!config.openrouterKey));
   vault.route('/', askRoutes(config.openrouterKey ? { db, openrouterKey: config.openrouterKey, bggToken: config.bggToken, fetch } : null));
   vault.route('/', nathanModeRoutes(db, !!config.openrouterKey));
   app.route('/vault', vault);

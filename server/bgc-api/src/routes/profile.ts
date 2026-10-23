@@ -1,12 +1,14 @@
-// Who's signed in, and profiles. Ported from the n8n workflows Who Am I, My Profile and Profile Page
-// (n8n/gen.js sections 11, 19 and 30); the answers are the same JSON the page reads today.
+// Who's signed in, profiles, and what Nathan remembers. Ported from the n8n workflows Who Am I, My Profile,
+// Profile Page and Nathan Memory (n8n/gen.js sections 11, 19, 30 and 36); the answers are the same JSON the page reads today.
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
 import { myProfile, profilePage, type Db } from '../db.js';
 import { fromDb, parse } from '../errors.js';
 
-const ProfileQuery = z.object({
+const MemoryQuery = z.object({ chat: z.string().optional() });
+
+const ProfileQuery =z.object({
   friend: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional()),
 });
 
@@ -23,5 +25,10 @@ export function profileRoutes(db: Db) {
     .get('/profile', async (c) => {
       const q = parse(ProfileQuery, c.req.query(), 'That profile link doesn’t look right');
       return c.json(fromDb(await profilePage(db, c.get('auth').email, q.friend ?? null)));
+    })
+    // GET /vault/memory[?chat=<key>]: what Nathan remembers about you, and one saved chat to show again
+    .get('/memory', async (c) => {
+      const chat = String(parse(MemoryQuery, c.req.query()).chat || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 64);
+      return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.memory_page($1, $2)', [c.get('auth').email, chat])));
     });
 }
