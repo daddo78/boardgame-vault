@@ -68,6 +68,10 @@
   .seg { display: inline-flex; background: var(--soft); border-radius: 999px; padding: 0.2rem; }
   .seg button { border: none; background: none; border-radius: 999px; padding: 0.25rem 0.7rem; font-size: 0.8rem; font-weight: 700; cursor: pointer; color: var(--ink); }
   .seg button.on { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .api-wrap { margin-top: 0.7rem; }
+  .api-wrap > summary { cursor: pointer; font-weight: 700; color: var(--ink); padding: 0.3rem 0; }
+  .api-res > summary { cursor: pointer; }
+  .api-res[open] > summary { margin-bottom: 0.2rem; }
   .table-wrap { overflow-x: auto; background: var(--card); border-radius: 1rem; box-shadow: var(--shadow); }
   table { width: 100%; border-collapse: collapse; font-size: 0.86rem; min-width: 900px; }
   th, td { text-align: right; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -331,7 +335,10 @@
         gamesCard('Wished for by the most members', d.mostWished, (g) => g.n + (g.n === 1 ? ' member' : ' members')) +
         gamesCard('Recently added by members', d.recentlyAdded, (g) => '', (g) => g.who + ' · ' + ago(g.at)) +
       '</div>';
-    document.getElementById('apiCheckGo').addEventListener('click', runApiCheck);
+    document.getElementById('apiCheckGo').addEventListener('click', () => { document.getElementById('apiWrap').open = true; runApiCheck().then(apiFoldLabel); });
+    document.getElementById('apiFold').addEventListener('click', apiFold);
+    document.getElementById('apiWrap').addEventListener('toggle', apiFoldLabel, true); // toggle doesn't bubble: listen while it passes down
+    apiFoldLabel();
     loadApiAreas();
     document.getElementById('range').addEventListener('click', (e) => { const b = e.target.closest('[data-days]'); if (b) { days = Number(b.dataset.days); document.querySelectorAll('#range button').forEach((x) => x.classList.toggle('on', x === b)); drawActivity(); } });
     drawActivity();
@@ -371,14 +378,39 @@
   function apiCheckHtml() {
     return '<div class="card" style="margin-top:0.9rem;"><h3>New API <small>which parts of the site api.ondorilabo.com serves instead of n8n</small></h3>' +
       '<div class="note" style="margin:0 0 0.6rem;">Run the check, then turn an area on (admins first) once all its answers match n8n. If the new service can’t be reached, the site asks n8n anyway. Nathan has his own switch under <a href="#nathan">Nathan</a>.</div>' +
-      '<button type="button" class="btn small" id="apiCheckGo">Run check</button>' +
-      '<div id="apiAreas" style="margin-top:0.6rem;"><div class="note">Checking the switches…</div></div></div>';
+      '<div style="display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="btn small" id="apiCheckGo">Run check</button>' +
+      '<button type="button" class="btn small" id="apiFold"></button></div>' +
+      '<details class="api-wrap" id="apiWrap"' + (foldOpen() ? ' open' : '') + '><summary id="apiSummary">The switches</summary>' +
+      '<div id="apiAreas" style="margin-top:0.4rem;"><div class="note">Checking the switches…</div></div></details></div>';
+  }
+  // The switches fold away to one line; the choice is remembered on this device
+  const LS_API_FOLD = 'admin_api_open';
+  function foldOpen() { try { return localStorage.getItem(LS_API_FOLD) === '1'; } catch (e) { return false; } }
+  function apiFoldLabel() {
+    const any = [...document.querySelectorAll('#apiWrap, #apiWrap details')].some((d) => d.open);
+    const b = document.getElementById('apiFold');
+    if (b) b.innerHTML = any ? '<i class="fa-solid fa-angles-up"></i> Collapse all' : '<i class="fa-solid fa-angles-down"></i> Expand all';
+  }
+  function apiFold() {
+    const all = [...document.querySelectorAll('#apiWrap, #apiWrap details')];
+    const open = !all.some((d) => d.open);
+    all.forEach((d) => { d.open = open; });
+    try { localStorage.setItem(LS_API_FOLD, open ? '1' : '0'); } catch (e) {}
+    apiFoldLabel();
+  }
+  // "6 for everyone · 2 admins only · 4 off", shown when the switches are folded away
+  function apiSummary(areas) {
+    const n = { everyone: 0, admins: 0, off: 0 };
+    for (const a of Object.keys(AREA_NAMES)) n[ADMIN_AREAS.includes(a) && areas[a] === 'everyone' ? 'admins' : areas[a] || 'off']++;
+    const s = document.getElementById('apiSummary');
+    if (s) s.textContent = Object.keys(AREA_NAMES).length + ' switches: ' + [n.everyone && n.everyone + ' for everyone', n.admins && n.admins + ' for admins', n.off && n.off + ' off'].filter(Boolean).join(' · ');
   }
   async function loadApiAreas() {
     const box = document.getElementById('apiAreas');
     let areas;
     try { areas = (await apiCall('/api-areas')).areas; }
     catch (e) { box.innerHTML = '<div class="note">Couldn’t reach the new service: ' + esc(e.message) + '</div>'; return; }
+    apiSummary(areas);
     box.innerHTML = Object.keys(AREA_NAMES).map((a) => '<div style="padding:0.45rem 0; border-top:1px solid var(--soft);">' +
       '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between;"><b>' + esc(AREA_NAMES[a]) + '</b>' +
       '<span class="seg" data-area="' + a + '">' + (ADMIN_AREAS.includes(a) ? ['off', 'admins'] : ['off', 'admins', 'everyone']).map((m) => '<button type="button" data-mode="' + m + '"' + (modeOf(a, areas[a]) === m ? ' class="on"' : '') + '>' +
@@ -390,6 +422,7 @@
       try {
         const r = await apiCall('/api-areas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ area: seg.dataset.area, mode: b.dataset.mode }) });
         seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.mode === modeOf(seg.dataset.area, r.areas[seg.dataset.area])));
+        apiSummary(r.areas);
         apiRoutesP = null; // this page follows the switches too
         toast('Saved. Pages pick it up the next time they load.');
       } catch (err) { toast(err.message, true); }
@@ -434,7 +467,9 @@
         rows.push((same ? '✅ ' : '❌ ') + '<b>' + esc(p.slice(1)) + '</b> · ' + esc(why) + ' · API ' + a.ms + ' ms, n8n ' + n.ms + ' ms');
         if (!same) console.log('API check ' + p, { api: a, n8n: n });
       }
-      out.innerHTML = rows.join('<br>');
+      // Each area's results fold to one line; one that differs from n8n opens by itself
+      const bad = rows.filter((x) => x.startsWith('❌')).length;
+      out.innerHTML = '<details class="api-res"' + (bad ? ' open' : '') + '><summary>' + (bad ? '❌ ' + bad + ' of ' + rows.length + ' differ from n8n' : '✅ ' + rows.length + ' checked, the same as n8n') + '</summary>' + rows.join('<br>') + '</details>';
     }
   }
   function socialHtml(d) {
