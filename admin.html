@@ -349,7 +349,8 @@
   // The new API (Roadmap 7, Phase 3): each area of the site moves from n8n to api.ondorilabo.com behind its own switch.
   // The check asks both the same things with your sign-in and compares the answers; turn an area on once it's all ✅.
   const API = 'https://api.ondorilabo.com/vault';
-  const AREA_NAMES = { account: 'Account (sign-in, profiles, Nathan’s memory)', shelves: 'Shelves (collection, your shelf, friends, people)', wishlist: 'Wishlists', rulebooks: 'Rulebooks', admin: 'Admin (this page)' };
+  const AREA_NAMES = { account: 'Account (sign-in, profiles, Nathan’s memory)', shelves: 'Shelves (collection, your shelf, friends, people)', wishlist: 'Wishlists', rulebooks: 'Rulebooks', admin: 'Admin (this page)',
+    accountChanges: 'Account changes (saving your profile, forgetting notes)', wishlistChanges: 'Wishlist changes (add, remove, “Got it!”)', rulebookChanges: 'Rulebook changes (edit or remove a document)' };
   // What the check asks in each area; {friend} and {bgg} are filled from n8n's own answers
   const AREA_CHECKS = {
     account: ['/whoami', '/me', '/profile', '/profile?friend={friend}', '/memory?chat=none'],
@@ -374,7 +375,7 @@
     box.innerHTML = Object.keys(AREA_NAMES).map((a) => '<div style="padding:0.45rem 0; border-top:1px solid var(--soft);">' +
       '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between;"><b>' + esc(AREA_NAMES[a]) + '</b>' +
       '<span class="seg" data-area="' + a + '">' + ['off', 'admins', 'everyone'].map((m) => '<button type="button" data-mode="' + m + '"' + (areas[a] === m ? ' class="on"' : '') + '>' + { off: 'Off', admins: 'Admins only', everyone: 'Everyone' }[m] + '</button>').join('') + '</span></div>' +
-      '<div class="note" id="apiCheck-' + a + '" style="margin:0.25rem 0 0;"></div></div>').join('');
+      '<div class="note" id="apiCheck-' + a + '" style="margin:0.25rem 0 0;">' + (AREA_CHECKS[a] ? '' : 'Changes aren’t made twice to compare: they’re covered by the API tests and a run on the real database before each goes live.') + '</div></div>').join('');
     box.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-mode]'), seg = b && b.closest('[data-area]');
       if (!seg) return;

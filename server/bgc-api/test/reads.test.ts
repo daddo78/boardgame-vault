@@ -128,6 +128,6 @@ test('areas: each switch sends its routes to this service; admins-only for admin
   assert.deepEqual((await json(await get(app, '/vault/routes', await amy()))).body.routes, ['GET /collection', 'GET /shelf', 'GET /people', 'GET /friends']);
   assert.deepEqual((await json(await get(app, '/vault/routes', await dan()))).body.routes.slice(4), ['GET /admin', 'GET /dashboard', 'GET /costs', 'GET /players-admin']);
   const a = await json(await get(app, '/vault/api-areas', await dan()));
-  assert.deepEqual(a.body.areas, { account: 'off', shelves: 'everyone', wishlist: 'off', rulebooks: 'off', admin: 'admins' });
+  assert.deepEqual(a.body.areas, { account: 'off', shelves: 'everyone', wishlist: 'off', rulebooks: 'off', admin: 'admins', accountChanges: 'off', wishlistChanges: 'off', rulebookChanges: 'off' });
   assert.equal((await get(app, '/vault/api-areas', await amy())).status, 403);
 });

@@ -1,9 +1,11 @@
-// Rulebooks. Ported from the n8n workflow Rulebook (list) (GET; n8n/gen.js section 32). Uploading and changing stay in n8n for now.
+// Rulebooks. Ported from the n8n workflows Rulebook (list) and Rulebook (change / remove) (n8n/gen.js section 32).
+// Uploading stays in n8n for now.
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
 import { ApiError, fromDb, parse } from '../errors.js';
+import { validated } from '../writes.js';
 
 const RulebookQuery = z.object({ bgg: z.string().optional(), games: z.string().optional() });
 
@@ -21,5 +23,10 @@ export function rulebookRoutes(db: Db) {
       const bgg = Number(q.bgg) || 0;
       if (!Number.isInteger(bgg) || Math.abs(bgg) > 2147483647) throw new ApiError(400, 'Which game?');
       return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.rule_docs_of($1, $2::int)', [a.email, bgg])));
+    })
+    // POST /vault/rulebook-change { id, action: 'remove' } | { id, kind?, title?, source? }: a document's details, or remove it
+    .post('/rulebook-change', async (c) => {
+      const v = await validated('ruleChange', c);
+      return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.rule_doc_change($1, $2::bigint, $3, $4::jsonb)', [v.email, v.id, v.action, JSON.stringify(v.patch)])));
     });
 }

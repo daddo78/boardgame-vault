@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
 import { myProfile, profilePage, type Db } from '../db.js';
 import { fromDb, parse } from '../errors.js';
+import { validated } from '../writes.js';
 
 const MemoryQuery = z.object({ chat: z.string().optional() });
 
@@ -30,5 +31,15 @@ export function profileRoutes(db: Db) {
     .get('/memory', async (c) => {
       const chat = String(parse(MemoryQuery, c.req.query()).chat || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 64);
       return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.memory_page($1, $2)', [c.get('auth').email, chat])));
+    })
+    // POST /vault/me-save { bggUsername, age, dials, likes, dislikes, notes, topGames? }: your own profile (Save My Profile)
+    .post('/me-save', async (c) => {
+      const v = await validated('meSave', c);
+      return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.save_profile($1, $2::jsonb)', [v.email, JSON.stringify(v.profile)])));
+    })
+    // POST /vault/memory { action: 'forget', id } | { action: 'forgetAll' }: what Nathan remembers (Nathan Forget)
+    .post('/memory', async (c) => {
+      const v = await validated('memoryForget', c);
+      return c.json(fromDb(await db.one<Record<string, any>>("SELECT bgc.memory_forget($1, nullif($2, '')::bigint)", [v.email, v.id])));
     });
 }

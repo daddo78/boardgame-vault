@@ -18,6 +18,10 @@ export const AREAS = {
   wishlist: ['GET /wishlist'],
   rulebooks: ['GET /rulebook'],
   admin: ['GET /admin', 'GET /dashboard', 'GET /costs', 'GET /players-admin'],
+  // Changes have their own switches, so a new one starts off even where the reads are already on
+  accountChanges: ['POST /me-save', 'POST /memory'],
+  wishlistChanges: ['POST /wishlist'],
+  rulebookChanges: ['POST /rulebook-change'],
 } as const;
 type Area = keyof typeof AREAS;
 
