@@ -23,6 +23,7 @@ function nathanDb(over: Record<string, (p: unknown[]) => unknown> = {}) {
     'bgc.memory_for': () => ({ mem: {}, rule_games: [] }),
     "bgc.shelf_view($1, 'mine'": () => ({ own: null, fid: null, visit: null }),
     'bgc.shelf_view($1, $2, $3)': () => ({ v: SHELF }),
+    'bgc.shelf_view($1, $2, $3, true)': () => ({ v: { ...SHELF, games: [], ratings: [] } }), // people only
     'bgc.lookup_games': () => ({ games: [], pool: null, curator: {}, fpool: null, extras: {}, top_games: [], rules: null }),
     ...over,
   };
@@ -78,7 +79,7 @@ test('ask with the stand-in OpenRouter: pick, alternative, chatKey; allowance us
   assert.equal(or.bodies.length, 2);
   assert.equal(or.bodies[0].model, 'google/gemini-2.5-flash-lite');         // understand: the small model
   assert.equal(or.bodies[1].model, 'anthropic/claude-haiku-5.5');          // write: Nathan's model
-  assert.deepEqual(or.bodies[1].provider, { data_collection: 'deny' });
+  assert.deepEqual(or.bodies[1].provider, { order: ['google-vertex'], data_collection: 'deny' });
   assert.ok(db.calls.some((c: any) => c.sql.includes('bgc.use_ask')), 'a test flag from the web still uses the allowance');
   await settle();
   const saved = db.calls.find((c: any) => c.sql.includes('bgc.chat_save'));
@@ -102,6 +103,20 @@ test('ask/stream: stages, the words as they arrive, then the same answer; Stop s
   const done = events.at(-1)!;
   assert.equal(done.event, 'done');
   assert.equal(done.data.pick.why, 'Azul is quick and pretty for three.');
+});
+
+test('ask: understanding starts on the people while the whole shelf is still loading; the picks come from the whole shelf', async () => {
+  let release!: () => void;
+  const loaded = new Promise<void>((r) => { release = r; });
+  const or = fakeOpenRouter();
+  const db = nathanDb({ 'bgc.shelf_view($1, $2, $3)': async () => { await loaded; return { v: SHELF }; } });
+  const app = makeAppWith({ db, fetch: or.f });
+  const res = app.request('/vault/ask', { method: 'POST', headers: { ...bearer(await token()), 'Content-Type': 'application/json' }, body: JSON.stringify({ question: 'something for 3 of us' }) });
+  await settle();
+  assert.equal(or.bodies.length, 1, 'understand asked before the shelf arrived');
+  release();
+  const a: any = await (await res).json();
+  assert.deepEqual([a.pick.title, a.alternative.title], ['Azul', 'Cascadia']);
 });
 
 test('ask: out of questions for today is a 429 with Nathan’s message, and no AI is called', async () => {

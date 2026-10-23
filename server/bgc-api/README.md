@@ -43,6 +43,8 @@ Tests use a stand-in Google key and a stand-in database (`test/helpers.ts`), so 
 
 ```bash
 ./deploy.sh    # check, ship to ~/bgc-api, build, start the new container beside the old, switch once healthy
+./deploy.sh --trial    # ship and build only; nothing starts and members still get the running one
+API_TAG=<tag> TARGET=api node ../../n8n/test-nathan.js    # the question set against that build, in throwaway containers
 ```
 
 Secrets come from `~/bgc-db/.env` (`POSTGRES_PASSWORD`; later `OPENROUTER_API_KEY`). The container has no published ports; the Cloudflare tunnel reaches it as `http://bgc-api:8787` on the n8n network.

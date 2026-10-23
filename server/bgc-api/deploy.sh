@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Test, ship and start bgc-api on the Hostinger VPS without taking it down.
-# Usage: ./deploy.sh
+# Usage: ./deploy.sh            ship and switch over
+#        ./deploy.sh --trial    ship and build the image only (nothing starts); then try it with
+#                               API_TAG=<tag> TARGET=api node ../../n8n/test-nathan.js
 #   1. types, tests and build pass here first (check.sh)
 #   2. the source goes to ~/bgc-api on the server and the image is built there (tagged with the git commit)
 #   3. a new container starts beside the old one; once its health check passes (it can reach Postgres),
@@ -12,7 +14,7 @@ cd "$(dirname "$0")"
 HOST=claude-ops@148.230.83.130
 KEY="$HOME/.ssh/claude_hostinger"
 SSH="ssh -i $KEY $HOST"
-PUBLIC=https://api.ondorilabo.com/health   # once the Cloudflare tunnel hostname exists
+PUBLIC=https://api.ondorilabo.com/health   # through the Cloudflare tunnel, as members reach it
 
 bash check.sh
 TAG=$(git rev-parse --short HEAD)$(git diff --quiet HEAD -- . || echo -dirty)
@@ -21,13 +23,15 @@ echo "deploying bgc-api $TAG"
 tar -czf - src package.json package-lock.json tsconfig.json Dockerfile .dockerignore docker-compose.yml \
   | $SSH "mkdir -p ~/bgc-api && rm -rf ~/bgc-api/src && tar -xzf - -C ~/bgc-api"
 
-$SSH "API_TAG=$TAG bash -s" <<'REMOTE'
+$SSH "API_TAG=$TAG TRIAL=${1:-} bash -s" <<'REMOTE'
 set -euo pipefail
 cd ~/bgc-api
 DC="docker compose --env-file ../bgc-db/.env"
-ids() { docker ps -aq --filter label=com.docker.compose.project=bgc-api --filter label=com.docker.compose.service=bgc-api; }
+# The serving containers (not one-off trial runs)
+ids() { docker ps -aq --filter label=com.docker.compose.project=bgc-api --filter label=com.docker.compose.service=bgc-api --filter label=com.docker.compose.oneoff=False; }
 
 $DC build --quiet bgc-api
+if [ "$TRIAL" = --trial ]; then echo "built bgc-api:$API_TAG (trial: nothing started)"; exit 0; fi
 old=$(ids)
 if [ -z "$old" ]; then $DC up -d bgc-api
 else $DC up -d --no-deps --no-recreate --scale bgc-api=$(( $(echo "$old" | wc -l) + 1 )) bgc-api; fi
@@ -60,5 +64,12 @@ docker images bgc-api --format '{{.CreatedAt}}\t{{.Repository}}:{{.Tag}}' | sort
   | xargs -r docker rmi >/dev/null 2>&1 || true
 REMOTE
 
-code=$(curl -s -o /dev/null -w '%{http_code}' "$PUBLIC" || true)
-if [ "$code" = 200 ]; then echo "public health check OK ($PUBLIC)"; else echo "public health check: $code (fine until api.ondorilabo.com is set up)"; fi
+[ "${1:-}" = --trial ] && { echo "try it: API_TAG=$TAG TARGET=api node ../../n8n/test-nathan.js"; exit 0; }
+# The tunnel can take a few seconds to find the new container (a 520 meanwhile)
+for i in $(seq 1 15); do
+  code=$(curl -s -o /dev/null -w '%{http_code}' "$PUBLIC" || true)
+  [ "$code" = 200 ] && { echo "public health check OK ($PUBLIC)"; exit 0; }
+  sleep 2
+done
+echo "PUBLIC HEALTH CHECK FAILING ($code from $PUBLIC): members can't reach Nathan's service; the page falls back to n8n" >&2
+exit 1

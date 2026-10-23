@@ -73,20 +73,27 @@ export async function askNathan(deps: NathanDeps, auth: Auth, body: unknown, ev:
     if (!left.ok) throw new ApiError(left.status, left.message);
   }
 
-  // What Nathan remembers, and the shelf (both from the database, at once)
-  const [mem, shelf] = await Promise.all([
+  // What Nathan remembers, and who is on the shelf (both from the database, at once). Understanding the question needs
+  // only the people, so it starts on those while the whole shelf (games, ratings, play histories: ~0.35 s) loads.
+  const fullShelf = db.row('SELECT bgc.shelf_view($1, $2, $3) AS v', [v.email, v.shelf, v.askerId]);
+  fullShelf.catch(() => {}); // awaited below; an early failure shouldn't be "unhandled" meanwhile
+  const [mem, people] = await Promise.all([
     db.row("SELECT CASE WHEN $3::boolean THEN bgc.memory_for($1, $2) ELSE '{}'::jsonb END AS mem, " +
       "(SELECT coalesce(jsonb_agg(DISTINCT g.title), '[]') FROM rule_docs d JOIN games g ON g.id = d.game_id WHERE d.status = 'ready') AS rule_games",
       [v.email, v.chatKey, String(v.memory)]),
-    db.row('SELECT bgc.shelf_view($1, $2, $3) AS v', [v.email, v.shelf, v.askerId]),
+    db.row('SELECT bgc.shelf_view($1, $2, $3, true) AS v', [v.email, v.shelf, v.askerId]),
   ]);
   put('Memory', mem);
-  put('Shelf View', shelf);
-  for (const n of ['List Games', 'One Item', 'List Players', 'One More Item', 'List Ratings']) step(n, ran.get(n === 'List Games' ? 'Shelf View' : 'List Games')!);
+  const shelfView = (shelf: any) => {
+    put('Shelf View', shelf);
+    for (const n of ['List Games', 'One Item', 'List Players', 'One More Item', 'List Ratings']) step(n, ran.get(n === 'List Games' ? 'Shelf View' : 'List Games')!);
+  };
+  shelfView(people);
 
   try {
-    // A photo: the vision model says what it shows
+    // A photo: the vision model says what it shows (it's told the shelf's titles, so it waits for the whole shelf)
     if (v.image) {
+      shelfView(await fullShelf);
       const req = step('Photo Request', [])[0].json.requestBody;
       try { await ai('Look At Photo', req); } catch (e) { put('Look At Photo', { error: String((e as Error).message) }); }
       step('Photo Notes', ran.get('Look At Photo')!);
@@ -95,6 +102,7 @@ export async function askNathan(deps: NathanDeps, auth: Auth, body: unknown, ev:
     // Understand the question, then which shelf it's about
     const ureq = step('Build Understand Request', [])[0].json.requestBody;
     const understood = await ai('Understand Request', ureq);
+    if (!v.image) shelfView(await fullShelf);
     const scope = step('Scope', understood)[0].json;
 
     ev.stage?.('looking');

@@ -3,6 +3,7 @@
 //   node test-nathan.js            all questions
 //   node test-nathan.js shame      only questions whose name contains "shame"
 //   TARGET=api node test-nathan.js the same questions to the new API (server/bgc-api), with when his first words came
+//   API_TAG=<tag> TARGET=api ...    to a build that isn't serving yet (server/bgc-api/deploy.sh --trial)
 // Exit code 1 if any check fails.
 const { execFileSync } = require('child_process');
 const path = require('path');
@@ -26,7 +27,9 @@ for (const t of tests) {
   try {
     const out = process.env.TARGET === 'api'
       ? execFileSync('ssh', ['-i', path.join(require('os').homedir(), '.ssh/claude_hostinger'), 'claude-ops@148.230.83.130',
-          'docker exec -i $(docker ps -q --filter label=com.docker.compose.service=bgc-api | head -1) node dist/tools/askAs.js -'],
+          process.env.API_TAG // a build not yet serving (deploy.sh --trial), in a throwaway container the tunnel can't reach
+            ? 'cd ~/bgc-api && API_TAG=' + process.env.API_TAG.replace(/[^\w.-]/g, '') + ' docker compose --env-file ../bgc-db/.env run --rm -T --no-deps bgc-api node dist/tools/askAs.js -'
+            : 'docker exec -i $(docker ps -q --filter label=com.docker.compose.service=bgc-api --filter label=com.docker.compose.oneoff=False | head -1) node dist/tools/askAs.js -'],
           { input: JSON.stringify({ email: who.email, question: t.q, shelf: t.shelf || who.shelf, previous: t.prev || null, stream: true }), encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 180000 })
       : execFileSync('bash', [path.join(__dirname, 'test-ask.sh'), t.q, who.email], { env, cwd: __dirname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 180000 });
     const tl = out.split('\n').find((l) => l.startsWith('@@TIME '));

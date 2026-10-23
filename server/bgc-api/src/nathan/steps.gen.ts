@@ -1257,6 +1257,9 @@ export const STEPS = {
       '  "mood": "a few words on the vibe",',
       '  "excludeIds": []',
       '}',
+      // Fewer tokens to write is a faster first answer. (Leaving out empty fields was faster still, but then the model
+      // sometimes left out ones it needed, like freshness for "shelf of shame": keep every field.)
+      'Write the JSON on one line, with no spaces outside the strings.',
       'If PREVIOUS is given, this is a follow-up ("shorter", "something else"): start from its constraints and change only what the new message changes. Only when they want different games ("something else", "another one") put the previous picks in excludeIds; when they narrow it down ("which of those are quick") keep excludeIds empty.',
       'FEEDBACK: if the message is a reaction to a game rather than a new ask ("I really liked Got Five", "that one was a hit", "we played Brass and hated it"), add "feedback": "liked" or "disliked" and "feedbackGame": its official title. Use intent "recommend" and keep the PREVIOUS constraints (same people, player count and time) unchanged; for "liked", put that game\'s genre and main mechanics in "themes" (e.g. Got Five!: deduction, set collection, light) so similar games come up, and put the previous picks in excludeIds. Otherwise "feedback" is null.',
       'Also add "fromPrevious": true when the new message is about the games in the PREVIOUS answer ("those", "these", "of them", "which one", "the first one", "out of my top ten", "of those, which is heaviest"), else false.',
@@ -2500,7 +2503,8 @@ export const STEPS = {
       '', 'CANDIDATES (id | title | facts | how each person relates to it):', s.gameLines,
     ].filter((l) => l !== '').join('\n');
     return [{ json: { ...s, requestBody: {
-      model: 'anthropic/claude-haiku-5.5', models: ['anthropic/claude-haiku-5.5', 'google/gemini-2.5-flash'], max_tokens: 2500, reasoning: { enabled: false }, provider: { data_collection: 'deny' }, usage: { include: true },
+      // Google Vertex first: Haiku's first words came ~0.2 s sooner there than on the default route (Oct 23); others if it's down
+      model: 'anthropic/claude-haiku-5.5', models: ['anthropic/claude-haiku-5.5', 'google/gemini-2.5-flash'], max_tokens: 2500, reasoning: { enabled: false }, provider: { order: ['google-vertex'], data_collection: 'deny' }, usage: { include: true },
       messages: [{ role: 'system', content: systemText }, { role: 'user', content: $('Photo Notes').isExecuted
         ? [{ type: 'text', text: user + '\n\nPHOTO: the asker attached the photo below (it shows: ' + $('Photo Notes').first().json.shows + ' — ' + $('Photo Notes').first().json.description + '). ' +
             'Answer about what is in it. If they ask what game it is: name it, say what gave it away (the board, the card art, a logo), and if you are not sure say so and give your next guess too. Never mention a photo reader or how sure it was; just say it in your own words (e.g. \"I\'m fairly sure\"). For an icon or component, say what it means from the RULEBOOK EXCERPTS (match it by its look) and cite the page; if the excerpts don\'t say, say so rather than guessing. (How sure the photo reader was: ' + $('Photo Notes').first().json.sure + '.)' },
