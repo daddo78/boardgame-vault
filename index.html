@@ -309,7 +309,7 @@
   .modal.players-modal { max-width: 640px; position: relative; }
   .players-modal h2 { padding-right: 2.5rem; }
   /* Settings: the X stays in view while the panel scrolls */
-  .settings-modal .detail-close { position: sticky; top: 0; float: right; margin: -0.4rem -0.4rem 0 0; }
+  .settings-modal .detail-close, .modal.news .detail-close { position: sticky; top: 0; float: right; margin: -0.4rem -0.4rem 0 0; }
   .pl-list { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.6rem; }
   .pl-row { display: flex; align-items: center; gap: 0.6rem; background: var(--bg); border: none; border-radius: 0.9rem; padding: 0.55rem 0.8rem; cursor: pointer; text-align: left; font-family: var(--font-body); color: var(--ink); width: 100%; }
   .pl-row:hover { background: var(--tag-bg); }
@@ -1098,8 +1098,9 @@
 
   <!-- What's new: the release notes -->
   <div class="modal-overlay" id="newsModal">
-    <div class="modal news">
-      <h2>What's new</h2>
+    <div class="modal news" role="dialog" aria-modal="true" aria-labelledby="newsTitle">
+      <button class="mini-btn detail-close" id="newsX" title="Close" aria-label="Close"><i class="ti ti-x"></i></button>
+      <h2 id="newsTitle">What's new</h2>
       <div id="newsBody"><div class="spinner"></div></div>
       <div class="modal-actions"><button class="btn ghost" id="newsClose">Close</button></div>
     </div>
@@ -2315,7 +2316,7 @@
       catch (e) { body.innerHTML = '<p class="hint">' + esc(e.message) + '</p>'; }
       newsModal.querySelector('.modal').scrollTop = 0;
     });
-    document.getElementById('newsClose').addEventListener('click', () => newsModal.classList.remove('open'));
+    for (const id of ['newsClose', 'newsX']) document.getElementById(id).addEventListener('click', () => newsModal.classList.remove('open'));
 
     // Send feedback: a face for how it's going (optional), what it's about, and their words; Dan gets an email he can reply to
     const feedbackModal = document.getElementById('feedbackModal');
