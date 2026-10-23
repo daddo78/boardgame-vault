@@ -19,6 +19,7 @@ const Env = z.object({
   // Nathan: without the OpenRouter key his routes say he isn't set up; without the BGG token he can't look up games we don't know
   OPENROUTER_API_KEY: z.string().optional(),
   BGG_TOKEN: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
 });
 
 export type Config = {
@@ -33,6 +34,7 @@ export type Config = {
   logRequests: boolean;
   openrouterKey: string | undefined;
   bggToken: string | undefined;
+  resendKey: string | undefined;
 };
 
 const list = (s: string) => s.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
@@ -54,5 +56,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     logRequests: e.LOG_REQUESTS === 'true',
     openrouterKey: e.OPENROUTER_API_KEY || undefined,
     bggToken: e.BGG_TOKEN || undefined,
+    resendKey: e.RESEND_API_KEY || undefined,
   };
 }
