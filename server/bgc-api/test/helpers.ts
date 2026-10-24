@@ -1,5 +1,5 @@
 // Test kit: real signed tokens from a stand-in "Google" key, and a stand-in database that answers the bgc.* calls
-import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
+import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTVerifyGetKey } from 'jose';
 import { createApp } from '../src/app.js';
 import { googleVerifier } from '../src/auth.js';
 import { loadConfig } from '../src/config.js';
@@ -48,22 +48,28 @@ export function fakeDb(overrides: Partial<Record<string, (params: unknown[]) => 
       if (!fn) throw new Error('fake db: no answer for ' + sql);
       return (await answers[fn](params)) as T;
     },
+    // Nathan's steps read rows; his tests (nathan.test.ts) put their own row() in place of this one
+    async row() { throw new Error('fake db: no row answers here'); },
     async ping() { if (!up) throw new Error('down'); },
     async close() {},
   };
   return db;
 }
 
-export function makeApp(opts: { db?: ReturnType<typeof fakeDb>; env?: Record<string, string>; now?: () => number } = {}) {
+// Settings as the tests run: localhost allowed (the page on this computer), as `npm run dev` also wants
+const ENV = { DATABASE_URL: 'postgres://unused', GOOGLE_CLIENT_ID: CLIENT_ID, OWNER_EMAILS: OWNER, LOG_REQUESTS: 'false', ALLOW_LOCALHOST: 'true' };
+
+// keys: in place of Google's key set (to make fetching it fail); signInCacheMs: how long a sign-in is remembered (0: never)
+export function makeApp(opts: { db?: ReturnType<typeof fakeDb>; env?: Record<string, string>; now?: () => number; keys?: JWTVerifyGetKey; signInCacheMs?: number } = {}) {
   const db = opts.db ?? fakeDb();
-  const config = loadConfig({ DATABASE_URL: 'postgres://unused', GOOGLE_CLIENT_ID: CLIENT_ID, OWNER_EMAILS: OWNER, LOG_REQUESTS: 'false', ...opts.env });
-  const app = createApp({ db, verify: googleVerifier(CLIENT_ID, googleKeys), config, now: opts.now });
+  const config = loadConfig({ ...ENV, ...opts.env });
+  const app = createApp({ db, verify: googleVerifier(CLIENT_ID, opts.keys ?? googleKeys), config, now: opts.now, signInCacheMs: opts.signInCacheMs });
   return { app, db };
 }
 
 // With Nathan: a stand-in OpenRouter (fetch) and his settings
 export function makeAppWith(opts: { db: Db; fetch: typeof fetch; env?: Record<string, string> }) {
-  const config = loadConfig({ DATABASE_URL: 'postgres://unused', GOOGLE_CLIENT_ID: CLIENT_ID, OWNER_EMAILS: OWNER, LOG_REQUESTS: 'false', OPENROUTER_API_KEY: 'sk-test', ...opts.env });
+  const config = loadConfig({ ...ENV, OPENROUTER_API_KEY: 'sk-test', ...opts.env });
   return createApp({ db: opts.db, verify: googleVerifier(CLIENT_ID, googleKeys), config, fetch: opts.fetch });
 }
 

@@ -36,22 +36,38 @@ function nathanDb(over: Record<string, (p: unknown[]) => unknown> = {}) {
   return db;
 }
 
-// OpenRouter stand-in: the understand step gets UNDERSTAND, the write step WRITE (streamed in small pieces when asked)
-function fakeOpenRouter(opts: { write?: string; fail?: boolean } = {}) {
-  const bodies: any[] = [];
+// OpenRouter stand-in: the understand step gets UNDERSTAND, the write step WRITE (streamed in small pieces when asked).
+// fail: answer every call with that status (true: 500). stall: the streamed answer sends its first piece, then nothing
+// more until the request's signal aborts (as a real fetch would, the body then fails with an AbortError).
+function fakeOpenRouter(opts: { write?: string; fail?: boolean | number; stall?: boolean } = {}) {
+  const bodies: any[] = [], signals: AbortSignal[] = [];
+  let stalled!: () => void;
+  const stalling = new Promise<void>((r) => { stalled = r; });
   const f = async (url: any, init: any) => {
     const body = JSON.parse(init.body);
     bodies.push(body);
-    if (opts.fail) return new Response(JSON.stringify({ error: { message: 'down' } }), { status: 500 });
+    signals.push(init.signal);
+    if (opts.fail) return new Response(JSON.stringify({ error: { message: 'down' } }), { status: opts.fail === true ? 500 : opts.fail });
     const content = body.max_tokens === 1500 ? UNDERSTAND : (opts.write ?? WRITE);
     const usage = { cost: 0.001, prompt_tokens: 100, completion_tokens: 50 };
     if (!body.stream) return Response.json({ choices: [{ message: { content } }], model: body.model, usage });
     const pieces = content.match(/.{1,12}/gs)!;
-    const sse = [': OPENROUTER PROCESSING', ...pieces.map((p) => 'data: ' + JSON.stringify({ model: body.model, choices: [{ delta: { content: p } }] })),
-      'data: ' + JSON.stringify({ model: body.model, choices: [{ delta: {} }], usage }), 'data: [DONE]'].join('\n\n') + '\n\n';
+    const line = (p: string) => 'data: ' + JSON.stringify({ model: body.model, choices: [{ delta: { content: p } }] }) + '\n\n';
+    if (opts.stall) {
+      const stream = new ReadableStream<Uint8Array>({
+        start(ctl) {
+          ctl.enqueue(new TextEncoder().encode(line(pieces[0])));
+          stalled();
+          (init.signal as AbortSignal).addEventListener('abort', () => ctl.error(new DOMException('This operation was aborted', 'AbortError')));
+        },
+      });
+      return new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } });
+    }
+    const sse = ': OPENROUTER PROCESSING\n\n' + pieces.map(line).join('') +
+      'data: ' + JSON.stringify({ model: body.model, choices: [{ delta: {} }], usage }) + '\n\ndata: [DONE]\n\n';
     return new Response(sse, { headers: { 'Content-Type': 'text/event-stream' } });
   };
-  return { f: f as unknown as typeof fetch, bodies };
+  return { f: f as unknown as typeof fetch, bodies, signals, stalling };
 }
 
 const settle = () => new Promise((r) => setTimeout(r, 20));
@@ -82,20 +98,24 @@ test('ask with the stand-in OpenRouter: pick, alternative, chatKey; allowance us
   assert.deepEqual(or.bodies[1].provider, { order: ['google-vertex'], data_collection: 'deny' });
   assert.ok(db.calls.some((c: any) => c.sql.includes('bgc.use_ask')), 'a test flag from the web still uses the allowance');
   await settle();
+  // Log line, saved chat and costs go in one statement: log_ask's 5 inputs, chat_save's 4 more, log_ai's costs
   const saved = db.calls.find((c: any) => c.sql.includes('bgc.chat_save'));
-  assert.equal(saved.params[2], 'something for 3 of us');
-  const cost = JSON.parse(db.calls.find((c: any) => c.sql.includes('bgc.log_ai')).params[1]);
+  assert.ok(saved.sql.includes('bgc.log_ask(') && saved.sql.includes('bgc.log_ai('), 'one round trip');
+  assert.equal(saved.params[6], 'something for 3 of us');
+  const cost = JSON.parse(saved.params[9]);
   assert.deepEqual(cost.map((x: any) => x.feature), ['nathan', 'nathan']);
   assert.ok(!JSON.stringify(cost).includes('something for 3'), 'the question never goes into the cost log');
 });
 
-test('ask/stream: stages, the words as they arrive, then the same answer; Stop stops it', async () => {
+const parseEvents = (text: string) => text.trim().split('\n\n').filter(Boolean).map((b) => ({ event: /event: (\w+)/.exec(b)?.[1], data: JSON.parse(/data: (.*)/.exec(b)![1]) }));
+
+test('ask/stream: stages, the words as they arrive, then the same answer', async () => {
   const db = nathanDb();
   const or = fakeOpenRouter();
   const app = makeAppWith({ db, fetch: or.f });
   const res = await app.request('/vault/ask/stream', { method: 'POST', headers: { ...bearer(await token()), 'Content-Type': 'application/json' }, body: JSON.stringify({ question: 'something for 3 of us' }) });
   assert.equal(res.headers.get('content-type'), 'text/event-stream');
-  const events = (await res.text()).trim().split('\n\n').map((b) => ({ event: /event: (\w+)/.exec(b)?.[1], data: JSON.parse(/data: (.*)/.exec(b)![1]) }));
+  const events = parseEvents(await res.text());
   assert.deepEqual(events.filter((e) => e.event === 'stage').map((e) => e.data.stage), ['reading', 'looking', 'writing']);
   const partials = events.filter((e) => e.event === 'partial');
   assert.ok(partials.length >= 1, 'some partial answers');
@@ -103,6 +123,38 @@ test('ask/stream: stages, the words as they arrive, then the same answer; Stop s
   const done = events.at(-1)!;
   assert.equal(done.event, 'done');
   assert.equal(done.data.pick.why, 'Azul is quick and pretty for three.');
+});
+
+test('ask/stream: Stop (the page closing the connection) stops the OpenRouter call, and nothing is saved', async () => {
+  const db = nathanDb();
+  const or = fakeOpenRouter({ stall: true });
+  const app = makeAppWith({ db, fetch: or.f });
+  const res = await app.request('/vault/ask/stream', { method: 'POST', headers: { ...bearer(await token()), 'Content-Type': 'application/json' }, body: JSON.stringify({ question: 'something for 3 of us' }) });
+  // Read until Nathan is writing and OpenRouter has started answering, then hang up. (On Node, Hono notices a closed
+  // connection as the response body being cancelled; a request signal is only wired on old Bun, so this is the real path.)
+  const reader = res.body!.getReader(); const dec = new TextDecoder();
+  let seen = '';
+  while (!seen.includes('"writing"')) { const { value, done } = await reader.read(); if (done) break; seen += dec.decode(value, { stream: true }); }
+  await or.stalling;
+  assert.equal(or.signals.at(-1)!.aborted, false);
+  await reader.cancel();
+  await settle();
+  assert.equal(or.signals.at(-1)!.aborted, true, 'the OpenRouter request was cut off');
+  assert.deepEqual(parseEvents(seen).filter((e) => e.event === 'stage').map((e) => e.data.stage), ['reading', 'looking', 'writing']);
+  assert.ok(!db.calls.some((c: any) => c.sql.includes('bgc.chat_save') || c.sql.includes('bgc.log_ai')), 'nothing saved for a stopped answer');
+});
+
+test('OpenRouter: a 5xx is tried three times, a 4xx (our request is wrong) once', async () => {
+  const orig = console.error; console.error = () => {};
+  try {
+    for (const [status, tries] of [[500, 3], [429, 3], [400, 1], [402, 1]] as const) {
+      const or = fakeOpenRouter({ fail: status });
+      const app = makeAppWith({ db: nathanDb(), fetch: or.f });
+      const r = await app.request('/vault/ask', { method: 'POST', headers: { ...bearer(await token()), 'Content-Type': 'application/json' }, body: JSON.stringify({ question: 'a co-op for 3' }) });
+      assert.equal(r.status, 502, String(status));
+      assert.equal(or.bodies.length, tries, String(status));
+    }
+  } finally { console.error = orig; }
 });
 
 test('ask: understanding starts on the people while the whole shelf is still loading; the picks come from the whole shelf', async () => {

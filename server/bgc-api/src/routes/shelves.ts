@@ -6,7 +6,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
-import { ApiError, fromDb, parse } from '../errors.js';
+import { ApiError, fromDb } from '../errors.js';
+import { body, ownerOnly, parse } from '../request.js';
 import { publicPlayer, ratingsByPlayerGame, toGame, toPlayer, toRating } from '../shape.gen.js';
 import { validated } from '../writes.js';
 
@@ -111,17 +112,6 @@ export function shelfRoutes(db: Db) {
       return c.json({ ok: true, id: v.id, title: toGame(rec).title });
     });
 }
-
-// The request body as an object (n8n's webhook hands the workflow {} for anything else)
-export const body = async (c: any): Promise<Record<string, any>> => {
-  const b = await c.req.json().catch(() => null);
-  return b && typeof b === 'object' && !Array.isArray(b) ? b : {};
-};
-
-// Dan's own collection and people: the owner only, with n8n's message
-export const ownerOnly = (c: any) => {
-  if (c.get('auth').role !== 'owner') throw new ApiError(401, 'Sign in as the collection owner to make changes');
-};
 
 // One of Dan's games by its id (as n8n's Find Record), or n8n's 404
 async function findGame(db: Db, formula: string, id: string) {

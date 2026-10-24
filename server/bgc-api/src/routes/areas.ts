@@ -9,7 +9,9 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
-import { ApiError, parse } from '../errors.js';
+import { ApiError } from '../errors.js';
+import { parseBody } from '../request.js';
+import { Mode, modeOf, modeOn } from '../settings.js';
 import { readMode } from './nathanMode.js';
 
 export const AREAS = {
@@ -31,23 +33,22 @@ export const AREAS = {
 } as const;
 type Area = keyof typeof AREAS;
 
-const Mode = z.enum(['off', 'admins', 'everyone']);
-type Mode = z.infer<typeof Mode>;
 const AreaName = z.enum(Object.keys(AREAS) as [Area, ...Area[]]);
 
+// The saved { area: mode }; a value of any other shape (nothing saved, or not an object) means every area is off
 const readAreas = async (db: Db): Promise<Record<Area, Mode>> => {
-  const saved = (await db.one<Record<string, unknown>>("SELECT value FROM settings WHERE key = 'api_areas'", [])) || {};
-  return Object.fromEntries((Object.keys(AREAS) as Area[]).map((a) => [a, Mode.safeParse(saved[a]).success ? saved[a] : 'off'])) as Record<Area, Mode>;
+  const raw = await db.one<unknown>("SELECT value FROM settings WHERE key = 'api_areas'", []);
+  const saved: Record<string, unknown> = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  return Object.fromEntries((Object.keys(AREAS) as Area[]).map((a) => [a, modeOf(saved[a])])) as Record<Area, Mode>;
 };
 
 export function areaRoutes(db: Db, nathanReady: boolean) {
   return new Hono<AuthEnv>()
     .get('/routes', async (c) => {
       const a = c.get('auth');
-      const on = (m: Mode) => m === 'everyone' || (m === 'admins' && a.admin);
       const [areas, nathan] = await Promise.all([readAreas(db), readMode(db)]);
-      const routes: string[] = (Object.keys(AREAS) as Area[]).filter((k) => on(areas[k])).flatMap((k) => AREAS[k]);
-      if (nathanReady && on(nathan)) routes.push('POST /ask');
+      const routes: string[] = (Object.keys(AREAS) as Area[]).filter((k) => modeOn(areas[k], a)).flatMap((k) => AREAS[k]);
+      if (nathanReady && modeOn(nathan, a)) routes.push('POST /ask');
       return c.json({ ok: true, routes });
     })
     .get('/api-areas', async (c) => {
@@ -56,9 +57,11 @@ export function areaRoutes(db: Db, nathanReady: boolean) {
     })
     .post('/api-areas', async (c) => {
       if (!c.get('auth').admin) throw new ApiError(403, 'Admins only');
-      const { area, mode } = parse(z.object({ area: AreaName, mode: Mode }), await c.req.json().catch(() => null), 'Pick an area and off, admins or everyone');
+      const { area, mode } = await parseBody(c, z.object({ area: AreaName, mode: Mode }), 'Pick an area and off, admins or everyone');
+      // Merge into the saved object. If what's saved isn't an object (a hand edit), start over: jsonb's || would turn a
+      // scalar || object into an array, which reads as every area off and grows with each change
       await db.one("INSERT INTO settings (key, value, updated_at) VALUES ('api_areas', jsonb_build_object($1::text, $2::text), now()) " +
-        'ON CONFLICT (key) DO UPDATE SET value = settings.value || EXCLUDED.value, updated_at = now()', [area, mode]);
+        "ON CONFLICT (key) DO UPDATE SET value = CASE WHEN jsonb_typeof(settings.value) = 'object' THEN settings.value ELSE '{}'::jsonb END || EXCLUDED.value, updated_at = now()", [area, mode]);
       return c.json({ ok: true, areas: await readAreas(db) });
     });
 }

@@ -23,3 +23,6 @@ const stop = (signal: string) => {
 };
 process.on('SIGTERM', () => stop('SIGTERM'));
 process.on('SIGINT', () => stop('SIGINT'));
+// A promise nobody awaited that failed (a stray background save): one line and on we go. Node would otherwise exit,
+// dropping every request in flight; whatever request it came from has its own error handling.
+process.on('unhandledRejection', (e) => console.error(JSON.stringify({ level: 'error', where: 'unhandled', error: String((e as Error)?.stack || e) })));

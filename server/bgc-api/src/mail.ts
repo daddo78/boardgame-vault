@@ -1,6 +1,6 @@
 // Email through Resend's API (the same account n8n sends from over SMTP). The key is RESEND_API_KEY in ~/bgc-db/.env.
 // Never throws: true when Resend took the message. Like n8n's email steps, a failed email doesn't fail the request.
-import type { Fetch } from './nathan/openrouter.js';
+import type { Fetch } from './http.js';
 
 export const MAIL_FROM = 'Board Game Curator <alpha@ondorilabo.com>';
 

@@ -5,27 +5,22 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
-import { ApiError, parse } from '../errors.js';
+import { ApiError } from '../errors.js';
+import { parseBody } from '../request.js';
+import { Mode, modeOf, modeOn } from '../settings.js';
 
-const Mode = z.enum(['off', 'admins', 'everyone']);
-export type NathanMode = z.infer<typeof Mode>;
-
-export const readMode = async (db: Db): Promise<NathanMode> => {
-  const v = await db.one<string>("SELECT value #>> '{}' FROM settings WHERE key = 'nathan_api'", []);
-  return Mode.safeParse(v).success ? (v as NathanMode) : 'off';
-};
+export const readMode = async (db: Db): Promise<Mode> => modeOf(await db.one<string>("SELECT value #>> '{}' FROM settings WHERE key = 'nathan_api'", []));
 
 export function nathanModeRoutes(db: Db, ready: boolean) {
   return new Hono<AuthEnv>()
     .get('/nathan-mode', async (c) => {
       const a = c.get('auth');
       const mode = await readMode(db);
-      const useApi = ready && (mode === 'everyone' || (mode === 'admins' && a.admin));
-      return c.json({ ok: true, useApi, ...(a.admin ? { mode } : {}) });
+      return c.json({ ok: true, useApi: ready && modeOn(mode, a), ...(a.admin ? { mode } : {}) });
     })
     .post('/nathan-mode', async (c) => {
       if (!c.get('auth').admin) throw new ApiError(403, 'Admins only');
-      const { mode } = parse(z.object({ mode: Mode }), await c.req.json().catch(() => null), 'Pick off, admins or everyone');
+      const { mode } = await parseBody(c, z.object({ mode: Mode }), 'Pick off, admins or everyone');
       await db.one("INSERT INTO settings (key, value, updated_at) VALUES ('nathan_api', to_jsonb($1::text), now()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()", [mode]);
       return c.json({ ok: true, mode });
     });

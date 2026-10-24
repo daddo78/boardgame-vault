@@ -1,6 +1,7 @@
 // Routes, input checks, CORS, rate limits and health
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { rateLimiter } from '../src/rateLimit.js';
 import { bearer, fakeDb, get, makeApp, token } from './helpers.js';
 
 const json = async (r: Response) => ({ status: r.status, body: await r.json() as any });
@@ -67,6 +68,15 @@ test('rate limit: each member gets their own bucket; over it is a 429 with Retry
   assert.equal((await get(app, '/vault/whoami', amy)).status, 200); // refilled
 });
 
+test('rate limiter: buckets idle for a minute are dropped, even half-used ones; a busy one stays', () => {
+  let now = 0;
+  const take = rateLimiter(10, () => now);
+  for (let i = 0; i < 5_001; i++) take('idle' + i); // each one request down: never "full" again until touched
+  now += 30_000; take('busy');
+  now += 31_000; take('new');                      // the idle ones are 61 s old, busy 31 s
+  assert.equal(take.size(), 2);
+});
+
 test('/health: ok while the database answers, 503 when it does not; no sign-in needed', async () => {
   const db = fakeDb();
   const { app } = makeApp({ db, env: { VERSION: 'abc123' } });
@@ -80,4 +90,5 @@ test('settings: a missing database address stops the service at start, with a pl
   assert.throws(() => loadConfig({}), /DATABASE_URL or PGHOST/);
   assert.equal(loadConfig({ PGHOST: 'bgc-postgres' }).databaseUrl, undefined);
   assert.throws(() => loadConfig({ PGHOST: 'x', RATE_PER_MINUTE: 'lots' }), /RATE_PER_MINUTE/);
+  assert.equal(loadConfig({ PGHOST: 'x' }).allowLocalhost, false, 'the server never sets ALLOW_LOCALHOST, so only the site may call');
 });

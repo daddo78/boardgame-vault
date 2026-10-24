@@ -6,7 +6,8 @@
 import type { Auth } from '../auth.js';
 import type { Db } from '../db.js';
 import { ApiError } from '../errors.js';
-import { complete, stream, type Completion, type Fetch } from './openrouter.js';
+import type { Fetch } from '../http.js';
+import { complete, stream, type Completion } from './openrouter.js';
 import { partialJson } from './partialJson.js';
 import { STEPS } from './steps.gen.js';
 
@@ -14,7 +15,9 @@ export type NathanDeps = { db: Db; openrouterKey: string; bggToken?: string; fet
 export type Stage = 'reading' | 'looking' | 'writing';
 export type Events = {
   stage?: (s: Stage) => void;
-  partial?: (p: any) => void; // the answer so far, while Nathan writes
+  // The answer so far, while Nathan writes, as a function: reading it parses the half-written JSON, so the stream route
+  // calls it only for the pieces it's going to send (one every 60 ms), not for every few characters that arrive
+  partial?: (view: () => any) => void;
   signal?: AbortSignal;       // Stop
 };
 
@@ -48,15 +51,16 @@ export async function askNathan(deps: NathanDeps, auth: Auth, body: unknown, ev:
     return out;
   };
   const put = (name: string, v: any) => { const it = items(v); ran.set(name, it); return it; };
-  const ai = async (name: string, requestBody: object, onPartial?: (p: any) => void) => {
+  const ai = async (name: string, requestBody: object, onPartial?: (parsed: () => any) => void) => {
     const r: Completion = onPartial
-      ? await stream(deps.openrouterKey, requestBody, (soFar) => onPartial(partialJson(soFar)), f, ev.signal)
+      ? await stream(deps.openrouterKey, requestBody, (soFar) => onPartial(() => partialJson(soFar)), f, ev.signal)
       : await complete(deps.openrouterKey, requestBody, f, ev.signal);
     return put(name, r);
   };
+  // Anything that went wrong on the way (database, OpenRouter, a step) is Nathan's 502. A Stop also lands here (the
+  // AI call is cut short): the stream route drops the error unseen, so it's not worth a log line.
   const fail = (e: unknown): never => {
-    if (ev.signal?.aborted) throw new ApiError(499 as any, 'Stopped');
-    console.error(JSON.stringify({ level: 'error', where: 'nathan', error: String((e as Error)?.message || e) }));
+    if (!ev.signal?.aborted) console.error(JSON.stringify({ level: 'error', where: 'nathan', error: String((e as Error)?.message || e) }));
     throw new ApiError(502, 'Nathan couldn’t answer just now. Try again in a moment.');
   };
 
@@ -73,28 +77,30 @@ export async function askNathan(deps: NathanDeps, auth: Auth, body: unknown, ev:
     if (!left.ok) throw new ApiError(left.status, left.message);
   }
 
-  // What Nathan remembers, and who is on the shelf (both from the database, at once). Understanding the question needs
-  // only the people, so it starts on those while the whole shelf (games, ratings, play histories: ~0.35 s) loads.
-  const fullShelf = db.row('SELECT bgc.shelf_view($1, $2, $3) AS v', [v.email, v.shelf, v.askerId]);
-  fullShelf.catch(() => {}); // awaited below; an early failure shouldn't be "unhandled" meanwhile
-  const [mem, people] = await Promise.all([
-    db.row("SELECT CASE WHEN $3::boolean THEN bgc.memory_for($1, $2) ELSE '{}'::jsonb END AS mem, " +
-      "(SELECT coalesce(jsonb_agg(DISTINCT g.title), '[]') FROM rule_docs d JOIN games g ON g.id = d.game_id WHERE d.status = 'ready') AS rule_games",
-      [v.email, v.chatKey, String(v.memory)]),
-    db.row('SELECT bgc.shelf_view($1, $2, $3, true) AS v', [v.email, v.shelf, v.askerId]),
-  ]);
-  // A test run can start Nathan with given notes in place of the asker's own (tools/askAs.ts; never from the web),
-  // as if an earlier chat had taught him them
-  const tm = v.test ? (body as any)?.testMemory : null;
-  put('Memory', tm ? { ...mem, mem: { notes: (tm.notes || []).map((note: string, i: number) => ({ id: 900000 + i, note: String(note) })),
-    skipBgg: (tm.skipBgg || []).map(Number), recentBgg: [], turns: [] } } : mem);
   const shelfView = (shelf: any) => {
     put('Shelf View', shelf);
     for (const n of ['List Games', 'One Item', 'List Players', 'One More Item', 'List Ratings']) step(n, ran.get(n === 'List Games' ? 'Shelf View' : 'List Games')!);
   };
-  shelfView(people);
 
+  // From here on, whatever fails (the database included) is Nathan's own 502, not a generic 500
   try {
+    // What Nathan remembers, and who is on the shelf (both from the database, at once). Understanding the question needs
+    // only the people, so it starts on those while the whole shelf (games, ratings, play histories: ~0.35 s) loads.
+    const fullShelf = db.row('SELECT bgc.shelf_view($1, $2, $3) AS v', [v.email, v.shelf, v.askerId]);
+    fullShelf.catch(() => {}); // awaited below; an early failure shouldn't be "unhandled" meanwhile
+    const [mem, people] = await Promise.all([
+      db.row("SELECT CASE WHEN $3::boolean THEN bgc.memory_for($1, $2) ELSE '{}'::jsonb END AS mem, " +
+        "(SELECT coalesce(jsonb_agg(DISTINCT g.title), '[]') FROM rule_docs d JOIN games g ON g.id = d.game_id WHERE d.status = 'ready') AS rule_games",
+        [v.email, v.chatKey, String(v.memory)]),
+      db.row('SELECT bgc.shelf_view($1, $2, $3, true) AS v', [v.email, v.shelf, v.askerId]),
+    ]);
+    // A test run can start Nathan with given notes in place of the asker's own (tools/askAs.ts; never from the web),
+    // as if an earlier chat had taught him them
+    const tm = v.test ? (body as any)?.testMemory : null;
+    put('Memory', tm ? { ...mem, mem: { notes: (tm.notes || []).map((note: string, i: number) => ({ id: 900000 + i, note: String(note) })),
+      skipBgg: (tm.skipBgg || []).map(Number), recentBgg: [], turns: [] } } : mem);
+    shelfView(people);
+
     // A photo: the vision model says what it shows (it's told the shelf's titles, so it waits for the whole shelf)
     if (v.image) {
       shelfView(await fullShelf);
@@ -134,7 +140,7 @@ export async function askNathan(deps: NathanDeps, auth: Auth, body: unknown, ev:
     else {
       ev.stage?.('writing');
       const rreq = step('Build Recommend Request', items(s))[0].json.requestBody;
-      const written = await ai('Recommend', rreq, ev.partial ? (p) => ev.partial!(partialView(p, s)) : undefined);
+      const written = await ai('Recommend', rreq, ev.partial ? (parsed) => ev.partial!(() => partialView(parsed(), s)) : undefined);
       answer = step('Check Answer', written)[0].json;
     }
     return { answer, chatKey: v.chatKey as string, after: (save = true) => afterAnswer(db, v, answer, $, save) };
@@ -145,18 +151,21 @@ export async function askNathan(deps: NathanDeps, auth: Auth, body: unknown, ev:
 }
 
 // After the answer has gone out: the dashboard's log line, Nathan's memory of the chat, and what each AI call cost.
-// Same order and data as n8n's Log Answer → Save Turn → Log Cost. Never fails the answer.
+// The same data as n8n's Log Answer → Save Turn → Log Cost, in one statement: none needs another's result (ask_log,
+// chat_turns and member_notes, ai_costs are separate tables), so one round trip instead of three. They now succeed or
+// fail together, where before one could fail alone. Never fails the answer.
 async function afterAnswer(db: Db, v: any, a: any, $: ReturnType<typeof dollar>, save: boolean) {
-  const quiet = (p: Promise<unknown>) => p.catch((e) => console.error(JSON.stringify({ level: 'error', where: 'nathan after', error: String(e?.message || e) })));
   const kind = a.offTopic ? 'off-topic' : (a.mode || (a.person ? 'person' : a.intent) || 'other');
-  if (save) await quiet(db.one('SELECT bgc.log_ask($1, $2, $3::int, $4::boolean, $5)', [v.email, kind, String(Date.now() - v.t0), String(a.ok !== false), a.social || '']));
-  if (save) await quiet(db.one('SELECT bgc.chat_save($1, $2, $3, $4::jsonb, $5::jsonb)',
-    [v.email, v.chatKey, v.question + (v.image ? ' (photo)' : ''), JSON.stringify({ ...a, learn: undefined }), JSON.stringify(a.learn || [])]));
   const costs = ['Understand Request', 'Look At Photo', 'Recommend'].filter((n) => $(n).isExecuted).map((n) => {
     const j = $(n).first().json || {}; const u = j.usage || {};
     return { feature: v.test ? 'tests' : n === 'Look At Photo' ? 'photo' : 'nathan', model: j.model || null, cost: u.cost, in: u.prompt_tokens, out: u.completion_tokens };
   });
-  await quiet(db.one('SELECT bgc.log_ai($1, $2::jsonb)', [v.email, JSON.stringify(costs)]));
+  const logged = save
+    ? db.one('SELECT bgc.log_ask($1, $2, $3::int, $4::boolean, $5), bgc.chat_save($1, $6, $7, $8::jsonb, $9::jsonb), bgc.log_ai($1, $10::jsonb)',
+      [v.email, kind, String(Date.now() - v.t0), String(a.ok !== false), a.social || '',
+        v.chatKey, v.question + (v.image ? ' (photo)' : ''), JSON.stringify({ ...a, learn: undefined }), JSON.stringify(a.learn || []), JSON.stringify(costs)])
+    : db.one('SELECT bgc.log_ai($1, $2::jsonb)', [v.email, JSON.stringify(costs)]); // a test run: only what it cost
+  await logged.catch((e) => console.error(JSON.stringify({ level: 'error', where: 'nathan after', error: String(e?.message || e) })));
 }
 
 // BGG one request at a time, 0.6 s apart (as n8n's batching). A failure is an empty answer, as n8n's "continue on error".

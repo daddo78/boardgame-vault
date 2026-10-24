@@ -23,7 +23,7 @@ try {
   let first = 0;
   const r = await askNathan({ db, openrouterKey: config.openrouterKey, bggToken: config.bggToken }, auth,
     { question: a.question, shelf: a.shelf || 'main', previous: a.previous ?? null, chatKey: a.chatKey || '', noMemory: a.memory === false, test: true, ...(a.testMemory ? { testMemory: a.testMemory } : {}) },
-    a.stream ? { partial: (p) => { if (!first && p && JSON.stringify(p).match(/"(summary|why)":"[^"]/)) first = Date.now() - t0; } } : {});
+    a.stream ? { partial: (view) => { if (!first && JSON.stringify(view() ?? '').match(/"(summary|why)":"[^"]/)) first = Date.now() - t0; } } : {});
   const total = Date.now() - t0;
   await r.after(!!a.save);
   console.log('@@JSON ' + JSON.stringify(respondBody(r.answer, r.chatKey)));

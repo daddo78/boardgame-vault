@@ -2,7 +2,8 @@
 FROM node:22.20.0-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# No install scripts: nothing here needs them (the only one, esbuild's, is tsx's, a dev tool pruned below)
+RUN npm ci --no-audit --no-fund --ignore-scripts
 COPY tsconfig.json ./
 COPY src ./src
 RUN npx tsc -p tsconfig.json && npm prune --omit=dev

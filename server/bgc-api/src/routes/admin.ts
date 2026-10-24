@@ -6,17 +6,17 @@ import { Hono } from 'hono';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
 import { ApiError, fromDb } from '../errors.js';
-import { toPlayer } from '../shape.gen.js';
+import type { Fetch } from '../http.js';
 import { sendMail } from '../mail.js';
-import type { Fetch } from '../nathan/openrouter.js';
 import { runNode } from '../nodes.js';
+import { body, ownerOnly, type Ctx } from '../request.js';
+import { toPlayer } from '../shape.gen.js';
 import { validated } from '../writes.js';
-import { body, ownerOnly } from './shelves.js';
 
 const PLAYERS_TABLE = 'tblNahVdHDueJJ0w4';
 
 export function adminRoutes(db: Db, mail: { resendKey?: string; fetch?: Fetch } = {}) {
-  const read = (sql: string) => async (c: any) => c.json(fromDb(await db.one<Record<string, any>>(sql, [c.get('auth').email])));
+  const read = (sql: string) => async (c: Ctx) => c.json(fromDb(await db.one<Record<string, any>>(sql, [c.get('auth').email])));
   return new Hono<AuthEnv>()
     // GET /vault/admin: site-wide usage, every member, every rulebook and the feedback
     .get('/admin', read("SELECT bgc.admin_overview($1) || CASE WHEN bgc.is_admin($1) THEN jsonb_build_object('rulebooks', bgc.rule_docs_all($1)) ELSE '{}'::jsonb END || jsonb_strip_nulls(jsonb_build_object('feedback', bgc.feedback_all($1)))"))

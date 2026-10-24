@@ -4,7 +4,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
-import { ApiError, fromDb, parse } from '../errors.js';
+import { ApiError, fromDb } from '../errors.js';
+import { parse } from '../request.js';
 import { validated } from '../writes.js';
 
 const RulebookQuery = z.object({ bgg: z.string().optional(), games: z.string().optional() });

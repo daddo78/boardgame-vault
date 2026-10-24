@@ -10,8 +10,9 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
-import { ApiError, parse } from '../errors.js';
+import { ApiError } from '../errors.js';
 import { askNathan, respondBody, type NathanDeps } from '../nathan/ask.js';
+import { parseBody, type Ctx } from '../request.js';
 
 // The shape only; Nathan's own first step checks the details (length, photo type, ids) with n8n's exact messages
 const AskBody = z.object({
@@ -28,8 +29,8 @@ const AskBody = z.object({
 
 export function askRoutes(deps: NathanDeps | null) {
   const ready = () => { if (!deps) throw new ApiError(503, 'Nathan isn’t set up on this server yet'); return deps; };
-  const body = async (c: any) => {
-    const b = parse(AskBody, await c.req.json().catch(() => null), 'That question didn’t come through. Try again.');
+  const body = async (c: Ctx) => {
+    const b = await parseBody(c, AskBody, 'That question didn’t come through. Try again.');
     delete (b as any).test; // test runs come only from inside the server (tools/askAs.ts), never over the web
     delete (b as any).testMemory;
     return b;
@@ -53,9 +54,11 @@ export function askRoutes(deps: NathanDeps | null) {
           const r = await askNathan(d, auth, b, {
             signal: stop.signal,
             stage: (stage) => void sse.writeSSE({ event: 'stage', data: JSON.stringify({ stage }) }),
-            partial: (p) => {
-              const s = JSON.stringify(p);
-              if (!p || s === last || Date.now() - lastAt < 60) return;
+            // At most one partial every 60 ms; the words arrive a few at a time, so only those get parsed (view())
+            partial: (view) => {
+              if (Date.now() - lastAt < 60) return;
+              const p = view(), s = JSON.stringify(p);
+              if (!p || s === last) return;
               last = s; lastAt = Date.now();
               void sse.writeSSE({ event: 'partial', data: s });
             },

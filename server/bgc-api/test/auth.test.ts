@@ -1,8 +1,8 @@
 // The sign-in check: only a valid Google token for our client, from a member or the owner, gets in
 import assert from 'node:assert/strict';
-import { generateKeyPair } from 'jose';
+import { errors, generateKeyPair } from 'jose';
 import { test } from 'node:test';
-import { bearer, get, makeApp, OWNER, token } from './helpers.js';
+import { bearer, fakeDb, get, makeApp, OWNER, token } from './helpers.js';
 
 const json = async (r: Response) => ({ status: r.status, body: await r.json() as any });
 
@@ -53,10 +53,54 @@ test('bad tokens are turned away before the database', async () => {
 });
 
 test('a database failure is a 500 with a plain message, not a stack trace', async () => {
-  const { app } = makeApp({ db: (await import('./helpers.js')).fakeDb({ 'bgc.sign_in': () => { throw new Error('connection refused'); } }) });
+  const { app } = makeApp({ db: fakeDb({ 'bgc.sign_in': () => { throw new Error('connection refused'); } }) });
   const orig = console.error; console.error = () => {};
   try {
     const r = await json(await get(app, '/vault/whoami', bearer(await token())));
     assert.deepEqual(r, { status: 500, body: { ok: false, message: 'Something went wrong on our side. Try again in a minute.' } });
   } finally { console.error = orig; }
+});
+
+test('Google’s keys out of reach: a 503 asking to try again (not “sign in again”), one log line without the token', async () => {
+  const lines: string[] = [];
+  const orig = console.error; console.error = (s: unknown) => { lines.push(String(s)); };
+  try {
+    const outages = [
+      new TypeError('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND www.googleapis.com') }), // no network
+      new errors.JWKSTimeout(),                                                                        // Google slow
+      new errors.JOSEError('Expected 200 OK from the JSON Web Key Set HTTP response'),                 // Google 5xx
+    ];
+    for (const outage of outages) {
+      const { app, db } = makeApp({ keys: async () => { throw outage; } });
+      const t = await token();
+      const r = await json(await get(app, '/vault/whoami', bearer(t)));
+      assert.deepEqual(r, { status: 503, body: { ok: false, message: 'Can’t check your sign-in right now. Try again in a moment.' } }, outage.message);
+      assert.equal(db.calls.length, 0);
+    }
+    assert.equal(lines.length, outages.length);
+    for (const l of lines) { JSON.parse(l); assert.ok(!l.includes('eyJ'), 'no token in the log'); }
+    // A key set that simply has no key for this token is the token's fault
+    const { app } = makeApp({ keys: async () => { throw new errors.JWKSNoMatchingKey(); } });
+    assert.equal((await get(app, '/vault/whoami', bearer(await token()))).status, 401);
+  } finally { console.error = orig; }
+});
+
+test('a sign-in is remembered for a minute (members only); the rate limit comes before the database', async () => {
+  let now = 1_000_000;
+  const { app, db } = makeApp({ now: () => now });
+  const amy = bearer(await token());
+  const signIns = () => db.calls.filter((c) => c.sql.includes('bgc.sign_in')).length;
+  await get(app, '/vault/whoami', amy); await get(app, '/vault/me', amy);
+  assert.equal(signIns(), 1);
+  now += 61_000;
+  await get(app, '/vault/whoami', amy);
+  assert.equal(signIns(), 2, 'asked again after a minute');
+  // Someone not on the list isn't remembered: invited a moment later, they get in on their next try
+  const stranger = bearer(await token({ email: 'stranger@example.com' }));
+  await get(app, '/vault/whoami', stranger); await get(app, '/vault/whoami', stranger);
+  assert.equal(signIns(), 4);
+  // Over the limit: turned away before bgc.sign_in is called (cache off, so every allowed request shows as one call)
+  const fresh = makeApp({ env: { RATE_PER_MINUTE: '2' }, now: () => now, signInCacheMs: 0 });
+  for (let i = 0; i < 3; i++) await get(fresh.app, '/vault/whoami', amy);
+  assert.equal(fresh.db.calls.filter((c) => c.sql.includes('bgc.sign_in')).length, 2);
 });

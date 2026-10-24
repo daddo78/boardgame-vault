@@ -2,12 +2,12 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { cors } from 'hono/cors';
-import { memberGate, type AuthEnv, type VerifyToken } from './auth.js';
+import { memberGate, tokenGate, type AuthEnv, type VerifyToken } from './auth.js';
 import type { Config } from './config.js';
 import type { Db } from './db.js';
 import { ApiError, onError } from './errors.js';
+import type { Fetch } from './http.js';
 import { perMember, rateLimiter } from './rateLimit.js';
-import type { Fetch } from './nathan/openrouter.js';
 import { adminRoutes } from './routes/admin.js';
 import { areaRoutes } from './routes/areas.js';
 import { askRoutes } from './routes/ask.js';
@@ -19,11 +19,12 @@ import { rulebookRoutes } from './routes/rulebooks.js';
 import { shelfRoutes } from './routes/shelves.js';
 import { wishlistRoutes } from './routes/wishlist.js';
 
-export type Deps = { db: Db; verify: VerifyToken; config: Config; now?: () => number; fetch?: Fetch };
+// now and signInCacheMs are for the tests: a clock to move, and how long a sign-in is remembered (0: never)
+export type Deps = { db: Db; verify: VerifyToken; config: Config; now?: () => number; fetch?: Fetch; signInCacheMs?: number };
 
 const LOCALHOST = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
 
-export function createApp({ db, verify, config, now, fetch }: Deps) {
+export function createApp({ db, verify, config, now, fetch, signInCacheMs }: Deps) {
   const app = new Hono<AuthEnv>();
   app.onError(onError);
   app.notFound((c) => c.json({ ok: false, message: 'There’s nothing here' }, 404));
@@ -55,10 +56,12 @@ export function createApp({ db, verify, config, now, fetch }: Deps) {
     catch { return c.json({ ok: false, message: 'Can’t reach the database', version: config.version }, 503); }
   });
 
-  // Everything under /vault is for signed-in members, each with their own rate limit
+  // Everything under /vault is for signed-in members, each with their own rate limit. The limit comes right after the
+  // token check and before the membership lookup (two database writes), so a flood of requests costs no database time.
   const vault = new Hono<AuthEnv>();
-  vault.use(memberGate({ db, verify, ownerEmails: config.ownerEmails }));
+  vault.use(tokenGate(verify));
   vault.use(perMember(rateLimiter(config.ratePerMinute, now)));
+  vault.use(memberGate({ db, ownerEmails: config.ownerEmails, cacheMs: signInCacheMs, now }));
   vault.route('/', profileRoutes(db));
   vault.route('/', shelfRoutes(db));
   vault.route('/', wishlistRoutes(db));

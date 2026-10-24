@@ -4,10 +4,10 @@ import { Hono } from 'hono';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
 import { fromDb } from '../errors.js';
+import type { Fetch } from '../http.js';
 import { sendMail } from '../mail.js';
-import type { Fetch } from '../nathan/openrouter.js';
 import { runNode } from '../nodes.js';
-import { body } from './shelves.js';
+import { body } from '../request.js';
 
 export type MailDeps = { resendKey?: string; fetch?: Fetch; ownerEmail: string };
 

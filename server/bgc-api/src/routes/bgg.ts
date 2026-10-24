@@ -6,9 +6,9 @@ import { Hono } from 'hono';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
 import { ApiError, fromDb } from '../errors.js';
-import type { Fetch } from '../nathan/openrouter.js';
+import type { Fetch } from '../http.js';
 import { runNode } from '../nodes.js';
-import { body } from './shelves.js';
+import { body } from '../request.js';
 
 export type BggDeps = { db: Db; bggToken?: string; fetch?: Fetch };
 

@@ -130,4 +130,12 @@ test('areas: each switch sends its routes to this service; admins-only for admin
   const a = await json(await get(app, '/vault/api-areas', await dan()));
   assert.deepEqual(a.body.areas, { account: 'off', shelves: 'everyone', wishlist: 'off', rulebooks: 'off', admin: 'admins', accountChanges: 'off', wishlistChanges: 'off', rulebookChanges: 'off', shelfChanges: 'off', friendChanges: 'off', adminChanges: 'off', addGames: 'off', feedback: 'off', memberActions: 'off' });
   assert.equal((await get(app, '/vault/api-areas', await amy())).status, 403);
+  // A saved value that isn't an object (a hand edit) reads as all off, and the next change starts a fresh object
+  // instead of letting jsonb's || turn scalar || object into an array
+  for (const odd of ['everyone', ['shelves'], 7]) {
+    const db2 = fakeDb({ 'api_areas': (p) => (p.length ? null : odd) });
+    const r = await json(await get(makeApp({ db: db2 }).app, '/vault/api-areas', await dan()));
+    assert.ok(Object.values(r.body.areas).every((m) => m === 'off'), JSON.stringify(odd));
+  }
+  assert.match(db.calls.find((c) => c.sql.includes('INSERT INTO settings'))!.sql, /CASE WHEN jsonb_typeof\(settings\.value\) = 'object'/);
 });

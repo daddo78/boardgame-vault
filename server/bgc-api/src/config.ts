@@ -9,9 +9,10 @@ const Env = z.object({
   // The same Google sign-in client and owner as n8n/gen.js
   GOOGLE_CLIENT_ID: z.string().default('91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com'),
   OWNER_EMAILS: z.string().default('dandehaan@gmail.com'),
-  // The site, plus any localhost port for testing the page on your own computer
+  // The site, plus (only when asked: ALLOW_LOCALHOST=true, which the tests and `npm run dev` set) any localhost port for
+  // testing the page on your own computer. Off by default so the server, which never sets it, admits only the site.
   ALLOWED_ORIGINS: z.string().default('https://bg.ondorilabo.com'),
-  ALLOW_LOCALHOST: z.enum(['true', 'false']).default('true'),
+  ALLOW_LOCALHOST: z.enum(['true', 'false']).default('false'),
   // Requests per member per minute (a burst of this many, then refilling over the minute)
   RATE_PER_MINUTE: z.coerce.number().int().positive().default(120),
   VERSION: z.string().default('dev'),

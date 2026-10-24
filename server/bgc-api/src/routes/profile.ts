@@ -4,14 +4,11 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
 import { myProfile, profilePage, type Db } from '../db.js';
-import { fromDb, parse } from '../errors.js';
+import { fromDb } from '../errors.js';
+import { FriendQuery, parse } from '../request.js';
 import { validated } from '../writes.js';
 
 const MemoryQuery = z.object({ chat: z.string().optional() });
-
-const ProfileQuery =z.object({
-  friend: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional()),
-});
 
 export function profileRoutes(db: Db) {
   return new Hono<AuthEnv>()
@@ -24,7 +21,7 @@ export function profileRoutes(db: Db) {
     .get('/me', async (c) => c.json({ ok: true, profile: (await myProfile(db, c.get('auth').email)) ?? null }))
     // GET /vault/profile[?friend=<member id>]: your own profile, or a friend's (bgc.profile_page says who may see whom)
     .get('/profile', async (c) => {
-      const q = parse(ProfileQuery, c.req.query(), 'That profile link doesn’t look right');
+      const q = parse(FriendQuery, c.req.query(), 'That profile link doesn’t look right');
       return c.json(fromDb(await profilePage(db, c.get('auth').email, q.friend ?? null)));
     })
     // GET /vault/memory[?chat=<key>]: what Nathan remembers about you, and one saved chat to show again
