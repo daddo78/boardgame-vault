@@ -57,6 +57,8 @@ for (const t of tests) {
   if (t.remembers === false && (a.remembered || []).length) problems.push('should not remember: ' + a.remembered.join('; '));
   if (t.asks !== undefined && !!a.ask !== t.asks) problems.push(t.asks ? 'expected a question back' : 'should not ask: ' + a.ask);
   if (t.cites && !(a.sources || []).some((x) => !t.cites.page || x.page === t.cites.page)) problems.push('expected a page from the rulebook' + (t.cites.page ? ' (p. ' + t.cites.page + ')' : '') + ', got ' + JSON.stringify((a.sources || []).map((x) => x.label + ' p.' + x.page)));
+  const words = String(a.summary || '').split(/\s+/).filter(Boolean).length;
+  if (t.maxWords && words > t.maxWords) problems.push(words + ' words, expected at most ' + t.maxWords);
   ran++;
   if (problems.length) { failed++; console.log('FAIL  ' + t.name + time + '\n      ' + problems.join('; ') + '\n      answer: ' + text.replace(/\s+/g, ' ').slice(0, 300)); }
   else console.log('PASS  ' + t.name + time);
