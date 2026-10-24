@@ -1,7 +1,7 @@
 // Minimal static file server for previewing the repo root
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.resolve(process.argv[2]), port = Number(process.argv[3] || 8765);
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.jpg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.md': 'text/markdown', '.json': 'application/json' };
 http.createServer((req, res) => {
   const p = path.join(root, decodeURIComponent(req.url.split('?')[0]).replace(/\/$/, '/index.html'));
   if (!p.startsWith(root)) { res.writeHead(403); return res.end(); }
