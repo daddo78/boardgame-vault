@@ -1,7 +1,7 @@
 -- The people on a shelf without its games: /vault/people (the stars and who plays) built the whole shelf, games included,
 -- then threw the games away. shelf_view gets one more optional setting, with_games (default true), so every existing
 -- call is unchanged and /people asks for none: ~70 ms less on Dan's shelf, ~190 ms on an 844-game one.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 039_people_without_games.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 039_people_without_games.sql  (apply once via apply.sh)
 BEGIN;
 
 -- A new optional argument is a new function in Postgres: replace the 4-argument one in the same transaction

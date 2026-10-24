@@ -1,6 +1,6 @@
 -- A new kind of rules document: an expansion's own rulebook ("Expansion rulebook"), listed right after the rulebook.
 -- These are the live definitions of every function that names the kinds, with 'expansion' added; nothing else changes.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 035_rule_docs_expansion.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 035_rule_docs_expansion.sql  (apply once via apply.sh)
 BEGIN;
 
 ALTER TABLE rule_docs DROP CONSTRAINT IF EXISTS rule_docs_kind_check;

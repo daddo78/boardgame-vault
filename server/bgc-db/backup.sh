@@ -4,7 +4,7 @@
 #   /backup.sh        wait for BACKUP_AT (UTC) every day, then back up
 #   /backup.sh now    back up once and exit (used to test)
 set -u
-apk add --no-cache git openssh-client >/dev/null 2>&1
+# git and ssh come with the image (backup/Dockerfile); restore.sh restores a night from the same repo
 export GIT_SSH_COMMAND="ssh -i /keys/id_ed25519 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/root/known_hosts"
 
 run() {

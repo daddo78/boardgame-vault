@@ -1,5 +1,5 @@
 -- The admin portal's Rulebooks list: every document on the site, with its game, status and who added it (admins only)
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 028_admin_rulebooks.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 028_admin_rulebooks.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION bgc.rule_docs_all(email text) RETURNS jsonb LANGUAGE sql STABLE AS $$

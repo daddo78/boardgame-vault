@@ -1,5 +1,5 @@
 -- Phase 2b: Nathan, the people list and ratings work on whichever shelf is being viewed (Dan's or a friend's own).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 005_shelf_scoped.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 005_shelf_scoped.sql  (apply once via apply.sh)
 BEGIN;
 
 -- Ratings as records for one shelf owner's view: BGC stars from members linked to that owner's players, BGG ratings by username

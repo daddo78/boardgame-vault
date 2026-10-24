@@ -1,6 +1,6 @@
 -- Rulebooks apply to a game's other editions and expansions too: "Andromeda's Edge: Deluxe Edition" uses
 -- Andromeda's Edge's documents, for Nathan and for the 📖 on shelves. Whether anyone owns the game doesn't matter.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 027_rule_docs_editions.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 027_rule_docs_editions.sql  (apply once via apply.sh)
 BEGIN;
 
 -- The game whose documents this game uses: its own, else the longest title it starts with ("X: Deluxe Edition", "X – Second Edition", "X (2024)")

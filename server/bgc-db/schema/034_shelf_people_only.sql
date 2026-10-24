@@ -1,7 +1,7 @@
 -- Nathan's first step (understanding the question) needs only who is on the shelf: names, aliases, who's active, who's asking.
 -- shelf_view(..., people_only => true) gives just that, without the games, ratings and play histories (~10 ms instead of ~350),
 -- so he can start while the full shelf loads. The 3-argument call (n8n) is unchanged.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 034_shelf_people_only.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 034_shelf_people_only.sql  (apply once via apply.sh)
 BEGIN;
 
 -- A player or member with only the fields the roster needs (same ids and field keys as at.player_record / at.member_person)

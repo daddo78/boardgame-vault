@@ -1,6 +1,6 @@
 -- Only admins change or remove rulebooks (Dan, Oct 23). Members still add them; the person who added one can no longer
 -- edit or remove it. "mine" on a document now means "you may change it" (admins only), which is what shows the buttons.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 036_rule_docs_admin_only.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 036_rule_docs_admin_only.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION bgc.rule_doc_change(email text, doc bigint, action text, patch jsonb)

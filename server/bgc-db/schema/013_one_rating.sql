@@ -1,7 +1,7 @@
 -- One set of stars: each person's rating of a game. "Desire to play" stars become ratings where there's no rating yet.
 -- Also: the page learns whose rating the cards show (the shelf owner's), and Nathan Schmidt (the curator) is known on every shelf
 -- so "what do you like to play?" can be answered in his own voice.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 013_one_rating.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 013_one_rating.sql  (apply once via apply.sh)
 BEGIN;
 
 INSERT INTO ratings (member_id, game_id, stars)

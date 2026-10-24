@@ -1,6 +1,6 @@
 -- Phase 3: friends by code. Entering someone's code connects you both right away; you see a member's shelf
 -- only if you're friends (Dan's collection stays visible to every member).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 007_friends.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 007_friends.sql  (apply once via apply.sh)
 BEGIN;
 
 -- Friend codes: 6 characters, no look-alikes (0/O, 1/I/L), e.g. "K7MPQ2"

@@ -1,7 +1,7 @@
 -- Name matching looks at every catalog game, including ones not yet filled in from BoardGameGeek.
 -- If the best match hasn't been filled in, it returns nothing, so Nathan looks the game up on BGG
 -- instead of settling for the next-closest title ("Horror on the Orient Express" found "Dead Man on the Orient Express").
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 022_match_unfilled.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 022_match_unfilled.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION bgc.match_game(t text) RETURNS bigint LANGUAGE sql STABLE AS $$

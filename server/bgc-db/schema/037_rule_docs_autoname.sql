@@ -1,7 +1,7 @@
 -- After Nathan reads a rules document, a small step names it from its first pages: what it is (the base game's rulebook,
 -- an expansion's, an appendix…) and its own name ("The Norwegians", "The Edge Cases"). It only fills gaps: a name
 -- someone typed is kept, and the type is corrected only when it was left on the default "Rulebook".
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 037_rule_docs_autoname.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 037_rule_docs_autoname.sql  (apply once via apply.sh)
 BEGIN;
 
 -- What the naming step needs: whether there's anything to fill, the game, and the first two pages Nathan read

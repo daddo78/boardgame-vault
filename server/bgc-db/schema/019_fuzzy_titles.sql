@@ -1,6 +1,6 @@
 -- Find a game when the name is partial or a little off ("Tanares Adventure" -> "Arena: The Contest – Tanares Adventures").
 -- Exact title first; then a title that contains the words asked for; then the closest spelling (trigram similarity).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 019_fuzzy_titles.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 019_fuzzy_titles.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;

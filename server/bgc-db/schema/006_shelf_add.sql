@@ -1,5 +1,5 @@
 -- Phase 2b: a member adds a game to their own shelf (by BGG id, or a title for a game not on BGG).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 006_shelf_add.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 006_shelf_add.sql  (apply once via apply.sh)
 BEGIN;
 
 -- t: one parsed BGG thing (same shape the import uses: id, type, name, year, ..., baseIds, coverCard, coverLarge), or null for a title-only game.

@@ -1,6 +1,6 @@
 -- Feedback from members (the cog → Send feedback): how it's going (1–5, optional), what kind (an idea, a problem,
 -- praise, a question) and their words, plus the page and device it came from. Admins read it in Admin → Feedback.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 032_feedback.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 032_feedback.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS feedback (

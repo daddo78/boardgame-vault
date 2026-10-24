@@ -1,5 +1,5 @@
 -- A member can change the expansions they own for a game on their shelf (the × next to each one in the game's details).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 033_shelf_expansions.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 033_shelf_expansions.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION bgc.shelf_update(email text, skey text, f jsonb) RETURNS jsonb LANGUAGE plpgsql AS $$

@@ -2,7 +2,7 @@
 -- an admin types in (hosting, domains). Shown on Admin → Costs.
 --   ai_usage_snapshots  every hour: what this site's OpenRouter key has spent in total, and the account's balance
 --   ai_costs            each AI call's own cost, by feature (Nathan, photos, rulebooks, tests); the rest shows as "Other"
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 029_costs.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 029_costs.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS ai_usage_snapshots (

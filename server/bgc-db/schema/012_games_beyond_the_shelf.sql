@@ -1,6 +1,6 @@
 -- Nathan beyond the shelf: facts about any game (the shared catalog first; the workflow asks BGG for the rest),
 -- and "what should I buy?" ideas from games you don't own. Who owns a game is only ever said for your friends.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 012_games_beyond_the_shelf.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 012_games_beyond_the_shelf.sql  (apply once via apply.sh)
 BEGIN;
 
 -- The BGG facts the catalog keeps, as plain JSON

@@ -1,5 +1,5 @@
 -- Admins can add rulebooks from Admin → Rulebooks for any game, without the 5-a-day limit (the page cap still applies).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 031_rule_docs_admin.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 031_rule_docs_admin.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION bgc.rule_doc_new(email text, bgg integer, gtitle text, kind text, title text, source text) RETURNS jsonb LANGUAGE plpgsql AS $$

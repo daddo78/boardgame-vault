@@ -1,5 +1,5 @@
 -- Sign-in by membership (not by a card on Dan's shelf), visit tracking for usage metrics, and admin tools.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 017_sign_in_admin.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 017_sign_in_admin.sql  (apply once via apply.sh)
 BEGIN;
 
 ALTER TABLE members ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;

@@ -3,7 +3,7 @@
 -- game on the shelf; now each game's ids are unpacked first and a play matches by plain equality.
 -- Same answers: checked against the old version for all 414 people (294 with plays), no differences.
 -- People on Dan's shelf: 336 -> 230 ms; on a friend's 844-game shelf with 248 people: 3.7 -> 1.4 s. Nathan reads the same view.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 038_faster_play_history.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 038_faster_play_history.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION at.player_history(pid bigint) RETURNS jsonb LANGUAGE sql AS $$

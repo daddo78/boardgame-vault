@@ -1,6 +1,6 @@
 -- Reading rulebooks, more carefully: one document at a time, a page is only saved once Nathan has really seen it,
 -- and a document with unread pages goes back in the queue (up to 3 tries) instead of being called ready.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 025_rule_reading_retries.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 025_rule_reading_retries.sql  (apply once via apply.sh)
 BEGIN;
 
 ALTER TABLE rule_docs ADD COLUMN IF NOT EXISTS tries int NOT NULL DEFAULT 0;

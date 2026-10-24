@@ -1,5 +1,5 @@
 -- A game's documents say which ones the asker may change (they added it, or they're an admin)
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 026_rule_docs_mine.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 026_rule_docs_mine.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION bgc.rule_docs_of(email text, bgg integer) RETURNS jsonb LANGUAGE sql STABLE AS $$

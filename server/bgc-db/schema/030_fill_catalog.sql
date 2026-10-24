@@ -1,7 +1,7 @@
 -- Fill in catalog games that were never looked up on BoardGameGeek (they came in from logged plays): box art, players,
 -- time, weight, ratings. A job asks for 20 at a time: wishlist and Top 10 games first, then games on shelves, then the rest.
 -- A game BGG doesn't return is tried 3 times, then left alone.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 030_fill_catalog.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 030_fill_catalog.sql  (apply once via apply.sh)
 BEGIN;
 
 ALTER TABLE games ADD COLUMN IF NOT EXISTS fill_tries int NOT NULL DEFAULT 0;

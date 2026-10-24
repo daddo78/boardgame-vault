@@ -1,6 +1,6 @@
 -- The shelf is managed here, not on BGG: connecting BGG brings in plays only (no games), and a spreadsheet (CSV)
 -- of games is the fast way to fill a big shelf. Plays attach to a game as soon as it's on the shelf.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 010_csv_import.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 010_csv_import.sql  (apply once via apply.sh)
 BEGIN;
 
 -- Connecting BGG: remember the username and read their plays (no games)

@@ -1,5 +1,5 @@
 -- Phase 2: every member has their own shelf, imported from BGG. Direct queries (no Airtable adapter).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 003_member_shelves.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 003_member_shelves.sql  (apply once via apply.sh)
 BEGIN;
 CREATE SCHEMA IF NOT EXISTS bgc;
 

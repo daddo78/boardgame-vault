@@ -1,6 +1,6 @@
 -- Rulebooks: a member uploads a game's rulebook PDF once and every member can open it; Nathan answers rules questions from its text.
 -- One rulebook per game (a newer upload replaces it). Rulebooks are for the members' own use.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 018_rulebooks.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 018_rulebooks.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS rulebooks (

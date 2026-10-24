@@ -1,5 +1,5 @@
 -- Nathan's daily allowance: days roll over at midnight Eastern (the group's time zone), and everyone can see what's left.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 008_ask_allowance.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 008_ask_allowance.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION bgc.ask_day() RETURNS date LANGUAGE sql STABLE AS

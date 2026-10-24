@@ -1,5 +1,5 @@
 -- The admin dashboard: how people use the site. Nathan's answers are logged by kind and speed only (never the question text).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 020_dashboard.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 020_dashboard.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS ask_log (

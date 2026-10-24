@@ -1,5 +1,5 @@
 -- Wishlists (games you'd like, kept apart from your shelf) and profile pages (your Top 10 of all time, open to friends).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 015_wishlist_profile.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 015_wishlist_profile.sql  (apply once via apply.sh)
 BEGIN;
 
 ALTER TABLE members ADD COLUMN IF NOT EXISTS top_games jsonb NOT NULL DEFAULT '[]'; -- [{ bggId, title, cover }], best first, up to 10

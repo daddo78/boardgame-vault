@@ -4,7 +4,7 @@
 -- Field ids are the old Airtable ones, so the workflows' code is untouched. Everything is scoped to the admin's
 -- shelf (the one public collection) until the friends phase replaces this with direct queries.
 -- Record builders are VOLATILE on purpose: they must see writes made earlier in the same statement.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 002_airtable_adapter.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 002_airtable_adapter.sql  (apply once via apply.sh)
 
 BEGIN;
 CREATE SCHEMA IF NOT EXISTS at;

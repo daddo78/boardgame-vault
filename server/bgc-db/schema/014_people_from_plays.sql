@@ -1,6 +1,6 @@
 -- People lists come from logged plays (everyone you've played with, from 1 play), plus friends by code.
 -- Signing in no longer adds you to Dan's people; your profile and ratings live on your own account.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 014_people_from_plays.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 014_people_from_plays.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION at.request(tbl text, method text, path text, body jsonb, formula text)

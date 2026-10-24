@@ -29,6 +29,10 @@ SELECT pg_temp.check(bgc.shelf_view('dandehaan@gmail.com', 'main', NULL) ->> 'sh
 SELECT pg_temp.check((bgc.friend_shelf('nathan.schmidt@curator.invalid', 1) ->> 'ok')::boolean, 'a friend can open Dan''s shelf');
 SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.friend_shelf('nathan.schmidt@curator.invalid', 1) -> 'records') r
   WHERE (r -> 'fields' ->> 'fldskzh1rq9uchgYI')::boolean), 'a friend never sees Dan''s give-away list');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.shelf_view('nathan.schmidt@curator.invalid', 'friend:1', NULL) -> 'players') p
+  WHERE p -> 'fields' ? 'fldnwPL9Z33JcXoj2'), 'a friend never sees anyone''s email in the people list');
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.shelf_view('dandehaan@gmail.com', 'main', NULL) -> 'players') p
+  WHERE p -> 'fields' ? 'fldnwPL9Z33JcXoj2'), 'the owner still gets emails for the Players screen');
 
 -- Friend codes connect both ways
 SELECT pg_temp.check((bgc.add_friend('check.member@example.invalid', (SELECT friend_code FROM members WHERE id = 1)) ->> 'ok')::boolean, 'entering a friend code connects');

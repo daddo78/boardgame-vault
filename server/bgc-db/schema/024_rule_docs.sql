@@ -2,7 +2,9 @@
 -- each kept only as text Nathan wrote page by page, split into sections and searched with full-text search.
 -- The PDF itself is never stored here: the page service holds it only while it's read, then deletes it.
 -- People open the official copy from its source link. Replaces 018's single rulebook per game (none were uploaded).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 024_rule_docs.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 024_rule_docs.sql  (apply once via apply.sh)
+-- Not re-runnable: it drops the old rulebooks TABLE and creates a rulebooks VIEW of the same name, so a second run fails at
+-- DROP TABLE IF EXISTS rulebooks ("rulebooks is not a table"). That is what the ledger (040) and apply.sh are for.
 BEGIN;
 
 DROP FUNCTION IF EXISTS bgc.rulebook_save(text, integer, text, text, text, text, int);

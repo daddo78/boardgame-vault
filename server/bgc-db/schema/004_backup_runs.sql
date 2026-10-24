@@ -1,5 +1,5 @@
 -- Each nightly backup records how it went, so a daily health check can email when backups stop.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 004_backup_runs.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 004_backup_runs.sql  (apply once via apply.sh)
 CREATE TABLE IF NOT EXISTS backup_runs (
   id       bigserial PRIMARY KEY,
   at       timestamptz NOT NULL DEFAULT now(),

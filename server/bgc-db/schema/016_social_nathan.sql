@@ -1,6 +1,6 @@
 -- Social Nathan: "what can we play at Keith's?" and questions across all your friends' shelves ("who has a co-op for 6?").
 -- Only ever your friends; their give-away lists stay private.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 016_social_nathan.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 016_social_nathan.sql  (apply once via apply.sh)
 BEGIN;
 
 -- A friend by first or full name (null if no friend has that name)

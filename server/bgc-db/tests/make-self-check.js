@@ -16,8 +16,9 @@ for (let st of stmts) {
   lines.push(`    res := res || jsonb_build_object('what', ${m[2]}, 'ok', coalesce((${m[1].trim()}), false));`);
 }
 const sql = `-- The site's rules as one self-check: bgc.self_check() runs every check, undoes all its changes, and returns the results.
--- Used after every deploy and by the nightly self-test. Generated from server/bgc-db/tests/checks.sql by make-021.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 021_self_check.sql  (safe to re-run)
+-- Used after every deploy and by the nightly self-test. Generated from server/bgc-db/tests/checks.sql by make-self-check.js.
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 021_self_check.sql  (or bash apply.sh)
+-- apply.sh: always   (regenerated whenever checks.sql changes, so apply.sh re-applies it on every run; CREATE OR REPLACE)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION bgc.self_check() RETURNS jsonb LANGUAGE plpgsql AS $$

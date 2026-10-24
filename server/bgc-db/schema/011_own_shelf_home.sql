@@ -1,6 +1,6 @@
 -- Every member's home is their own shelf. Dan's shelf is like anyone's: friends open it from Friends.
 -- So Nathan and the @ list default to the asker's own shelf (Dan's own is the main collection).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 011_own_shelf_home.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 011_own_shelf_home.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION bgc.shelf_view(email text, shelf text, main_asker text) RETURNS jsonb LANGUAGE plpgsql VOLATILE AS $$

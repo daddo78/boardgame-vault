@@ -1,7 +1,7 @@
 -- Nathan knows who's asking on any shelf, and knows your friends wherever you are (so @Matt works on your own shelf).
 -- A member who isn't a player on the shelf being viewed comes along as a "person" card built from their own profile
 -- and their own play log (id recMember + 8 digits, so it passes the same checks as a player id).
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 009_people_everywhere.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 009_people_everywhere.sql  (apply once via apply.sh)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION at.member_key(mid bigint) RETURNS text LANGUAGE sql IMMUTABLE AS

@@ -1,6 +1,7 @@
 -- The site's rules as one self-check: bgc.self_check() runs every check, undoes all its changes, and returns the results.
--- Used after every deploy and by the nightly self-test. Generated from server/bgc-db/tests/checks.sql by make-021.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 021_self_check.sql  (safe to re-run)
+-- Used after every deploy and by the nightly self-test. Generated from server/bgc-db/tests/checks.sql by make-self-check.js.
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 021_self_check.sql  (or bash apply.sh)
+-- apply.sh: always   (regenerated whenever checks.sql changes, so apply.sh re-applies it on every run; CREATE OR REPLACE)
 BEGIN;
 
 CREATE OR REPLACE FUNCTION bgc.self_check() RETURNS jsonb LANGUAGE plpgsql AS $$
@@ -22,6 +23,10 @@ BEGIN
     res := res || jsonb_build_object('what', 'a friend can open Dan''s shelf', 'ok', coalesce(((bgc.friend_shelf('nathan.schmidt@curator.invalid', 1) ->> 'ok')::boolean), false));
     res := res || jsonb_build_object('what', 'a friend never sees Dan''s give-away list', 'ok', coalesce((NOT EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.friend_shelf('nathan.schmidt@curator.invalid', 1) -> 'records') r
   WHERE (r -> 'fields' ->> 'fldskzh1rq9uchgYI')::boolean)), false));
+    res := res || jsonb_build_object('what', 'a friend never sees anyone''s email in the people list', 'ok', coalesce((NOT EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.shelf_view('nathan.schmidt@curator.invalid', 'friend:1', NULL) -> 'players') p
+  WHERE p -> 'fields' ? 'fldnwPL9Z33JcXoj2')), false));
+    res := res || jsonb_build_object('what', 'the owner still gets emails for the Players screen', 'ok', coalesce((EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.shelf_view('dandehaan@gmail.com', 'main', NULL) -> 'players') p
+  WHERE p -> 'fields' ? 'fldnwPL9Z33JcXoj2')), false));
     res := res || jsonb_build_object('what', 'entering a friend code connects', 'ok', coalesce(((bgc.add_friend('check.member@example.invalid', (SELECT friend_code FROM members WHERE id = 1)) ->> 'ok')::boolean), false));
     res := res || jsonb_build_object('what', 'after connecting, the new friend can open Dan''s shelf', 'ok', coalesce(((bgc.friend_shelf('check.member@example.invalid', 1) ->> 'ok')::boolean), false));
     res := res || jsonb_build_object('what', '"at Check''s" finds the friend by first name', 'ok', coalesce((bgc.friend_by_name('dandehaan@gmail.com', 'Check') = bgc.member_id('check.member@example.invalid')), false));
@@ -59,7 +64,11 @@ BEGIN
     UPDATE rule_docs SET status = 'ready' WHERE sha256 = 'check-sha';
     res := res || jsonb_build_object('what', 'a rules question finds the right page', 'ok', coalesce(((bgc.rule_search('["Catan"]', 'can I trade with other players') -> 0 -> 'sections' -> 0 ->> 'page')::int = 3), false));
     res := res || jsonb_build_object('what', 'someone else can''t remove your rulebook', 'ok', coalesce((NOT (bgc.rule_doc_change('nathan.schmidt@curator.invalid', (SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'remove', '{}') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'only admins change a rulebook, not the member who added it', 'ok', coalesce((NOT (bgc.rule_doc_change('check.member@example.invalid', (SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'edit', '{"kind": "faq"}') ->> 'ok')::boolean), false));
     res := res || jsonb_build_object('what', 'a game with a rulebook shows it on every shelf', 'ok', coalesce((bgc.rule_doc_games() @> '[13]'), false));
+    res := res || jsonb_build_object('what', 'a rulebook left unnamed gets the name found on its pages', 'ok', coalesce(((bgc.rule_doc_autoname((SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'expansion', 'The Seafarers') ->> 'title') = 'The Seafarers'), false));
+    res := res || jsonb_build_object('what', 'a name already there is never replaced', 'ok', coalesce(((bgc.rule_doc_autoname((SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 'faq', 'Something else') ->> 'title') = 'The Seafarers'), false));
+    res := res || jsonb_build_object('what', 'a type left on Rulebook is corrected once, then kept', 'ok', coalesce(((SELECT kind FROM rule_docs WHERE sha256 = 'check-sha') = 'expansion'), false));
     res := res || jsonb_build_object('what', 'an AI call''s cost can be recorded', 'ok', coalesce((bgc.log_ai('dandehaan@gmail.com', '[{"feature": "nathan", "model": "check-model", "cost": 0.5}]') IS NULL), false));
     res := res || jsonb_build_object('what', 'the recorded cost is there afterwards', 'ok', coalesce((EXISTS (SELECT 1 FROM ai_costs WHERE model = 'check-model' AND cost = 0.5 AND feature = 'nathan')), false));
     res := res || jsonb_build_object('what', 'only admins see what the site costs', 'ok', coalesce((NOT (bgc.costs_page('check.member@example.invalid') ->> 'ok')::boolean AND (bgc.costs_page('dandehaan@gmail.com') ->> 'ok')::boolean), false));

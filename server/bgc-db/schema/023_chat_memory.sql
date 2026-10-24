@@ -1,6 +1,6 @@
 -- Nathan gets to know you: conversations are kept (6 months), and what he learns about you is kept as short notes
 -- you can see and delete on your profile. The admin dashboard still shows only kinds of questions, never the text.
--- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 023_chat_memory.sql  (safe to re-run)
+-- Apply: docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 < 023_chat_memory.sql  (apply once via apply.sh)
 BEGIN;
 
 -- One row per question and answer. A conversation is the turns that share a chat_key (the page starts a new one with "New chat").
