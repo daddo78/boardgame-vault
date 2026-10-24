@@ -48,6 +48,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -200,6 +210,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -335,6 +355,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -487,6 +517,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -623,6 +663,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -754,6 +804,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -885,6 +945,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -1016,6 +1086,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -1147,6 +1227,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -1278,6 +1368,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -1377,9 +1477,9 @@ export const STEPS = {
       'Extract what they want. Reply with JSON only:',
       '{',
       '  "onTopic": true if this is about board games (any game, owned or not), choosing or playing them, buying them, the games on this shelf, or the people who play here (their tastes, profile, play history), else false,',
-      '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"); "game" if they ask about one or more specific games themselves, owned or not (e.g. "what genre is Terraforming Mars", "how long is Brass", "would I like Ark Nova", "is Spirit Island good for 2", "should I buy Cascadia", "does Dan own Spirit Island", "who has Brass"); "rules" if they ask how to play a game or about its rules (e.g. "how do I set up Brass", "how does combat work in Spirit Island", "can you trade in Catan on someone else\'s turn", "how many cards do you draw in Wingspan"); "buy" if they want ideas for games to buy or get next (e.g. "what should I buy next", "what game should I add to my collection", "a co-op I don\'t own yet"),',
+      '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"); "game" if they ask about one or more specific games themselves, owned or not (e.g. "what genre is Terraforming Mars", "how long is Brass", "would I like Ark Nova", "is Spirit Island good for 2", "should I buy Cascadia", "does Dan own Spirit Island", "who has Brass", "which of my friends would love Brass"); "rules" if they ask how to play a game or about its rules (e.g. "how do I set up Brass", "how does combat work in Spirit Island", "can you trade in Catan on someone else\'s turn", "how many cards do you draw in Wingspan"); "buy" if they want ideas for games to buy or get next (e.g. "what should I buy next", "what game should I add to my collection", "a co-op I don\'t own yet"),',
       '  "atFriend": the first name of a friend if they are playing at that friend\'s place or ask about that friend\'s shelf or collection ("what can we play at Keith\'s", "anything good on Matt\'s shelf for 4"), else null,',
-      '  "acrossFriends": true if they ask which friend owns something or want games from any of their friends\' shelves ("who has a co-op for 6", "can anyone lend me a party game", "which of my friends owns Brass"), else false,',
+      '  "acrossFriends": true if they ask which friend owns something or want games from any of their friends\' shelves ("who has a co-op for 6", "can anyone lend me a party game", "which of my friends owns Brass", "which of my friends would love Brass"), else false,',
       '  "games": [for intent "game" or "rules": the official BoardGameGeek titles of the games they name, spelling corrected and completed (e.g. "Teraforming Mars" -> "Terraforming Mars", "Tanares Adventures" -> "Arena: The Contest – Tanares Adventures"). If they describe a game without naming it ("that Viking game by Uwe Rosenberg", "the trick-taking game in space"), always 2 or 3 different guesses of its official title, most likely first, so the right one is among them. Every guess must fit EVERY detail they give (theme, setting, designer, mechanism): for "the Viking game by Uwe Rosenberg where you fill your board with tiles" that is A Feast for Odin, not his farming games],',
       '  "guessed": true if "games" are your guesses from a description rather than names they typed, else false,',
       '  "searchTerms": for intent "rules": the words to look up in the rulebook, with synonyms and the game\'s own terms (e.g. "trade trading exchange other player turn"), else "",',
@@ -1478,6 +1578,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -1632,6 +1742,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -1765,6 +1885,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -1907,6 +2037,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -2046,6 +2186,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -2567,6 +2717,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -2802,6 +2962,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -2994,6 +3164,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
@@ -3129,6 +3309,16 @@ export const STEPS = {
   const firmIntent = (c, q) => {
     if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
     if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Which of my friends would love brass?" is about a game and the friends, not about a person (the model read it as
+    // "person" when the title was lowercase, Oct 24); the title it filed under themes is the game
+    if (c.intent === 'person' && /\b(which|who) (of (my|our) )?friends?\b.*\b(would|will|might|'d) (love|like|enjoy)\b/i.test(q)) {
+      c.intent = 'game';
+      if (!(Array.isArray(c.games) && c.games.filter(Boolean).length) && Array.isArray(c.themes)) {
+        // themes come back as strings or as objects ({ name } / { theme }); only plain titles may go to the lookup
+        const names = c.themes.map((t) => typeof t === 'string' ? t : (t && (t.name || t.title || t.theme)) || '').map((t) => String(t).trim()).filter(Boolean);
+        if (names.length) c.games = names.slice(0, 3);
+      }
+    }
     // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
     if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
     if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
