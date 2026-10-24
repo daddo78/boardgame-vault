@@ -2,6 +2,18 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.18 · October 23, 2026
+
+- **Nathan asks one question back:** when one missing detail would change his pick, he still gives you his best pick, then asks you about it under his answer: "How old are your kids?" or "How many friends are coming over?" Answer him and his next pick fits better. When you've already said enough, he doesn't ask.
+- **Games with your kids:** ask "what should I play with my kids?" and Nathan counts you plus the kids (never a solo game). Without their ages he skips games for 13 and up and leans toward younger, lighter ones. Tell him "they are 7 and 9" and he keeps the pick about the kids.
+- **Expansion rulebooks:** when you add a document under *Rulebooks & guides*, *Expansion rulebook* is now one of the types to choose. Nathan also reads the first pages of each new document and names it for you (an expansion's rulebook comes up as "The Norwegians", not just "Rulebook"). A name you typed yourself is kept.
+- **Rulebooks are now changed by admins only:** you can still add a rulebook to any game, but once it's in, only an admin can edit or remove it, so the buttons for that no longer show for you. Spot a mistake? Tap the ⚙️ cog → *Send feedback*.
+- **Signing in is one tap:** signed out, the sign-in button at the top opens Google's account chooser straight away (*Continue as …*).
+- **Faster loading:** the app is ready sooner, most of all on big shelves (one friend's went from almost 4 seconds to about 1).
+- What's new has an X in its top corner, like Settings, that stays in view as you scroll.
+
+*Behind the scenes: more of the app now runs on its own server, and Admin can rename and retype any rulebook.*
+
 ## v0.17 · October 23, 2026
 
 - **Nathan answers as he writes:** ask him something and he starts answering in about 2 seconds, with his words appearing as he writes them. Changed your mind? Tap *Stop*. Whatever he's written so far stays, with *Ask again* if you want the whole answer. If your connection drops partway, you keep what he wrote and can tap *Ask again* too.
