@@ -1,6 +1,6 @@
 # Board Game Curator
 
-A board game collection tracker: a static page (`index.html`) backed by n8n workflows and an Airtable base. Each game shows its box art from BoardGameGeek (or an AI-picked [Tabler Icons](https://tabler.io/icons) glyph when BGG has none), plus BGG details and your play history.
+A board game collection tracker for a small invite-only group of friends: a static page (`index.html`) backed by a Postgres database and a small API on our own server, with n8n for the remaining workflows and schedules. Each member has a shelf; friends see each other's. Each game shows its box art from BoardGameGeek (or an AI-picked [Tabler Icons](https://tabler.io/icons) glyph when BGG has none), plus BGG details and your play history.
 
 Live at **https://bg.ondorilabo.com** (GitHub Pages, custom domain via Cloudflare) and **https://daddo78.github.io/boardgame-vault/**.
 
@@ -26,12 +26,12 @@ Ask is public, board games only, and capped at 200 questions a day overall (abou
 
 ### People and ratings
 
-- **In the app:** each game's detail view shows everyone's ratings and the average. A signed-in friend gets **Your rating** stars; tap the current rating again to clear it. The owner can also **Rate for** any player. The owner edits profiles under **Settings → Players**: name, other names (as logged in BG Stats), active, the five dials, likes, dislikes, age, notes, BGG username and Google email.
-- **Friends signing in:** put their Google email on their player card. While the Google OAuth consent screen is in *Testing* mode, also add them as a test user in Google Cloud (APIs & Services → OAuth consent screen → Test users), or publish the app. Basic sign-in scopes need no Google review.
+- **In the app:** each game's detail view shows everyone's ratings and the average. A signed-in member gets **Your rating** stars; tap the current rating again to clear it. Nobody rates on someone else's behalf. The shelf owner edits player cards under **Settings → Players**: name, other names (as logged in BG Stats), active, BGG username and Google email.
+- **Friends signing in:** invite them from Admin → Members (their Google email); the invite emails them. While the Google OAuth consent screen is in *Testing* mode, also add them as a test user in Google Cloud (APIs & Services → OAuth consent screen → Test users), or publish the app. Basic sign-in scopes need no Google review.
 
-- **Players** (Airtable): a card per person with five 1-5 dials (complexity, conflict, luck, table talk, theme), likes, dislikes, age and notes. Optional: a Google email, which lets that friend sign in and rate games for themselves, and a BGG username.
-- **Sync People** (nightly, 4:20am): reads who played and who won from the BGG plays logged in BG Stats. It builds each person's history per owned game, creates a card for anyone with 3+ plays, and pulls BG Stats per-play ratings and friends' BGG ratings.
-- **Ratings** come from four sources on a 1-5 scale: the friend on the site, the owner on their behalf, their BGG account, and BG Stats. When a person has several ratings for a game, the first one in that order wins.
+- **Players** (`players` table, one set per shelf): a card per person with name, aliases (as logged in BG Stats), active flag, BGG username and Google email. Members fill in their own taste profile (five 1-5 dials: complexity, conflict, luck, table talk, theme; likes, dislikes, age, about me) under My profile; nobody writes dials or notes about someone else.
+- **Sync People** (nightly, 4:20am): reads who played and who won from the BGG plays logged in BG Stats. It builds each person's history per owned game, creates a card for anyone with 3+ plays, and pulls friends' BGG ratings.
+- **Ratings**: the stars on the site are each member's own rating (1-5, one per game). BGG ratings (out of 10) are kept separately and shown as BGG's, never mixed in.
 
 ## Play tracking
 
@@ -44,31 +44,27 @@ Plays are logged in [BG Stats](https://www.bgstatsapp.com/), which auto-posts th
 ## Architecture
 
 ```
-index.html (static page, no build step)
-  → fetch()
-n8n webhooks at https://n8n.ondorilabo.com/webhook/vault/*   (Hostinger VPS, Cloudflare Tunnel)
-  → Airtable base "Board Game Garage Collection", table "Games"   (source of truth)
-  → OpenRouter: Gemini 2.5 Flash Lite (photo → titles), Claude Haiku 5.5 (icon picks); only providers that don't store data
-  → BoardGameGeek XML API2 with an app Bearer token (ratings, details, plays)
+index.html, admin.html (static pages, no build step; GitHub Pages behind Cloudflare)
+  → fetch() with a Google ID token
+  ├→ API    https://api.ondorilabo.com/vault/*      (server/bgc-api: Hono on Node, Docker on the Hostinger VPS)
+  └→ n8n    https://n8n.ondorilabo.com/webhook/vault/*   (the workflows not yet moved, and all schedules)
+        → Postgres "bgc" (server/bgc-db: the source of truth; bgc.* functions hold the rules)
+        → OpenRouter: Gemini 2.5 Flash Lite (understanding a question, photo → titles, reading rulebook pages),
+                      Claude Haiku 5.5 (Nathan's answers, icon picks); only providers that don't store data
+        → BoardGameGeek XML API2 with an app Bearer token (ratings, details, plays)
+        → Resend (feedback and invite emails)
 ```
+Everything reaches the VPS through one Cloudflare Tunnel; Postgres and the API publish no ports.
 
-### Workflows
+### Where each request goes
 
-All workflows are generated by [`n8n/gen.js`](n8n/gen.js) into `n8n/workflows/*.json`. Deploy with [`n8n/deploy.sh`](n8n/deploy.sh), which regenerates, imports, publishes and restarts n8n (a few seconds of downtime). Pass names to deploy a subset, e.g. `./n8n/deploy.sh bggOne iconOne`.
+The page asks `GET /vault/routes` once and then sends each area (account, shelves, wishlist, rulebooks, admin, Nathan, …) to the API when its switch is on (Admin → New API: off / admins only / everyone), to n8n otherwise or whenever the API can't be reached. Reads and most changes are on the API; adding to Dan's own collection (AI blurb, BGG details, icon), photo identify, rulebook upload and the imports still run in n8n, as do the schedules (nightly play sync, Fill Catalog, the rulebook reader, cost readings, backup check, failure alerts). `docs/architecture.html` has the per-route table.
 
-| Workflow | Trigger | Purpose |
-|---|---|---|
-| Vault — Get Collection | `GET /vault/collection` | All games, shaped for the page |
-| Vault — Update Game | `POST /vault/update {id, fields}` | Allow-listed fields only (desireToPlay, thinningCandidate, favorite, icon, title, …) |
-| Vault — Delete Game | `POST /vault/delete {id}` | Removes one record |
-| Vault — Identify Games From Photo | `POST /vault/identify` (multipart `photo`) | Vision → duplicate checks → create / attach expansion → BGG enrich → icon |
-| Vault — Search BGG | `GET /vault/bgg-search?q=` | BGG candidates (title, year, game/expansion and base, thumbnail, rating, rank) for add by name |
-| Vault — Add Game By Name | `POST /vault/add {bggId}` or `{title}` | Same duplicate rules as photos; AI writes genre/type/one-liner from BGG's description |
-| Vault — Assign Icon (single) | `POST /vault/assign-icon {id, avoid?}` | AI suggests 8 Tabler names; first valid one in the catalog wins, skipping anything in `avoid` |
-| Vault — Assign Icons (batch) | manual | Runs the above for every game still on `meeple` |
-| Vault — BGG Enrich (single) | `POST /vault/bgg-enrich {id, dryRun?, bggId?, rematch?, adoptTitle?, applyFuzzy?}` | Finds the game on BGG and stores its details |
-| Vault — BGG Enrich (batch) | manual | Runs the above for games without a BGG ID |
-| Vault — Sync Plays From BGG | daily 4am + `POST /vault/sync-plays` | Play counts from your BGG plays |
+**n8n**: all 54 workflows are generated by [`n8n/gen.js`](n8n/gen.js) into `n8n/workflows/*.json`. Deploy with [`n8n/deploy.sh`](n8n/deploy.sh), which regenerates, imports, publishes and restarts n8n (a few seconds of downtime). Pass names to deploy a subset, e.g. `./n8n/deploy.sh bggOne iconOne`.
+
+**API** ([`server/bgc-api`](server/bgc-api)): Hono on Node 22 in Docker beside Postgres; `check.sh` runs types and tests, `deploy.sh` ships blue/green behind a health check. Nathan's steps, the input checks and the row shapers are copied word for word out of `gen.js` by `scripts/extract-nathan.cjs`, so n8n and the API can't drift while both exist.
+
+**Database** ([`server/bgc-db`](server/bgc-db)): Postgres 16 with the rules in `bgc.*` functions (membership, friends, privacy, ratings, Nathan's memory) and an `at.*` layer that still answers in Airtable's record format (`fld…` field ids), which is what the page reads. Migrations live in `schema/`; NocoDB gives a spreadsheet view; nightly plain-SQL backups go to a private repo.
 
 ### How BGG matching works
 
@@ -84,22 +80,22 @@ Box art comes from BGG during enrichment: the XML API only gives a 200×150 thum
 
 Each card uses a Tabler Icons outline glyph (`<i class="ti ti-{icon}">`), loaded from the `@tabler/icons-webfont@3.49.0` CDN. Icon picks are validated against that exact stylesheet, so every saved name renders. The model suggests 8 ranked names based on what's distinctive about the game. The first one that exists (excluding crossed-out `-off` variants) is saved, and `meeple` is the fallback. A spread pass passes overused icons as `avoid`, keeping each icon to about 3 games.
 
-### Airtable fields (table "Games")
+### Game fields (the page's wire format)
 
-`Title`, `GameID` (the page's `id`: `manual-g<N>` for the original list, `photo-g<N>` for photo adds), `Num`, `Genre`, `Type`, `Description`, `Expansions` (JSON array), `DesireToPlay`, `ThinningCandidate`, `Favorite`, `Icon`, `BGGId`, `BGGRating`, `MinPlayers`, `MaxPlayers`, `BestPlayers` (JSON), `MinTime`, `MaxTime`, `Weight`, `Year`, `MinAge`, `Designers` (JSON), `Rank`, `Categories` (JSON), `Mechanics` (JSON), `PlayCount`, `LastPlayed`, `Favorite`, `CoverCard`, `CoverLarge`, `AddedAt`, `UpdatedAt`.
+The page still reads games in Airtable's record shape (`at.game_record` in `schema/002`), by field id; `toGame` in `gen.js`'s prelude maps the ids to these names: `Title`, `GameID` (the page's `id`: `manual-g<N>` for the original list, `photo-g<N>` for photo adds), `Num`, `Genre`, `Type`, `Description`, `Expansions` (JSON array), `DesireToPlay`, `ThinningCandidate`, `Favorite`, `Icon`, `BGGId`, `BGGRating`, `MinPlayers`, `MaxPlayers`, `BestPlayers` (JSON), `MinTime`, `MaxTime`, `Weight`, `Year`, `MinAge`, `Designers` (JSON), `Rank`, `Categories` (JSON), `Mechanics` (JSON), `PlayCount`, `LastPlayed`, `Favorite`, `CoverCard`, `CoverLarge`, `AddedAt`, `UpdatedAt`.
 
 ## Local preview
 
-`.claude/launch.json` serves the repo root with a tiny Node static server (`node .claude/static-server.js . 8765`); the page talks to the live n8n.
+`.claude/launch.json` serves the repo root with a tiny Node static server (`node .claude/static-server.js . 8765`); the page talks to the live n8n, and to the live API only when it runs with `ALLOW_LOCALHOST=true` (it's off in production, so the page falls back to n8n).
 
 ## Sign-in and security
 
-Anyone can browse the collection. Changing it (ratings, favorites, culling, adding or deleting games, photo and name lookups, icon and BGG refreshes, play syncs) requires signing in with Google as the owner.
+The site is invite only: a visitor sees the landing page and a Google sign-in. Everything behind it, reading included, needs a signed-in member (someone on the invite list; Dan is the admin and invites from Admin → Members).
 
-- The page uses Google Identity Services ("Sign in with Google", client ID in `index.html` and `n8n/gen.js`). The Google ID token is kept in the browser and sent as `Authorization: Bearer <token>` with every change. When it expires (about hourly) the page renews it silently.
-- Every change webhook starts with a sign-in gate (`addAuth` in `gen.js`): Google's tokeninfo endpoint verifies the token, then n8n requires this client ID, a verified email, and an address in `OWNER_EMAILS`. Anything else gets a 401 before any work is done. A photo upload is deleted first.
-- Reading the collection (`GET /vault/collection`) stays public. Workflows calling each other internally skip the gate.
-- Right after Google sign-in the page calls `GET /vault/whoami` (behind the same gate). Only if n8n confirms the owner does the page show editing controls; any other account is signed straight back out as view-only. The owner's email lives only in the n8n workflows, not in the public page.
+- The page uses Google Identity Services ("Sign in with Google", public client ID in `index.html`, `server/bgc-api/src/config.ts` and `n8n/gen.js`). The Google ID token is kept in the browser and sent as `Authorization: Bearer <token>` with every request. When it expires (about hourly) the page renews it silently.
+- The API checks the token itself with Google's public keys (`src/auth.ts`: signed by Google, for our client, not expired, email verified), then `bgc.sign_in(email)` says whether they're a member and their role. n8n's webhooks do the same through `addMemberAuth` in `gen.js` (Google's tokeninfo endpoint). Anything else gets a 401 before any work is done; a photo upload is deleted first. Workflows calling each other internally have no URL, so they can't be reached from outside.
+- Who sees what is decided in the database (`bgc.can_see`, `bgc.are_friends`): your own shelf, Dan's, and the shelves of friends you've connected with by code. A friend never sees your culling list, or your plays with other people.
+- Nathan is for members only, with a per-member daily question limit (Admin sets it); questions are never written to the metrics, and photos sent to him are never stored.
 
 ## Hosting
 
