@@ -9,30 +9,20 @@
 # Leaves an inactive "TEMP test: ask" workflow in n8n (archive it in the UI when done testing).
 set -euo pipefail
 cd "$(dirname "$0")"
+. ./env.sh
 Q="${1:?question}"; EMAIL="${2:-dandehaan@gmail.com}"; ROLE="${ROLE:-owner}"; SHELF="${SHELF:-main}"
-SSH="ssh -i $HOME/.ssh/claude_hostinger claude-ops@148.230.83.130"
-CONTAINER=n8n-ckq4-n8n-1
 TMP="${TEMP:-/tmp}/tmpask-$$.json"
 OUT="${TEMP:-/tmp}/tmpask-out-$$.json"
 node - "$Q" "$EMAIL" "$ROLE" "$TMP" "$SHELF" <<'NODE'
 const [q, email, role, out, shelf] = process.argv.slice(2);
 const w = JSON.parse(require('fs').readFileSync('workflows/ask.json', 'utf8'));
-w.id = 'BGVaultTmpAsk001'; w.name = 'TEMP test: ask'; delete w.settings.errorWorkflow;
-const drop = (n) => /^Auth: (Read Token|Verify With Google|Check Token|Find Player)$/.test(n) || n === 'Token Valid?' || n === 'Member?';
-w.nodes = w.nodes.filter((n) => !drop(n.name));
-for (const k of Object.keys(w.connections)) if (drop(k)) delete w.connections[k];
-const wh = w.nodes.find((n) => n.name === 'Webhook');
-Object.assign(wh, { type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, parameters: {} }); delete wh.webhookId;
-const roleNode = w.nodes.find((n) => n.name === 'Auth: Role');
-roleNode.parameters = { jsCode: `return [{ json: { body: { question: ${JSON.stringify(q)}, playerIds: [], shelf: ${JSON.stringify(shelf)}, previous: ${process.env.PREV || "null"}, chatKey: ${JSON.stringify(process.env.CHAT || "")}, noMemory: ${process.env.MEMORY === "0"}, test: true, image: ${process.env.IMAGE ? JSON.stringify("data:image/jpeg;base64," + require("fs").readFileSync(process.env.IMAGE).toString("base64")) : "null"} }, _authOk: true, _auth: { role: ${JSON.stringify(role)}, email: ${JSON.stringify(email)}, playerId: $('Who').first().json.playerId, playerName: $('Who').first().json.playerName } } }];` };
-// Look up the member's player card the same way sign-in does
-w.nodes.push({ id: 'who', name: 'Who', type: 'n8n-nodes-base.postgres', typeVersion: 2.6, position: [0, 200],
-  parameters: { operation: 'executeQuery', options: {},
-    query: "SELECT x -> 'records' -> 0 ->> 'id' AS \"playerId\", x -> 'records' -> 0 -> 'fields' ->> 'fldWVws64FVcdtuSJ' AS \"playerName\" FROM (SELECT at.request('tblNahVdHDueJJ0w4', 'GET', '', 'null', 'LOWER({GoogleEmail})=''" + email.toLowerCase().replace(/'/g, '') + "''') AS x) q" },
-  credentials: { postgres: { id: 'BGCPostgres00001', name: 'BGC Postgres' } } });
-w.connections.Webhook = { main: [[{ node: 'Who', type: 'main', index: 0 }]] };
-w.connections.Who = { main: [[{ node: 'Auth: Role', type: 'main', index: 0 }]] };
-w.connections['Auth: Role'] = { main: [[{ node: 'Validate', type: 'main', index: 0 }]] };
+require('./tests/as-member')(w, { id: 'BGVaultTmpAsk001', name: 'TEMP test: ask',
+  roleCode: `return [{ json: { body: { question: ${JSON.stringify(q)}, playerIds: [], shelf: ${JSON.stringify(shelf)}, previous: ${process.env.PREV || "null"}, chatKey: ${JSON.stringify(process.env.CHAT || "")}, noMemory: ${process.env.MEMORY === "0"}, test: true, image: ${process.env.IMAGE ? JSON.stringify("data:image/jpeg;base64," + require("fs").readFileSync(process.env.IMAGE).toString("base64")) : "null"} }, _authOk: true, _auth: { role: ${JSON.stringify(role)}, email: ${JSON.stringify(email)}, playerId: $('Who').first().json.playerId, playerName: $('Who').first().json.playerName } } }];`,
+  // Look up the member's player card the same way sign-in does
+  who: { id: 'who', name: 'Who', type: 'n8n-nodes-base.postgres', typeVersion: 2.6, position: [0, 200],
+    parameters: { operation: 'executeQuery', options: {},
+      query: "SELECT x -> 'records' -> 0 ->> 'id' AS \"playerId\", x -> 'records' -> 0 -> 'fields' ->> 'fldWVws64FVcdtuSJ' AS \"playerName\" FROM (SELECT at.request('tblNahVdHDueJJ0w4', 'GET', '', 'null', 'LOWER({GoogleEmail})=''" + email.toLowerCase().replace(/'/g, '') + "''') AS x) q" },
+    credentials: { postgres: { id: 'BGCPostgres00001', name: 'BGC Postgres' } } } });
 // Test questions don't use up anyone's daily allowance
 const use = w.nodes.find((n) => n.name === 'Use Allowance');
 Object.assign(use, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode: 'return [{ json: { questions: 0 } }];' } }); delete use.credentials;
@@ -45,10 +35,7 @@ if (save && process.env.SAVE !== '1') { Object.assign(save, { type: 'n8n-nodes-b
 for (const n of w.nodes) if (n.type === 'n8n-nodes-base.respondToWebhook') Object.assign(n, { type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { jsCode: 'return $input.all();' } });
 require('fs').writeFileSync(out, JSON.stringify([w]));
 NODE
-NAME="tmpask-$(date +%s).json"
-scp -q -i "$HOME/.ssh/claude_hostinger" "$TMP" "claude-ops@148.230.83.130:/tmp/$NAME"; rm -f "$TMP"
-$SSH "cat /tmp/$NAME | docker exec -i $CONTAINER sh -c 'cat > /tmp/$NAME'; rm -f /tmp/$NAME; docker exec $CONTAINER n8n import:workflow --input=/tmp/$NAME >/dev/null 2>&1; docker exec $CONTAINER rm -f /tmp/$NAME;
-  docker exec -e N8N_RUNNERS_BROKER_PORT=5691 -e N8N_PORT=5699 -e QUEUE_HEALTH_CHECK_PORT=5698 $CONTAINER sh -c 'n8n execute --id=BGVaultTmpAsk001 --rawOutput > /tmp/tmpask-out.json 2>/dev/null; cat /tmp/tmpask-out.json; rm -f /tmp/tmpask-out.json'" > "$OUT" || true
+n8n_run_once "$TMP" BGVaultTmpAsk001 "$OUT"; rm -f "$TMP"
 node - "$OUT" <<'NODE'
 const fs = require('fs');
 const raw = fs.readFileSync(process.argv[2], 'utf8');

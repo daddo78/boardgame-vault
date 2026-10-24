@@ -40,12 +40,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -58,6 +72,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -80,7 +96,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -125,12 +140,6 @@ export const STEPS = {
     const question = String(b.question || '').trim() || (image ? 'What is this?' : '');
     if (question.length < 3) return err(400, 'Ask a question, like "a co-op for 3 under an hour".');
     if (question.length > 500) return err(400, 'Keep the question under 500 characters.');
-    // Safety net across everyone (the per-member allowance is checked next, in the database)
-    const st = $getWorkflowStaticData('global');
-    const today = new Date().toISOString().slice(0, 10);
-    if (st.day !== today) { st.day = today; st.count = 0; }
-    if (st.count >= 200) return err(429, 'Ask has answered a lot of questions today. Try again tomorrow.');
-    st.count += 1;
     const playerIds = Array.isArray(b.playerIds) ? b.playerIds.map(String).filter((x) => /^rec[A-Za-z0-9]{14}$/.test(x)).slice(0, 12) : [];
     const prev = b.previous && typeof b.previous === 'object' ? {
       question: String(b.previous.question || '').slice(0, 500),
@@ -183,12 +192,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -201,6 +224,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -223,7 +248,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -303,12 +327,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -321,6 +359,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -343,7 +383,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -440,12 +479,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -458,6 +511,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -480,7 +535,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -561,12 +615,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -579,6 +647,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -601,7 +671,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -677,12 +746,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -695,6 +778,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -717,7 +802,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -793,12 +877,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -811,6 +909,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -833,7 +933,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -909,12 +1008,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -927,6 +1040,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -949,7 +1064,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -1025,12 +1139,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -1043,6 +1171,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -1065,7 +1195,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -1141,12 +1270,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -1159,6 +1302,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -1181,7 +1326,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -1326,12 +1470,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -1344,6 +1502,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -1366,7 +1526,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -1415,14 +1574,7 @@ export const STEPS = {
     const aboutOpen = /\b(here|this shelf|this collection|on (his|her|their) shelf)\b/i.test(q) || (first && q.toLowerCase().includes(first));
     let c = {};
     try { c = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
-    // Firm rules on top of the model's reading: "a game I don't own / don't have / not on my shelf" means buy ideas
-    // (also as a follow-up), and a question about "a game" that names none is a recommendation, or a search of friends' shelves
-    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
-    // "Who has…" is about friends' copies to borrow, never ideas to buy
-    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
-    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
-    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
-    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    firmIntent(c, q); // the firm rules Scope and Shortlist share (see the prelude)
     // A question about a game or what to buy is about the asker: their shelf and taste, wherever they are
     const forMe = c.intent === 'game' || c.intent === 'buy' || c.intent === 'rules';
     const titles = (c.intent === 'game' || c.intent === 'rules') && Array.isArray(c.games) ? c.games.map((t) => String(t).trim()).filter(Boolean).slice(0, 3) : [];
@@ -1472,12 +1624,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -1490,6 +1656,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -1512,7 +1680,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -1590,12 +1757,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -1608,6 +1789,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -1630,7 +1813,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -1668,7 +1850,6 @@ export const STEPS = {
       source: typeof src === 'object' && src ? src.name : src || '' };
   };
 
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const asked = $('Lookup Queries').all().map((i) => i.json);
     return $input.all().map((res, i) => {
       const t = normTitle(asked[i].title);
@@ -1718,12 +1899,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -1736,6 +1931,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -1758,7 +1955,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -1842,12 +2038,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -1860,6 +2070,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -1882,7 +2094,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -1926,14 +2137,7 @@ export const STEPS = {
     try { c = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
     if (c.onTopic === false) return [{ json: { offTopic: true, reply: String(c.reply || 'I can only help pick board games from this shelf.') } }];
     { const q = String(v.question || '');
-    // Firm rules on top of the model's reading: "a game I don't own / don't have / not on my shelf" means buy ideas
-    // (also as a follow-up), and a question about "a game" that names none is a recommendation, or a search of friends' shelves
-    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
-    // "Who has…" is about friends' copies to borrow, never ideas to buy
-    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
-    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
-    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
-    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    firmIntent(c, q); // the firm rules Scope and Shortlist share (see the prelude)
     // "My top ten" / "my all-time favorites" with no other measure is their own Top 10 from My profile, not plays or stars
     if (/\bmy (all[- ]time )?(top (10|ten)|favou?rite games|all[- ]time favou?rites)\b/i.test(q) && !/\b(play|played|plays|rated|rating|ratings|stars?|heaviest|weight|recent|recently|newest|added|bgg|rank|ranked)\b/i.test(q)) { c.intent = 'browse'; c.sort = 'pick'; c.limit = 10; }
     }
@@ -2261,7 +2465,7 @@ export const STEPS = {
             (ownership.length ? ownership.join('\n') + ' (answer this first)\n' : '') + taste + (notFound.length ? '\nNOT FOUND ON BGG: ' + notFound.join(', ') : '') +
             // "Which of my friends would love Ark Nova?": their friends' own profiles, to match the game against
             (scope.forFriends ? '\nTHEIR FRIENDS (match the game to each one; say who would love it and who might not, and why):\n' +
-              players.filter((p) => p.googleEmail && p.name !== sv.askerName).map((p) => p === curator ? curatorFacts(p) : profile(p)).join('\n') : ''),
+              players.filter((p) => p.member && p.name !== sv.askerName).map((p) => p === curator ? curatorFacts(p) : profile(p)).join('\n') : ''),
           shortIds: Object.keys(titles), titles, off,
           gameLines: lines.join('\n'), profiles: '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest: '', fromOwn: !!own } }];
       }
@@ -2355,12 +2559,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -2373,6 +2591,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -2395,7 +2615,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -2575,12 +2794,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -2593,6 +2826,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -2615,7 +2850,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -2752,12 +2986,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -2770,6 +3018,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -2792,7 +3042,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -2872,12 +3121,26 @@ export const STEPS = {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -2890,6 +3153,8 @@ export const STEPS = {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -2912,7 +3177,6 @@ export const STEPS = {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -2951,143 +3215,6 @@ export const STEPS = {
   };
 
     return [{ json: { ok: true, offTopic: true, pick: null, note: $input.first().json.reply } }];
-  
-  },
-  "Auth: Read Token": function ($, $input, $getWorkflowStaticData) {
-const h = $input.first().json.headers || {};
-const a = String(h.authorization || '');
-return [{ json: { token: a.startsWith('Bearer ') ? a.slice(7).trim() : '' } }];
-  },
-  "Auth: Check Token": function ($, $input, $getWorkflowStaticData) {
-const info = $input.first().json || {};
-const owners = 'dandehaan@gmail.com'.split(',');
-const email = String(info.email || '').toLowerCase();
-const ok = info.aud === '91195561493-sbejlc54u0jgr6bid835k9mo8k3j5kqc.apps.googleusercontent.com'
-  && (info.email_verified === true || info.email_verified === 'true')
-  && Number(info.exp) * 1000 > Date.now() && !!email;
-if (!ok) return [{ json: { ok: false, status: 401, message: 'Sign in to do that' } }];
-return [{ json: { ok: true, email, owner: owners.includes(email) } }];
-  },
-  "Auth: Role": function ($, $input, $getWorkflowStaticData) {
-  const F = {
-    title: 'fldOSxvCDWJdYbUZe', gameId: 'fldJ1g6gtxWDwlWsI', num: 'fldMTwTBzGdIl5juS',
-    genre: 'fldiVlY0CFWH4HMmy', type: 'fldAz2n321hbVgQyN', desc: 'fldUvT2Ek81fKIIDG',
-    expansions: 'fldVITaI4eagPe9tS', desireToPlay: 'fldV5vlwouSyJcPjY', thinningCandidate: 'fldskzh1rq9uchgYI',
-    icon: 'fldAeaCX58kL3EtaF', bggId: 'fldbWi7hhf2VGYzZl', bggRating: 'fld39CpmejKlyRSU9',
-    addedAt: 'fldH3CEdj0SibBeMJ', updatedAt: 'fldFQIX0PXXyas2V7',
-    minPlayers: 'fldzXSHLRYoKjn9YY', maxPlayers: 'fldwlQj31eoBIgF32', bestPlayers: 'fldGj8TR8Qgr3awAe',
-    minTime: 'fldmxVhDKLpxevVS4', maxTime: 'fldAAPDFVAH2lOax5', weight: 'flduy1oWFgwMcu3my',
-    year: 'fldt0ihrGswaVysGs', minAge: 'fldyGkN5wNmeMWY1Z', designers: 'fldv2Eza3ozH8eFTy',
-    rank: 'fldydnO9FCaM9K4Bx', categories: 'fldDiWapezN3rdwyH', mechanics: 'fldBe9528dZEr70ez',
-    playCount: 'fld9pSGve6FsTDxMN', lastPlayed: 'fldVjyyNET9JmjN8d', favorite: 'fldyfp0FG1zY0K4qu', extraBggIds: 'fldzltyZj2UE9Mj67',
-    coverCard: 'fldjYYhunnxlv1OI3', coverLarge: 'flduJBzJRHtHfFR44',
-  };
-  const jsonList = (s) => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
-  const toGame = (r) => {
-    const f = r.fields || {};
-    return {
-      id: f[F.gameId] || r.id, recordId: r.id, bggId: f[F.bggId] ?? null, num: f[F.num] ?? null,
-      title: f[F.title] || '', genre: f[F.genre] || '', type: f[F.type] || '', desc: f[F.desc] || '',
-      expansions: jsonList(f[F.expansions]).map(String), desireToPlay: f[F.desireToPlay] || 0, thinningCandidate: !!f[F.thinningCandidate],
-      bggRating: f[F.bggRating] ?? null, icon: f[F.icon] || 'meeple',
-      minPlayers: f[F.minPlayers] ?? null, maxPlayers: f[F.maxPlayers] ?? null, bestPlayers: jsonList(f[F.bestPlayers]).map(Number),
-      minTime: f[F.minTime] ?? null, maxTime: f[F.maxTime] ?? null, weight: f[F.weight] ?? null,
-      year: f[F.year] ?? null, minAge: f[F.minAge] ?? null, designers: jsonList(f[F.designers]).map(String),
-      rank: f[F.rank] ?? null, categories: jsonList(f[F.categories]).map(String), mechanics: jsonList(f[F.mechanics]).map(String),
-      favorite: !!f[F.favorite], coverCard: f[F.coverCard] || null, coverLarge: f[F.coverLarge] || null, playCount: f[F.playCount] ?? 0, lastPlayed: f[F.lastPlayed] ?? null, addedAt: f[F.addedAt] ?? null,
-      // Other editions whose logged plays count toward this game
-      extraBggIds: String(f[F.extraBggIds] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0),
-    };
-  };
-  const formulaFor = (id) => /^rec[A-Za-z0-9]{14}$/.test(id)
-    ? `RECORD_ID()='${id}'`
-    : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
-  const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
-  // ---- People: Players and Ratings tables ----
-  const PF = {
-    name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
-    bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
-    tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
-    age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
-  };
-  const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
-  const toPlayer = (r) => {
-    const f = r.fields || {};
-    let history = {};
-    try { history = JSON.parse(f[PF.playHistory] || '{}') || {}; } catch (e) {}
-    return {
-      id: r.id, name: f[PF.name] || '', aliases: String(f[PF.aliases] || '').split(',').map((a) => a.trim()).filter(Boolean),
-      active: !!f[PF.active], googleEmail: f[PF.googleEmail] || '', bggUsername: f[PF.bggUsername] || '',
-      complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
-      tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
-      likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
-    };
-  };
-  // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
-  const publicPlayer = (p) => { const { googleEmail, complexity, conflict, luck, tableTalk, theme, likes, dislikes, notes, age, ...rest } = p; return rest; };
-  // The part of a player card that belongs to the person: only they edit it (via /me)
-  const ownProfile = (p) => ({ name: p.name, bggUsername: p.bggUsername, age: p.age, complexity: p.complexity, conflict: p.conflict, luck: p.luck,
-    tableTalk: p.tableTalk, theme: p.theme, likes: p.likes, dislikes: p.dislikes, notes: p.notes });
-  const playerNames = (p) => [p.name, ...p.aliases].map((n) => n.toLowerCase());
-  // Highest-priority source wins when one person has several ratings for a game
-  // BGC stars come only from the person themselves ("site"); BGG ratings are kept apart, out of 10 (stored as stars x2)
-  const ratingsByPlayerGame = (list) => {
-    const out = {};
-    for (const r of list) {
-      if (!r.gameId || !r.playerId || !r.stars) continue;
-      const e = (out[r.playerId + '|' + r.gameId] ??= { playerId: r.playerId, gameId: r.gameId });
-      if (r.source === 'site') e.stars = r.stars;
-      else if (r.source === 'bgg') e.bgg = Math.round(r.stars * 2);
-    }
-    return out;
-  };
-  // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
-  const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
-    const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
-    const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
-    // "Best with": player counts where Best is the top vote in BGG's suggested_numplayers poll
-    const bestWith = (s) => {
-      const poll = (s.match(/<poll name="suggested_numplayers"[\s\S]*?<\/poll>/) || [''])[0];
-      const rows = [...poll.matchAll(/<results numplayers="(\d+)">([\s\S]*?)<\/results>/g)].map((m) => {
-        const votes = (label) => Number((m[2].match(new RegExp('value="' + label + '" numvotes="(\\d+)"')) || [])[1] || 0);
-        return { n: Number(m[1]), best: votes('Best'), rec: votes('Recommended'), not: votes('Not Recommended') };
-      });
-      const winners = rows.filter((r) => r.best > 0 && r.best >= r.rec && r.best >= r.not).map((r) => r.n);
-      if (winners.length) return winners;
-      const top = rows.filter((r) => r.best > 0).sort((a, b) => b.best - a.best)[0];
-      return top ? [top.n] : [];
-    };
-    return [...String(xml || '').matchAll(/<item type="([^"]+)" id="(\d+)">([\s\S]*?)<\/item>/g)].map((m) => {
-      const s = m[3];
-      const rank = (s.match(/<rank type="subtype"[^>]*name="boardgame"[^>]*value="(\d+)"/) || [])[1];
-      const avg = Number(attr(s, 'average') || 0);
-      return { id: Number(m[2]), type: m[1], name: decode((s.match(/<name type="primary"[^>]*value="([^"]*)"/) || [])[1] || ''),
-        year: num(attr(s, 'yearpublished')), weight: num(attr(s, 'averageweight')) ? Math.round(Number(attr(s, 'averageweight')) * 100) / 100 : null,
-        minPlayers: num(attr(s, 'minplayers')), maxPlayers: num(attr(s, 'maxplayers')), minTime: num(attr(s, 'minplaytime')), maxTime: num(attr(s, 'maxplaytime')),
-        minAge: num(attr(s, 'minage')), rank: rank ? Number(rank) : null, rating: avg > 0 ? Math.round(avg * 10) / 10 : null, bestPlayers: bestWith(s),
-        designers: links(s, 'boardgamedesigner').filter((d) => d !== '(Uncredited)'), categories: links(s, 'boardgamecategory'), mechanics: links(s, 'boardgamemechanic'),
-        // An expansion's inbound links point at the base game(s) it expands
-        baseIds: [...s.matchAll(/<link type="boardgameexpansion" id="(\d+)"[^>]*inbound="true"/g)].map((x) => Number(x[1])),
-        description: decode(decode((s.match(/<description>([\s\S]*?)<\/description>/) || ['', ''])[1])).replace(/&#10;/g, ' ').replace(/&[a-z]+;|&#\d+;/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 700) || null,
-        picId: (s.match(/<image>[^<]*\/pic(\d+)\.[a-z]+<\/image>/) || [])[1] || null };
-    });
-  };
-  const toRating = (r) => {
-    const f = r.fields || {};
-    const src = f[RF.source];
-    return { recordId: r.id, playerId: f[RF.playerId] || '', gameId: f[RF.gameId] || '', stars: f[RF.stars] ?? null,
-      source: typeof src === 'object' && src ? src.name : src || '' };
-  };
-
-    const t = $('Auth: Check Token').first().json;
-    const m = $input.first().json.r || {};
-    const role = t.owner ? 'owner' : m.member ? 'friend' : null;
-    if (!role) return [{ json: { ok: false, status: 401, message: 'This account can view only' } }];
-    const auth = { role, email: t.email, memberId: m.id || null, admin: !!m.isAdmin || !!t.owner, playerId: m.playerId || null, playerName: m.playerName || null };
-    return $('Webhook').all().map((i) => ({ ...i, json: { ...i.json, _authOk: true, _auth: auth } }));
   
   },
 };

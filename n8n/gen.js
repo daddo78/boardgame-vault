@@ -1,19 +1,16 @@
 // Generates the Board Game Curator n8n workflows into ./workflows/*.json
-// Usage: node gen.js <airtableCredId> <bggCredId> [bggUsername]
-// Data lives in Postgres (server/bgc-db). The workflows still speak Airtable's record format; each storage node calls
-// the database's at.request() adapter, which answers like the Airtable API did. STORE=airtable ./deploy.sh rolls back
-// to the frozen Airtable archive.
+// Usage: node gen.js <bggCredId> [bggUsername]
+// Data lives in Postgres (server/bgc-db). The workflows still speak Airtable's record format (table and fld… ids are
+// the wire format the code nodes read); each storage node calls the database's at.request() adapter, which answers
+// like the Airtable API did. Airtable itself is gone: there is no store to roll back to.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const [AIRTABLE_CRED = 'AIRTABLE_CRED_ID', BGG_CRED = 'BGG_CRED_ID', BGG_USERNAME = ''] = process.argv.slice(2);
-const BASE = 'appb5FKsyLareQzG4';
+const [BGG_CRED = 'BGG_CRED_ID', BGG_USERNAME = ''] = process.argv.slice(2);
 const TABLE = 'tblbGc0UuDxIPP2a8';
-const AT_URL = `https://api.airtable.com/v0/${BASE}/${TABLE}`;
 const PLAYERS_TABLE = 'tblNahVdHDueJJ0w4';
 const RATINGS_TABLE = 'tbllInOWIokikEiQH';
-const atUrl = (table) => `https://api.airtable.com/v0/${BASE}/${table}`;
 const TABLER_CSS = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css';
 const VISION_MODEL = 'google/gemini-2.5-flash-lite';
 // Google sign-in: only these accounts may change the collection (reading stays public)
@@ -80,9 +77,7 @@ const ID = {
   healthCheck: 'BGVaultHealth001',
 };
 
-const STORE = process.env.STORE || 'postgres';
 const CRED = {
-  airtable: { airtableTokenApi: { id: AIRTABLE_CRED, name: 'Airtable Personal Access Token account' } },
   postgres: { postgres: { id: 'BGCPostgres00001', name: 'BGC Postgres' } },
   smtp: { smtp: { id: 'wj7wyYOWaVVIrifQ', name: 'Resend SMTP' } },
   openrouter: { httpHeaderAuth: { id: 'vxwyGYOyusPAYIJd', name: 'OpenRouter API' } },
@@ -126,12 +121,26 @@ function prelude() {
     : `{GameID}='${String(id).replace(/'/g, "\\'")}'`;
   const normTitle = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/['’`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/^the /, '').trim();
+  // BGG's XML attributes and text, with the entities put back
+  const decode = (s) => String(s || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  // Nathan's firm rules on top of the model's reading of a question (c: the parsed Understand answer, q: the words).
+  // "A game I don't own / not on my shelf" means buy ideas (also as a follow-up); a question about "a game" that names
+  // none is a recommendation, or a search of friends' shelves; "who has…" is about borrowing, never ideas to buy
+  const firmIntent = (c, q) => {
+    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
+    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
+    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
+    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
+    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    return c;
+  };
   // ---- People: Players and Ratings tables ----
   const PF = {
     name: 'fldWVws64FVcdtuSJ', aliases: 'fldbPxy87tXFVHtm1', active: 'fldCTgjMOoTTokadR', googleEmail: 'fldnwPL9Z33JcXoj2',
     bggUsername: 'fldDfHIAzk1AyaJEd', complexity: 'fldobSISLYhxr2nb5', conflict: 'fldslaw9Fv5cxiICf', luck: 'fldzLybJ5l8ALWyPz',
     tableTalk: 'fldVkKcUgFxkxTNfi', theme: 'fldk6X4H1FHJ7Uugm', likes: 'fld7R2WFALqZ2gkR7', dislikes: 'fld6ynTKz3kfM6QHx',
     age: 'fldZvY4FJ2QQDCyyh', notes: 'fldcgwd6wvrgnTSdW', playHistory: 'fldGI1Kr6p107QdZp', updatedAt: 'fldyIFTgzcvEqKaGK',
+    member: 'fldMbrLinked00001', // true when the card is a member of the site (a member card, or a player linked to one); schema/041
   };
   const RF = { key: 'fldSVVMwQygNrpyBm', playerId: 'fldB2cw5ie4ypHPGl', gameId: 'fldhrJoBfiLAg1E8q', stars: 'fldSM283jOPAOs2YP', source: 'fldaPLq2gL3UP6zon', updatedAt: 'fldqI4c09b3iHt3um' };
   const toPlayer = (r) => {
@@ -144,6 +153,8 @@ function prelude() {
       complexity: f[PF.complexity] ?? null, conflict: f[PF.conflict] ?? null, luck: f[PF.luck] ?? null,
       tableTalk: f[PF.tableTalk] ?? null, theme: f[PF.theme] ?? null,
       likes: f[PF.likes] || '', dislikes: f[PF.dislikes] || '', age: f[PF.age] ?? null, notes: f[PF.notes] || '', history,
+      // Members only see each other's emails on their own cards now (schema/041): this flag says "is a member" instead
+      member: !!f[PF.member],
     };
   };
   // What visitors may see about a person: names and play history (no email, no taste profile; BGG usernames are public on BGG anyway)
@@ -166,7 +177,6 @@ function prelude() {
   };
   // BGG's /thing XML (stats=1) -> plain objects: the facts the catalog keeps, plus an expansion's base game ids
   const parseThingXml = (xml) => {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
     const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const links = (s, type) => [...s.matchAll(new RegExp('<link type="' + type + '" id="\\d+" value="([^"]*)"', 'g'))].map((m) => decode(m[1]));
@@ -209,8 +219,15 @@ const PRELUDE = body(prelude);
 
 // ---------- node factories ----------
 let pos = 0;
-const uuid = () => crypto.randomUUID();
-const node = (name, type, typeVersion, parameters, extra = {}) => ({
+// Stable ids: the n-th id asked for is always the same UUID-shaped hash (n8n wants the version-4 shape), so a regen only
+// rewrites the files whose content changed. Random ids used to touch all 54 files every time. Stable as long as the
+// workflows are built in the same order, which they are (top to bottom); the counter never resets.
+let seq = 0;
+const uuid = () => {
+  const h = crypto.createHash('sha1').update('bgc:' + (seq++)).digest('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((parseInt(h[16], 16) & 3) | 8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+};
+const node =(name, type, typeVersion, parameters, extra = {}) => ({
   id: uuid(), name, type, typeVersion, position: [(pos++) * 220, 300], parameters, ...extra,
 });
 const code = (name, fn, extra) => node(name, 'n8n-nodes-base.code', 2, { jsCode: PRELUDE + '\n' + body(fn) }, extra);
@@ -230,15 +247,20 @@ const ifTrue = (name, expr) => node(name, 'n8n-nodes-base.if', 2, {
   options: {},
 });
 const retry = { retryOnFail: true, maxTries: 3, waitBetweenTries: 5000 };
-const qs = (pairs) => ({ sendQuery: true, queryParameters: { parameters: Object.entries(pairs).map(([name, value]) => ({ name, value })) } });
+// For a write that isn't idempotent (an insert, a counter, a log row): a query that timed out may still have committed,
+// and running it again would store it twice. Reads and bgc.* upserts keep the retries.
+const ONCE = { once: true };
+const qs =(pairs) => ({ sendQuery: true, queryParameters: { parameters: Object.entries(pairs).map(([name, value]) => ({ name, value })) } });
 // table defaults to Games; pass PLAYERS_TABLE / RATINGS_TABLE for the people data
 // '={{ expr }}' -> 'expr'; a plain string -> its JSON literal
 const innerExpr = (v) => { const m = String(v).match(/^=\{\{([\s\S]*)\}\}$/); return m ? m[1].trim() : JSON.stringify(String(v)); };
 // '/{{ $json.id }}' -> a JS template literal that builds the same path at run time
 const BT = String.fromCharCode(96);
 const templateExpr = (v) => BT + String(v || '').split(BT).join('\\' + BT).replace(/\{\{([\s\S]*?)\}\}/g, (m, e) => '$' + '{' + e + '}') + BT;
-// Same request as the Airtable API call, answered by Postgres: at.request(table, method, path, body, formula)
-const pgRequest = (name, method, urlSuffix, params, table) => {
+// The same request the Airtable API took (method, path, body, filterByFormula), answered by Postgres:
+// at.request(table, method, path, body, formula). The airtable* names say what shape the request has, not where it goes.
+// A POST creates records, so it never retries (see ONCE); GET, PATCH and DELETE say the same thing twice.
+const airtable = (name, method, urlSuffix, params = {}, table = TABLE) => {
   const formula = ((params.queryParameters || {}).parameters || []).find((p) => p.name === 'filterByFormula');
   return node(name, 'n8n-nodes-base.postgres', 2.6, {
     operation: 'executeQuery',
@@ -248,32 +270,20 @@ const pgRequest = (name, method, urlSuffix, params, table) => {
         params.jsonBody ? innerExpr(params.jsonBody) : "'null'", formula ? innerExpr(formula.value) : "''"].join(', ') + '] }}',
       queryBatching: 'independently',
     },
-  }, { credentials: CRED.postgres, ...retry });
+  }, { credentials: CRED.postgres, ...(method === 'POST' ? {} : retry) });
 };
-const airtable = (name, method, urlSuffix, params = {}, options = {}, table = TABLE) => STORE === 'postgres'
-  ? pgRequest(name, method, urlSuffix, params, table)
-  : node(name, 'n8n-nodes-base.httpRequest', 4.2, {
-    method, url: `=${atUrl(table)}${urlSuffix}`, authentication: 'predefinedCredentialType', nodeCredentialType: 'airtableTokenApi',
-    ...params, options,
-  }, { credentials: CRED.airtable, ...retry });
-// Native Postgres query (no Airtable equivalent): params is an n8n expression returning an array
-const pg = (name, query, params) => node(name, 'n8n-nodes-base.postgres', 2.6, {
+// Native Postgres query (no Airtable equivalent): params is an n8n expression returning an array; opts ONCE for a write that mustn't repeat
+const pg = (name, query, params, opts = {}) => node(name, 'n8n-nodes-base.postgres', 2.6, {
   operation: 'executeQuery', query, options: { ...(params ? { queryReplacement: params } : {}), queryBatching: 'independently' },
-}, { credentials: CRED.postgres, ...retry });
+}, { credentials: CRED.postgres, ...(opts.once ? {} : retry) });
 const airtableLookup = (name, formulaExpr = '={{ $json.formula }}') =>
   airtable(name, 'GET', '', qs({ filterByFormula: formulaExpr, returnFieldsByFieldId: 'true', maxRecords: '1' }));
-const airtableListAll = (name, table = TABLE) => airtable(name, 'GET', '', qs({ returnFieldsByFieldId: 'true', pageSize: '100' }), {
-  pagination: { pagination: {
-    paginationMode: 'updateAParameterInEachRequest',
-    parameters: { parameters: [{ type: 'qs', name: 'offset', value: '={{ $response.body.offset }}' }] },
-    paginationCompleteWhen: 'other', completeExpression: '={{ !$response.body.offset }}',
-    limitPagesFetched: true, maxRequests: 50, requestInterval: 250,
-  } },
-}, table);
+const airtableListAll = (name, table = TABLE) => airtable(name, 'GET', '', qs({ returnFieldsByFieldId: 'true', pageSize: '100' }), table);
 const jsonBody = (expr) => ({ sendBody: true, specifyBody: 'json', jsonBody: expr });
 const airtablePatch = (name) => airtable(name, 'PATCH', '/{{ $json.recordId }}',
   jsonBody('={{ JSON.stringify({ fields: $json.fields, typecast: true, returnFieldsByFieldId: true }) }}'));
-const openrouter = (name) => node(name, 'n8n-nodes-base.httpRequest', 4.2, {
+// opts: timeout (ms) and any retry fields (maxTries, waitBetweenTries) that differ from the defaults
+const openrouter = (name, { timeout = 90000, ...retries } = {}) => node(name, 'n8n-nodes-base.httpRequest', 4.2, {
   method: 'POST', url: 'https://openrouter.ai/api/v1/chat/completions',
   authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
   sendHeaders: true, headerParameters: { parameters: [
@@ -281,8 +291,11 @@ const openrouter = (name) => node(name, 'n8n-nodes-base.httpRequest', 4.2, {
     { name: 'X-Title', value: 'Board Game Curator' },
   ] },
   ...jsonBody('={{ JSON.stringify($json.requestBody) }}'),
-  options: { timeout: 90000 },
-}, { credentials: CRED.openrouter, ...retry });
+  options: { timeout },
+}, { credentials: CRED.openrouter, ...retry, ...retries });
+// Ask answers a person who is waiting: Cloudflare gives up at 100 s, so three 90 s tries only billed the same answer
+// three times after a 524. Two shorter tries; the request's `models` fallback list already covers a provider outage.
+const ASK_RETRY = { maxTries: 2, waitBetweenTries: 2000, timeout: 45000 };
 const textGet = (name, url, params = {}, creds) => node(name, 'n8n-nodes-base.httpRequest', 4.2, {
   method: 'GET', url, ...(creds ? { authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth' } : {}),
   ...params, options: { timeout: 30000, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
@@ -340,10 +353,8 @@ const getCollection = wf(ID.collection, 'Vault — Get Collection', [
   ifTrue('Owner?', '={{ $json.ok }}'),
   airtableListAll('List All Games'),
   code('Shape For Frontend', function () {
-    const owner = $('Auth: Role').first().json._auth.role === 'owner';
-    const items = $input.all().flatMap((i) => i.json.records || []).map(toGame)
-      .map((g) => owner ? g : { ...g, thinningCandidate: false }) // what Dan may give away is his business
-      .sort((a, b) => (a.num || 0) - (b.num || 0));
+    // Only Dan gets this far (Owner Only), so his thinning flags stay in
+    const items = $input.all().flatMap((i) => i.json.records || []).map(toGame).sort((a, b) => (a.num || 0) - (b.num || 0));
     return [{ json: { items } }];
   }),
   respond('Respond', '={{ JSON.stringify($json.items) }}'),
@@ -431,11 +442,10 @@ const del = wf(ID.del, 'Vault — Delete Game', [
 ]);
 
 // =====================================================================
-// 5a. Assign Icon (single)  sub-workflow + POST /webhook/vault/assign-icon { id }
+// 5a. Assign Icon (single)  sub-workflow { id, avoid? }
 // =====================================================================
 const iconOne = wf(ID.iconOne, 'Vault — Assign Icon (single)', [
   subTrigger(),
-  webhook('Webhook', 'POST', 'vault/assign-icon', 'lastNode'),
   code('Normalize', function () {
     const j = $input.first().json;
     const src = j.body || j;
@@ -504,17 +514,16 @@ const iconOne = wf(ID.iconOne, 'Vault — Assign Icon (single)', [
     return [{ json: { ok: true, id: v.id, title: v.title, icon: v.icon, match: v.match, candidates: v.candidates } }];
   }),
 ], [
-  ['When Called By Another Workflow', 'Normalize'], ['Webhook', 'Normalize'], ['Normalize', 'Find Record'],
+  ['When Called By Another Workflow', 'Normalize'], ['Normalize', 'Find Record'],
   ['Find Record', 'Prep'], ['Prep', 'Fetch Tabler Catalog'], ['Fetch Tabler Catalog', 'Build Icon Prompt'],
   ['Build Icon Prompt', 'Ask AI For Icon'], ['Ask AI For Icon', 'Validate Icon'], ['Validate Icon', 'Save Icon'], ['Save Icon', 'Result'],
 ]);
 
 // =====================================================================
-// 6a. BGG Enrich (single)  sub-workflow + POST /webhook/vault/bgg-enrich { id, dryRun?, applyFuzzy? }
+// 6a. BGG Enrich (single)  sub-workflow { id, dryRun?, applyFuzzy?, bggId?, rematch?, adoptTitle? }
 // =====================================================================
 const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
   subTrigger(),
-  webhook('Webhook', 'POST', 'vault/bgg-enrich', 'lastNode'),
   code('Normalize', function () {
     const j = $input.first().json;
     const src = j.body || j;
@@ -540,7 +549,6 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
   textGet('BGG Search', 'https://boardgamegeek.com/xmlapi2/search',
     qs({ query: '={{ $json.query }}', type: 'boardgame' }), CRED.bgg),
   code('Find Candidates', function () {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const p = $('Prep').first().json;
     if (p.fixedId) return [{ json: { ...p, matchType: p.fixedType, ids: String(p.fixedId), found: true, searchHits: 0 } }];
     const xml = String($input.first().json.data || '');
@@ -560,7 +568,6 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
   ifTrue('Any Candidates?', '={{ $json.found }}'),
   textGet('BGG Thing', 'https://boardgamegeek.com/xmlapi2/thing', qs({ id: '={{ $json.ids }}', stats: '1' }), CRED.bgg),
   code('Choose Match', function () {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const xml = String($input.first().json.data || '');
     const c = $('Find Candidates').first().json;
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
@@ -661,7 +668,7 @@ const bggOne = wf(ID.bggOne, 'Vault — BGG Enrich (single)', [
   }),
   wait('Throttle BGG', 1.5),
 ], [
-  ['When Called By Another Workflow', 'Normalize'], ['Webhook', 'Normalize'], ['Normalize', 'Find Record'],
+  ['When Called By Another Workflow', 'Normalize'], ['Normalize', 'Find Record'],
   ['Find Record', 'Prep'], ['Prep', 'Need Search?'], ['Need Search?', 'BGG Search', 0], ['Need Search?', 'Find Candidates', 1], ['BGG Search', 'Find Candidates'], ['Find Candidates', 'Any Candidates?'],
   ['Any Candidates?', 'BGG Thing', 0], ['Any Candidates?', 'Result', 1], ['BGG Thing', 'Choose Match'], ['Choose Match', 'BGG Image Sizes'], ['BGG Image Sizes', 'Add Cover'], ['Add Cover', 'BGG Plays For Game'], ['BGG Plays For Game', 'Add Plays'], ['Add Plays', 'Apply?'],
   ['Apply?', 'Save BGG Data', 0], ['Apply?', 'Result', 1], ['Save BGG Data', 'Result'], ['Result', 'Throttle BGG'],
@@ -871,6 +878,44 @@ const identify = wf(ID.identify, 'Vault — Identify Games From Photo', [
   saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none', saveManualExecutions: false, saveExecutionProgress: false,
 });
 
+// BGG's plays for one account, every page (BG Stats posts plays there). usernameExpr: an n8n expression for the username.
+const bggPlays = (usernameExpr) => node('BGG Plays', 'n8n-nodes-base.httpRequest', 4.2, {
+    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/plays',
+    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+    ...qs({ username: usernameExpr, type: 'thing', subtype: 'boardgame' }),
+    options: {
+      timeout: 30000,
+      response: { response: { responseFormat: 'text', outputPropertyName: 'data' } },
+      pagination: { pagination: {
+        paginationMode: 'updateAParameterInEachRequest',
+        parameters: { parameters: [{ type: 'qs', name: 'page', value: '={{ $pageCount + 1 }}' }] },
+        paginationCompleteWhen: 'other', completeExpression: '={{ !String($response.body).includes("<play ") }}',
+        limitPagesFetched: true, maxRequests: 100, requestInterval: 2000,
+      } },
+    },
+  }, { credentials: CRED.bgg, ...retry });
+// Those pages -> plain play rows for at.save_plays (who played, won, how long). ok is false only when BGG answered with an
+// error and no plays (an unknown username); the rows are always there, so a sync saves them either way
+const parsePlays = () => code('Parse Plays', function () {
+  const attr = (tag, k) => { const m = tag.match(new RegExp('\\b' + k + '="([^"]*)"')); return m ? decode(m[1]) : ''; };
+  const pages = $('BGG Plays').all();
+  const plays = [];
+  for (const page of pages) {
+    for (const p of String(page.json.data || '').match(/<play [\s\S]*?<\/play>/g) || []) {
+      const head = p.match(/<play [^>]*>/)[0];
+      const item = (p.match(/<item [^>]*>/) || [''])[0];
+      plays.push({ id: Number(attr(head, 'id')), date: attr(head, 'date'), quantity: Number(attr(head, 'quantity')) || 1,
+        minutes: Number(attr(head, 'length')) || 0, incomplete: attr(head, 'incomplete') === '1', location: attr(head, 'location'),
+        bggId: Number(attr(item, 'objectid')), gameName: attr(item, 'name'), comments: decode((p.match(/<comments>([\s\S]*?)<\/comments>/) || ['', ''])[1]).trim(),
+        players: (p.match(/<player [^>]*\/?>/g) || []).map((t, i) => ({ seat: i + 1, name: attr(t, 'name') || attr(t, 'username') || 'Anonymous',
+          user: attr(t, 'username'), win: attr(t, 'win') === '1', score: attr(t, 'score'), isNew: attr(t, 'new') === '1' })) });
+    }
+  }
+  const err = (String((pages[0] || { json: {} }).json.data || '').match(/<error>\s*<message>([^<]*)<\/message>/) || [])[1];
+  const bad = !!err && !plays.length;
+  return [{ json: { ok: !bad, message: bad ? err : null, plays: plays.filter((p) => p.id && p.bggId) } }];
+});
+
 // =====================================================================
 // 7. Sync Plays  daily + POST /webhook/vault/sync-plays
 //    Plays are logged in BG Stats, which posts them to BGG; this pulls them back per bggId.
@@ -883,21 +928,7 @@ const syncPlays = wf(ID.syncPlays, 'Vault — Sync Plays From BGG', [
     if (!username) throw new Error('BGG username not configured (BGG_USERNAME in n8n/deploy.sh)');
     return [{ json: { username } }];
   }),
-  node('BGG Plays', 'n8n-nodes-base.httpRequest', 4.2, {
-    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/plays',
-    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
-    ...qs({ username: '={{ $json.username }}', type: 'thing', subtype: 'boardgame' }),
-    options: {
-      timeout: 30000,
-      response: { response: { responseFormat: 'text', outputPropertyName: 'data' } },
-      pagination: { pagination: {
-        paginationMode: 'updateAParameterInEachRequest',
-        parameters: { parameters: [{ type: 'qs', name: 'page', value: '={{ $pageCount + 1 }}' }] },
-        paginationCompleteWhen: 'other', completeExpression: '={{ !String($response.body).includes("<play ") }}',
-        limitPagesFetched: true, maxRequests: 100, requestInterval: 2000,
-      } },
-    },
-  }, { credentials: CRED.bgg, ...retry }),
+  bggPlays('={{ $json.username }}'),
   code('Tally Plays', function () {
     const byGame = {};
     let total = 0;
@@ -913,23 +944,7 @@ const syncPlays = wf(ID.syncPlays, 'Vault — Sync Plays From BGG', [
     }
     return [{ json: { byGame, total, gamesPlayed: Object.keys(byGame).length } }];
   }),
-  code('Parse Plays', function () {
-    const unxml = (v) => String(v || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    const attr = (tag, k) => { const m = tag.match(new RegExp('\\b' + k + '="([^"]*)"')); return m ? unxml(m[1]) : ''; };
-    const plays = [];
-    for (const page of $('BGG Plays').all()) {
-      for (const p of String(page.json.data || '').match(/<play [\s\S]*?<\/play>/g) || []) {
-        const head = p.match(/<play [^>]*>/)[0];
-        const item = (p.match(/<item [^>]*>/) || [''])[0];
-        plays.push({ id: Number(attr(head, 'id')), date: attr(head, 'date'), quantity: Number(attr(head, 'quantity')) || 1,
-          minutes: Number(attr(head, 'length')) || 0, incomplete: attr(head, 'incomplete') === '1', location: attr(head, 'location'),
-          bggId: Number(attr(item, 'objectid')), gameName: attr(item, 'name'), comments: unxml((p.match(/<comments>([\s\S]*?)<\/comments>/) || ['', ''])[1]).trim(),
-          players: (p.match(/<player [^>]*\/?>/g) || []).map((t, i) => ({ seat: i + 1, name: attr(t, 'name') || attr(t, 'username') || 'Anonymous',
-            user: attr(t, 'username'), win: attr(t, 'win') === '1', score: attr(t, 'score'), isNew: attr(t, 'new') === '1' })) });
-      }
-    }
-    return [{ json: { plays: plays.filter((p) => p.id && p.bggId) } }];
-  }),
+  parsePlays(),
   pg('Save Plays', 'SELECT at.save_plays($1, $2::jsonb) AS saved', "={{ ['__OWNER_EMAIL__', JSON.stringify($json.plays)] }}"),
   airtableListAll('List All Games'),
   code('Build Updates', function () {
@@ -1020,7 +1035,6 @@ const bggSearch = wf(ID.bggSearch, 'Vault — Search BGG', [
   ifTrue('Any Results?', '={{ $json.found }}'),
   textGet('BGG Thing', 'https://boardgamegeek.com/xmlapi2/thing', qs({ id: '={{ $json.ids }}', stats: '1' }), CRED.bgg),
   code('Shape Results', function () {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const xml = String($input.first().json.data || '');
     const q = normTitle($('Validate').first().json.q);
     const attr = (s, tag) => { const m = s.match(new RegExp('<' + tag + '\\s[^>]*value="([^"]*)"')); return m ? m[1] : null; };
@@ -1069,7 +1083,7 @@ const addByName = wf(ID.addByName, 'Vault — Add Game By Name', [
   { ...textGet('BGG Thing', 'https://boardgamegeek.com/xmlapi2/thing',
     qs({ id: "={{ $('Validate').first().json.bggId || 0 }}", stats: '1' }), CRED.bgg), onError: 'continueRegularOutput' },
   code('Plan', function () {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&#10;/g, '\n');
+    const text = (s) => decode(s).replace(/&#10;/g, '\n'); // BGG writes line breaks as &#10; inside the XML text
     const v = $('Validate').first().json;
     const games = $('List All Games').all().flatMap((i) => i.json.records || []).map(toGame);
     let thing = null;
@@ -1080,11 +1094,11 @@ const addByName = wf(ID.addByName, 'Vault — Add Game By Name', [
       const s = m[3];
       thing = {
         kind: m[1] === 'boardgameexpansion' ? 'expansion' : 'game',
-        title: decode((s.match(/<name type="primary"[^>]*value="([^"]*)"/) || [])[1] || ''),
-        base: [...s.matchAll(/<link type="boardgameexpansion" id="(\d+)" value="([^"]*)" inbound="true"/g)].map((b) => ({ id: Number(b[1]), title: decode(b[2]) })),
-        description: decode((s.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '').replace(/\s+/g, ' ').slice(0, 1500),
-        categories: [...s.matchAll(/<link type="boardgamecategory" id="\d+" value="([^"]*)"/g)].map((x) => decode(x[1])),
-        mechanics: [...s.matchAll(/<link type="boardgamemechanic" id="\d+" value="([^"]*)"/g)].map((x) => decode(x[1])),
+        title: text((s.match(/<name type="primary"[^>]*value="([^"]*)"/) || [])[1] || ''),
+        base: [...s.matchAll(/<link type="boardgameexpansion" id="(\d+)" value="([^"]*)" inbound="true"/g)].map((b) => ({ id: Number(b[1]), title: text(b[2]) })),
+        description: text((s.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '').replace(/\s+/g, ' ').slice(0, 1500),
+        categories: [...s.matchAll(/<link type="boardgamecategory" id="\d+" value="([^"]*)"/g)].map((x) => text(x[1])),
+        mechanics: [...s.matchAll(/<link type="boardgamemechanic" id="\d+" value="([^"]*)"/g)].map((x) => text(x[1])),
       };
     }
     const title = (thing && thing.title) || v.title;
@@ -1372,8 +1386,8 @@ const playerSave = wf(ID.playerSave, 'Vault — Save Player', [
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
   ifTrue('Existing?', '={{ !!$json.id }}'),
-  airtable('Update Player', 'PATCH', '/{{ $json.id }}', jsonBody('={{ JSON.stringify({ fields: $json.fields, typecast: true, returnFieldsByFieldId: true }) }}'), {}, PLAYERS_TABLE),
-  airtable('Create Player', 'POST', '', jsonBody('={{ JSON.stringify({ fields: $json.fields, typecast: true, returnFieldsByFieldId: true }) }}'), {}, PLAYERS_TABLE),
+  airtable('Update Player', 'PATCH', '/{{ $json.id }}', jsonBody('={{ JSON.stringify({ fields: $json.fields, typecast: true, returnFieldsByFieldId: true }) }}'), PLAYERS_TABLE),
+  airtable('Create Player', 'POST', '', jsonBody('={{ JSON.stringify({ fields: $json.fields, typecast: true, returnFieldsByFieldId: true }) }}'), PLAYERS_TABLE),
   code('Shape Player', function () { return [{ json: { ok: true, player: toPlayer($input.first().json) } }]; }),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
   respondError(),
@@ -1435,34 +1449,17 @@ const bggUserRatings = wf(ID.bggUserRatings, 'Vault — BGG User Ratings', [
 ]);
 
 // =====================================================================
-// 17. Sync People  daily 4:20 + POST /webhook/vault/sync-people  (owner)
-//     From BGG plays (logged in BG Stats): each person's history per owned game (plays, wins, last),
-//     a player card for anyone with 3+ plays, and BG Stats per-play ratings. Then friends' BGG ratings.
-//     Ratings are stored 1-5 (BGG/BG Stats 1-10 halved, to the nearest half star).
+// 17. Sync People  daily 4:20
+//     From BGG plays (logged in BG Stats): each person's history per owned game (plays, wins, last) and a player card
+//     for everyone Dan has played with. Then friends' BGG ratings, stored 1-5 (BGG's 1-10 halved, to the nearest half star).
 // =====================================================================
-const upsertRatings = (name) => airtable(name, 'PATCH', '', jsonBody("={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['fldSVVMwQygNrpyBm'] }, records: $json.records, typecast: true }) }}"), {}, RATINGS_TABLE);
+const upsertRatings = (name) => airtable(name, 'PATCH', '', jsonBody("={{ JSON.stringify({ performUpsert: { fieldsToMergeOn: ['fldSVVMwQygNrpyBm'] }, records: $json.records, typecast: true }) }}"), RATINGS_TABLE);
 const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
   node('Daily', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ triggerAtHour: 4, triggerAtMinute: 20 }] } }),
-  webhook('Webhook', 'POST', 'vault/sync-people', 'lastNode'),
   code('Options', function () { return [{ json: { username: '__BGG_USERNAME__' } }]; }),
-  node('BGG Plays', 'n8n-nodes-base.httpRequest', 4.2, {
-    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/plays',
-    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
-    ...qs({ username: '={{ $json.username }}', type: 'thing', subtype: 'boardgame' }),
-    options: {
-      timeout: 30000,
-      response: { response: { responseFormat: 'text', outputPropertyName: 'data' } },
-      pagination: { pagination: {
-        paginationMode: 'updateAParameterInEachRequest',
-        parameters: { parameters: [{ type: 'qs', name: 'page', value: '={{ $pageCount + 1 }}' }] },
-        paginationCompleteWhen: 'other', completeExpression: '={{ !String($response.body).includes("<play ") }}',
-        limitPagesFetched: true, maxRequests: 100, requestInterval: 2000,
-      } },
-    },
-  }, { credentials: CRED.bgg, ...retry }),
+  bggPlays('={{ $json.username }}'),
   code('Tally People', function () {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    const people = {}; // lowercased name -> { name, total, games: { bggId: { plays, wins, last, ratings: [] } } }
+    const people = {}; // lowercased name -> { name, total, games: { bggId: { plays, wins, last } } }
     for (const page of $input.all()) {
       for (const m of String(page.json.data || '').matchAll(/<play id="\d+" date="([^"]*)" quantity="(\d+)"[^>]*>([\s\S]*?)<\/play>/g)) {
         const [, date, qty, inner] = m;
@@ -1473,12 +1470,11 @@ const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
           const name = (a.name || a.username || '').trim();
           if (!name || /^anonymous/i.test(name)) continue;
           const p = (people[name.toLowerCase()] ??= { name, total: 0, games: {} });
-          const g = (p.games[bggId] ??= { plays: 0, wins: 0, last: null, ratings: [] });
+          const g = (p.games[bggId] ??= { plays: 0, wins: 0, last: null });
           const n = Number(qty) || 1;
           g.plays += n; p.total += n;
           if (a.win === '1') g.wins += n;
           if (date && date !== '0000-00-00' && (!g.last || date > g.last)) g.last = date;
-          if (Number(a.rating) > 0) g.ratings.push(Number(a.rating));
         }
       }
     }
@@ -1497,7 +1493,7 @@ const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
     return batches.length ? batches : [{ json: { records: [] } }];
   }),
   ifTrue('New Players?', '={{ $json.records.length > 0 }}'),
-  airtable('Create Players', 'POST', '', jsonBody('={{ JSON.stringify({ records: $json.records, typecast: true }) }}'), {}, PLAYERS_TABLE),
+  airtable('Create Players', 'POST', '', jsonBody('={{ JSON.stringify({ records: $json.records, typecast: true }) }}'), PLAYERS_TABLE),
   pg('Link New Players', "SELECT at.save_plays($1, '[]'::jsonb) AS linked", "={{ ['__OWNER_EMAIL__'] }}"),
   code('One Item Again', function () { return [{ json: {} }]; }),
   airtableListAll('Reload Players', PLAYERS_TABLE),
@@ -1509,37 +1505,31 @@ const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
     for (const g of games) if (g.bggId) for (const id of [g.bggId, ...g.extraBggIds]) primaryBgg[String(id)] ??= String(g.bggId);
     const players = $input.all().flatMap((i) => i.json.records || []).map(toPlayer);
     const now = new Date().toISOString();
-    const playerRecords = [], ratingRecords = [];
+    const playerRecords = [];
     for (const pl of players) {
       const names = playerNames(pl);
       const merged = {};
       for (const n of names) for (const [bggId, g] of Object.entries((people[n] || {}).games || {})) {
         const own = primaryBgg[bggId];
         if (!own) continue; // only games in the collection
-        const m = (merged[own] ??= { plays: 0, wins: 0, last: null, ratings: [] });
-        m.plays += g.plays; m.wins += g.wins; m.ratings.push(...g.ratings);
+        const m = (merged[own] ??= { plays: 0, wins: 0, last: null });
+        m.plays += g.plays; m.wins += g.wins;
         if (g.last && (!m.last || g.last > m.last)) m.last = g.last;
       }
       const history = Object.fromEntries(Object.entries(merged).map(([k, v]) => [k, { plays: v.plays, wins: v.wins, last: v.last }]));
       if (JSON.stringify(history) !== JSON.stringify(pl.history)) playerRecords.push({ id: pl.id, fields: { [PF.playHistory]: JSON.stringify(history), [PF.updatedAt]: now } });
     }
     const batch = (list) => { const out = []; for (let i = 0; i < list.length; i += 10) out.push(list.slice(i, i + 10)); return out; };
-    return [{ json: { playerBatches: batch(playerRecords), ratingBatches: batch(ratingRecords),
+    return [{ json: { playerBatches: batch(playerRecords),
       bggUsers: players.filter((p) => p.bggUsername).map((p) => ({ playerId: p.id, username: p.bggUsername })),
-      gameIdByBgg, summary: { people: Object.keys(people).length, players: players.length, historiesUpdated: playerRecords.length, bgstatsRatings: ratingRecords.length } } }];
+      gameIdByBgg, summary: { people: Object.keys(people).length, players: players.length, historiesUpdated: playerRecords.length } } }];
   }),
   code('Player Batches', function () {
     const b = $input.first().json.playerBatches;
     return b.length ? b.map((records) => ({ json: { records } })) : [{ json: { records: [] } }];
   }),
   ifTrue('Histories To Save?', '={{ $json.records.length > 0 }}'),
-  airtable('Save Histories', 'PATCH', '', jsonBody('={{ JSON.stringify({ records: $json.records, typecast: true }) }}'), {}, PLAYERS_TABLE),
-  code('Rating Batches', function () {
-    const b = $('Build Updates').first().json.ratingBatches;
-    return b.length ? b.map((records) => ({ json: { records } })) : [{ json: { records: [] } }];
-  }),
-  ifTrue('BG Stats Ratings?', '={{ $json.records.length > 0 }}'),
-  upsertRatings('Save BG Stats Ratings'),
+  airtable('Save Histories', 'PATCH', '', jsonBody('={{ JSON.stringify({ records: $json.records, typecast: true }) }}'), PLAYERS_TABLE),
   code('BGG Users', function () {
     const u = $('Build Updates').first().json.bggUsers;
     return u.length ? u.map((x) => ({ json: x })) : [{ json: { none: true } }];
@@ -1571,26 +1561,21 @@ const syncPeople = wf(ID.syncPeople, 'Vault — Sync People', [
     return [{ json: { ok: true, ...s, playersCreated: created, bggRatings: bgg } }];
   }),
 ], [
-  ['Daily', 'Options'], ['Webhook', 'Options'], ['Options', 'BGG Plays'], ['BGG Plays', 'Tally People'],
+  ['Daily', 'Options'], ['Options', 'BGG Plays'], ['BGG Plays', 'Tally People'],
   ['Tally People', 'List Games'], ['List Games', 'One Item'], ['One Item', 'List Players'], ['List Players', 'Plan New Players'],
   ['Plan New Players', 'New Players?'], ['New Players?', 'Create Players', 0], ['New Players?', 'One Item Again', 1],
   ['Create Players', 'Link New Players'], ['Link New Players', 'One Item Again'], ['One Item Again', 'Reload Players'], ['Reload Players', 'Build Updates'],
   ['Build Updates', 'Player Batches'], ['Player Batches', 'Histories To Save?'],
-  ['Histories To Save?', 'Save Histories', 0], ['Histories To Save?', 'Rating Batches', 1], ['Save Histories', 'Rating Batches'],
-  ['Rating Batches', 'BG Stats Ratings?'], ['BG Stats Ratings?', 'Save BG Stats Ratings', 0], ['BG Stats Ratings?', 'BGG Users', 1],
-  ['Save BG Stats Ratings', 'BGG Users'], ['BGG Users', 'Any BGG Users?'], ['Any BGG Users?', 'Fetch BGG Ratings', 0], ['Any BGG Users?', 'Result', 1],
+  ['Histories To Save?', 'Save Histories', 0], ['Histories To Save?', 'BGG Users', 1], ['Save Histories', 'BGG Users'],
+  ['BGG Users', 'Any BGG Users?'], ['Any BGG Users?', 'Fetch BGG Ratings', 0], ['Any BGG Users?', 'Result', 1],
   ['Fetch BGG Ratings', 'BGG Rating Batches'], ['BGG Rating Batches', 'BGG Ratings?'],
   ['BGG Ratings?', 'Save BGG Ratings', 0], ['BGG Ratings?', 'Result', 1], ['Save BGG Ratings', 'Result'],
 ]);
-addAuth(syncPeople, { mode: 'throw' });
-
 addAuth(update, { mode: 'respond', failTo: 'Respond Error' });
 addAuth(del, { mode: 'respond', failTo: 'Respond Error' });
 addAuth(identify, { mode: 'respond', failTo: 'Delete Photo (no match)' }); // drop the upload, then 401
 addMemberAuth(bggSearch, { failTo: 'Respond Error' }); // any member can search BGG (it only reads)
 addAuth(addByName, { mode: 'respond', failTo: 'Respond Error' });
-addAuth(iconOne, { mode: 'throw' });
-addAuth(bggOne, { mode: 'throw' });
 addAuth(syncPlays, { mode: 'throw' });
 
 // =====================================================================
@@ -1600,9 +1585,8 @@ addAuth(syncPlays, { mode: 'throw' });
 //       2. code applies the hard limits (players, time, age, weight, exclusions) and scores a shortlist
 //       3. a stronger model picks from the shortlist using profiles, play history and ratings
 //       4. code drops anything that isn't on the shortlist
-//     Members only, 30 questions each per day (plus a shared safety cap); board games only.
+//     Members only, 30 questions each per day (bgc.use_ask, in the database); board games only.
 // =====================================================================
-const ASK_DAILY_CAP = 200;
 const ASK_PER_MEMBER = 30; // Nathan's questions per member per day
 const OWNER_NAME = 'Dan';
 const ask = wf(ID.ask, 'Vault — Ask Nathan', [
@@ -1615,12 +1599,6 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const question = String(b.question || '').trim() || (image ? 'What is this?' : '');
     if (question.length < 3) return err(400, 'Ask a question, like "a co-op for 3 under an hour".');
     if (question.length > 500) return err(400, 'Keep the question under 500 characters.');
-    // Safety net across everyone (the per-member allowance is checked next, in the database)
-    const st = $getWorkflowStaticData('global');
-    const today = new Date().toISOString().slice(0, 10);
-    if (st.day !== today) { st.day = today; st.count = 0; }
-    if (st.count >= __ASK_DAILY_CAP__) return err(429, 'Ask has answered a lot of questions today. Try again tomorrow.');
-    st.count += 1;
     const playerIds = Array.isArray(b.playerIds) ? b.playerIds.map(String).filter((x) => /^rec[A-Za-z0-9]{14}$/.test(x)).slice(0, 12) : [];
     const prev = b.previous && typeof b.previous === 'object' ? {
       question: String(b.previous.question || '').slice(0, 500),
@@ -1637,8 +1615,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       shelf: /^friend:\d+$/.test(String(b.shelf || '')) ? String(b.shelf) : b.shelf === 'mine' ? 'mine' : 'main' } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
-  pg('Use Allowance', 'SELECT bgc.use_ask($1) AS questions, bgc.ask_limit() AS lim',
-    '={{ [$json.email] }}'),
+  pg('Use Allowance', 'SELECT bgc.use_ask($1) AS questions, bgc.ask_limit() AS lim', '={{ [$json.email] }}', ONCE), // a counter
   code('Allowance Left?', function () {
     const used = Number($input.first().json.questions) || 0;
     const lim = Number($input.first().json.lim) || __ASK_PER_MEMBER__;
@@ -1762,7 +1739,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       messages: [{ role: 'user', content: prompt }],
     } } }];
   }),
-  openrouter('Understand Request'),
+  openrouter('Understand Request', ASK_RETRY),
   // "My top ten" while looking at someone else's shelf: answer from the asker's own shelf instead
   code('Scope', function () {
     const text = $input.first().json.choices?.[0]?.message?.content || '';
@@ -1776,14 +1753,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const aboutOpen = /\b(here|this shelf|this collection|on (his|her|their) shelf)\b/i.test(q) || (first && q.toLowerCase().includes(first));
     let c = {};
     try { c = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
-    // Firm rules on top of the model's reading: "a game I don't own / don't have / not on my shelf" means buy ideas
-    // (also as a follow-up), and a question about "a game" that names none is a recommendation, or a search of friends' shelves
-    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
-    // "Who has…" is about friends' copies to borrow, never ideas to buy
-    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
-    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
-    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
-    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    firmIntent(c, q); // the firm rules Scope and Shortlist share (see the prelude)
     // A question about a game or what to buy is about the asker: their shelf and taste, wherever they are
     const forMe = c.intent === 'game' || c.intent === 'buy' || c.intent === 'rules';
     const titles = (c.intent === 'game' || c.intent === 'rules') && Array.isArray(c.games) ? c.games.map((t) => String(t).trim()).filter(Boolean).slice(0, 3) : [];
@@ -1816,7 +1786,6 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     options: { timeout: 20000, batching: { batch: { batchSize: 1, batchInterval: 600 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
   }, { credentials: CRED.bgg }), onError: 'continueRegularOutput' },
   code('Game Candidates', function () {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const asked = $('Lookup Queries').all().map((i) => i.json);
     return $input.all().map((res, i) => {
       const t = normTitle(asked[i].title);
@@ -1852,14 +1821,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     try { c = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (e) {}
     if (c.onTopic === false) return [{ json: { offTopic: true, reply: String(c.reply || 'I can only help pick board games from this shelf.') } }];
     { const q = String(v.question || '');
-    // Firm rules on top of the model's reading: "a game I don't own / don't have / not on my shelf" means buy ideas
-    // (also as a follow-up), and a question about "a game" that names none is a recommendation, or a search of friends' shelves
-    if (/\b(don'?t|do not|doesn'?t|don’t|doesn’t) (own|have)\b|\bnot (on|in) my (shelf|collection|library)\b|\bi (don'?t|don’t) already (own|have)\b|\b(new to me|haven'?t got)\b/i.test(q)) c.intent = 'buy';
-    // "Who has…" is about friends' copies to borrow, never ideas to buy
-    if (c.intent === 'buy' && /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend)\b/i.test(q)) c.intent = 'recommend';
-    // "Who has a co-op for 2?" names no game: a search of friends' shelves, not guesses at titles
-    if (c.intent === 'game' && /\bwho (owns|has) (a|an|any|some)\b|\bany(one|body) (own|has|have) (a|an|any|some)\b|\bcan anyone lend me (a|an|some)\b/i.test(q)) { c.intent = 'recommend'; c.games = []; }
-    if ((c.intent === 'game' || c.intent === 'rules') && !(Array.isArray(c.games) && c.games.filter(Boolean).length)) c.intent = /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q) ? 'browse' : 'recommend';
+    firmIntent(c, q); // the firm rules Scope and Shortlist share (see the prelude)
     // "My top ten" / "my all-time favorites" with no other measure is their own Top 10 from My profile, not plays or stars
     if (/\bmy (all[- ]time )?(top (10|ten)|favou?rite games|all[- ]time favou?rites)\b/i.test(q) && !/\b(play|played|plays|rated|rating|ratings|stars?|heaviest|weight|recent|recently|newest|added|bgg|rank|ranked)\b/i.test(q)) { c.intent = 'browse'; c.sort = 'pick'; c.limit = 10; }
     }
@@ -2187,7 +2149,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
             (ownership.length ? ownership.join('\n') + ' (answer this first)\n' : '') + taste + (notFound.length ? '\nNOT FOUND ON BGG: ' + notFound.join(', ') : '') +
             // "Which of my friends would love Ark Nova?": their friends' own profiles, to match the game against
             (scope.forFriends ? '\nTHEIR FRIENDS (match the game to each one; say who would love it and who might not, and why):\n' +
-              players.filter((p) => p.googleEmail && p.name !== sv.askerName).map((p) => p === curator ? curatorFacts(p) : profile(p)).join('\n') : ''),
+              players.filter((p) => p.member && p.name !== sv.askerName).map((p) => p === curator ? curatorFacts(p) : profile(p)).join('\n') : ''),
           shortIds: Object.keys(titles), titles, off,
           gameLines: lines.join('\n'), profiles: '', askerName: asker ? asker.name : '', ownerName: shelfOwner, guest: '', fromOwn: !!own } }];
       }
@@ -2352,7 +2314,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
         : user }],
     } } }];
   }),
-  openrouter('Recommend'),
+  openrouter('Recommend', ASK_RETRY),
   code('Check Answer', function () {
     const s = $('Build Recommend Request').first().json;
     const text = $input.first().json.choices?.[0]?.message?.content || '';
@@ -2428,16 +2390,16 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   respond('Respond OK', "={{ JSON.stringify({ ...$json, learn: undefined, chatKey: $('Validate').first().json.chatKey }) }}"),
   // For the admin dashboard: what kind of question it was and how long it took (never the question itself)
   { ...pg('Log Answer', 'SELECT bgc.log_ask($1, $2, $3::int, $4::boolean, $5)',
-    "={{ [$('Validate').first().json.email, $json.offTopic ? 'off-topic' : ($json.mode || ($json.person ? 'person' : $json.intent) || 'other'), String(Date.now() - $('Validate').first().json.t0), String($json.ok !== false), $json.social || ''] }}"),
+    "={{ [$('Validate').first().json.email, $json.offTopic ? 'off-topic' : ($json.mode || ($json.person ? 'person' : $json.intent) || 'other'), String(Date.now() - $('Validate').first().json.t0), String($json.ok !== false), $json.social || ''] }}", ONCE),
     onError: 'continueRegularOutput' },
   // What this answer cost: each AI call's own price, from OpenRouter
   { ...pg('Log Cost', 'SELECT bgc.log_ai($1, $2::jsonb)',
     "={{ [$('Validate').first().json.email, JSON.stringify(['Understand Request', 'Look At Photo', 'Recommend'].filter((n) => $(n).isExecuted).map((n) => { const j = $(n).first().json || {}; const u = j.usage || {}; " +
-    "return { feature: $('Validate').first().json.test ? 'tests' : n === 'Look At Photo' ? 'photo' : 'nathan', model: j.model || null, cost: u.cost, in: u.prompt_tokens, out: u.completion_tokens }; }))] }}"),
+    "return { feature: $('Validate').first().json.test ? 'tests' : n === 'Look At Photo' ? 'photo' : 'nathan', model: j.model || null, cost: u.cost, in: u.prompt_tokens, out: u.completion_tokens }; }))] }}", ONCE),
     onError: 'continueRegularOutput' },
   // Nathan's memory: the question and answer, and anything he learned about the asker
   { ...pg('Save Turn', 'SELECT bgc.chat_save($1, $2, $3, $4::jsonb, $5::jsonb)',
-    "={{ [$('Validate').first().json.email, $('Validate').first().json.chatKey, $('Validate').first().json.question + ($('Validate').first().json.image ? ' (photo)' : ''), JSON.stringify({ ...$('Respond OK').first().json, learn: undefined }), JSON.stringify($('Respond OK').first().json.learn || [])] }}"),
+    "={{ [$('Validate').first().json.email, $('Validate').first().json.chatKey, $('Validate').first().json.question + ($('Validate').first().json.image ? ' (photo)' : ''), JSON.stringify({ ...$('Respond OK').first().json, learn: undefined }), JSON.stringify($('Respond OK').first().json.learn || [])] }}", ONCE),
     onError: 'continueRegularOutput' },
   respondError(),
 ], [
@@ -2451,7 +2413,12 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
   ['Any Candidates?', 'Build Recommend Request', 0], ['Any Candidates?', 'No Candidates', 1],
   ['Build Recommend Request', 'Recommend'], ['Recommend', 'Check Answer'],
   ['Check Answer', 'Respond OK'], ['No Candidates', 'Respond OK'], ['Off Topic', 'Respond OK'],
-]);
+], {
+  // Nothing of a question outlives the request: a saved execution would hold the email, the question, Nathan's notes and
+  // any attached photo. Failures still reach Error Alert (n8n hands it the error itself, not a stored execution), only the
+  // email's "Details" link has nothing to open.
+  saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none', saveManualExecutions: false, saveExecutionProgress: false,
+});
 addMemberAuth(ask, { failTo: 'Respond Error' });
 
 // =====================================================================
@@ -2551,40 +2518,8 @@ addMemberAuth(shelfRemove, { failTo: 'Respond Error' });
 // =====================================================================
 // Every play from a member's BGG account -> their plays, player list and counts. WHO is the node holding { email, username }.
 const playsPipeline = (WHO) => [
-  { ...node('BGG Plays', 'n8n-nodes-base.httpRequest', 4.2, {
-    method: 'GET', url: 'https://boardgamegeek.com/xmlapi2/plays',
-    authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
-    ...qs({ username: "={{ $('" + WHO + "').first().json.username }}", type: 'thing', subtype: 'boardgame' }),
-    options: {
-      timeout: 30000,
-      response: { response: { responseFormat: 'text', outputPropertyName: 'data' } },
-      pagination: { pagination: {
-        paginationMode: 'updateAParameterInEachRequest',
-        parameters: { parameters: [{ type: 'qs', name: 'page', value: '={{ $pageCount + 1 }}' }] },
-        paginationCompleteWhen: 'other', completeExpression: '={{ !String($response.body).includes("<play ") }}',
-        limitPagesFetched: true, maxRequests: 100, requestInterval: 2000,
-      } },
-    },
-  }, { credentials: CRED.bgg, ...retry }), onError: 'continueRegularOutput' },
-  code('Parse Plays', function () {
-    const unxml = (v) => String(v || '').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    const attr = (tag, k) => { const m = tag.match(new RegExp('\\b' + k + '="([^"]*)"')); return m ? unxml(m[1]) : ''; };
-    const plays = [];
-    for (const page of $input.all()) {
-      for (const p of String(page.json.data || '').match(/<play [\s\S]*?<\/play>/g) || []) {
-        const head = p.match(/<play [^>]*>/)[0];
-        const item = (p.match(/<item [^>]*>/) || [''])[0];
-        plays.push({ id: Number(attr(head, 'id')), date: attr(head, 'date'), quantity: Number(attr(head, 'quantity')) || 1,
-          minutes: Number(attr(head, 'length')) || 0, incomplete: attr(head, 'incomplete') === '1', location: attr(head, 'location'),
-          bggId: Number(attr(item, 'objectid')), gameName: attr(item, 'name'), comments: unxml((p.match(/<comments>([\s\S]*?)<\/comments>/) || ['', ''])[1]).trim(),
-          players: (p.match(/<player [^>]*\/?>/g) || []).map((t, i) => ({ seat: i + 1, name: attr(t, 'name') || attr(t, 'username') || 'Anonymous',
-            user: attr(t, 'username'), win: attr(t, 'win') === '1', score: attr(t, 'score'), isNew: attr(t, 'new') === '1' })) });
-      }
-    }
-    const err = (String(($input.first() || { json: {} }).json.data || '').match(/<error>\s*<message>([^<]*)<\/message>/) || [])[1];
-    if (err && !plays.length) return [{ json: { ok: false, message: err } }];
-    return [{ json: { ok: true, plays: plays.filter((p) => p.id && p.bggId) } }];
-  }),
+  { ...bggPlays("={{ $('" + WHO + "').first().json.username }}"), onError: 'continueRegularOutput' },
+  parsePlays(),
   ifTrue('Plays OK?', '={{ $json.ok }}'),
   pg('Save Plays', 'SELECT at.save_plays($1, $2::jsonb) AS saved', "={{ [$('" + WHO + "').first().json.email, JSON.stringify($json.plays)] }}"),
   pg('Players And Counts', 'SELECT bgc.refresh_member($1) AS r', "={{ [$('" + WHO + "').first().json.email] }}"),
@@ -2602,7 +2537,7 @@ const importBgg = wf(ID.importBgg, 'Vault — Connect BGG Plays', [
     return [{ json: { ok: true, email: j._auth.email, username } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
-  pg('Start', 'SELECT bgc.start_import($1, $2) AS r', '={{ [$json.email, $json.username] }}'),
+  pg('Start', 'SELECT bgc.start_import($1, $2) AS r', '={{ [$json.email, $json.username] }}', ONCE), // a second try would see "already running"
   code('Started?', function () { return [{ json: { ...$input.first().json.r, status: 409 } }]; }),
   ifTrue('Can Start?', '={{ $json.ok }}'),
   respond('Respond Started', '={{ JSON.stringify({ ok: true, started: true }) }}'),
@@ -2634,7 +2569,7 @@ const shelfCsv = wf(ID.shelfCsv, 'Vault — Add To My Shelf From CSV', [
     return [{ json: { ok: true, email: j._auth.email, rows: clean } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
-  pg('Start', 'SELECT bgc.start_csv($1, $2::jsonb) AS r', '={{ [$json.email, JSON.stringify($json.rows)] }}'),
+  pg('Start', 'SELECT bgc.start_csv($1, $2::jsonb) AS r', '={{ [$json.email, JSON.stringify($json.rows)] }}', ONCE),
   code('Started?', function () { return [{ json: $input.first().json.r }]; }),
   ifTrue('Can Start?', '={{ $json.ok }}'),
   respond('Respond Started', '={{ JSON.stringify({ ok: true, started: true, matched: $json.ids.length, lookingUp: $json.search.length, alreadyHad: $json.alreadyHad }) }}'),
@@ -2653,7 +2588,6 @@ const shelfCsv = wf(ID.shelfCsv, 'Vault — Add To My Shelf From CSV', [
     options: { timeout: 30000, batching: { batch: { batchSize: 1, batchInterval: 1200 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
   }, { credentials: CRED.bgg, ...retry }), onError: 'continueRegularOutput' },
   code('Candidates', function () {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const asked = $('One Item Per Title').all().map((i) => i.json);
     return $input.all().map((res, i) => {
       const t = normTitle(asked[i].title);
@@ -2716,7 +2650,7 @@ const shelfCsv = wf(ID.shelfCsv, 'Vault — Add To My Shelf From CSV', [
     return [{ json: { things: out, notFound } }];
   }),
   pg('Add All', 'SELECT bgc.csv_add($1, $2::jsonb, $3::jsonb, $4::int) AS r',
-    "={{ [$('Validate').first().json.email, JSON.stringify($json.things), JSON.stringify($json.notFound), $('Start').first().json.r.alreadyHad] }}"),
+    "={{ [$('Validate').first().json.email, JSON.stringify($json.things), JSON.stringify($json.notFound), $('Start').first().json.r.alreadyHad] }}", ONCE),
   respondError(),
 ], [
   ['Webhook', 'Validate'], ['Validate', 'Valid?'], ['Valid?', 'Start', 0], ['Valid?', 'Respond Error', 1],
@@ -2732,7 +2666,8 @@ addMemberAuth(shelfCsv, { failTo: 'Respond Error' });
 // =====================================================================
 // 25. Error Alert  (n8n error workflow for every Board Game Curator workflow): emails Dan when one fails.
 //     At most one email per workflow per 30 minutes, so a bad night doesn't flood the inbox.
-// 26. Health Check  daily: emails Dan if the nightly database backup hasn't succeeded in 26 hours.
+// 26. Health Check  daily: emails Dan if the nightly database backup hasn't succeeded in 26 hours, or no play has
+//     come in for 3 days (the nightly BGG syncs fail quietly when BGG changes something).
 // =====================================================================
 const ALERT_FROM = 'Board Game Curator <alpha@ondorilabo.com>';
 const ALERT_TO = OWNER_EMAILS[0];
@@ -2776,11 +2711,16 @@ const healthCheck = wf(ID.healthCheck, 'Vault — Health Check', [
     const lastOk = s.last_ok ? new Date(s.last_ok) : null;
     if (!lastOk || Date.now() - lastOk.getTime() > 26 * 3600 * 1000) {
       problems.push('The nightly database backup has not succeeded since ' + (lastOk ? lastOk.toISOString() : 'it was set up') + '.'
-        + (s.last_error ? '\nLast error: ' + String(s.last_error).slice(-400) : ''));
+        + (s.last_error ? '\nLast error: ' + String(s.last_error).slice(-400) : '')
+        + '\nBackups go to the private GitHub repo daddo78/bgc-backups from the bgc-backup container on the Hostinger server.');
+    }
+    // Plays arrive nightly from BGG (Sync Plays, Sync Member Plays); a quiet sync looks the same as a quiet week, except it never ends
+    const newest = s.newest_play ? new Date(s.newest_play) : null;
+    if (!newest || Date.now() - newest.getTime() > 3 * 86400 * 1000) {
+      problems.push('No new plays have come in since ' + (newest ? newest.toISOString().slice(0, 10) : 'ever') + '. Check the nightly BGG syncs in n8n (Vault — Sync Plays, Vault — Sync Member Plays).');
     }
     if (!problems.length) return [{ json: { send: false } }];
-    return [{ json: { send: true, subject: 'Board Game Curator: backups need attention',
-      text: problems.join('\n\n') + '\n\nBackups go to the private GitHub repo daddo78/bgc-backups from the bgc-backup container on the Hostinger server.' } }];
+    return [{ json: { send: true, subject: 'Board Game Curator: ' + problems.length + ' thing' + (problems.length === 1 ? '' : 's') + ' to look at', text: problems.join('\n\n') } }];
   }),
   ifTrue('Send?', '={{ $json.send }}'),
   email('Email Dan', '={{ $json.subject }}', '={{ $json.text }}'),
@@ -2820,7 +2760,7 @@ const shelfAdd = wf(ID.shelfAdd, 'Vault — Add To My Shelf', [
   }),
   code('Title Only', function () { return [{ json: { thing: null } }]; }),
   pg('Add', 'SELECT bgc.shelf_add($1, $2::jsonb, $3) AS r',
-    "={{ [$('Validate').first().json.email, JSON.stringify($json.thing || null), $('Validate').first().json.title] }}"),
+    "={{ [$('Validate').first().json.email, JSON.stringify($json.thing || null), $('Validate').first().json.title] }}", ONCE),
   code('Result', function () { return [{ json: $input.first().json.r }]; }),
   ifTrue('Added?', '={{ $json.ok }}'),
   respond('Respond OK', '={{ JSON.stringify($json) }}'),
@@ -2907,7 +2847,6 @@ const shelfIdentify = wf(ID.shelfIdentify, 'Vault — Add To My Shelf From Photo
     options: { timeout: 30000, batching: { batch: { batchSize: 1, batchInterval: 1200 } }, response: { response: { responseFormat: 'text', outputPropertyName: 'data' } } },
   }, { credentials: CRED.bgg, ...retry }), onError: 'continueRegularOutput' },
   code('Candidates', function () {
-    const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     const asked = $('One Item Per Title').all().map((i) => i.json);
     return $input.all().map((res, i) => {
       const t = normTitle(asked[i].title);
@@ -2946,7 +2885,7 @@ const shelfIdentify = wf(ID.shelfIdentify, 'Vault — Add To My Shelf From Photo
     });
   }),
   pg('Add', 'SELECT bgc.shelf_add($1, $2::jsonb, $3) AS r',
-    "={{ [$('Auth: Role').first().json._auth.email, JSON.stringify($json.thing || null), $json.title] }}"),
+    "={{ [$('Auth: Role').first().json._auth.email, JSON.stringify($json.thing || null), $json.title] }}", ONCE),
   code('Summary', function () {
     const plan = $('Plan').first().json;
     const results = $('Add').isExecuted ? $('Add').all().map((i) => i.json.r || {}) : [];
@@ -3077,7 +3016,7 @@ const adminAction = wf(ID.adminAction, 'Vault — Admin (actions)', [
     return [{ json: { ok: true, email: j._auth.email, action, target: String(Number(b.target) || ''), v } }];
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
-  pg('Act', "SELECT bgc.admin_action($1, $2, nullif($3, '')::bigint, $4::jsonb) AS r", '={{ [$json.email, $json.action, $json.target, JSON.stringify($json.v)] }}'),
+  pg('Act', "SELECT bgc.admin_action($1, $2, nullif($3, '')::bigint, $4::jsonb) AS r", '={{ [$json.email, $json.action, $json.target, JSON.stringify($json.v)] }}', ONCE),
   code('Result', function () { return [{ json: $input.first().json.r }]; }),
   ifTrue('OK?', '={{ $json.ok }}'),
   // A new member gets an email saying they're in, and how to start
@@ -3152,7 +3091,7 @@ const rulebookUpload = wf(ID.rulebookUpload, 'Vault — Rulebook (upload)', [
   }),
   ifTrue('Valid?', '={{ $json.ok }}'),
   pg('New Doc', 'SELECT bgc.rule_doc_new($1, $2::int, $3, $4, $5, $6) AS r',
-    "={{ [$json.email, String($json.bggId), $json.gameTitle, $json.kind, $json.title, $json.source] }}"),
+    "={{ [$json.email, String($json.bggId), $json.gameTitle, $json.kind, $json.title, $json.source] }}", ONCE),
   code('With File', function () {
     const r = $input.first().json.r || {};
     return [{ json: r, binary: r.ok ? $('Validate').first().binary : undefined }];
@@ -3319,7 +3258,7 @@ const ruleReader = wf(ID.ruleReader, 'Vault — Rulebook Reader', [
     }).filter(Boolean);
   }),
   pg('Save Page', 'SELECT bgc.rule_page_save($1::bigint, $2::int, $3, $4::boolean, $5::jsonb) AS r, bgc.log_ai(NULL, $6::jsonb) AS c',
-    '={{ [String($json.doc), String($json.page), $json.markdown, String($json.fromPdf), JSON.stringify($json.sections), JSON.stringify($json.cost || [])] }}'),
+    '={{ [String($json.doc), String($json.page), $json.markdown, String($json.fromPdf), JSON.stringify($json.sections), JSON.stringify($json.cost || [])] }}', ONCE), // log_ai
   code('All Read', function () { return [{ json: { doc: $('Pages').first().json.doc } }]; }),
   pg('Finish', 'SELECT bgc.rule_doc_finish($1::bigint) AS r', '={{ [String($json.doc)] }}'),
   ifTrue('All Done?', "={{ $json.r.status !== 'queued' }}"),
@@ -3346,7 +3285,7 @@ const ruleReader = wf(ID.ruleReader, 'Vault — Rulebook Reader', [
       cost: [{ feature: 'rulebook', model: r.model || null, cost: u.cost, in: u.prompt_tokens, out: u.completion_tokens }] } }];
   }),
   pg('Save Name', 'SELECT bgc.rule_doc_autoname($1::bigint, $2, $3) AS r, bgc.log_ai(NULL, $4::jsonb) AS c',
-    '={{ [String($json.doc), $json.kind, $json.name, JSON.stringify($json.cost)] }}'),
+    '={{ [String($json.doc), $json.kind, $json.name, JSON.stringify($json.cost)] }}', ONCE), // log_ai
 ], [['When Uploaded', 'Claim'], ['Every 2 Minutes', 'Claim'], ['Claim', 'Pages'], ['Pages', 'Any Pages?'], ['Any Pages?', 'Page', 0], ['Any Pages?', 'All Read', 1],
   ['Page', 'Request'], ['Request', 'Has Image?'], ['Has Image?', 'Read Page', 0], ['Read Page', 'Sections'], ['Sections', 'Save Page'], ['Save Page', 'All Read'], ['All Read', 'Finish'], ['Finish', 'All Done?'], ['All Done?', 'Delete PDF', 0],
   ['All Done?', 'Naming Pages', 0], ['Naming Pages', 'Name Request'], ['Name Request', 'Name It'], ['Name It', 'Name Found'], ['Name Found', 'Save Name']]);
@@ -3371,6 +3310,7 @@ addMemberAuth(dashboard, { failTo: 'Respond Error' });
 const askTest = (() => {
   const w = JSON.parse(JSON.stringify(ask));
   w.id = ID.askTest; w.name = 'Vault — Ask (nightly self-test, internal)';
+  for (const n of w.nodes) { n.id = uuid(); for (const c of ((n.parameters.conditions || {}).conditions || [])) c.id = uuid(); } // its own ids, not Ask's
   const drop = (n) => /^Auth: (Read Token|Verify With Google|Check Token)$/.test(n) || n === 'Token Valid?';
   w.nodes = w.nodes.filter((n) => !drop(n.name));
   for (const k of Object.keys(w.connections)) if (drop(k)) delete w.connections[k];
@@ -3401,7 +3341,7 @@ const askTest = (() => {
   // The self-test reads what the last step returns, so end on Nathan's answer (not the logging steps after it, like Log Cost)
   let last = 'Respond OK';
   while (w.connections[last]) last = w.connections[last].main[0][0].node;
-  w.nodes.push({ id: 'answer', name: 'Answer', type: 'n8n-nodes-base.code', typeVersion: 2, position: [0, 600], parameters: { jsCode: "return [{ json: $('Respond OK').first().json }];" } });
+  w.nodes.push({ id: uuid(), name: 'Answer', type: 'n8n-nodes-base.code', typeVersion: 2, position: [0, 600], parameters: { jsCode: "return [{ json: $('Respond OK').first().json }];" } });
   w.connections[last] = { main: [[{ node: 'Answer', type: 'main', index: 0 }]] };
   return w;
 })();
@@ -3411,6 +3351,7 @@ const askTest = (() => {
 //     Emails Dan only if something fails; the latest result shows on the dashboard.
 // =====================================================================
 const NATHAN_TESTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'tests', 'nathan.json'), 'utf8'));
+const SCORE_SRC = fs.readFileSync(path.join(__dirname, 'tests', 'score.js'), 'utf8'); // the scorer test-nathan.js uses, for the Score node
 const selfTest = wf(ID.selfTest, 'Vault — Nightly Self-Test', [
   node('Nightly', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ triggerAtHour: 5, triggerAtMinute: 40 }] } }),
   node('Run Now', 'n8n-nodes-base.manualTrigger', 1, {}),
@@ -3423,37 +3364,12 @@ const selfTest = wf(ID.selfTest, 'Vault — Nightly Self-Test', [
   { ...node('Ask Nathan', 'n8n-nodes-base.executeWorkflow', 1.2, {
     source: 'database', workflowId: { __rl: true, value: ID.askTest, mode: 'id' }, mode: 'each', options: { waitForSubWorkflow: true },
   }), onError: 'continueRegularOutput' },
-  code('Score', function () {
+  // The scorer is tests/score.js, pasted in front (the same code test-nathan.js requires), so both judge an answer alike
+  node('Score', 'n8n-nodes-base.code', 2, { jsCode: SCORE_SRC + '\n' + body(function () {
     const db = ($('Database Checks').first().json.results) || [{ what: 'the database checks didn’t run: ' + ($('Database Checks').first().json.error || 'no result'), ok: false }];
     const asked = $('Questions').all().map((i) => i.json.test);
     const answers = $input.all().map((i) => i.json);
-    const textOf = (a) => [a.summary, a.note, a.message, a.error, a.pick && [a.pick.title, a.pick.why, a.pick.tableFeel], a.alternative && [a.alternative.title, a.alternative.why],
-      ...(a.highlights || []).map((h) => [h.title, h.why]), a.gap && a.gap.missing,
-      ...[a.pick, a.alternative, ...(a.highlights || [])].filter((x) => x && x.off && (x.off.friends || []).length).map((x) => x.off.friends.join(' & ') + ' has it')].flat(3).filter(Boolean).join(' \n ');
-    const nathan = asked.map((t, i) => {
-      const a = answers[i] || { error: 'no answer' };
-      const low = textOf(a).toLowerCase();
-      const p = [];
-      if (a.error) p.push('error: ' + String(a.error).slice(0, 120));
-      if (a.ok === false && a.message) p.push(String(a.message).slice(0, 120));
-      for (const x of t.includes || []) if (!low.includes(x.toLowerCase())) p.push('missing "' + x + '"');
-      if (t.includesAny && !t.includesAny.some((x) => low.includes(x.toLowerCase()))) p.push('none of ' + t.includesAny.join(' / '));
-      for (const x of t.excludes || []) if (low.includes(x.toLowerCase())) p.push('should not say "' + x + '"');
-      const n = (a.matchIds || []).length;
-      if (t.matchMin != null && n < t.matchMin) p.push(n + ' games, expected at least ' + t.matchMin);
-      if (t.matchMax != null && n > t.matchMax) p.push(n + ' games, expected at most ' + t.matchMax);
-      if (t.intent && a.intent !== t.intent) p.push('answered as ' + a.intent + ', expected ' + t.intent);
-      if (t.mode && a.mode !== t.mode) p.push('answered as ' + a.mode + ', expected ' + t.mode);
-      if (t.offTopic && !a.offTopic) p.push('expected an off-topic redirect');
-      if (t.playerCount !== undefined && ((a.understood || {}).playerCount ?? null) !== t.playerCount) p.push('understood ' + ((a.understood || {}).playerCount ?? 'no') + ' players, expected ' + t.playerCount);
-      if (t.remembers && !(a.remembered || []).length) p.push('expected Nathan to remember something');
-      if (t.remembers === false && (a.remembered || []).length) p.push('should not remember: ' + a.remembered.join('; ').slice(0, 120));
-      if (t.asks !== undefined && !!a.ask !== t.asks) p.push(t.asks ? 'expected a question back' : 'should not ask: ' + String(a.ask).slice(0, 120));
-      if (t.cites && !(a.sources || []).some((x) => !t.cites.page || x.page === t.cites.page)) p.push('expected a page from the rulebook' + (t.cites.page ? ' (p. ' + t.cites.page + ')' : ''));
-      const words = String(a.summary || '').split(/\s+/).filter(Boolean).length;
-      if (t.maxWords && words > t.maxWords) p.push(words + ' words, expected at most ' + t.maxWords);
-      return { what: t.name, ok: !p.length, problems: p };
-    });
+    const nathan = asked.map((t, i) => { const p = score(t, answers[i] || { error: 'no answer' }); return { what: t.name, ok: !p.length, problems: p }; });
     const failed = [...db.filter((x) => !x.ok), ...nathan.filter((x) => !x.ok)];
     const summary = { at: new Date().toISOString(), dbPassed: db.filter((x) => x.ok).length, dbTotal: db.length, nathanPassed: nathan.filter((x) => x.ok).length, nathanTotal: nathan.length,
       failures: failed.map((x) => ({ what: x.what, problems: x.problems || [] })) };
@@ -3462,7 +3378,7 @@ const selfTest = wf(ID.selfTest, 'Vault — Nightly Self-Test', [
       text: 'The nightly self-test found ' + failed.length + ' problem' + (failed.length === 1 ? '' : 's') + '.\n\n' +
         'Database checks: ' + summary.dbPassed + ' of ' + summary.dbTotal + ' passed\nNathan questions: ' + summary.nathanPassed + ' of ' + summary.nathanTotal + ' passed\n\n' + lines.join('\n') +
         '\n\nRun it again any time from n8n (Vault — Nightly Self-Test, "Run Now"), or locally with node n8n/test-nathan.js.' } }];
-  }),
+  }) }),
   pg('Save Result', "INSERT INTO settings (key, value, updated_at) VALUES ('self_test', $1::jsonb, now()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()",
     '={{ [JSON.stringify($json.summary)] }}'),
   code('Pass Along', function () { return [{ json: $('Score').first().json }]; }),
@@ -3541,7 +3457,7 @@ const aiUsage = wf(ID.aiUsage, 'Vault — AI Spending', [
   orGet('Account', 'credits'),
   pg('Save', 'SELECT bgc.log_usage(nullif($1, \'\')::numeric, nullif($2, \'\')::numeric, nullif($3, \'\')::numeric, nullif($4, \'\')::numeric)',
     "={{ [String((($('This Key').first().json || {}).data || {}).usage ?? ''), String((($('This Key').first().json || {}).data || {}).limit ?? ''), " +
-    "String((($('Account').first().json || {}).data || {}).total_credits ?? ''), String((($('Account').first().json || {}).data || {}).total_usage ?? '')] }}"),
+    "String((($('Account').first().json || {}).data || {}).total_credits ?? ''), String((($('Account').first().json || {}).data || {}).total_usage ?? '')] }}", ONCE),
 ], [['Every Hour', 'This Key'], ['Run Now', 'This Key'], ['This Key', 'Account'], ['Account', 'Save']]);
 
 const costs = wf(ID.costs, 'Vault — Costs', [
@@ -3569,7 +3485,7 @@ addMemberAuth(costsSave, { failTo: 'Respond Error' });
 // =====================================================================
 const feedbackSend = wf(ID.feedbackSend, 'Vault — Feedback', [
   webhook('Webhook', 'POST', 'vault/feedback'),
-  pg('Save', 'SELECT bgc.feedback($1, $2::jsonb) AS r', '={{ [$json._auth.email, JSON.stringify($json.body || {})] }}'),
+  pg('Save', 'SELECT bgc.feedback($1, $2::jsonb) AS r', '={{ [$json._auth.email, JSON.stringify($json.body || {})] }}', ONCE),
   code('Result', function () { return [{ json: $input.first().json.r }]; }),
   ifTrue('OK?', '={{ $json.ok }}'),
   ifTrue('New?', '={{ !!$json.id }}'),
@@ -3640,7 +3556,7 @@ fs.mkdirSync(outDir, { recursive: true });
 for (const [k, w] of Object.entries(all)) {
   let s = JSON.stringify(w, null, 2).replace(/__ICON_MODEL__/g, ICON_MODEL).replace(/__VISION_MODEL__/g, VISION_MODEL)
     .replace(/__BGG_USERNAME__/g, BGG_USERNAME)
-    .replace(/__ASK_MODEL__/g, ASK_MODEL).replace(/__ASK_DAILY_CAP__/g, String(ASK_DAILY_CAP)).replace(/__ASK_PER_MEMBER__/g, String(ASK_PER_MEMBER)).replace(/__OWNER_NAME__/g, OWNER_NAME).replace(/__OWNER_EMAIL__/g, OWNER_EMAILS[0]).replace(/__NATHAN_TESTS__/g, () => JSON.stringify(NATHAN_TESTS).replace(/\\/g, '\\\\').replace(/"/g, '\\"'));
+    .replace(/__ASK_MODEL__/g, ASK_MODEL).replace(/__ASK_PER_MEMBER__/g, String(ASK_PER_MEMBER)).replace(/__OWNER_NAME__/g, OWNER_NAME).replace(/__OWNER_EMAIL__/g, OWNER_EMAILS[0]).replace(/__NATHAN_TESTS__/g, () => JSON.stringify(NATHAN_TESTS).replace(/\\/g, '\\\\').replace(/"/g, '\\"'));
   fs.writeFileSync(path.join(outDir, `${k}.json`), s);
   console.log(k, w.id, w.nodes.length, 'nodes');
 }
