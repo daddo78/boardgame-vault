@@ -10,7 +10,7 @@ let favOnly = false;
 let cacheTimer = null;
 function saveCache() {
   clearTimeout(cacheTimer);
-  cacheTimer = setTimeout(() => { if (currentShelf() === 'main') try { localStorage.setItem(LS_CACHE, JSON.stringify(collection)); } catch (e) {} }, 1000);
+  cacheTimer = setTimeout(() => { if (viewingMine()) try { localStorage.setItem(LS_CACHE, JSON.stringify(collection)); } catch (e) {} }, 1000);
 }
 
 function toast(msg, isErr) {
@@ -350,7 +350,7 @@ async function loadMyShelf() {
     if (shelfView !== view) return;
     myShelf = r;
     collection = myShelf.items || [];
-    saveCache(); // the owner's shelf is kept for an offline look (saveCache keeps only the main one)
+    saveCache(); // your own shelf is kept for an offline look
     setSyncStatus('');
     rebuildGenreFilter();
     render();
@@ -359,7 +359,7 @@ async function loadMyShelf() {
   } catch (e) {
     if (shelfView !== view) return;
     setSyncStatus(e.message, true);
-    const cached = isOwner() ? localStorage.getItem(LS_CACHE) : null;
+    const cached = localStorage.getItem(LS_CACHE);
     if (cached) { collection = JSON.parse(cached); rebuildGenreFilter(); render(); }
   }
 }
@@ -2506,7 +2506,7 @@ friendsModal.addEventListener('click', (e) => { if (e.target === friendsModal) f
 // The Ko-fi page; were it ever empty, only the owner would see the button, with a reminder
 var TIP_URL = 'https://ko-fi.com/dandehaan'; // var: the top bar can ask before this line runs
 var tipModal = document.getElementById('tipModal');
-function updateTipJar() { document.getElementById('tipBtn').hidden = !TIP_URL && !isOwner(); }
+function updateTipJar() { document.getElementById('tipBtn').hidden = !TIP_URL && !isAdmin(); }
 document.getElementById('tipBtn').addEventListener('click', () => {
   document.getElementById('tipBody').innerHTML = TIP_URL
     ? '<a class="btn primary" style="display:inline-flex; align-items:center; gap:0.4rem; margin-top:0.4rem; text-decoration:none;" href="' + esc(TIP_URL) + '" target="_blank" rel="noopener"><i class="ti ti-coffee"></i> Leave a tip on Ko-fi</a>'
