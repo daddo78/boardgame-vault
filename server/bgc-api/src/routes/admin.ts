@@ -18,8 +18,8 @@ export function adminRoutes(db: Db, mail: { resendKey?: string; fetch?: Fetch } 
   return new Hono<AuthEnv>()
     // GET /vault/admin: site-wide usage, every member, every rulebook and the feedback
     .get('/admin', read("SELECT bgc.admin_overview($1) || CASE WHEN bgc.is_admin($1) THEN jsonb_build_object('rulebooks', bgc.rule_docs_all($1)) ELSE '{}'::jsonb END || jsonb_strip_nulls(jsonb_build_object('feedback', bgc.feedback_all($1)))"))
-    // GET /vault/dashboard: how people use the site, plus last night's self-test
-    .get('/dashboard', read("SELECT CASE WHEN (d ->> 'ok')::boolean THEN d || jsonb_build_object('selfTest', (SELECT value FROM settings WHERE key = 'self_test')) ELSE d END FROM (SELECT bgc.dashboard($1) AS d) q"))
+    // GET /vault/dashboard: how people use the site, last night's self-test, and the thumbs on Nathan's replies
+    .get('/dashboard', read("SELECT CASE WHEN (d ->> 'ok')::boolean THEN d || jsonb_build_object('selfTest', (SELECT value FROM settings WHERE key = 'self_test'), 'votes', bgc.ask_votes_admin($1)) ELSE d END FROM (SELECT bgc.dashboard($1) AS d) q"))
     // GET /vault/costs: what the site costs to run
     .get('/costs', read('SELECT bgc.costs_page($1)'))
     // GET /vault/players-admin: the owner's people with emails and play counts (admins; the database checks)

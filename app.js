@@ -2135,6 +2135,8 @@ async function askNathan(text, followUp) {
       if (r.intent !== 'browse') rememberPicks(r.pickIds || []);
     }
     turn.querySelector('.np-body').innerHTML = nathanAnswerHtml(r);
+    // Thumbs under the reply; the turn remembers which reply it is (the chat and the question) for the vote
+    if (chatKey) { turn.dataset.voteChat = chatKey; turn.dataset.voteQ = question; turn.querySelector('.np-body').insertAdjacentHTML('beforeend', voteBarHtml()); }
     if (asks) { asks.left = Math.max(0, asks.left - 1); renderAskMeter(); }
   } catch (err) {
     if (err.stopped !== undefined) {
@@ -2158,9 +2160,55 @@ async function askNathan(text, followUp) {
     refreshClamp();
   }
 }
+// ---------- Thumbs on Nathan's replies ----------
+// A thumb alone is only counted (Admin → Nathan sees kinds of questions, never the words); a note goes to Dan with the
+// question and Nathan's answer. The other thumb changes the vote; the same thumb again clears it.
+function voteBarHtml() {
+  return '<div class="n-vote"><span class="n-vote-ask">Was this helpful?</span>' +
+    '<button type="button" class="n-thumb" data-vote="up" title="Good reply" aria-label="Good reply" aria-pressed="false"><i class="ti ti-thumb-up"></i></button>' +
+    '<button type="button" class="n-thumb" data-vote="down" title="Not helpful" aria-label="Not helpful" aria-pressed="false"><i class="ti ti-thumb-down"></i></button></div>';
+}
+function sendVote(box, vote, note) {
+  const t = box.closest('.np-turn');
+  return n8nFetch('/ask-vote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatKey: t.dataset.voteChat, question: t.dataset.voteQ, vote, note: note || '' }) });
+}
+async function voteReply(btn) {
+  const box = btn.closest('.n-vote');
+  if (box.classList.contains('busy')) return;
+  const vote = (box.dataset.vote || '') === btn.dataset.vote ? '' : btn.dataset.vote;
+  box.classList.add('busy');
+  try {
+    await sendVote(box, vote);
+    box.dataset.vote = vote;
+    box.querySelectorAll('.n-thumb').forEach((b) => {
+      const on = b.dataset.vote === vote;
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
+    });
+    box.querySelector('.n-vote-ask').textContent = vote ? 'Thanks!' : 'Was this helpful?';
+    const more = box.querySelector('.n-vote-more');
+    if (!vote) { if (more) more.remove(); return; }
+    if (!more) box.insertAdjacentHTML('beforeend', '<div class="n-vote-more"><input type="text" maxlength="1000" placeholder="Anything to add? (optional)" aria-label="A note for Dan">' +
+      '<button type="button" class="btn small" data-vote-send>Send</button><p class="hint">A note goes to Dan with your question and Nathan’s answer. A thumb alone is only counted.</p></div>');
+  } catch (err) { toast(err.message, true); }
+  finally { box.classList.remove('busy'); }
+}
+async function sendVoteNote(box) {
+  const input = box.querySelector('.n-vote-more input'), btn = box.querySelector('[data-vote-send]');
+  const note = input.value.trim();
+  if (!note) { input.focus(); return; }
+  btn.disabled = true; input.disabled = true;
+  try { await sendVote(box, box.dataset.vote, note); box.querySelector('.n-vote-more').innerHTML = '<p class="hint">Sent. Dan reads every one.</p>'; }
+  catch (err) { toast(err.message, true); btn.disabled = false; input.disabled = false; }
+}
+thread.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.matches('.n-vote-more input')) { e.preventDefault(); sendVoteNote(e.target.closest('.n-vote')); }
+});
 thread.addEventListener('click', (e) => {
   if (e.target.closest('[data-ask-stop]')) { if (askStop) askStop.abort(); return; }
   if (e.target.closest('[data-ask-retry]') && retryAsk && !askBusy) { pendingPhoto = retryAsk.photo; askNathan(retryAsk.text, retryAsk.followUp); return; }
+  const thumb = e.target.closest('[data-vote]');
+  if (thumb) { voteReply(thumb); return; }
+  if (e.target.closest('[data-vote-send]')) { sendVoteNote(e.target.closest('.n-vote')); return; }
   const open = e.target.closest('[data-ask-open]');
   if (open) { openDetail(open.dataset.askOpen); return; }
   const see = e.target.closest('[data-see-all]');

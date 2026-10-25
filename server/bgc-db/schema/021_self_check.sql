@@ -91,6 +91,17 @@ BEGIN
     res := res || jsonb_build_object('what', 'BGG ratings are saved per username, bad rows skipped', 'ok', coalesce((bgc.bgg_ratings_save('check_bgg_user', '[{"bggId": 13, "rating10": 7.5}, {"bggId": "x", "rating10": 9}]') = 1), false));
     res := res || jsonb_build_object('what', 'a game listed twice in a BGG collection (two copies) is saved once', 'ok', coalesce((bgc.bgg_ratings_save('check_bgg_user', '[{"bggId": 14, "rating10": 7}, {"bggId": 14, "rating10": 8}]') = 1), false));
     res := res || jsonb_build_object('what', 'the BGG ratings sync has usernames to fetch', 'ok', coalesce((jsonb_array_length(bgc.bgg_usernames()) >= 1), false));
+    res := res || jsonb_build_object('what', 'a member can give a reply a thumbs up', 'ok', coalesce(((bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question", "vote": "up"}') ->> 'vote') = 'up'), false));
+    res := res || jsonb_build_object('what', 'the other thumb changes the vote, one vote per reply', 'ok', coalesce(((bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question", "vote": "down", "note": "check note"}') ->> 'note') = 'check note'
+  AND (SELECT count(*) FROM ask_votes WHERE chat_key = 'check-chat') = 1), false));
+    res := res || jsonb_build_object('what', 'with a note, the question goes to Admin → Nathan', 'ok', coalesce(((SELECT question FROM ask_votes WHERE chat_key = 'check-chat') = 'check question'
+  AND bgc.ask_votes_admin('dandehaan@gmail.com') -> 'items' -> 0 ->> 'note' = 'check note'), false));
+    res := res || jsonb_build_object('what', 'a thumb alone keeps no question text', 'ok', coalesce(((bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question 2", "vote": "up"}') ->> 'ok')::boolean
+  AND (SELECT question FROM ask_votes WHERE chat_key = 'check-chat' AND question_key = md5('check question 2')) = ''), false));
+    res := res || jsonb_build_object('what', 'a vote that isn''t up or down is turned away', 'ok', coalesce((NOT (bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question", "vote": "meh"}') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'clearing a vote removes it', 'ok', coalesce(((bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question", "vote": ""}') ->> 'vote') = ''
+  AND (SELECT count(*) FROM ask_votes WHERE chat_key = 'check-chat') = 1), false));
+    res := res || jsonb_build_object('what', 'only admins read the thumbs', 'ok', coalesce((bgc.ask_votes_admin('check.member@example.invalid') IS NULL AND (bgc.ask_votes_admin('dandehaan@gmail.com') ->> 'upAll')::int >= 1), false));
     RAISE EXCEPTION 'self-check done' USING ERRCODE = 'P0001'; -- undo everything the checks did
   EXCEPTION WHEN raise_exception THEN
     IF SQLERRM <> 'self-check done' THEN res := res || jsonb_build_object('what', 'the checks crashed: ' || SQLERRM, 'ok', false); END IF;

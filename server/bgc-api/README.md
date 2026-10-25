@@ -31,7 +31,7 @@ Everything under `/vault` needs the sign-in. One line each; the route's own comm
 | `POST /vault/wishlist` `{ action: add\|remove, bggId, title, cover }` | Wishlist (change) | `bgc.wish_change` |
 | `GET /vault/rulebook?bgg=id \| ?games=1` | Rulebook (list) | `bgc.rule_docs_of`, `bgc.rule_doc_games` |
 | `POST /vault/rulebook-change` `{ id, action: remove \| kind, title, source }` | Rulebook (change) | `bgc.rule_doc_change` |
-| `GET /vault/admin`, `/dashboard`, `/costs` | Admin, Dashboard, Costs | `bgc.admin_overview`, `bgc.dashboard`, `bgc.costs_page` |
+| `GET /vault/admin`, `/dashboard`, `/costs` | Admin, Dashboard, Costs | `bgc.admin_overview`, `bgc.dashboard` (+ `bgc.ask_votes_admin`), `bgc.costs_page` |
 | `GET /vault/players-admin` (admins) | Players Admin | `bgc.players_admin` |
 | `POST /vault/player-save` (admins) | Save Player | `bgc.player_save` |
 | `POST /vault/shelf-identify` (multipart photo) | Add To My Shelf From Photo | vision model, BGG, `bgc.shelf_add`, `bgc.polish_game` |
@@ -41,6 +41,7 @@ Everything under `/vault` needs the sign-in. One line each; the route's own comm
 | `POST /vault/admin` `{ action: invite\|remove\|admin\|resetAsks\|askLimit, … }` | Admin actions | `bgc.admin_action`; an invite emails the new member (Resend) |
 | `POST /vault/costs` `{ fixed: [...] }` | Costs (save) | `bgc.costs_fixed_save` |
 | `POST /vault/feedback` `{ kind, mood, message, page, device } \| { action: status, id, status }` | Feedback | `bgc.feedback`; Dan gets an email (Resend) |
+| `POST /vault/ask-vote` `{ chatKey, question, vote: up | down | '', note }` | | `bgc.ask_vote`: a thumb on one of Nathan's replies, shown under Admin → Nathan |
 | `POST /vault/ask` | Ask Nathan | Nathan's steps (below) |
 | `POST /vault/ask/stream` | | the same, streamed as he writes (Server-Sent Events) |
 | `GET /vault/routes` | | which requests the page sends here, from the area switches |

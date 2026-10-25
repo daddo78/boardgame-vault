@@ -424,12 +424,41 @@ function renderNathan(a, d) {
         (total ? '<div class="adopt">' + kinds.map(([k, n]) => '<div class="row">' + esc(KIND[k] || k) + ' <b>' + num(n) + '</b><div class="meter"><div style="width:' + Math.round(n / total * 100) + '%"></div></div></div>').join('') + '</div>'
           : '<p class="empty">No questions yet.</p>') + '<div class="note">Kinds of questions only, never the questions themselves.</div></div>' +
     '</div>' +
+    votesHtml(d.votes) +
     '<h2><i class="fa-solid fa-clock"></i> Asked today</h2>' +
     (busy.length ? '<div class="members">' + busy.map((m) => '<div class="card member"><div class="top"><b>' + esc(m.name) + '</b><span class="pill' + (m.questionsToday >= a.askLimit ? ' warn' : '') + '">' + m.questionsToday + ' of ' + a.askLimit + '</span></div>' +
         '<div class="note">' + num(m.questions7) + ' this week · ' + num(m.questionsAll) + ' all time</div>' +
         '<div class="acts" style="margin-top:0.6rem;"><button type="button" class="btn small" data-reset="' + m.id + '"><i class="fa-solid fa-rotate-left"></i> Reset today’s questions</button></div></div>').join('') + '</div>'
       : '<p class="empty">Nobody has asked Nathan anything yet today.</p>');
   loadNathanMode();
+}
+// The thumbs under his replies: a thumb alone is counted by kind of question (never the words); with a note, the member
+// sent the question and the answer along, so they show with the note
+function votesHtml(v) {
+  if (!v) return '';
+  const n30 = (v.up30 || 0) + (v.down30 || 0), liked = n30 ? Math.round(100 * v.up30 / n30) : null;
+  const kinds = Object.entries(v.byKind || {}).map(([k, c]) => [k, c.up || 0, c.down || 0]).sort((x, y) => (y[1] + y[2]) - (x[1] + x[2]));
+  const thumb = (vote) => '<i class="fa-solid fa-thumbs-' + vote + ' vote-' + vote + '"></i>';
+  const items = v.items || [];
+  return '<h2><i class="fa-solid fa-thumbs-up"></i> Thumbs on his replies</h2>' +
+    '<div class="tiles five">' +
+      '<div class="tile"><b>' + thumb('up') + ' ' + num(v.up7) + '</b><span>Good replies</span><small>last 7 days</small></div>' +
+      '<div class="tile"><b>' + thumb('down') + ' ' + num(v.down7) + '</b><span>Not helpful</span><small>last 7 days</small></div>' +
+      '<div class="tile"><b>' + (liked != null ? liked + '%' : '–') + '</b><span>Liked</span><small>' + (n30 ? num(n30) + ' thumbs, last 30 days' : 'no thumbs yet this month') + '</small></div>' +
+      '<div class="tile"><b>' + num((v.upAll || 0) + (v.downAll || 0)) + '</b><span>All time</span><small>' + num(v.upAll) + ' up · ' + num(v.downAll) + ' down</small></div>' +
+      '<div class="tile"><b>' + num(v.notes) + '</b><span>With a note</span><small>sent to you</small></div>' +
+    '</div>' +
+    '<div class="grid2" style="margin-top:0.8rem;">' +
+      '<div class="card"><h3>By kind of question <small>last 30 days</small></h3>' +
+        (kinds.length ? '<div class="adopt">' + kinds.map(([k, up, down]) => '<div class="row">' + esc(KIND[k] || k) + ' <b>' + thumb('up') + ' ' + num(up) + ' &nbsp; ' + thumb('down') + ' ' + num(down) + '</b>' +
+          '<div class="meter"><div style="width:' + Math.round(100 * up / (up + down)) + '%"></div></div></div>').join('') + '</div>' : '<p class="empty">No thumbs yet.</p>') +
+        '<div class="note">The bar is the share of thumbs up. A thumb alone never carries the question.</div></div>' +
+      '<div class="card"><h3>What people said <small>latest ' + Math.min(items.length, 100) + '</small></h3>' +
+        (items.length ? '<div class="votes">' + items.map((x) => '<div class="vote' + (x.note ? ' noted' : '') + '"><div class="top">' + thumb(x.vote) + '<b>' + esc(x.name || 'A former member') + '</b>' +
+            '<span class="pill">' + esc(KIND[x.kind] || x.kind || 'Other') + '</span><span class="when">' + esc(ago(x.at)) + '</span></div>' +
+            (x.note ? '<div class="msg">' + esc(x.note) + '</div>' + (x.question ? '<div class="meta"><b>Asked:</b> ' + esc(x.question) + (x.answer ? '<br><b>Nathan:</b> ' + esc(x.answer) : '') + '</div>' : '') : '') + '</div>').join('') + '</div>'
+          : '<p class="empty">No thumbs yet. They show under every reply.</p>') + '</div>' +
+    '</div>';
 }
 // Who gets Nathan from api.ondorilabo.com instead of n8n. If the new service is down, everyone gets n8n anyway.
 const MODE_NOTE = { off: 'Everyone gets Nathan from n8n, as before.', admins: 'Admins get the new service; everyone else gets n8n.', everyone: 'Everyone gets the new service (n8n if it can’t be reached).' };

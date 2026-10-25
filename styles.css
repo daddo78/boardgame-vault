@@ -255,6 +255,19 @@ body:not(.can-edit) .star-btn { pointer-events: none; }
 .n-stop { margin-left: auto; border: 0; border-radius: 999px; padding: 0.3rem 0.8rem; background: var(--tag-bg); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
 .n-writing { margin-top: 0.7rem; }
 .n-cut { margin: 0.7rem 0 0; }
+/* Thumbs on a reply: a thumb alone is counted; a note goes to Dan with the question and answer */
+.n-vote { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin-top: 1rem; }
+.n-vote-ask { font-size: 0.82rem; color: var(--text-muted); margin-right: 0.25rem; }
+.n-thumb { border: 0; background: var(--tag-bg); color: var(--text-muted); border-radius: 999px; width: 2.1rem; height: 2.1rem; display: inline-grid; place-items: center; font-size: 1.1rem; cursor: pointer; }
+.n-thumb:hover { color: var(--ink); }
+.n-thumb.on { color: #fff; background: var(--brand); }
+.n-thumb[data-vote="up"].on { background: var(--green-ink); }
+.n-thumb:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.n-vote.busy .n-thumb { opacity: 0.6; pointer-events: none; }
+.n-vote-more { flex-basis: 100%; display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-top: 0.35rem; }
+.n-vote-more input { flex: 1; min-width: 11rem; background: var(--exp-bg); border: none; padding: 0.55rem 0.9rem; border-radius: 999px; color: var(--ink); font-size: 0.9rem; font-family: var(--font-body); }
+.n-vote-more .btn { flex: 0 0 auto; padding: 0.5rem 0.95rem; font-size: 0.85rem; }
+.n-vote-more .hint { flex-basis: 100%; margin: 0; font-size: 0.76rem; }
 .n-cut .linklike { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--accent); text-decoration: underline; cursor: pointer; }
 .ratings-block { display: flex; flex-direction: column; gap: 0.5rem; }
 .rate-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; background: var(--bg); border-radius: 0.9rem; padding: 0.45rem 0.7rem; }

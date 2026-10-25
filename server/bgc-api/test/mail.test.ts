@@ -65,3 +65,16 @@ test('POST /vault/admin: an invite whose email didn’t go out says so', async (
   const r = await json(await post(app, '/vault/admin', { action: 'invite', email: 'bo@example.com', name: 'Bo' }, OWNER));
   assert.deepEqual([r.body.emailed, r.body.message], [false, 'Invited Bo. (The welcome email didn’t go out, so let them know yourself.)']);
 });
+
+test('POST /vault/ask-vote: a thumb on a reply reaches bgc.ask_vote as sent; a bad vote or no reply is a 400', async () => {
+  const db = fakeDb({ 'bgc.ask_vote': ([e, b]) => ({ ok: true, id: 3, vote: JSON.parse(b as string).vote, note: JSON.parse(b as string).note || '', from: e }) });
+  const app = makeAppWith({ db, fetch: resend().f });
+  assert.deepEqual((await json(await post(app, '/vault/ask-vote', { chatKey: 'c1', question: 'Something for two?', vote: 'down', note: ' Too long ' }))).body,
+    { ok: true, id: 3, vote: 'down', note: ' Too long ', from: 'amy@example.com' });
+  assert.deepEqual(JSON.parse(db.calls.find((c) => c.sql.includes('bgc.ask_vote'))!.params[1] as string), { chatKey: 'c1', question: 'Something for two?', vote: 'down', note: ' Too long ' });
+  assert.deepEqual((await json(await post(app, '/vault/ask-vote', { chatKey: 'c1', question: 'Something for two?', vote: '' }))).body.vote, '');
+  for (const bad of [{ chatKey: 'c1', question: 'x', vote: 'meh' }, { chatKey: '', question: 'x', vote: 'up' }, { chatKey: 'c1', vote: 'up' }, 'nope']) {
+    assert.deepEqual(await json(await post(app, '/vault/ask-vote', bad)), { status: 400, body: { ok: false, message: 'Which reply was that?' } }, JSON.stringify(bad));
+  }
+  assert.equal(db.calls.filter((c) => c.sql.includes('bgc.ask_vote')).length, 2);
+});

@@ -28,7 +28,7 @@ export const AREAS = {
   friendChanges: ['POST /friends'],
   adminChanges: ['POST /player-save', 'POST /costs'],
   addGames: ['GET /bgg-search', 'POST /shelf-add'],
-  feedback: ['POST /feedback'],
+  feedback: ['POST /feedback', 'POST /ask-vote'],
   memberActions: ['POST /admin'],
   // The last of n8n's work (Oct 25): photos, the imports the jobs worker finishes, rulebook uploads. Dan's own adds and
   // edits go the same way as everyone's since Oct 25 (shelfChanges, addGames, photos).
