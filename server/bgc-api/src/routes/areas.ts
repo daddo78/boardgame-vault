@@ -30,6 +30,11 @@ export const AREAS = {
   addGames: ['GET /bgg-search', 'POST /shelf-add'],
   feedback: ['POST /feedback'],
   memberActions: ['POST /admin'],
+  // The last of n8n's work (Oct 25): Dan's own adds, photos, the imports the jobs worker finishes, rulebook uploads
+  collectionAdd: ['POST /add'],
+  photos: ['POST /identify', 'POST /shelf-identify'],
+  imports: ['POST /import', 'POST /shelf-csv', 'POST /sync-plays'],
+  rulebookUpload: ['POST /rulebook'],
 } as const;
 type Area = keyof typeof AREAS;
 

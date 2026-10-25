@@ -112,13 +112,15 @@ On for everyone since Oct 22. Admin → Nathan keeps an Off switch as an undo un
 - [x] BGG search and members adding a game to their shelf, behind an "Adding games" switch (off). n8n's code for parsing, ranking and shaping BGG's answers runs word for word (`nodes.gen.ts`). 42 API tests; tried against real BGG and, rolled back, the real database *(Oct 23)*. Adding to Dan's own collection (AI blurb, BGG details, icon) stays in n8n
 - [x] Feedback and Admin's member actions on the API, behind "Feedback" and "Member actions" switches (off). Email goes through Resend's API (`src/mail.ts`); the emails are n8n's own Compose and Invite Email code, word for word. 46 API tests; run on the real database, rolled back, with no email sent *(Oct 23)*
 - [x] Dan: `RESEND_API_KEY` in `~/bgc-db/.env`, the API redeployed with it, a test feedback emailed itself through Resend ("Feedback from Dan: some praise · 5/5"), Feedback on for everyone and Member actions for admins *(Oct 24)*
-- [ ] Writes that call BGG or AI: bgg-search, add, identify, rulebook upload (bulk BGG and CSV imports may stay in n8n)
+- [x] Writes that call BGG or AI: add (Dan's own: blurb, BGG details, art, plays, icon), identify and shelf-identify (photos), rulebook upload, and the imports (BGG plays, CSV, Sync plays now) handed to the jobs worker *(Oct 25, overnight: four new switches, off until checked live)*
 - [x] ~~The page opens with one request for everything it needs~~ Dropped after measuring *(Oct 23)*: the page already asks for the shelf, people and friends at the same time, so it waits for the slowest (people), not their sum; one combined answer would hold the games back until the people were ready. People was slow because each person's play history compared every play with every game on the shelf. Migration 038 makes it a plain lookup (same answers for all 414 people): people on Dan's shelf 336 -> 240 ms, on a friend's 844-game shelf 3.7 -> 1.2 s, and Nathan reads the same view
 - [x] /people no longer builds the shelf's games (migration 039, `shelf_view(..., with_games => false)`; same answer): Dan's shelf ~355 -> ~190 ms over today's two changes, a big friend's 3.9 -> 1.2 s *(Oct 23)*
 - [ ] Each area switches over only after its checks pass; the old webhooks are retired a week later
 
-**Phase 4: what stays in n8n**
-- [ ] Schedules and background work: nightly play sync, Fill Catalog, the rulebook reader, cost readings, the backup check, failure alerts. They're fine where they are; revisit later
+**Phase 4: the schedules move too (the jobs worker, Oct 25)**
+- [x] `bgc-jobs`: the API's image as a worker (`server/bgc-api/src/jobs`): syncPlays 4:00, syncPeople 4:20, memberPlaysNightly 4:30, selfTest 5:40, healthCheck 9:00, aiUsage hourly, fillCatalog every 10 min, ruleReader every 2 min and on upload; plus memberPlays and shelfCsv on request. Runs in `job_runs` (migration 044); failures email Dan (one per job per 30 min). n8n's photo sweep has no equivalent: the API never writes photos to disk
+- [ ] Dan: deploy (db, then api), run each job once by hand and read `job_runs`, unpublish n8n's 9 schedule workflows, turn the four new areas on
+- [ ] After a few quiet days: unpublish the n8n webhooks, remove `extract-nathan.cjs` and the Nathan Off switch (the Nov 6 plan), then retire n8n and its tunnel hostname
 
 **Small things waiting**
 - [ ] Release notes: add "pages no longer jump sideways when a popup opens" to the next version

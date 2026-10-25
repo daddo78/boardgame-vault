@@ -1,4 +1,5 @@
-// How an answer from Nathan is checked against a question in tests/nathan.json. One copy for both places that score:
+// How an answer from Nathan is checked against a question in server/bgc-api/src/selftest/nathan.json. The API has the same
+// code in TypeScript (src/selftest/score.ts, the nightly self-test); keep the two alike. Here for the two places without a build:
 // test-nathan.js requires it, and gen.js pastes this file in front of the nightly self-test's Score code node (so no
 // require there). Plain functions only, nothing from node.
 // Everything an answer says, as one string (summary, picks, highlights, notes, and the "Nathan has it" the cards show)

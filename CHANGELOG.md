@@ -2,6 +2,10 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.21 · October 25, 2026
+
+*Behind the scenes: the last of the app's work moved off n8n onto its own server. Adding to Dan's collection, photos of boxes and shelves, bringing in plays and spreadsheets, and uploading rulebooks now go to the same service as everything else, and the overnight work (play syncs, box art for catalog games, reading rulebooks, cost readings, the backup check and the nightly self-test) runs in a small worker beside it, with every run and any failure recorded. Nothing changes on the page.*
+
 ## v0.18 · October 23, 2026
 
 - **Nathan asks one question back:** when one missing detail would change his pick, he still gives you his best pick, then asks you about it under his answer: "How old are your kids?" or "How many friends are coming over?" Answer him and his next pick fits better. When you've already said enough, he doesn't ask.

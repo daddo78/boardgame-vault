@@ -4,6 +4,7 @@ import { createApp } from '../src/app.js';
 import { googleVerifier } from '../src/auth.js';
 import { loadConfig } from '../src/config.js';
 import type { Db } from '../src/db.js';
+import type { JobsClient } from '../src/jobsClient.js';
 
 export const CLIENT_ID = 'test-client.apps.googleusercontent.com';
 export const OWNER = 'owner@example.com';
@@ -50,27 +51,43 @@ export function fakeDb(overrides: Partial<Record<string, (params: unknown[]) => 
     },
     // Nathan's steps read rows; his tests (nathan.test.ts) put their own row() in place of this one
     async row() { throw new Error('fake db: no row answers here'); },
+    // Several rows (the jobs): answered like one(), an array expected; nothing known is no rows
+    async rows<T>(sql: string, params: unknown[]) {
+      calls.push({ sql, params });
+      const fn = Object.keys(answers).find((k) => sql.includes(k + '(')) ?? Object.keys(answers).find((k) => sql.includes(k));
+      const out = fn ? await answers[fn](params) : [];
+      return (Array.isArray(out) ? out : []) as T[];
+    },
     async ping() { if (!up) throw new Error('down'); },
     async close() {},
   };
   return db;
 }
 
+// A jobs worker that takes everything and does nothing, so no test runs a background job by accident. Tests that care
+// hand in their own (fakeJobs) and look at what was handed over.
+export function fakeJobs(results: Record<string, unknown> = {}) {
+  const runs: { name: string; params: unknown; wait: boolean }[] = [];
+  const jobs: JobsClient & { runs: typeof runs } = { runs, async run(name, params, opts = {}) { runs.push({ name, params, wait: !!opts.wait }); return { where: 'worker', result: results[name] }; } };
+  return jobs;
+}
+const noJobs = fakeJobs();
+
 // Settings as the tests run: localhost allowed (the page on this computer), as `npm run dev` also wants
 const ENV = { DATABASE_URL: 'postgres://unused', GOOGLE_CLIENT_ID: CLIENT_ID, OWNER_EMAILS: OWNER, LOG_REQUESTS: 'false', ALLOW_LOCALHOST: 'true' };
 
 // keys: in place of Google's key set (to make fetching it fail); signInCacheMs: how long a sign-in is remembered (0: never)
-export function makeApp(opts: { db?: ReturnType<typeof fakeDb>; env?: Record<string, string>; now?: () => number; keys?: JWTVerifyGetKey; signInCacheMs?: number } = {}) {
+export function makeApp(opts: { db?: ReturnType<typeof fakeDb>; env?: Record<string, string>; now?: () => number; keys?: JWTVerifyGetKey; signInCacheMs?: number; fetch?: typeof fetch; jobs?: JobsClient } = {}) {
   const db = opts.db ?? fakeDb();
   const config = loadConfig({ ...ENV, ...opts.env });
-  const app = createApp({ db, verify: googleVerifier(CLIENT_ID, opts.keys ?? googleKeys), config, now: opts.now, signInCacheMs: opts.signInCacheMs });
+  const app = createApp({ db, verify: googleVerifier(CLIENT_ID, opts.keys ?? googleKeys), config, now: opts.now, signInCacheMs: opts.signInCacheMs, fetch: opts.fetch, jobs: opts.jobs ?? noJobs, bggGapMs: 0 });
   return { app, db };
 }
 
 // With Nathan: a stand-in OpenRouter (fetch) and his settings
-export function makeAppWith(opts: { db: Db; fetch: typeof fetch; env?: Record<string, string> }) {
+export function makeAppWith(opts: { db: Db; fetch: typeof fetch; env?: Record<string, string>; jobs?: JobsClient }) {
   const config = loadConfig({ ...ENV, OPENROUTER_API_KEY: 'sk-test', ...opts.env });
-  return createApp({ db: opts.db, verify: googleVerifier(CLIENT_ID, googleKeys), config, fetch: opts.fetch });
+  return createApp({ db: opts.db, verify: googleVerifier(CLIENT_ID, googleKeys), config, fetch: opts.fetch, jobs: opts.jobs ?? noJobs, bggGapMs: 0 });
 }
 
 export const get = (app: ReturnType<typeof makeApp>['app'], path: string, headers: Record<string, string> = {}) =>

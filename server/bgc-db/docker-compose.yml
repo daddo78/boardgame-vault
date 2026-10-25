@@ -37,8 +37,9 @@ services:
     image: nocodb/nocodb:latest
     container_name: bgc-nocodb
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 768m            # it ran out of heap at ~260 MB on Oct 24 (a crash loop at startup); NODE_OPTIONS gives Node room inside the cap
     environment:
+      NODE_OPTIONS: --max-old-space-size=512
       NC_DB: pg://bgc-postgres:5432?u=bgc&p=${POSTGRES_PASSWORD}&d=nocodb
       NC_AUTH_JWT_SECRET: ${NC_JWT_SECRET}
       NC_DISABLE_TELE: "true"

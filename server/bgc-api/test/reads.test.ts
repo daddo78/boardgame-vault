@@ -128,7 +128,7 @@ test('areas: each switch sends its routes to this service; admins-only for admin
   assert.deepEqual((await json(await get(app, '/vault/routes', await amy()))).body.routes, ['GET /collection', 'GET /shelf', 'GET /people', 'GET /friends']);
   assert.deepEqual((await json(await get(app, '/vault/routes', await dan()))).body.routes.slice(4), ['GET /admin', 'GET /dashboard', 'GET /costs', 'GET /players-admin']);
   const a = await json(await get(app, '/vault/api-areas', await dan()));
-  assert.deepEqual(a.body.areas, { account: 'off', shelves: 'everyone', wishlist: 'off', rulebooks: 'off', admin: 'admins', accountChanges: 'off', wishlistChanges: 'off', rulebookChanges: 'off', shelfChanges: 'off', friendChanges: 'off', adminChanges: 'off', addGames: 'off', feedback: 'off', memberActions: 'off' });
+  assert.deepEqual(a.body.areas, { account: 'off', shelves: 'everyone', wishlist: 'off', rulebooks: 'off', admin: 'admins', accountChanges: 'off', wishlistChanges: 'off', rulebookChanges: 'off', shelfChanges: 'off', friendChanges: 'off', adminChanges: 'off', addGames: 'off', feedback: 'off', memberActions: 'off', collectionAdd: 'off', photos: 'off', imports: 'off', rulebookUpload: 'off' });
   assert.equal((await get(app, '/vault/api-areas', await amy())).status, 403);
   // A saved value that isn't an object (a hand edit) reads as all off, and the next change starts a fresh object
   // instead of letting jsonb's || turn scalar || object into an array

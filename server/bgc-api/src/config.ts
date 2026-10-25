@@ -21,6 +21,16 @@ const Env = z.object({
   OPENROUTER_API_KEY: z.string().optional(),
   BGG_TOKEN: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
+  // Whose BGG plays the nightly sync and a new game's play count come from (Dan's); unset: the admin's BGG username in the database
+  BGG_USERNAME: z.string().optional(),
+  // The jobs worker (bgc-jobs, the same image started with node dist/jobs/server.js): where the API hands background work
+  // to. Unset (tests, npm run dev): the API runs that work itself.
+  JOBS_URL: z.string().optional(),
+  JOBS_PORT: z.coerce.number().int().positive().default(8788),
+  JOBS_TZ: z.string().default('America/Detroit'),  // the schedules' clock (4:00 means 4:00 in Michigan)
+  JOBS_SCHEDULES: z.enum(['true', 'false']).default('true'),
+  // The rulebook page service (bgc-pages): holds a PDF only while Nathan reads it
+  PAGES_URL: z.string().default('http://bgc-pages:8000'),
 });
 
 export type Config = {
@@ -36,6 +46,12 @@ export type Config = {
   openrouterKey: string | undefined;
   bggToken: string | undefined;
   resendKey: string | undefined;
+  bggUsername: string | undefined;
+  jobsUrl: string | undefined;
+  jobsPort: number;
+  jobsTz: string;
+  jobsSchedules: boolean;
+  pagesUrl: string;
 };
 
 const list = (s: string) => s.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
@@ -58,5 +74,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     openrouterKey: e.OPENROUTER_API_KEY || undefined,
     bggToken: e.BGG_TOKEN || undefined,
     resendKey: e.RESEND_API_KEY || undefined,
+    bggUsername: e.BGG_USERNAME || undefined,
+    jobsUrl: e.JOBS_URL ? e.JOBS_URL.replace(/\/+$/, '') : undefined,
+    jobsPort: e.JOBS_PORT,
+    jobsTz: e.JOBS_TZ,
+    jobsSchedules: e.JOBS_SCHEDULES === 'true',
+    pagesUrl: e.PAGES_URL.replace(/\/+$/, ''),
   };
 }

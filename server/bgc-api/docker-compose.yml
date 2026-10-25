@@ -1,9 +1,26 @@
-# Board Game Curator API on the Hostinger VPS (~/bgc-api, next to ~/bgc-db).
-#   bgc-api   the API (Hono on Node). No published ports: the Cloudflare tunnel reaches it as http://bgc-api:8787
-#             on the n8n network, where Postgres (bgc-postgres) also is.
+# Board Game Curator API and its jobs worker on the Hostinger VPS (~/bgc-api, next to ~/bgc-db).
+#   bgc-api    the API (Hono on Node). No published ports: the Cloudflare tunnel reaches it as http://bgc-api:8787
+#              on the n8n network, where Postgres (bgc-postgres) also is.
+#   bgc-jobs   the same image, started as the jobs worker (node dist/jobs/server.js): the schedules (nightly play syncs,
+#              Fill Catalog, the rulebook reader, cost readings, the backup check, the nightly self-test) and the slow
+#              work the API hands it (imports, spreadsheets, reading a rulebook). Reached only by the API, as
+#              http://bgc-jobs:8788; nothing outside the network can.
 # Secrets come from ~/bgc-db/.env (deploy.sh runs: docker compose --env-file ../bgc-db/.env ...); never commit them.
-# Deploys are run by deploy.sh, which starts the new container beside the old one and only then stops the old one.
+# Deploys are run by deploy.sh, which starts the new API container beside the old one and only then stops the old one;
+# the worker is simply recreated (a job it was running is picked up again: the pages of a rulebook are saved one by one,
+# the syncs are upserts).
 name: bgc-api
+
+x-env: &env
+  PGHOST: bgc-postgres
+  PGUSER: bgc
+  PGPASSWORD: ${POSTGRES_PASSWORD}
+  PGDATABASE: bgc
+  VERSION: ${API_TAG:-dev}
+  OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+  BGG_TOKEN: ${BGG_TOKEN:-}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  BGG_USERNAME: ${BGG_USERNAME:-}
 
 services:
   bgc-api:
@@ -11,17 +28,32 @@ services:
     image: bgc-api:${API_TAG:-dev}
     restart: unless-stopped
     environment:
-      PGHOST: bgc-postgres
-      PGUSER: bgc
-      PGPASSWORD: ${POSTGRES_PASSWORD}
-      PGDATABASE: bgc
-      VERSION: ${API_TAG:-dev}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-      BGG_TOKEN: ${BGG_TOKEN:-}
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
-    mem_limit: 256m
+      <<: *env
+      JOBS_URL: http://bgc-jobs:8788
+    mem_limit: 512m          # a rulebook PDF (up to 60 MB) is held in memory while it goes to the page service
     stop_grace_period: 15s   # time to finish requests in flight
     networks: [n8n]
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }
+
+  bgc-jobs:
+    image: bgc-api:${API_TAG:-dev}
+    container_name: bgc-jobs
+    command: ["node", "dist/jobs/server.js"]
+    restart: unless-stopped
+    environment:
+      <<: *env
+      JOBS_TZ: America/Detroit
+    mem_limit: 384m
+    stop_grace_period: 30s   # a job in progress gets a moment to finish its page or its batch
+    networks: [n8n]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8788/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     logging:
       driver: json-file
       options: { max-size: 10m, max-file: "3" }

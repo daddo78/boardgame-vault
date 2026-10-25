@@ -11,10 +11,10 @@ SSH="ssh -i $N8N_SSH_KEY $N8N_SSH_HOST"
 
 node gen.js "$BGG_CRED" "${BGG_USERNAME:-}" >/dev/null
 names=("$@")
-# askTest and selfTest are built from Ask (a clone, and the nightly runner that bakes in tests/nathan.json): they go along
+# askTest and selfTest are built from Ask (a clone, and the nightly runner that bakes in server/bgc-api/src/selftest/nathan.json): they go along
 if [ $# -gt 0 ]; then
   for n in "$@"; do [ "$n" = ask ] && names+=(askTest selfTest); done
-  git diff --quiet HEAD -- tests/nathan.json tests/score.js || names+=(selfTest)   # uncommitted test changes
+  git diff --quiet HEAD -- ../server/bgc-api/src/selftest/nathan.json tests/score.js || names+=(selfTest)   # uncommitted test changes
 fi
 if [ $# -eq 0 ]; then files=(workflows/*.json); else files=(); for n in $(printf '%s\n' "${names[@]}" | awk '!seen[$0]++'); do files+=("workflows/$n.json"); done; fi
 

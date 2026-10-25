@@ -1,4 +1,4 @@
-// Asks Nathan the questions in tests/nathan.json (as Dan or Nathan Schmidt) and checks each answer.
+// Asks Nathan the questions in server/bgc-api/src/selftest/nathan.json (as Dan or Nathan Schmidt) and checks each answer.
 // Real AI calls, but they don't use anyone's daily allowance. About 15 seconds a question.
 //   node test-nathan.js            all questions
 //   node test-nathan.js shame      only questions whose name contains "shame"
@@ -7,7 +7,7 @@
 // Exit code 1 if any check fails.
 const { execFileSync } = require('child_process');
 const path = require('path');
-const tests = require('./tests/nathan.json');
+const tests = require('../server/bgc-api/src/selftest/nathan.json');
 const { textOf, score } = require('./tests/score'); // the same scorer the nightly self-test runs
 // The server (host, key) from env.sh, the file the shell scripts source: plain NAME=value lines, $HOME allowed
 const ENV = Object.fromEntries([...require('fs').readFileSync(path.join(__dirname, 'env.sh'), 'utf8').matchAll(/^(\w+)=("?)(.*?)\2\s*$/gm)]

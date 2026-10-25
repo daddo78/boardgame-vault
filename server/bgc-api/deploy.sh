@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# Test, ship and start bgc-api on the Hostinger VPS without taking it down.
+# Test, ship and start bgc-api (and its jobs worker, bgc-jobs) on the Hostinger VPS without taking the API down.
 # Usage: ./deploy.sh            ship and switch over
 #        ./deploy.sh --trial    ship and build the image only (nothing starts); then try it with
 #                               API_TAG=<tag> TARGET=api node ../../n8n/test-nathan.js
 #   1. types, tests and build pass here first (check.sh)
 #   2. the source goes to ~/bgc-api on the server and the image is built there (tagged with the git commit)
-#   3. a new container starts beside the old one; once its health check passes (it can reach Postgres),
+#   3. a new API container starts beside the old one; once its health check passes (it can reach Postgres),
 #      the old one is stopped (it finishes requests in flight). If the new one never gets healthy, it is
 #      removed and the old one keeps serving.
+#   4. the jobs worker is recreated from the same image and waited for (its health check)
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -27,13 +28,13 @@ $SSH "API_TAG=$TAG TRIAL=${1:-} bash -s" <<'REMOTE'
 set -euo pipefail
 cd ~/bgc-api
 DC="docker compose --env-file ../bgc-db/.env"
-# The serving containers (not one-off trial runs)
+# The serving API containers (not one-off trial runs)
 ids() { docker ps -aq --filter label=com.docker.compose.project=bgc-api --filter label=com.docker.compose.service=bgc-api --filter label=com.docker.compose.oneoff=False; }
 
 $DC build --quiet bgc-api
 if [ "$TRIAL" = --trial ]; then echo "built bgc-api:$API_TAG (trial: nothing started)"; exit 0; fi
 old=$(ids)
-if [ -z "$old" ]; then $DC up -d bgc-api
+if [ -z "$old" ]; then $DC up -d --no-deps bgc-api
 else $DC up -d --no-deps --no-recreate --scale bgc-api=$(( $(echo "$old" | wc -l) + 1 )) bgc-api; fi
 new=$(ids | grep -vxF -f <(echo "$old") || true)
 [ -n "$new" ] || { echo "no new container started" >&2; exit 1; }
@@ -58,6 +59,22 @@ if [ -n "$old" ]; then
   sleep 3
   for c in $old; do docker stop -t 15 "$c" >/dev/null && docker rm "$c" >/dev/null && echo "old container stopped"; done
 fi
+
+# The jobs worker: the same image, recreated (compose stops the old one first; a job in progress is picked up again)
+$DC up -d --no-deps bgc-jobs
+jstate=starting
+for i in $(seq 1 20); do
+  jstate=$(docker inspect -f '{{.State.Health.Status}}' bgc-jobs 2>/dev/null || echo missing)
+  [ "$jstate" = healthy ] && break
+  [ "$jstate" = unhealthy ] && break
+  sleep 2
+done
+if [ "$jstate" != healthy ]; then
+  echo "bgc-jobs is $jstate. Its last lines:" >&2
+  docker logs --tail 30 bgc-jobs >&2 || true
+  exit 1
+fi
+echo "bgc-jobs healthy"
 
 # Keep the last 3 images to roll back to, drop older ones
 docker images bgc-api --format '{{.CreatedAt}}\t{{.Repository}}:{{.Tag}}' | sort -r | tail -n +4 | cut -f2 \

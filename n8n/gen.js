@@ -3375,10 +3375,10 @@ const askTest = (() => {
 })();
 
 // =====================================================================
-// 35. Nightly Self-Test  every night: the database checks, then Nathan's question set (n8n/tests/nathan.json).
+// 35. Nightly Self-Test  every night: the database checks, then Nathan's question set (server/bgc-api/src/selftest/nathan.json, the API's self-test reads the same file).
 //     Emails Dan only if something fails; the latest result shows on the dashboard.
 // =====================================================================
-const NATHAN_TESTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'tests', 'nathan.json'), 'utf8'));
+const NATHAN_TESTS = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'server', 'bgc-api', 'src', 'selftest', 'nathan.json'), 'utf8'));
 const SCORE_SRC = fs.readFileSync(path.join(__dirname, 'tests', 'score.js'), 'utf8'); // the scorer test-nathan.js uses, for the Score node
 const selfTest = wf(ID.selfTest, 'Vault — Nightly Self-Test', [
   node('Nightly', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ triggerAtHour: 5, triggerAtMinute: 40 }] } }),

@@ -162,9 +162,11 @@ const AREA_NAMES = { account: 'Account (sign-in, profiles, Nathan’s memory)', 
   accountChanges: 'Account changes (saving your profile, forgetting notes)', wishlistChanges: 'Wishlist changes (add, remove, “Got it!”)', rulebookChanges: 'Rulebook changes (admins editing or removing a document)',
   shelfChanges: 'Shelf changes (stars, favorites, want-to-play, thinning, removing a game)', friendChanges: 'Friend changes (adding by code, removing)',
   adminChanges: 'Admin changes (saving a player card, fixed costs)', addGames: 'Adding games (searching BGG, adding one to your own shelf)',
-  feedback: 'Feedback (saved, and emailed to Dan)', memberActions: 'Member actions (invites with their welcome email, removing, admins, question limits)' };
+  feedback: 'Feedback (saved, and emailed to Dan)', memberActions: 'Member actions (invites with their welcome email, removing, admins, question limits)',
+  collectionAdd: 'Dan’s own adds (a game by name: blurb, BGG details, box art, plays, icon)', photos: 'Photos (a box or a shelf, Dan’s collection and members’ shelves)',
+  imports: 'Imports (BGG plays, spreadsheets, “Sync plays now”; the jobs worker finishes them)', rulebookUpload: 'Rulebook uploads (the PDF to the page service, then Nathan reads it)' };
 // Only admins use these, so "Admins only" and "Everyone" would be the same: a plain Off / On ("On" is admins)
-const ADMIN_AREAS = ['admin', 'rulebookChanges', 'adminChanges', 'memberActions'];
+const ADMIN_AREAS = ['admin', 'rulebookChanges', 'adminChanges', 'memberActions', 'collectionAdd'];
 const modeOf = (a, m) => (ADMIN_AREAS.includes(a) && m === 'everyone' ? 'admins' : m);
 // What the check asks in each area; {friend} and {bgg} are filled from n8n's own answers
 const AREA_CHECKS = {
@@ -607,7 +609,7 @@ async function rbUpload(form) {
   const btn = form.querySelector('[type=submit]');
   rbNew.busy = true; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-upload"></i> Uploading…';
   try {
-    const res = await fetch(N8N_BASE + '/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + t }, body: fd });
+    const res = await routedFetch('/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + t }, body: fd });
     const r = await res.json().catch(() => ({}));
     if (!res.ok || !r.ok) throw new Error(r.message || 'Upload failed (' + res.status + ')');
     rbNew = null;

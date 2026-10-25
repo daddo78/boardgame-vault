@@ -831,7 +831,7 @@ async function uploadRulebook(form) {
   fd.append('kind', form.querySelector('[name=kind]').value); fd.append('title', form.querySelector('[name=title]').value.trim()); fd.append('source', source);
   form.querySelector('.hint').textContent = 'Uploading "' + file.name + '"…';
   try {
-    const res = await fetch(N8N_BASE + '/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + await ensureToken() }, body: fd });
+    const res = await routedFetch('/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + await ensureToken() }, body: fd });
     const r = await res.json().catch(() => ({}));
     if (!res.ok || !r.ok) throw new Error(r.message || 'Upload failed (' + res.status + ')');
     rbCache[bggId] = r;
@@ -1404,7 +1404,7 @@ document.getElementById('identifyBtn').addEventListener('click', async () => {
     const form = new FormData();
     form.append('photo', await shrinkPhoto(file), 'boxes.jpg');
     // A friend's own shelf, or Dan's collection
-    const res = await fetch(N8N_BASE + (viewingMine() ? '/shelf-identify' : '/identify'), { method: 'POST', body: form, headers: { Authorization: 'Bearer ' + await ensureToken() } });
+    const res = await routedFetch(viewingMine() ? '/shelf-identify' : '/identify', { method: 'POST', body: form, headers: { Authorization: 'Bearer ' + await ensureToken() } });
     if (res.status === 401) throw handleUnauthorized();
     let result = {};
     try { result = await res.json(); } catch (e) {}

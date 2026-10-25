@@ -7,13 +7,17 @@ export interface Db {
   one<T>(sql: string, params: unknown[]): Promise<T | null>;
   // The first row, by column name (Nathan's steps read several columns at once, as from n8n's Postgres node)
   row<T = Record<string, any>>(sql: string, params: unknown[]): Promise<T | null>;
+  // Every row, by column name (the jobs: each member to sync, recent runs)
+  rows<T = Record<string, any>>(sql: string, params: unknown[]): Promise<T[]>;
   ping(): Promise<void>;
   close(): Promise<void>;
 }
 
-// url undefined: pg reads PGHOST, PGUSER, PGPASSWORD and PGDATABASE from the environment
-export function pgDb(url: string | undefined): Db {
-  const pool = new pg.Pool({ connectionString: url, max: 8, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 5_000, statement_timeout: 20_000, application_name: 'bgc-api' });
+// url undefined: pg reads PGHOST, PGUSER, PGPASSWORD and PGDATABASE from the environment.
+// statementTimeoutMs: the jobs raise it (a BGG import's at.save_plays over a thousand plays takes a while)
+export function pgDb(url: string | undefined, opts: { statementTimeoutMs?: number; max?: number } = {}): Db {
+  const pool = new pg.Pool({ connectionString: url, max: opts.max ?? 8, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 5_000,
+    statement_timeout: opts.statementTimeoutMs ?? 20_000, application_name: 'bgc-api' });
   pool.on('error', (e) => console.error(JSON.stringify({ level: 'error', where: 'pg pool', error: e.message })));
   return {
     async one<T>(sql: string, params: unknown[]) {
@@ -23,6 +27,10 @@ export function pgDb(url: string | undefined): Db {
     async row<T>(sql: string, params: unknown[]) {
       const r = await pool.query(sql, params);
       return (r.rows[0] ?? null) as T | null;
+    },
+    async rows<T>(sql: string, params: unknown[]) {
+      const r = await pool.query(sql, params);
+      return r.rows as T[];
     },
     async ping() { await pool.query('SELECT 1'); },
     close: () => pool.end(),
