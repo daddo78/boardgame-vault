@@ -22,6 +22,14 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 
 *Behind the scenes: the last of the app's work moved off n8n onto its own server. Adding to Dan's collection, photos of boxes and shelves, bringing in plays and spreadsheets, and uploading rulebooks now go to the same service as everything else, and the overnight work (play syncs, box art for catalog games, reading rulebooks, cost readings, the backup check and the nightly self-test) runs in a small worker beside it, with every run and any failure recorded. Nothing changes on the page.*
 
+## v0.19 · October 24, 2026
+
+- **Big rules questions get the short version:** ask Nathan "teach me Wingspan" or "walk me through setting up SETI" and he gives you the big picture in a few lines, then says where the detail lives: the rulebook pages, and a "how to play" video search.
+- **Follow-ups scroll into place:** reply in a chat and your question moves to the top, so Nathan's answer has room to arrive under it.
+- **Add by photo works again,** and the page loads lighter and faster, most of all on a phone.
+- **Nathan fixes:** "Which of my friends would love Brass?" names your friends again (a lowercase title used to throw him), and "What are Matt's top 10?" finds Matt. The opener on a rules overview is a different dad joke each time.
+- If Google's sign-in has a wobble, the page says so and asks you to try again in a moment, instead of telling you your sign-in expired.
+
 ## v0.18 · October 23, 2026
 
 - **Nathan asks one question back:** when one missing detail would change his pick, he still gives you his best pick, then asks you about it under his answer: "How old are your kids?" or "How many friends are coming over?" Answer him and his next pick fits better. When you've already said enough, he doesn't ask.
