@@ -2103,6 +2103,17 @@ async function askViaApi(payload, turn) {
     return done;
   } finally { askStop = null; }
 }
+// A reply scrolls up to the top of the chat (the page, or the thread in full screen) so the answer has room to arrive below it.
+// Near the end there may be nothing below to scroll into, so Nathan's turn holds open the rest of the view until the next question.
+function questionToTop(mine, turn) {
+  thread.querySelectorAll('.np-turn.nathan').forEach((t) => { if (t !== turn) t.style.minHeight = ''; });
+  const full = panel.classList.contains('full');
+  const top = mine.getBoundingClientRect().top;
+  const below = full ? thread.scrollHeight - (top - thread.getBoundingClientRect().top + thread.scrollTop) : document.documentElement.scrollHeight - (top + window.scrollY);
+  const short = (full ? thread.clientHeight : window.innerHeight) - 16 - below;
+  if (short > 0) turn.style.minHeight = (turn.offsetHeight + short) + 'px';
+  mine.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 async function askNathan(text, followUp) {
   if (asks && asks.left <= 0) { renderAskMeter(); return; }
   const photo = pendingPhoto;
@@ -2125,6 +2136,7 @@ async function askNathan(text, followUp) {
   }
   setPanel(followUp ? 'expanded' : 'collapsed');
   thread.insertAdjacentHTML('beforeend', '<div class="np-turn me"><div class="np-bubble">' + (photo ? '<img class="np-photo" src="' + photo + '" alt="Your photo">' : '') + bubbleHtml(question) + '</div></div>');
+  const mine = thread.lastElementChild;
   pendingPhoto = null; renderPhotoChips();
   bar.placeholder = 'Ask Nathan about your shelf… (@ to add people)'; npInput.placeholder = 'Reply to Nathan… (@ to add people)';
   const names = people.players.filter(p => askSelected.has(p.id)).map(p => firstName(p.name));
@@ -2134,7 +2146,8 @@ async function askNathan(text, followUp) {
   thread.appendChild(turn);
   const stopThinking = startThinking(turn.querySelector('.think-line'), question, names);
   refreshClamp();
-  (followUp ? turn : panel).scrollIntoView({ behavior: 'smooth', block: followUp ? 'nearest' : 'start' });
+  if (followUp) questionToTop(mine, turn);
+  else panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
     const payload = { question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], recent: recentPicks().map((x) => x.id), chatKey, image: photo, shelf: currentShelf() };
     const r = (await useNathanApi() && await askViaApi(payload, turn))
