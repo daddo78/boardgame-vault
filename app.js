@@ -35,6 +35,10 @@ const isOwner = () => (myRole() || {}).role === 'owner';
 const isMember = () => !!myRole();
 const isAdmin = () => isOwner() || !!(myRole() || {}).admin;
 const myPlayerId = () => (myRole() || {}).playerId || null;
+// Opened from the home screen (the web manifest's standalone mode). Google's pop-up sign-in can't hand the token back
+// to a home-screen app on iPhone (the pop-up is a separate Safari), so there every sign-in goes through Google's own
+// page and comes back in the address (googleRedirectSignIn), which iOS does return to the app.
+const standalone = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } };
 function setToken(t) {
   apiRoutesP = null; // ask the switches again for whoever is signed in now
   try { profile = t ? decodeJwt(t) : null; idToken = t || null; } catch (e) { profile = null; idToken = null; }
@@ -107,8 +111,8 @@ function renderLandingSignIn() {
     if (!box || box.dataset.drawn === String(gisReady)) continue;
     box.dataset.drawn = String(gisReady);
     box.innerHTML = '';
-    if (gisReady) google.accounts.id.renderButton(box, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', logo_alignment: 'left' });
-    else box.innerHTML = '<button class="btn primary" type="button" data-quick-sign-in>Sign in with Google</button>';
+    if (gisReady && !standalone()) google.accounts.id.renderButton(box, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', logo_alignment: 'left' });
+    else box.innerHTML = '<button class="btn primary" type="button" data-quick-sign-in><i class="ti ti-brand-google"></i> Sign in with Google</button>';
   }
 }
 document.getElementById('landing').addEventListener('click', (e) => { if (e.target.closest('[data-quick-sign-in]')) quickSignIn(); });
@@ -129,7 +133,9 @@ function openSignIn(note) {
   document.getElementById('signInModal').classList.add('open');
   initGoogle();
   const box = document.getElementById('googleSignIn');
-  if (gisReady) {
+  if (standalone()) {
+    box.innerHTML = '<button class="btn primary" type="button" data-google-redirect><i class="ti ti-brand-google"></i> Sign in with Google</button>';
+  } else if (gisReady) {
     box.innerHTML = '';
     google.accounts.id.renderButton(box, { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with', logo_alignment: 'left' });
   } else {
@@ -141,12 +147,14 @@ function openSignIn(note) {
 // none when the browser remembers you). Our sign-in box with Google's button is only for when Google can't show
 // it (blocked, recently dismissed, or Google's script not loaded): that box was an extra click every time
 function quickSignIn() {
+  if (standalone()) return googleRedirectSignIn();
   initGoogle();
   if (!gisReady) return openSignIn();
   try { google.accounts.id.prompt((n) => { if (n.isSkippedMoment() || (n.isNotDisplayed && n.isNotDisplayed())) openSignIn(); }); }
   catch (e) { openSignIn(); }
 }
 document.getElementById('googleSignIn').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-google-redirect]')) { googleRedirectSignIn(); return; }
   const b = e.target.closest('[data-google-fallback]');
   if (!b) return;
   b.disabled = true;
@@ -174,6 +182,7 @@ function googleRedirectSignIn() {
   try { sessionStorage.setItem('vault_oauth_nonce', nonce); } catch (e) {}
   const p = new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, response_type: 'id_token', scope: 'openid email profile',
     redirect_uri: location.origin + '/', nonce, prompt: 'select_account' });
+  if (profile && profile.email) p.set('login_hint', profile.email); // renewing: Google's chooser is one tap
   location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p.toString();
 }
 function finishRedirectSignIn() {
@@ -193,7 +202,7 @@ function finishRedirectSignIn() {
 async function ensureToken() {
   if (tokenFresh()) return idToken;
   initGoogle();
-  if (gisReady) {
+  if (gisReady && !standalone()) {
     const renewed = await new Promise((resolve) => {
       credentialWaiters.push(resolve);
       google.accounts.id.prompt();

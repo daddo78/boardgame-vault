@@ -6,6 +6,8 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 
 - **Tell Nathan how he did:** every reply now has a 👍 and a 👎 under it. Tap one and you're done; the other thumb changes your vote, and the same thumb again takes it back. Want to say more? A line for a note appears after you vote, and it's optional. A thumb alone is only counted; a note goes to Dan with your question and Nathan's answer, so he can see what went right or wrong.
 - **The story so far:** the ⚙️ cog has a new button that opens the Board Game Curator story: how it came to be, day by day, what's under the hood, and what's next.
+- **Put it on your home screen:** in Safari on iPhone, tap Share → *Add to Home Screen*; on Android, Chrome's menu → *Add to Home screen*. It opens full-screen like an app, with Nathan as the icon. (Signing in from there goes through Google's page and comes straight back.)
+- **Nathan's chat ideas rotate:** tap the empty question box and four ideas appear, a different four each time.
 
 *Behind the scenes: Dan's admin page shows the thumbs (this week, this month, by kind of question) and every note.*
 

@@ -147,7 +147,7 @@ Google caps an unverified app at 100 test users. Verification takes weeks, so st
 - [ ] Submit the OAuth consent screen for verification
 
 ## 6. Later ideas
-- [ ] Install on the home screen: a web manifest and icon so the site opens like an app (no offline work)
+- [x] Install on the home screen: a web manifest and icon so the site opens like an app (no offline work). Done October 25, 2026: Nathan is the icon; from the home screen, sign-in goes through Google's own page (the pop-up can't return to a home-screen app on iPhone)
 - [ ] Move to boardgamecurator.com (on hold; bought through Cloudflare, nameservers already Cloudflare, no DNS records yet). Dan: two CNAMEs (`@` and `www` → `daddo78.github.io`, DNS only) and the Google OAuth client's origins/redirect (`https://boardgamecurator.com`, `www`, and `/`). Claude: `CNAME` file, links in tools/post-update.js, docs/architecture.html and README, test sign-in, then Enforce HTTPS and a 301 redirect rule from bg.ondorilabo.com. Testers sign in once more; the server stays n8n.ondorilabo.com
 - [ ] Player pages: each person's top games, win rate, favorites
 - [ ] Game night log: who came and what was played
