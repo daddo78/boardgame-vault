@@ -119,7 +119,8 @@ On for everyone since Oct 22. Admin → Nathan keeps an Off switch as an undo un
 
 **Phase 4: the schedules move too (the jobs worker, Oct 25)**
 - [x] `bgc-jobs`: the API's image as a worker (`server/bgc-api/src/jobs`): syncPlays 4:00, syncPeople 4:20, memberPlaysNightly 4:30, selfTest 5:40, healthCheck 9:00, aiUsage hourly, fillCatalog every 10 min, ruleReader every 2 min and on upload; plus memberPlays and shelfCsv on request. Runs in `job_runs` (migration 044); failures email Dan (one per job per 30 min). n8n's photo sweep has no equivalent: the API never writes photos to disk
-- [ ] Dan: deploy (db, then api), run each job once by hand and read `job_runs`, unpublish n8n's 9 schedule workflows, turn the four new areas on
+- [x] Deployed Oct 25 ~00:15 (db: 044 + NocoDB memory; api 457c7e1 + bgc-jobs). Every job run once by hand (job_runs 1-11): syncPlays 651 plays, syncPeople 56 people / 41 BGG ratings, aiUsage, healthCheck (emailed: no plays since Oct 19, a quiet week), fillCatalog and ruleReader (nothing to do), memberPlaysNightly, selfTest. n8n's 9 schedule workflows unpublished and n8n restarted. Switches: Dan's adds and imports for everyone; photos and rulebook uploads for admins until Dan has tried one of each
+- [ ] Dan: try a photo add and a rulebook upload on the API, then set those two switches to everyone
 - [ ] After a few quiet days: unpublish the n8n webhooks, remove `extract-nathan.cjs` and the Nathan Off switch (the Nov 6 plan), then retire n8n and its tunnel hostname
 
 **Small things waiting**
