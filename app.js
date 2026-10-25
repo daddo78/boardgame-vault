@@ -1915,6 +1915,8 @@ function specChips(g) {
   (g.mechanics || []).slice(0, 2).forEach(m => chips.push('<span class="tag tag-plain">' + esc(m) + '</span>'));
   return chips.length ? '<div class="n-specs">' + chips.join('') + '</div>' : '';
 }
+// Whose shelf Nathan is talking about: "your" on your own, the friend's first name on theirs
+const shelfWhose = () => viewingFriend() ? esc(firstName(friendShelfName) || 'their') + '’s' : 'your';
 function nathanCard(x, kind) {
   if (!x) return '';
   if (x.off) {
@@ -1924,7 +1926,7 @@ function nathanCard(x, kind) {
     return '<div class="n-card ' + kind + '">' +
       '<a class="n-top" href="https://boardgamegeek.com/boardgame/' + Number(o.bggId) + '" target="_blank" rel="noopener">' +
         (o.cover ? '<img src="' + esc(o.cover) + '" alt="" loading="lazy">' : '<div class="game-icon"><i class="ti ti-' + esc(DEFAULT_ICON) + '"></i></div>') +
-        '<div><div class="n-kind">Not on your shelf' + esc(who) + '</div><div class="n-title">' + esc(x.title || o.title || '') + ' <i class="ti ti-external-link" style="font-size:0.8em;"></i></div>' +
+        '<div><div class="n-kind">Not on ' + shelfWhose() + ' shelf' + esc(who) + '</div><div class="n-title">' + esc(x.title || o.title || '') + ' <i class="ti ti-external-link" style="font-size:0.8em;"></i></div>' +
         (x.quip ? '<div class="n-quip">' + esc(x.quip) + '</div>' : '') + '</div></a>' +
       (x.why ? '<div class="n-why">' + esc(x.why) + '</div>' : '') +
       '<button type="button" class="btn ghost n-wish" data-wish-add="' + Number(o.bggId) + '" data-title="' + esc(x.title || o.title || '') + '" data-cover="' + esc(o.cover || '') + '"><i class="ti ti-gift"></i> Add to my wishlist</button>' +
@@ -1932,7 +1934,7 @@ function nathanCard(x, kind) {
   }
   const g = collection.find(y => y.id === x.id) || {};
   const img = g.coverCard ? '<img src="' + esc(g.coverCard) + '" alt="" loading="lazy">' : '<div class="game-icon"><i class="ti ti-' + esc(g.icon || DEFAULT_ICON) + '"></i></div>';
-  const label = { headline: 'Tonight’s pick', alternative: 'Or, for something different', avoid: 'Maybe not tonight', highlight: 'On your shelf' }[kind];
+  const label = { headline: 'Tonight’s pick', alternative: 'Or, for something different', avoid: 'Maybe not tonight', highlight: 'On ' + shelfWhose() + ' shelf' }[kind];
   return '<div class="n-card ' + kind + '">' +
     '<div class="n-top" data-ask-open="' + esc(x.id) + '" role="button" tabindex="0">' + img +
       '<div><div class="n-kind">' + label + '</div><div class="n-title">' + esc(x.title || g.title || '') + '</div>' +
