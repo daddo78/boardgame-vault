@@ -2,7 +2,7 @@
 
 What's next for Board Game Curator, roughly in priority order. Check items off as they land.
 
-**Picked next (Oct 25)**, from the open items below: finish retiring n8n (section 7), the OpenRouter low-balance email, an outside uptime check, per-shelf game names, "What's like this?", then the culling helper.
+**Picked next (Oct 25)**, from the open items below: finish retiring n8n (section 7), ~~the OpenRouter low-balance email~~ (done Oct 25), an outside uptime check, per-shelf game names, "What's like this?", then the culling helper.
 
 ## 1. Real-world check on a phone
 Things that pass in testing but haven't been tried for real yet:
@@ -58,6 +58,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 ## 3. Protection against another wipe
 - [x] Nightly backup of the new database to a private GitHub repo (restore tested)
 - [x] Error alerts: any workflow failure emails Dan (one per workflow per 30 min); a daily health check emails if backups stop
+- [x] OpenRouter low-balance email *(Oct 25)*: the hourly cost reading emails Dan when the balance drops under $10 (settings key `ai_balance_alert`), a reminder each week while it stays low, and afresh after a top-up; what was sent is kept in settings (`ai_balance_alerted`) so a restart can't resend
 - [ ] An uptime check from outside the VPS: the health check and failure emails run on the box they watch, so a down VPS or tunnel tells nobody. A free external ping on the API's health route
 
 ## 4. Better Nathan answers

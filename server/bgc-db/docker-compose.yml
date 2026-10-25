@@ -5,7 +5,7 @@
 #   pages     rulebook pages for Nathan to read (a PDF is kept only until it has been read)
 # Secrets live in ./.env on the server (see .env.example); never commit them. The API (~/bgc-api) reads the same .env.
 # Memory limits are caps against one container starving the others on a small box, not sizes it needs: Postgres uses
-# ~200 MB at rest, NocoDB ~300 MB, the backup job a few MB except while pg_dump runs.
+# ~200 MB at rest, NocoDB ~650 MB, the backup job a few MB except while pg_dump runs.
 # Image tags: postgres:16-alpine and nocodb/nocodb:latest are left as they were, because pinning blind could move a running
 # instance up or down. To pin to what runs today, read the version and put it in the tag:
 #   docker exec bgc-postgres postgres --version
@@ -37,9 +37,9 @@ services:
     image: nocodb/nocodb:latest
     container_name: bgc-nocodb
     restart: unless-stopped
-    mem_limit: 768m            # it ran out of heap at ~260 MB on Oct 24 (a crash loop at startup); NODE_OPTIONS gives Node room inside the cap
+    mem_limit: 1g              # it ran out of heap at ~260 MB on Oct 24 (a crash loop at startup); at 768m it sat at ~650 MB and was throttled hundreds of times an hour (Oct 25). NODE_OPTIONS gives Node room inside the cap
     environment:
-      NODE_OPTIONS: --max-old-space-size=512
+      NODE_OPTIONS: --max-old-space-size=768
       NC_DB: pg://bgc-postgres:5432?u=bgc&p=${POSTGRES_PASSWORD}&d=nocodb
       NC_AUTH_JWT_SECRET: ${NC_JWT_SECRET}
       NC_DISABLE_TELE: "true"

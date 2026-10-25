@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { Bgg } from '../src/bgg.js';
 import { loadConfig } from '../src/config.js';
 import { F, GAMES_TABLE, PF, PLAYERS_TABLE, RATINGS_TABLE, RF } from '../src/fields.js';
-import { aiUsage } from '../src/jobs/aiUsage.js';
+import { REMIND_AFTER_MS, aiUsage, balanceAlert, balanceMail } from '../src/jobs/aiUsage.js';
 import { fillCatalog } from '../src/jobs/fillCatalog.js';
 import { healthCheck, healthProblems } from '../src/jobs/healthCheck.js';
 import { memberPlays, memberPlaysNightly } from '../src/jobs/memberPlays.js';
@@ -188,10 +188,51 @@ test('aiUsage job: the key\'s spending and the account\'s balance go to bgc.log_
   const db = jobsDb({ 'bgc.log_usage': (p) => { logged.push(p); return null; } });
   const { f } = jobsFetch();
   const { ctx } = ctxWith(db, f);
-  assert.deepEqual(await aiUsage.run(ctx, {}), { keyUsage: 4.78, keyLimit: 10, creditsTotal: 20, creditsUsed: 6.1 });
+  assert.deepEqual(await aiUsage.run(ctx, {}), { keyUsage: 4.78, keyLimit: 10, creditsTotal: 20, creditsUsed: 6.1, remaining: 13.9 });
   assert.deepEqual(logged[0], [4.78, 10, 20, 6.1]);
   const none = jobsFetch({ key: {}, credits: {} });
   await assert.rejects(aiUsage.run(ctxWith(db, none.f).ctx, {}), /didn’t answer/);
+});
+
+test('balanceAlert: an email when the balance drops under the threshold, a reminder a week later, nothing in between, and a fresh start after a top-up', () => {
+  const now = Date.parse('2026-10-25T20:07:00Z');
+  assert.deepEqual(balanceAlert(60, 54.58, 10, null, now), { send: true, remaining: 5.42, alerted: { at: '2026-10-25T20:07:00.000Z', remaining: 5.42 } });
+  const sent = { at: '2026-10-25T20:07:00.000Z', remaining: 5.42 };
+  assert.deepEqual(balanceAlert(60, 54.7, 10, sent, now + 3600_000), { send: false, remaining: 5.3, alerted: sent });        // an hour later: quiet
+  assert.equal(balanceAlert(60, 55, 10, sent, now + REMIND_AFTER_MS + 1).send, true);                                        // a week later: a reminder
+  assert.deepEqual(balanceAlert(80, 55, 10, sent, now + 3600_000), { send: false, remaining: 25, alerted: null });           // topped up: forgotten
+  assert.deepEqual(balanceAlert(60, 54.58, 5, null, now), { send: false, remaining: 5.42, alerted: null });                 // a lower threshold: fine
+  assert.deepEqual(balanceAlert(null, null, 10, sent, now), { send: false, remaining: null, alerted: sent });                // no balance: no change
+  const m = balanceMail(5.42, 10, 60, null);
+  assert.equal(m.subject, 'Board Game Curator: OpenRouter balance is $5.42');
+  assert.match(m.text, /dropped under \$10\./);
+  assert.match(m.text, /\$5\.42 of \$60\.00/);
+  assert.match(balanceMail(5.42, 10, 60, sent).text, /weekly reminder/);
+});
+
+test('aiUsage job: the low-balance email goes to Dan once, is remembered in settings, and the threshold comes from settings', async () => {
+  const written: any[] = [];
+  let settings: any = { threshold: null, alerted: null };
+  const low = jobsDb({ 'bgc.log_usage': () => null, 'INSERT INTO settings': (p) => { written.push(JSON.parse(p[0] as string)); settings.alerted = written.at(-1); return null; } });
+  (low as any).row = async () => settings;
+  const { f } = jobsFetch({ credits: { total_credits: 60, total_usage: 54.58 } });
+  const a = ctxWith(low, f);
+  const r: any = await aiUsage.run(a.ctx, {});
+  assert.deepEqual([r.remaining, r.emailed, a.mails.length, a.mails[0].to, a.mails[0].subject], [5.42, true, 1, 'dandehaan@gmail.com', 'Board Game Curator: OpenRouter balance is $5.42']);
+  assert.equal(written.length, 1);
+  assert.equal(written[0].remaining, 5.42);
+  await aiUsage.run(a.ctx, {});                                   // the next hour: remembered, so no second email
+  assert.equal(a.mails.length, 1);
+  settings = { threshold: 2, alerted: null };                     // Dan lowers the threshold under the balance: nothing to say
+  const r2: any = await aiUsage.run(a.ctx, {});
+  assert.equal(a.mails.length, 1);
+  assert.equal(r2.emailed, undefined);
+  // Resend says no: nothing is remembered, so the next hour tries again
+  settings = { threshold: null, alerted: null };
+  const b = ctxWith(low, f);
+  b.ctx.mail = async () => false;
+  const r3: any = await aiUsage.run(b.ctx, {});
+  assert.deepEqual([r3.emailed, written.length], [false, 1]);
 });
 
 const PLAYS = ['<plays total="3" page="1"><play id="101" date="2026-10-01" quantity="2" length="45"><item name="Catan" objecttype="thing" objectid="13"/><players><player username="daddo_78" name="Dan" win="1"/><player name="Matt" win="0"/></players></play>' +
