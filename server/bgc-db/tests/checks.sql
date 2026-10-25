@@ -79,6 +79,10 @@ SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM chat_turns t JOIN members m ON m.
 SELECT pg_temp.check((bgc.rule_doc_stored((bgc.rule_doc_new('check.member@example.invalid', 13, 'Catan', 'rulebook', '', NULL) ->> 'id')::bigint, 61, 'check-long') ->> 'status')::int = 413, 'a rulebook over 60 pages is turned away');
 SELECT pg_temp.check((bgc.rule_doc_stored((bgc.rule_doc_new('check.member@example.invalid', 13, 'Catan', 'rulebook', '', 'https://example.invalid/catan.pdf') ->> 'id')::bigint, 4, 'check-sha') ->> 'ok')::boolean, 'a rulebook is queued for reading');
 SELECT pg_temp.check((bgc.rule_doc_stored((bgc.rule_doc_new('check.member@example.invalid', 13, 'Catan', 'reference', '', NULL) ->> 'id')::bigint, 4, 'check-sha') ->> 'duplicate')::boolean, 'the same PDF twice is recognised');
+SELECT pg_temp.check((bgc.rule_doc_new('check.member@example.invalid', 13, 'Catan', 'rulebook', 'Another copy', NULL) ->> 'status')::int = 409, 'a game keeps one rulebook: a member''s second is turned away');
+SELECT pg_temp.check((bgc.rule_doc_new('check.member@example.invalid', 13, 'Catan', 'aid', '', NULL) ->> 'ok')::boolean, 'a member can still add a player aid next to it');
+SELECT pg_temp.check((bgc.rule_doc_new('dandehaan@gmail.com', 13, 'Catan', 'rulebook', 'Replacement', NULL) ->> 'ok')::boolean, 'an admin can add a second rulebook, to replace the first');
+SELECT pg_temp.check(bgc.rule_kind_label('learn') = 'Learn to play' AND bgc.rule_kind_label('aid') = 'Player aid', 'the new kinds have names');
 SELECT pg_temp.check((bgc.rule_page_save((SELECT id FROM rule_docs WHERE sha256 = 'check-sha'), 3, '## Trading', false, '[{"heading": "Trading", "body": "On your turn you may trade resource cards with other players."}]') ->> 'ok')::boolean, 'a page Nathan read is saved');
 SELECT pg_temp.check((bgc.rule_doc_finish((SELECT id FROM rule_docs WHERE sha256 = 'check-sha')) ->> 'status') = 'queued', 'a rulebook with unread pages goes back in the queue');
 UPDATE rule_docs SET status = 'ready' WHERE sha256 = 'check-sha';

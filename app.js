@@ -759,7 +759,7 @@ document.querySelectorAll('.modal-overlay, #nathanPanel').forEach((el) => lockWa
 const rbCache = {};
 let rbGames = new Set(); // games with a document ready (the 📖 on every shelf)
 let rbPoll = null;
-const RB_KINDS = [['rulebook', 'Rulebook'], ['expansion', 'Expansion rulebook'], ['reference', 'Reference guide / cheat sheet'], ['appendix', 'Appendix'], ['faq', 'FAQ / errata'], ['solo', 'Solo rules'], ['other', 'Other']];
+const RB_KINDS = [['rulebook', 'Rulebook'], ['learn', 'Learn to play / quick start'], ['expansion', 'Expansion rulebook'], ['reference', 'Rules reference / cheat sheet'], ['aid', 'Player aid'], ['appendix', 'Appendix / glossary'], ['faq', 'FAQ / errata'], ['solo', 'Solo rules'], ['other', 'Other']];
 async function loadRbGames() {
   if (!isMember()) return;
   try { const r = await n8nFetch('/rulebook?games=1', { method: 'GET' }); rbGames = new Set((r.games || []).map(Number)); render(); } catch (e) {}
@@ -780,12 +780,15 @@ function rbHtml(info, g) {
   const docs = info.docs || [];
   const lim = info.limits || { pages: 60, perDay: 5, mb: 60 };
   const files = 'https://boardgamegeek.com/boardgame/' + Number(g.bggId) + '/files';
+  // One Rulebook per game: once it has one, members add the other kinds (admins can add a second, to replace it)
+  const hasBook = docs.some(d => d.kind === 'rulebook' && d.status !== 'error');
+  const kinds = hasBook && !isAdmin() ? RB_KINDS.filter(([v]) => v !== 'rulebook') : RB_KINDS;
   return '<div class="section-label" style="margin:0;"><i class="ti ti-book"></i> Rulebooks &amp; guides</div>' +
     (docs.length ? '<div class="rb-docs">' + docs.map(rbDocHtml).join('') + '</div>' +
         (docs.some(d => d.status === 'ready') ? '<div class="hint" style="margin:0.3rem 0 0;">Ask Nathan anything about the rules; he’ll tell you the page.</div>' : '')
       : '<div class="hint" style="margin:0.2rem 0 0;">No rulebook yet. Most publishers post theirs free as a PDF. Add it once and Nathan can answer rules questions for every member, with page numbers.</div>') +
     '<form class="rb-add" data-rb-form="' + Number(g.bggId) + '" data-title="' + esc(g.title) + '">' +
-      '<div class="pl-two"><select name="kind" aria-label="What it is">' + RB_KINDS.map(([v, l]) => '<option value="' + v + '"' + (v === (docs.some(d => d.kind === 'rulebook') ? 'reference' : 'rulebook') ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
+      '<div class="pl-two"><select name="kind" aria-label="What it is">' + kinds.map(([v, l]) => '<option value="' + v + '"' + (v === (hasBook ? 'learn' : 'rulebook') ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
       '<input type="text" name="title" maxlength="120" placeholder="Name (optional), e.g. Quick start"></div>' +
       '<input type="url" name="source" placeholder="Link to the official PDF (publisher or BGG), https://…">' +
       '<div class="row"><label class="btn ghost" style="cursor:pointer;"><i class="ti ti-upload"></i> Choose the PDF<input type="file" name="file" accept="application/pdf,.pdf" hidden></label>' +

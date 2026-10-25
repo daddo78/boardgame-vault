@@ -19,7 +19,7 @@ export const READ_PROMPT = [
 ].join('\n');
 export const NAME_PROMPT = [
   'From the pages themselves, say what it is and give its own name:',
-  '- kind: "rulebook" (the base game\'s main rules), "expansion" (rules for an expansion or add-on with its own box or pack), "reference" (player aid, cheat sheet, quick reference), "appendix" (glossary, card or icon list, edge cases, almanac), "faq" (FAQ or errata), "solo" (solo rules), or "other".',
+  '- kind: "rulebook" (the base game\'s main rules), "learn" (a learn-to-play or quick-start book that comes with the full rules), "expansion" (rules for an expansion or add-on with its own box or pack), "reference" (rules reference, cheat sheet, quick reference), "aid" (a player aid or turn summary card), "appendix" (glossary, card or icon list, edge cases, almanac), "faq" (FAQ or errata), "solo" (solo rules), or "other".',
   '- name: the name printed for THIS document or expansion, without the game\'s own name, e.g. "The Norwegians", "The Edge Cases", "Quick Start". Always name an expansion. For the base game\'s main rulebook the name is "" (never a section heading such as "Overview" or "Goal of the game"). Normal capitalization, not all caps.',
   'Reply with JSON only: {"kind": "...", "name": "..."}',
 ].join('\n');
@@ -125,7 +125,7 @@ async function pageOf({ fetch: f, config }: JobCtx, doc: number, page: number): 
 async function nameDocument({ db, fetch: f, config }: JobCtx, doc: number) {
   const n = await db.one<{ need: boolean; text: string | null; kind: string; game: string }>('SELECT bgc.rule_doc_naming($1::bigint)', [doc]);
   if (!n || !n.need || !n.text) return { needed: false };
-  const label: Record<string, string> = { rulebook: 'rulebook', expansion: 'expansion rulebook', reference: 'reference guide', appendix: 'appendix', faq: 'FAQ', solo: 'solo rules', other: 'document' };
+  const label: Record<string, string> = { rulebook: 'rulebook', learn: 'learn-to-play book', expansion: 'expansion rulebook', reference: 'reference guide', aid: 'player aid', appendix: 'appendix', faq: 'FAQ', solo: 'solo rules', other: 'document' };
   const prompt = 'Below are the first pages of a rules document someone added for the board game "' + n.game + '" (they said it is a ' + (label[n.kind] || 'document') + ', but they may have left the default).\n' + NAME_PROMPT + '\n\nPAGES:\n' + n.text;
   const a = await ask(config.openrouterKey!, f, 'rulebook', { model: VISION_MODEL, max_tokens: 80, temperature: 0, reasoning: { enabled: false }, messages: [{ role: 'user', content: prompt }] });
   const o = jsonIn(a.text);

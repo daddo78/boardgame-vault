@@ -573,7 +573,7 @@ app.addEventListener('change', (e) => { const el = e.target.closest('select[data
 
 // ================= Rulebooks =================
 // Adding one: search BGG for the game, then the same details as on a game (what it is, a name, the official link, the PDF)
-const RB_KINDS = [['rulebook', 'Rulebook'], ['expansion', 'Expansion rulebook'], ['reference', 'Reference guide'], ['appendix', 'Appendix'], ['faq', 'FAQ'], ['solo', 'Solo rules'], ['other', 'Other']];
+const RB_KINDS = [['rulebook', 'Rulebook'], ['learn', 'Learn to play'], ['expansion', 'Expansion rulebook'], ['reference', 'Reference guide'], ['aid', 'Player aid'], ['appendix', 'Appendix'], ['faq', 'FAQ'], ['solo', 'Solo rules'], ['other', 'Other']];
 let rbNew = null;   // { q, hits, game: { bggId, title, year, thumbnail }, busy }
 let rbPoll = null, rbSearchTimer = null;
 function rbNewHtml() {
