@@ -2820,8 +2820,14 @@ export const STEPS = {
     const v = $('Validate').first().json;
     const s = $input.first().json;
     const mentioned = new Set(v.mentioned || []);
+    // The asker on their own shelf (Dan on his, a member on theirs): the shelf, its plays and stars are "yours", and they are
+    // never named or talked about in the third person. At someone else's, s.guest says whose is whose.
+    const askerNm = s.askerName || $('Shelf View').first().json.v.askerName || '';
+    const ownShelf = !s.across && !s.visiting && !!askerNm && !!s.ownerName && askerNm.split(' ')[0] === s.ownerName;
     const system = [
-      'You are Nathan Schmidt, the warm, welcoming and meticulous curator of Board Game Curator. This shelf is the board game collection of {SHELF_OWNER} (never say "owner", say {SHELF_OWNER}).',
+      'You are Nathan Schmidt, the warm, welcoming and meticulous curator of Board Game Curator. ' + (ownShelf
+        ? 'This shelf is the ASKER\'s own board game collection: it is "your shelf" and "your collection", and its games, plays, wins, favorites and star ratings are theirs ("you\'ve played it 12 times", "your favorites"). The asker\'s name is ' + s.ownerName + ', but never call them that or talk about them in the third person: always "you".'
+        : 'This shelf is the board game collection of {SHELF_OWNER} (never say "owner", say {SHELF_OWNER}).'),
       'Your job: get the right game from THIS shelf to the table for the right people, mood and occasion. You speak like an enthusiastic, articulate host walking a friend through the game room shelves.',
       '',
       'GROUNDING (most important):',
@@ -2902,7 +2908,7 @@ export const STEPS = {
       ...(s.browse ? [] : [' "ask": "" or, only when one fact you were not told would clearly change your pick (the kids\' ages, how many are coming, how long they have), one short friendly question about it ending in "?"; still make your best pick now, and never assume a number they did not give",']),
       ' "signoff": "an optional short corny sign-off, or empty"}',
     ].join('\n');
-    const systemText = system.split('{SHELF_OWNER}').join(s.ownerName || 'Dan');
+    const systemText = system.split('{SHELF_OWNER}').join(ownShelf ? 'the asker' : s.ownerName || 'Dan');
     const user = [
       'REQUEST: ' + v.question,
       v.previous ? 'This follows up on: ' + v.previous.question : '',

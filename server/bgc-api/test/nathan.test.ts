@@ -107,6 +107,20 @@ test('ask with the stand-in OpenRouter: pick, alternative, chatKey; allowance us
   assert.ok(!JSON.stringify(cost).includes('something for 3'), 'the question never goes into the cost log');
 });
 
+test('on their own shelf the asker is "you", never their name; a guest hears whose shelf it is', async () => {
+  for (const [askerName, own] of [['Dan DeHaan', true], ['Amy', false]] as const) {
+    const db = nathanDb({ 'bgc.shelf_view($1, $2, $3)': () => ({ v: { ...SHELF, askerName } }) });
+    const or = fakeOpenRouter();
+    const app = makeAppWith({ db, fetch: or.f });
+    const res = await app.request('/vault/ask', { method: 'POST', headers: { ...bearer(await token()), 'Content-Type': 'application/json' }, body: JSON.stringify({ question: 'what fantasy games do I have?', test: true }) });
+    assert.equal(res.status, 200);
+    const system = String(or.bodies[1].messages[0].content);
+    assert.equal(system.includes('never call them that or talk about them in the third person: always "you"'), own, askerName);
+    assert.equal(system.includes('collection of Dan'), !own, askerName);
+    await settle();
+  }
+});
+
 const parseEvents = (text: string) => text.trim().split('\n\n').filter(Boolean).map((b) => ({ event: /event: (\w+)/.exec(b)?.[1], data: JSON.parse(/data: (.*)/.exec(b)![1]) }));
 
 test('ask/stream: stages, the words as they arrive, then the same answer', async () => {
