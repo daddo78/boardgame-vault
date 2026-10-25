@@ -8,7 +8,7 @@
 # First run on a server without the ledger: 040 is applied first (it marks 001..040 as applied, which they are).
 set -euo pipefail
 cd "$(dirname "$0")"
-PSQL=(docker exec -i bgc-postgres psql -U bgc -d bgc -v ON_ERROR_STOP=1 -q)
+PSQL=(docker exec -i "${BGC_PG:-bgc-postgres}" psql -U bgc -d bgc -v ON_ERROR_STOP=1 -q)   # BGC_PG: another container (dev.sh's copy)
 dry=0; [ "${1:-}" = "--dry-run" ] && dry=1
 
 sql() { "${PSQL[@]}" -At -c "$1"; }

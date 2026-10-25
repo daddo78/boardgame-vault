@@ -8,6 +8,7 @@
 #   3. docker compose up -d --build picks up compose changes (limits, health checks, the backup image); containers
 #      whose definition changed are recreated, so Postgres can be away for a few seconds
 #   4. bgc.self_check() must pass, as after an n8n deploy
+# Try it first on the dev copy on Unraid:  bash dev.sh refresh && bash dev.sh migrate && bash dev.sh check
 set -euo pipefail
 cd "$(dirname "$0")"
 . ../../n8n/env.sh   # N8N_SSH_HOST, N8N_SSH_KEY: the same server
