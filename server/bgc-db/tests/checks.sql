@@ -120,6 +120,7 @@ SELECT pg_temp.check(NOT (bgc.players_admin('check.member@example.invalid') ->> 
 SELECT pg_temp.check(NOT (bgc.player_save('check.member@example.invalid', NULL, '{"fldWVws64FVcdtuSJ": "Nobody"}') ->> 'ok')::boolean, 'only admins save a player card');
 SELECT pg_temp.check((bgc.player_save('dandehaan@gmail.com', NULL, '{"fldWVws64FVcdtuSJ": "Check Player"}') -> 'record' -> 'fields' ->> 'fldWVws64FVcdtuSJ') = 'Check Player', 'an admin can make a player card');
 SELECT pg_temp.check(bgc.bgg_ratings_save('check_bgg_user', '[{"bggId": 13, "rating10": 7.5}, {"bggId": "x", "rating10": 9}]') = 1, 'BGG ratings are saved per username, bad rows skipped');
+SELECT pg_temp.check(bgc.bgg_ratings_save('check_bgg_user', '[{"bggId": 14, "rating10": 7}, {"bggId": 14, "rating10": 8}]') = 1, 'a game listed twice in a BGG collection (two copies) is saved once');
 SELECT pg_temp.check(jsonb_array_length(bgc.bgg_usernames()) >= 1, 'the BGG ratings sync has usernames to fetch');
 
 ROLLBACK;

@@ -333,6 +333,7 @@ async function loadFriendShelf(id) {
     rebuildGenreFilter();
     render();
     panel.hidden = true; // the Close pill says whose shelf it is
+    if (!rbGames.size) loadRbGames();
   } catch (e) {
     if (shelfView !== view) return;
     setSyncStatus('');
@@ -354,6 +355,7 @@ async function loadMyShelf() {
     rebuildGenreFilter();
     render();
     renderImportPanel();
+    if (!rbGames.size) loadRbGames(); // the 📖 on games with a rulebook
   } catch (e) {
     if (shelfView !== view) return;
     setSyncStatus(e.message, true);
@@ -445,29 +447,17 @@ document.getElementById('importPanel').addEventListener('click', (e) => {
   }
 });
 
+// Which shelf to show: your own (Dan's included), a friend's, or nothing until you sign in (the site is members only)
 async function loadCollection() {
   updateShelfUi();
   if (viewingMine()) return loadMyShelf();
   if (viewingFriend()) return loadFriendShelf(viewingFriend());
   document.getElementById('importPanel').hidden = true;
   clearTimeout(importPoll);
-  setSyncStatus('Loading…');
-  const view = shelfView;
-  try {
-    const data = await n8nFetch('/collection', { method: 'GET' });
-    if (shelfView !== view) return;
-    collection = Array.isArray(data) ? data : (data.items || []);
-    saveCache();
-    setSyncStatus('');
-    rebuildGenreFilter();
-    render();
-    if (!rbGames.size) loadRbGames();
-  } catch (e) {
-    if (shelfView !== view) return;
-    setSyncStatus(e.message, true);
-    const cached = localStorage.getItem(LS_CACHE);
-    if (cached) { collection = JSON.parse(cached); rebuildGenreFilter(); render(); }
-  }
+  setSyncStatus('');
+  collection = [];
+  rebuildGenreFilter();
+  render();
 }
 
 function rebuildGenreFilter() {

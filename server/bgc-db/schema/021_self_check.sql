@@ -89,6 +89,7 @@ BEGIN
     res := res || jsonb_build_object('what', 'only admins save a player card', 'ok', coalesce((NOT (bgc.player_save('check.member@example.invalid', NULL, '{"fldWVws64FVcdtuSJ": "Nobody"}') ->> 'ok')::boolean), false));
     res := res || jsonb_build_object('what', 'an admin can make a player card', 'ok', coalesce(((bgc.player_save('dandehaan@gmail.com', NULL, '{"fldWVws64FVcdtuSJ": "Check Player"}') -> 'record' -> 'fields' ->> 'fldWVws64FVcdtuSJ') = 'Check Player'), false));
     res := res || jsonb_build_object('what', 'BGG ratings are saved per username, bad rows skipped', 'ok', coalesce((bgc.bgg_ratings_save('check_bgg_user', '[{"bggId": 13, "rating10": 7.5}, {"bggId": "x", "rating10": 9}]') = 1), false));
+    res := res || jsonb_build_object('what', 'a game listed twice in a BGG collection (two copies) is saved once', 'ok', coalesce((bgc.bgg_ratings_save('check_bgg_user', '[{"bggId": 14, "rating10": 7}, {"bggId": 14, "rating10": 8}]') = 1), false));
     res := res || jsonb_build_object('what', 'the BGG ratings sync has usernames to fetch', 'ok', coalesce((jsonb_array_length(bgc.bgg_usernames()) >= 1), false));
     RAISE EXCEPTION 'self-check done' USING ERRCODE = 'P0001'; -- undo everything the checks did
   EXCEPTION WHEN raise_exception THEN
