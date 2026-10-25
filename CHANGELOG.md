@@ -7,7 +7,7 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 - **Tell Nathan how he did:** every reply now has a 👍 and a 👎 under it. Tap one and you're done; the other thumb changes your vote, and the same thumb again takes it back. Want to say more? A line for a note appears after you vote, and it's optional. A thumb alone is only counted; a note goes to Dan with your question and Nathan's answer, so he can see what went right or wrong.
 - **The story so far:** the ⚙️ cog has a new button that opens the Board Game Curator story: how it came to be, day by day, what's under the hood, and what's next.
 
-*Behind the scenes: Admin → Nathan shows the thumbs (7 and 30 days, by kind of question, and every note), with 85 database checks and 75 API tests on every deploy.*
+*Behind the scenes: Dan's admin page shows the thumbs (this week, this month, by kind of question) and every note.*
 
 ## v0.22 · October 25, 2026
 

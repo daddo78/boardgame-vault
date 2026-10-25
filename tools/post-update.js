@@ -2,7 +2,8 @@
 //   node tools/post-update.js v0.11            post it
 //   node tools/post-update.js v0.11 --dry-run  show what would be posted
 //   node tools/post-update.js v0.11 --again    post a version that was already posted
-// The channel's webhook link lives outside the repo, in %USERPROFILE%\.bgc\discord-webhook.txt (never committed).
+// The channel's webhook link lives outside the repo: %USERPROFILE%\.bgc\discord-webhook.txt, or the DISCORD_WEBHOOK
+// environment variable, set at run time from Infisical on a PC without the file. Never committed, never printed.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -46,8 +47,8 @@ const already = fs.existsSync(posted) && fs.readFileSync(posted, 'utf8').split('
 if (already && flag !== '--again') { console.error(version + ' was already posted (see ' + posted + '). Add --again to post it anyway.'); process.exit(1); }
 
 const file = path.join(os.homedir(), '.bgc', 'discord-webhook.txt');
-if (!fs.existsSync(file)) { console.error('No webhook yet. Put the channel’s webhook link in ' + file); process.exit(1); }
-const url = fs.readFileSync(file, 'utf8').trim();
+const url = (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : process.env.DISCORD_WEBHOOK || '').trim();
+if (!url) { console.error('No webhook yet. Put the channel’s webhook link in ' + file + ', or set DISCORD_WEBHOOK'); process.exit(1); }
 if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(url)) { console.error('That file doesn’t hold a Discord webhook link'); process.exit(1); }
 
 (async () => {
@@ -57,6 +58,7 @@ if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(ur
     if (!res.ok) { console.error('Discord said ' + res.status + ': ' + (await res.text()).slice(0, 200)); process.exit(1); }
     await new Promise((r) => setTimeout(r, 800));
   }
+  fs.mkdirSync(path.dirname(posted), { recursive: true });
   fs.appendFileSync(posted, version + ' ' + new Date().toISOString() + '\n');
   console.log('Posted ' + version + ' to Discord (' + parts.length + ' message' + (parts.length === 1 ? '' : 's') + ').');
 })();
