@@ -2,13 +2,15 @@
 
 What's next for Board Game Curator, roughly in priority order. Check items off as they land.
 
+**Picked next (Oct 25)**, from the open items below: finish retiring n8n (section 7), the OpenRouter low-balance email, an outside uptime check, per-shelf game names, "What's like this?", then the culling helper.
+
 ## 1. Real-world check on a phone
 Things that pass in testing but haven't been tried for real yet:
 - [ ] Sign in with the owner's Google account on the live site
 - [ ] Rate a game (Your rating) while signed in
 - [ ] Log play → BG Stats hand-off → play shows up after a sync
 - [ ] Shelf photo with spines, glare and angles (multi-box identify)
-- [ ] A friend signs in (needs their Google email on their card, and adding them as a Google test user)
+- [x] A friend signs in (needs their Google email on their card, and adding them as a Google test user) *(7 members by Oct 25)*
 
 ## 2. Friends & shelves (5-10 people, invite only)
 Friends sign in, build their own shelf, and see their friends' shelves. Runs on our own server: Postgres + NocoDB on the Hostinger VPS (`server/bgc-db/`), with n8n doing the work.
@@ -41,6 +43,8 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [x] My profile: signed-in members fill in their own card (dials, likes, dislikes, about me, BGG username) from the account menu; the Players screen keeps only names, aliases, email and BGG username
 - [x] Friend profile pages: their words, dials, all-time Top 10, most played and wishlist (Friends > Profile)
 - [ ] Phase 4: friend takes (private); BG Stats players link to members
+- [ ] Log a play in the app: a plain form that writes to the plays table, with the BG Stats hand-off kept as an option. Today a member without BG Stats has no plays, and Nathan knows them only from Dan's history
+- [ ] Lent to: a mark on a shelf row for who has borrowed it, so Nathan's "borrow X's copy" stays true and "where's my Brass?" has an answer
 - [x] Phase 5: social Nathan: "what can we play at Keith's?", "who has a co-op for 2?", "which of my friends would love Brass?"
 - First testers: Aaron Wiesinger and Matt Kruse (emails on their cards, added as Google test users), Keith McKimmy (still need his email); BGG usernames for all three
 
@@ -54,13 +58,15 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 ## 3. Protection against another wipe
 - [x] Nightly backup of the new database to a private GitHub repo (restore tested)
 - [x] Error alerts: any workflow failure emails Dan (one per workflow per 30 min); a daily health check emails if backups stop
+- [ ] An uptime check from outside the VPS: the health check and failure emails run on the box they watch, so a down VPS or tunnel tells nobody. A free external ping on the API's health route
 
 ## 4. Better Nathan answers
 - [ ] Regulars fill in their own taste profiles once they join (see Friends & shelves)
 - [x] Faster answers: about 6.5 s (was 10-20). Data is under a second on Postgres; "thinking" is off for both AI steps
 - [x] Nathan knows who is asking, and answers questions about people ("what do you know about me?")
 - [ ] "Games like this" with embeddings (pgvector on our own Postgres), alongside "What's like this?"
-- [ ] "What's like this?" (Ask Nathan from a game's detail view)
+- [ ] "What's like this?" (Ask Nathan from a game's detail view). A first version is a button and a prompt, no embeddings needed
+- [ ] Thumbs-down notes become test questions: a weekly digest of 👎 notes, and "add to the test set" in Admin, so real misses join the regression set
 - [x] Nathan answers "my …" questions from your own shelf, wherever you're looking; answers the whole question in his paragraph
 - [x] Games beyond the shelf: facts about any game (our catalog, else BGG), "would I like it?", and buy ideas from games you don't own. Who owns a game is only mentioned for your friends
 - [ ] Buy ideas beyond our catalog: Nathan proposes titles from his own knowledge, checked against BGG before he mentions them
@@ -133,7 +139,14 @@ On for everyone since Oct 22. Admin → Nathan keeps an Off switch as an undo un
 - [x] 4 games with no BGG data: left as they are (by choice)
 - [x] Merge duplicate player cards: Keith McKimmy III merged into Keith McKimmy (now an alias)
 
+## 8. More than 100 members
+Google caps an unverified app at 100 test users. Verification takes weeks, so start before member 100.
+- [ ] A public privacy page (what's stored, who sees it, how to delete it) and a homepage the consent screen can point to
+- [ ] Export and delete for members: download your shelf, ratings and plays; delete your account ("Forget everything" covers only Nathan's notes)
+- [ ] Submit the OAuth consent screen for verification
+
 ## 6. Later ideas
+- [ ] Install on the home screen: a web manifest and icon so the site opens like an app (no offline work)
 - [ ] Move to boardgamecurator.com (on hold; bought through Cloudflare, nameservers already Cloudflare, no DNS records yet). Dan: two CNAMEs (`@` and `www` → `daddo78.github.io`, DNS only) and the Google OAuth client's origins/redirect (`https://boardgamecurator.com`, `www`, and `/`). Claude: `CNAME` file, links in tools/post-update.js, docs/architecture.html and README, test sign-in, then Enforce HTTPS and a 301 redirect rule from bg.ondorilabo.com. Testers sign in once more; the server stays n8n.ondorilabo.com
 - [ ] Player pages: each person's top games, win rate, favorites
 - [ ] Game night log: who came and what was played
