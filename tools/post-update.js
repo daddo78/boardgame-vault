@@ -2,8 +2,10 @@
 //   node tools/post-update.js v0.11            post it
 //   node tools/post-update.js v0.11 --dry-run  show what would be posted
 //   node tools/post-update.js v0.11 --again    post a version that was already posted
-// The channel's webhook link lives outside the repo: %USERPROFILE%\.bgc\discord-webhook.txt, or the DISCORD_WEBHOOK
-// environment variable, set at run time from Infisical on a PC without the file. Never committed, never printed.
+// The channel’s webhook link lives outside the repo: %USERPROFILE%\.bgc\discord-webhook.txt, or the DISCORD_WEBHOOK
+// environment variable, set at run time from Infisical on a PC without the file (on devbox:
+//   DISCORD_WEBHOOK="$(ssh unraid 'bash /boot/config/artoo-secrets/artoo-secret.sh get DISCORD_WEBHOOK_BGC_TESTERS')" node tools/post-update.js v0.24).
+// Never committed, never printed.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
