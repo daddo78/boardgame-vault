@@ -163,15 +163,14 @@ const AREA_NAMES = { account: 'Account (sign-in, profiles, Nathan’s memory)', 
   shelfChanges: 'Shelf changes (stars, favorites, want-to-play, thinning, removing a game)', friendChanges: 'Friend changes (adding by code, removing)',
   adminChanges: 'Admin changes (saving a player card, fixed costs)', addGames: 'Adding games (searching BGG, adding one to your own shelf)',
   feedback: 'Feedback (saved, and emailed to Dan)', memberActions: 'Member actions (invites with their welcome email, removing, admins, question limits)',
-  collectionAdd: 'Dan’s own adds (a game by name: blurb, BGG details, box art, plays, icon)', photos: 'Photos (a box or a shelf, Dan’s collection and members’ shelves)',
-  imports: 'Imports (BGG plays, spreadsheets, “Sync plays now”; the jobs worker finishes them)', rulebookUpload: 'Rulebook uploads (the PDF to the page service, then Nathan reads it)' };
+  photos: 'Photos (a box or a shelf, onto your own shelf)', imports: 'Imports (BGG plays and spreadsheets; the jobs worker finishes them)', rulebookUpload: 'Rulebook uploads (the PDF to the page service, then Nathan reads it)' };
 // Only admins use these, so "Admins only" and "Everyone" would be the same: a plain Off / On ("On" is admins)
-const ADMIN_AREAS = ['admin', 'rulebookChanges', 'adminChanges', 'memberActions', 'collectionAdd'];
+const ADMIN_AREAS = ['admin', 'rulebookChanges', 'adminChanges', 'memberActions'];
 const modeOf = (a, m) => (ADMIN_AREAS.includes(a) && m === 'everyone' ? 'admins' : m);
 // What the check asks in each area; {friend} and {bgg} are filled from n8n's own answers
 const AREA_CHECKS = {
   account: ['/whoami', '/me', '/profile', '/profile?friend={friend}', '/memory?chat=none'],
-  shelves: ['/collection', '/shelf', '/people', '/people?shelf=mine', '/people?shelf=friend:{friend}', '/friends', '/friends?shelf={friend}'],
+  shelves: ['/shelf', '/people', '/people?shelf=mine', '/people?shelf=friend:{friend}', '/friends', '/friends?shelf={friend}'],
   wishlist: ['/wishlist', '/wishlist?friend={friend}'],
   rulebooks: ['/rulebook?games=1', '/rulebook?bgg={bgg}'],
   admin: ['/admin', '/dashboard', '/costs', '/players-admin'],

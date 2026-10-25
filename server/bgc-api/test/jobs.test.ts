@@ -197,38 +197,29 @@ test('aiUsage job: the key\'s spending and the account\'s balance go to bgc.log_
 const PLAYS = ['<plays total="3" page="1"><play id="101" date="2026-10-01" quantity="2" length="45"><item name="Catan" objecttype="thing" objectid="13"/><players><player username="daddo_78" name="Dan" win="1"/><player name="Matt" win="0"/></players></play>' +
   '<play id="102" date="2026-09-01" quantity="1"><item name="Catan 3D" objecttype="thing" objectid="999"/><players><player name="Dan" win="0"/><player name="Keith" win="1"/></players></play></plays>', '<plays total="3" page="2"></plays>'];
 
-test('syncPlays job: Dan\'s plays saved, each game\'s count and last played updated, other editions counted in', async () => {
-  const saved: any[] = [];
-  const db = jobsDb({ 'at.save_plays': (p) => { saved.push(p); return { plays: 2, newPlays: 2 }; } },
-    { [GAMES_TABLE]: [game('g1', 'Catan', 13, { [F.extraBggIds]: '999', [F.playCount]: 1, [F.lastPlayed]: '2026-01-01' }), game('g2', 'Azul', 230802), game('g3', 'Homemade', null)] });
+test('syncPlays job: Dan’s plays now go the same way as everyone’s (bgc.start_import, then memberPlays)', async () => {
+  const marks: any[] = [], starts: any[] = [];
+  const db = jobsDb({ 'bgc.start_import': (p) => { starts.push(p); return { ok: true }; }, 'at.save_plays': () => ({ plays: 2, newPlays: 1 }), 'bgc.refresh_member': () => ({ players: 55 }),
+    'bgc.set_import': ([, p]) => { marks.push(JSON.parse(p as string)); return null; } });
   const { f } = jobsFetch({ plays: PLAYS });
   const { ctx } = ctxWith(db, f);
   const r: any = await syncPlays.run(ctx, {});
-  assert.deepEqual([r.totalPlays, r.gamesPlayedOnBgg, r.matchedInCollection, r.updated, r.stored], [3, 2, 1, 1, { plays: 2, newPlays: 2 }]);
-  assert.equal(saved[0][0], 'dandehaan@gmail.com');
-  assert.equal(JSON.parse(saved[0][1]).length, 2);
-  const catan = db.store[GAMES_TABLE][0].fields;
-  assert.deepEqual([catan[F.playCount], catan[F.lastPlayed]], [3, '2026-10-01']);
-  assert.equal(db.store[GAMES_TABLE][1].fields[F.playCount], 0, 'unplayed stays as it was');
+  assert.deepEqual([r.ok, r.email, r.plays, r.newPlays, r.players], [true, 'dandehaan@gmail.com', 2, 1, 55]);
+  assert.deepEqual(starts[0], ['dandehaan@gmail.com', 'daddo_78']);
+  assert.equal(marks.at(-1).state, 'done');
+  const busy = jobsDb({ 'bgc.start_import': () => ({ ok: false, message: 'An import is already running' }) });
+  await assert.rejects(syncPlays.run(ctxWith(busy, f).ctx, {}), /already running/);
 });
 
-test('syncPeople job: a card for everyone played with, histories per owned game, friends\' BGG ratings as half stars', async () => {
-  const db = jobsDb({ 'at.save_plays': () => ({ plays: 0, newPlays: 0 }) }, {
-    [GAMES_TABLE]: [game('g1', 'Catan', 13, { [F.extraBggIds]: '999' }), game('g2', 'Azul', 77)],
-    [PLAYERS_TABLE]: [{ id: 'recDan', fields: { [PF.name]: 'Dan', [PF.bggUsername]: 'daddo_78', [PF.playHistory]: '{}' } }],
-  });
-  const { f, calls } = jobsFetch({ plays: PLAYS });
+test('syncPeople job: BGG ratings for everyone with a BGG username, saved per username; a username BGG won’t answer for is reported', async () => {
+  const saved: any[] = [];
+  const db = jobsDb({ 'bgc.bgg_usernames': () => ['daddo_78', 'amy_b'], 'bgc.bgg_ratings_save': (p) => { saved.push(p); return JSON.parse(p[1] as string).length; } });
+  const { f, calls } = jobsFetch();
   const { ctx } = ctxWith(db, f);
   const r: any = await syncPeople.run(ctx, {});
-  assert.deepEqual([r.people, r.playersCreated, r.historiesUpdated, r.bggRatings], [3, 2, 3, 2]); // the two new cards get histories too
-  const players = db.store[PLAYERS_TABLE];
-  assert.deepEqual(players.map((p: any) => p.fields[PF.name]).sort(), ['Dan', 'Keith', 'Matt']);
-  assert.equal(players.find((p: any) => p.fields[PF.name] === 'Keith').fields[PF.active], false);
-  // Dan: 2 plays of Catan (13) + 1 of its other edition (999) -> 3 under Catan's own id, 2 wins
-  assert.deepEqual(JSON.parse(players[0].fields[PF.playHistory]), { '13': { plays: 3, wins: 2, last: '2026-10-01' } });
-  const ratings = db.store[RATINGS_TABLE];
-  assert.deepEqual(ratings.map((x: any) => [x.fields[RF.key], x.fields[RF.stars], x.fields[RF.source]]), [['recDan|g1|bgg', 4, 'bgg'], ['recDan|g2|bgg', 3, 'bgg']]);
-  assert.ok(calls.some((c) => c.url.includes('xmlapi2/collection') && c.url.includes('username=daddo_78')));
+  assert.deepEqual(r, { usernames: 2, fetched: 2, ratings: 4, missed: [] });
+  assert.deepEqual([saved[0][0], JSON.parse(saved[0][1])], ['daddo_78', [{ bggId: 13, rating10: 8 }, { bggId: 77, rating10: 6 }]]);
+  assert.equal(calls.filter((c) => c.url.includes('xmlapi2/collection')).length, 2);
 });
 
 test('memberPlays job: plays saved and the shelf refreshed, progress marked done; a bad username marks an error; the nightly runs each member', async () => {

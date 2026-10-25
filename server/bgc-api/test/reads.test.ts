@@ -11,17 +11,6 @@ const dan = async () => bearer(await token({ email: OWNER }));
 const game = (id: string, num: number, title: string, extra: Record<string, unknown> = {}) =>
   ({ id: 'rec' + id, fields: { fldJ1g6gtxWDwlWsI: id, fldMTwTBzGdIl5juS: num, fldOSxvCDWJdYbUZe: title, fldskzh1rq9uchgYI: true, ...extra } });
 
-test('GET /vault/collection: Dan’s games, shaped as n8n does, in shelf order; anyone else is pointed to Friends', async () => {
-  const db = fakeDb({ 'at.request': () => ({ records: [game('g2', 2, 'Azul'), game('g1', 1, 'Catan', { fldbWi7hhf2VGYzZl: 13, fldGj8TR8Qgr3awAe: '[3,4]' })] }) });
-  const { app } = makeApp({ db });
-  const r = await json(await get(app, '/vault/collection', await dan()));
-  assert.equal(r.status, 200);
-  assert.deepEqual(r.body.map((g: any) => g.title), ['Catan', 'Azul']);
-  assert.deepEqual({ id: r.body[0].id, bggId: r.body[0].bggId, best: r.body[0].bestPlayers, thin: r.body[0].thinningCandidate, icon: r.body[0].icon }, { id: 'g1', bggId: 13, best: [3, 4], thin: true, icon: 'meeple' });
-  assert.deepEqual(db.calls.at(-1)!.params, ['tblbGc0UuDxIPP2a8']);
-  assert.deepEqual(await json(await get(app, '/vault/collection', await amy())), { status: 403, body: { ok: false, message: 'Open a friend’s shelf from Friends' } });
-});
-
 test('GET /vault/shelf: your own shelf and import progress', async () => {
   const db = fakeDb({ 'bgc.shelf': () => ({ name: 'Amy', bggUsername: 'amyb', status: { state: 'done' }, records: [game('a', 1, 'Patchwork')] }) });
   const { app } = makeApp({ db });
@@ -101,7 +90,7 @@ test('admin reads: the database decides who’s an admin; Players Admin is for t
     'bgc.admin_overview': ([e]) => (e === OWNER ? { ok: true, members: [] } : no),
     'bgc.dashboard': ([e]) => (e === OWNER ? { ok: true, selfTest: null } : no),
     'bgc.costs_page': ([e]) => (e === OWNER ? { ok: true, fixed: [] } : no),
-    'at.request': () => ({ records: [{ id: 'p1', fields: { fldWVws64FVcdtuSJ: 'Bo', fldCTgjMOoTTokadR: true, fldGI1Kr6p107QdZp: '{"g1":{"plays":3},"g2":{"plays":2}}' } }] }),
+    'bgc.players_admin': ([e]) => (e === OWNER ? { ok: true, records: [{ id: 'p1', fields: { fldWVws64FVcdtuSJ: 'Bo', fldCTgjMOoTTokadR: true, fldGI1Kr6p107QdZp: '{"g1":{"plays":3},"g2":{"plays":2}}' } }] } : no),
   });
   const { app } = makeApp({ db });
   for (const p of ['/vault/admin', '/vault/dashboard', '/vault/costs']) {
@@ -109,7 +98,7 @@ test('admin reads: the database decides who’s an admin; Players Admin is for t
     assert.deepEqual(await json(await get(app, p, await amy())), { status: 403, body: { ok: false, message: 'Admins only' } }, p);
   }
   assert.deepEqual((await json(await get(app, '/vault/players-admin', await dan()))).body.players.map((p: any) => [p.name, p.games, p.plays, p.history]), [['Bo', 2, 5, undefined]]);
-  assert.equal((await get(app, '/vault/players-admin', await amy())).status, 401);
+  assert.equal((await get(app, '/vault/players-admin', await amy())).status, 403);
 });
 
 test('areas: each switch sends its routes to this service; admins-only for admins; Nathan on his own switch', async () => {
@@ -125,10 +114,10 @@ test('areas: each switch sends its routes to this service; admins-only for admin
   assert.equal((await set(await dan(), { area: 'nope', mode: 'everyone' })).status, 400);
   assert.equal((await set(await dan(), { area: 'shelves', mode: 'everyone' })).status, 200);
   assert.equal((await set(await dan(), { area: 'admin', mode: 'admins' })).status, 200);
-  assert.deepEqual((await json(await get(app, '/vault/routes', await amy()))).body.routes, ['GET /collection', 'GET /shelf', 'GET /people', 'GET /friends']);
-  assert.deepEqual((await json(await get(app, '/vault/routes', await dan()))).body.routes.slice(4), ['GET /admin', 'GET /dashboard', 'GET /costs', 'GET /players-admin']);
+  assert.deepEqual((await json(await get(app, '/vault/routes', await amy()))).body.routes, ['GET /shelf', 'GET /people', 'GET /friends']);
+  assert.deepEqual((await json(await get(app, '/vault/routes', await dan()))).body.routes.slice(3), ['GET /admin', 'GET /dashboard', 'GET /costs', 'GET /players-admin']);
   const a = await json(await get(app, '/vault/api-areas', await dan()));
-  assert.deepEqual(a.body.areas, { account: 'off', shelves: 'everyone', wishlist: 'off', rulebooks: 'off', admin: 'admins', accountChanges: 'off', wishlistChanges: 'off', rulebookChanges: 'off', shelfChanges: 'off', friendChanges: 'off', adminChanges: 'off', addGames: 'off', feedback: 'off', memberActions: 'off', collectionAdd: 'off', photos: 'off', imports: 'off', rulebookUpload: 'off' });
+  assert.deepEqual(a.body.areas, { account: 'off', shelves: 'everyone', wishlist: 'off', rulebooks: 'off', admin: 'admins', accountChanges: 'off', wishlistChanges: 'off', rulebookChanges: 'off', shelfChanges: 'off', friendChanges: 'off', adminChanges: 'off', addGames: 'off', feedback: 'off', memberActions: 'off', photos: 'off', imports: 'off', rulebookUpload: 'off' });
   assert.equal((await get(app, '/vault/api-areas', await amy())).status, 403);
   // A saved value that isn't an object (a hand edit) reads as all off, and the next change starts a fresh object
   // instead of letting jsonb's || turn scalar || object into an array

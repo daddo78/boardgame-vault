@@ -1,17 +1,17 @@
-// Shelves: Dan's collection, your own shelf, a friend's shelf, and the people and ratings that go with a shelf.
-// Ported from the n8n workflows Get Collection, My Shelf, Friends (GET) and People (n8n/gen.js sections 1, 21, 29
-// and 12), and their changes (Rate Game, Update / Remove My Shelf, Friends, Update / Delete Game). Rows are shaped by
-// n8n's own code (shape.gen.ts), and inputs checked by its Validate nodes (validate.gen.ts).
+// Shelves: your own shelf (Dan's is one of them), a friend's shelf, and the people and ratings that go with a shelf.
+// Ported from the n8n workflows My Shelf, Friends (GET) and People (n8n/gen.js sections 21, 29 and 12), and their
+// changes (Rate Game, Update / Remove My Shelf, Friends). Rows are shaped by n8n's own code (shape.gen.ts), and inputs
+// checked by its Validate nodes (validate.gen.ts). Dan's collection went through its own adapter routes until 2026-10-25;
+// now everyone's shelf is read and changed the same way.
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
 import { ApiError, fromDb } from '../errors.js';
-import { body, ownerOnly, parse } from '../request.js';
+import { body, parse } from '../request.js';
 import { publicPlayer, ratingsByPlayerGame, toGame, toPlayer, toRating } from '../shape.gen.js';
 import { validated } from '../writes.js';
 
-const GAMES_TABLE = 'tblbGc0UuDxIPP2a8';
 const ASK_PER_MEMBER = 30; // as in gen.js, when the database has no limit set
 
 const byNum = (a: any, b: any) => (a.num || 0) - (b.num || 0);
@@ -22,12 +22,6 @@ const PeopleQuery = z.object({ shelf: z.string().optional() });
 
 export function shelfRoutes(db: Db) {
   return new Hono<AuthEnv>()
-    // GET /vault/collection: Dan's own shelf, a plain list. Friends see it through Friends, which checks the friendship
-    .get('/collection', async (c) => {
-      if (c.get('auth').role !== 'owner') throw new ApiError(403, 'Open a friend’s shelf from Friends');
-      const r = await db.one<{ records?: unknown[] }>("SELECT at.request($1, 'GET', '', 'null'::jsonb, '')", [GAMES_TABLE]);
-      return c.json(games(r?.records));
-    })
     // GET /vault/shelf: the signed-in member's own shelf, and how their BGG import is going
     .get('/shelf', async (c) => {
       const s = (await db.one<Record<string, any>>('SELECT bgc.shelf($1)', [c.get('auth').email])) || {};
@@ -70,7 +64,7 @@ export function shelfRoutes(db: Db) {
         asks: { limit: lim, left: Math.max(0, lim - used) } });
     })
 
-    // ---- Changes (Rate Game, Update / Remove My Shelf, Friends add / remove, and Dan's Update / Delete Game) ----
+    // ---- Changes (Rate Game, Update / Remove My Shelf, Friends add / remove) ----
     // POST /vault/rate { gameId, stars (0 clears) }: your own stars, for yourself only
     .post('/rate', async (c) => {
       const v = await validated('rate', c);
@@ -94,29 +88,5 @@ export function shelfRoutes(db: Db) {
         ? await db.one<Record<string, any>>("SELECT bgc.remove_friend($1, nullif($2, '')::bigint)", [email, String(Number(b.id) || '')])
         : await db.one<Record<string, any>>('SELECT bgc.add_friend($1, $2)', [email, String(b.code || '')]);
       return c.json(fromDb(r));
-    })
-    // POST /vault/update { id, fields }: Dan changes a game in his collection (the owner only, as in n8n)
-    .post('/update', async (c) => {
-      ownerOnly(c);
-      const v = await validated('update', c);
-      const rec = await findGame(db, v.formula, v.id);
-      await db.one("SELECT at.request($1, 'PATCH', $2, $3::jsonb, '')", [GAMES_TABLE, '/' + rec.id, JSON.stringify({ fields: v.fields, typecast: true, returnFieldsByFieldId: true })]);
-      return c.json({ ok: true, id: v.id });
-    })
-    // POST /vault/delete { id }: Dan removes a game from his collection (the owner only)
-    .post('/delete', async (c) => {
-      ownerOnly(c);
-      const v = await validated('del', c);
-      const rec = await findGame(db, v.formula, v.id);
-      await db.one("SELECT at.request($1, 'DELETE', $2, 'null'::jsonb, '')", [GAMES_TABLE, '/' + rec.id]);
-      return c.json({ ok: true, id: v.id, title: toGame(rec).title });
     });
-}
-
-// One of Dan's games by its id (as n8n's Find Record), or n8n's 404
-async function findGame(db: Db, formula: string, id: string) {
-  const r = await db.one<{ records?: any[] }>("SELECT at.request($1, 'GET', '', 'null'::jsonb, $2)", [GAMES_TABLE, formula]);
-  const rec = r?.records?.[0];
-  if (!rec) throw new ApiError(404, 'Game not found: ' + id);
-  return rec;
 }

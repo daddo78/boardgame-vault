@@ -108,4 +108,18 @@ SELECT pg_temp.check(NOT (bgc.feedback('check.member@example.invalid', jsonb_bui
 -- People lists come from plays (1+), and Matt's counts are intact
 SELECT pg_temp.check((SELECT play_count FROM shelves s JOIN games g ON g.id = s.game_id WHERE s.member_id = 1 AND g.title = 'The Crew: The Quest for Planet Nine') = 21, 'Dan''s play counts are intact (The Crew: 21)');
 
+
+-- One shelf for everyone (045): the polish after an add fills only blanks; the Players screen and BGG ratings are the database's to guard
+SELECT pg_temp.check((bgc.shelf_add('check.member@example.invalid', NULL, 'Check Homemade Game') ->> 'ok')::boolean, 'a member can add a game by title alone');
+SELECT pg_temp.check((bgc.game_to_polish('check.member@example.invalid', (SELECT s.legacy_id FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.title = 'Check Homemade Game')) ->> 'needsIcon')::boolean, 'a game just added needs its icon and blurb');
+SELECT pg_temp.check((bgc.polish_game('check.member@example.invalid', (SELECT s.legacy_id FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.title = 'Check Homemade Game'), '{"genre": "Checks / Tests", "type": "Testing", "desc": "A game for the checks.", "icon": "flask"}') ->> 'icon') = 'flask', 'the polish fills in genre, type, blurb and icon');
+SELECT pg_temp.check((bgc.polish_game('check.member@example.invalid', (SELECT s.legacy_id FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.title = 'Check Homemade Game'), '{"genre": "Other", "icon": "bad icon!"}') ->> 'genre') = 'Checks / Tests', 'the polish never overwrites what is there');
+SELECT pg_temp.check((SELECT icon FROM games WHERE title = 'Check Homemade Game') = 'flask', 'a bad icon name is refused');
+SELECT pg_temp.check(NOT (bgc.game_to_polish('nathan.schmidt@curator.invalid', (SELECT s.legacy_id FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.title = 'Check Homemade Game')) ->> 'ok')::boolean, 'nobody polishes a game on someone else''s shelf');
+SELECT pg_temp.check(NOT (bgc.players_admin('check.member@example.invalid') ->> 'ok')::boolean AND (bgc.players_admin('dandehaan@gmail.com') ->> 'ok')::boolean, 'only admins see the Players screen');
+SELECT pg_temp.check(NOT (bgc.player_save('check.member@example.invalid', NULL, '{"fldWVws64FVcdtuSJ": "Nobody"}') ->> 'ok')::boolean, 'only admins save a player card');
+SELECT pg_temp.check((bgc.player_save('dandehaan@gmail.com', NULL, '{"fldWVws64FVcdtuSJ": "Check Player"}') -> 'record' -> 'fields' ->> 'fldWVws64FVcdtuSJ') = 'Check Player', 'an admin can make a player card');
+SELECT pg_temp.check(bgc.bgg_ratings_save('check_bgg_user', '[{"bggId": 13, "rating10": 7.5}, {"bggId": "x", "rating10": 9}]') = 1, 'BGG ratings are saved per username, bad rows skipped');
+SELECT pg_temp.check(jsonb_array_length(bgc.bgg_usernames()) >= 1, 'the BGG ratings sync has usernames to fetch');
+
 ROLLBACK;

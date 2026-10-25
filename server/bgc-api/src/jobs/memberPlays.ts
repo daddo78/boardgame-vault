@@ -31,14 +31,14 @@ export const memberPlays: Job<MemberPlaysParams> = {
   },
 };
 
-// Nightly 4:30: every member with a BGG username, except Dan (Sync Plays covers his), one after another
+// Nightly 4:30: every member with a BGG username, Dan included (since 2026-10-25), one after another
 export const memberPlaysNightly: Job<{}> = {
   name: 'memberPlaysNightly',
   schedule: { at: '04:30' },
   async run(ctx) {
     const members = await ctx.db.rows<{ ok: string; email: string; username: string }>(
       "SELECT bgc.start_import(m.google_email, m.bgg_username) ->> 'ok' AS ok, m.google_email AS email, m.bgg_username AS username " +
-      "FROM members m WHERE nullif(btrim(m.bgg_username), '') IS NOT NULL AND m.id <> at.admin_id() ORDER BY m.id", []);
+      "FROM members m WHERE nullif(btrim(m.bgg_username), '') IS NOT NULL ORDER BY m.id", []);
     const results: unknown[] = [];
     for (const m of members.filter((x) => String(x.ok) === 'true' && x.email)) {
       try { results.push(await memberPlays.run(ctx, { email: m.email, username: m.username })); }

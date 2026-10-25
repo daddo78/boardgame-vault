@@ -2,6 +2,13 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.22 · October 25, 2026
+
+- **Games you add get the finishing touches Dan's always had:** a short genre, a play style and a one-line blurb in the collection's voice, and a small icon for the card when BoardGameGeek has no box art. Adding a game takes a few seconds longer while it's written.
+- **Dan's shelf works like everyone else's now.** Nothing changes for you unless you're Dan: his adds, edits and plays go through the same paths as yours, and his Settings cog shows the same "Sync my plays" button.
+
+*Behind the scenes: the last of the original app's special treatment for Dan's collection is gone; one set of code for every shelf, and the nightly play sync covers everyone the same way.*
+
 ## v0.21 · October 25, 2026
 
 *Behind the scenes: the last of the app's work moved off n8n onto its own server. Adding to Dan's collection, photos of boxes and shelves, bringing in plays and spreadsheets, and uploading rulebooks now go to the same service as everything else, and the overnight work (play syncs, box art for catalog games, reading rulebooks, cost readings, the backup check and the nightly self-test) runs in a small worker beside it, with every run and any failure recorded. Nothing changes on the page.*

@@ -16,7 +16,7 @@ import { readMode } from './nathanMode.js';
 
 export const AREAS = {
   account: ['GET /whoami', 'GET /me', 'GET /profile', 'GET /memory'],
-  shelves: ['GET /collection', 'GET /shelf', 'GET /people', 'GET /friends'],
+  shelves: ['GET /shelf', 'GET /people', 'GET /friends'],
   wishlist: ['GET /wishlist'],
   rulebooks: ['GET /rulebook'],
   admin: ['GET /admin', 'GET /dashboard', 'GET /costs', 'GET /players-admin'],
@@ -24,16 +24,16 @@ export const AREAS = {
   accountChanges: ['POST /me-save', 'POST /memory'],
   wishlistChanges: ['POST /wishlist'],
   rulebookChanges: ['POST /rulebook-change'],
-  shelfChanges: ['POST /rate', 'POST /shelf-update', 'POST /shelf-remove', 'POST /update', 'POST /delete'],
+  shelfChanges: ['POST /rate', 'POST /shelf-update', 'POST /shelf-remove'],
   friendChanges: ['POST /friends'],
   adminChanges: ['POST /player-save', 'POST /costs'],
   addGames: ['GET /bgg-search', 'POST /shelf-add'],
   feedback: ['POST /feedback'],
   memberActions: ['POST /admin'],
-  // The last of n8n's work (Oct 25): Dan's own adds, photos, the imports the jobs worker finishes, rulebook uploads
-  collectionAdd: ['POST /add'],
-  photos: ['POST /identify', 'POST /shelf-identify'],
-  imports: ['POST /import', 'POST /shelf-csv', 'POST /sync-plays'],
+  // The last of n8n's work (Oct 25): photos, the imports the jobs worker finishes, rulebook uploads. Dan's own adds and
+  // edits go the same way as everyone's since Oct 25 (shelfChanges, addGames, photos).
+  photos: ['POST /shelf-identify'],
+  imports: ['POST /import', 'POST /shelf-csv'],
   rulebookUpload: ['POST /rulebook'],
 } as const;
 type Area = keyof typeof AREAS;

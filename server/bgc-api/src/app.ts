@@ -17,7 +17,6 @@ import { adminRoutes } from './routes/admin.js';
 import { areaRoutes } from './routes/areas.js';
 import { askRoutes } from './routes/ask.js';
 import { bggRoutes } from './routes/bgg.js';
-import { collectionRoutes } from './routes/collection.js';
 import { feedbackRoutes } from './routes/feedback.js';
 import { importRoutes } from './routes/imports.js';
 import { nathanModeRoutes } from './routes/nathanMode.js';
@@ -35,7 +34,7 @@ export type Deps = { db: Db; verify: VerifyToken; config: Config; now?: () => nu
 const LOCALHOST = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
 const MB = 1024 * 1024;
 // How big a request may be: a rulebook PDF (60 MB, the page's own limit), a photo, a question to Nathan with a photo, the rest
-const limitFor = (path: string) => path === '/vault/rulebook' ? 64 * MB : /^\/vault\/(identify|shelf-identify)$/.test(path) ? 8 * MB : path.startsWith('/vault/ask') ? 4 * MB : 1 * MB;
+const limitFor = (path: string) => path === '/vault/rulebook' ? 64 * MB : path === '/vault/shelf-identify' ? 8 * MB : path.startsWith('/vault/ask') ? 4 * MB : 1 * MB;
 
 export function createApp({ db, verify, config, now, fetch: f0, signInCacheMs, jobs, bggGapMs }: Deps) {
   const f: Fetch = f0 ?? fetch;
@@ -85,8 +84,7 @@ export function createApp({ db, verify, config, now, fetch: f0, signInCacheMs, j
   vault.route('/', rulebookUploadRoutes(db, { pagesUrl: config.pagesUrl, fetch: f, jobs: jobsC }));
   vault.route('/', adminRoutes(db, { resendKey: config.resendKey, fetch: f }));
   vault.route('/', feedbackRoutes(db, { resendKey: config.resendKey, fetch: f, ownerEmail: config.ownerEmails[0] }));
-  vault.route('/', bggRoutes({ db, bggToken: config.bggToken, fetch: f }));
-  vault.route('/', collectionRoutes({ db, bgg, openrouterKey: config.openrouterKey, fetch: f, config }));
+  vault.route('/', bggRoutes({ db, bggToken: config.bggToken, openrouterKey: config.openrouterKey, fetch: f }));
   vault.route('/', shelfPhotoRoutes({ db, bgg, openrouterKey: config.openrouterKey, fetch: f, config }));
   vault.route('/', importRoutes(db, jobsC));
   vault.route('/', areaRoutes(db, !!config.openrouterKey));

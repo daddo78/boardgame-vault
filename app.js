@@ -274,14 +274,14 @@ let friendsFailed = false;
 let friendShelfName = '';
 let myShelf = null; // { items, status, bggUsername } for the 'mine' view
 let importPoll = null;
-// Everyone's home is their own shelf (Dan's own is the main collection); a friend's opens from Friends
+// Everyone's home is their own shelf, Dan's included (his is the one Nathan calls 'main'); a friend's opens from Friends
 const viewingFriend = () => isMember() && /^friend:\d+$/.test(shelfView) ? Number(shelfView.slice(7)) : null;
-const viewingMine = () => isMember() && !isOwner() && !viewingFriend();
+const viewingMine = () => isMember() && !viewingFriend();
 const homeShelf = () => isOwner() ? 'main' : 'mine';
 // What Nathan, the @ list and "See all" are about
-const currentShelf = () => viewingFriend() ? shelfView : viewingMine() ? 'mine' : 'main';
-// Edit controls follow the shelf being viewed: the owner on the main shelf, a friend on their own
-function canEdit() { return viewingMine() || (isOwner() && currentShelf() === 'main'); }
+const currentShelf = () => viewingFriend() ? shelfView : isOwner() ? 'main' : 'mine';
+// Edit controls follow the shelf being viewed: your own shelf, not a friend's
+function canEdit() { return viewingMine(); }
 function updateShelfUi() {
   document.body.classList.toggle('can-edit', canEdit());
   renderShelfSwitch();
@@ -349,12 +349,16 @@ async function loadMyShelf() {
     if (shelfView !== view) return;
     myShelf = r;
     collection = myShelf.items || [];
+    saveCache(); // the owner's shelf is kept for an offline look (saveCache keeps only the main one)
     setSyncStatus('');
     rebuildGenreFilter();
     render();
     renderImportPanel();
   } catch (e) {
-    if (shelfView === view) setSyncStatus(e.message, true);
+    if (shelfView !== view) return;
+    setSyncStatus(e.message, true);
+    const cached = isOwner() ? localStorage.getItem(LS_CACHE) : null;
+    if (cached) { collection = JSON.parse(cached); rebuildGenreFilter(); render(); }
   }
 }
 // Your shelf's panel: ways to add games when it's empty, progress while a spreadsheet or BGG plays come in,
@@ -486,12 +490,12 @@ async function updateGame(id, patch) {
   collection[idx] = { ...collection[idx], ...patch };
   render();
   try {
-    await n8nFetch(viewingMine() ? '/shelf-update' : '/update', {
+    await n8nFetch('/shelf-update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, fields: patch })
     });
-    if (!viewingMine()) saveCache();
+    saveCache();
   } catch (e) {
     collection[idx] = prev;
     render();
@@ -615,12 +619,12 @@ document.getElementById('deleteConfirm').addEventListener('click', async () => {
   collection = collection.filter(g => g.id !== id);
   render();
   try {
-    await n8nFetch(viewingMine() ? '/shelf-remove' : '/delete', {
+    await n8nFetch('/shelf-remove', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
     });
-    if (!viewingMine()) saveCache();
+    saveCache();
     toast('Removed "' + (prev ? prev.title : 'game') + '" from your shelf.');
   } catch (e) {
     if (prev && idx !== -1) collection.splice(idx, 0, prev);
@@ -1067,7 +1071,6 @@ document.getElementById('clearAll').addEventListener('click', () => {
 // Settings modal
 const settingsModal = document.getElementById('settingsModal');
 document.getElementById('settingsBtn').addEventListener('click', () => {
-  document.getElementById('syncPlaysStatus').textContent = '';
   settingsModal.classList.add('open');
 });
 document.getElementById('settingsCancel').addEventListener('click', () => settingsModal.classList.remove('open'));
@@ -1158,24 +1161,6 @@ fbForm.addEventListener('submit', async (e) => {
   finally { send.disabled = false; send.textContent = 'Send'; }
 });
 newsModal.addEventListener('click', (e) => { if (e.target === newsModal) newsModal.classList.remove('open'); });
-document.getElementById('syncPlaysBtn').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  const status = document.getElementById('syncPlaysStatus');
-  btn.disabled = true;
-  status.textContent = 'Reading your plays from BGG… this takes about 30 seconds.';
-  try {
-    const r = await n8nFetch('/sync-plays', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(90000) });
-    status.textContent = r.updated
-      ? 'Updated play counts for ' + r.updated + ' game' + (r.updated === 1 ? '' : 's') + ' (' + r.totalPlays + ' plays on BGG).'
-      : 'Already up to date (' + r.totalPlays + ' plays on BGG).';
-    await loadCollection();
-  } catch (err) {
-    status.textContent = 'Sync failed: ' + err.message;
-  } finally {
-    btn.disabled = false;
-  }
-});
-
 // Add-by-photo modal
 const addModal = document.getElementById('addModal');
 const identifyArea = document.getElementById('identifyArea');
@@ -1248,8 +1233,8 @@ async function addGames(list) {
     const g = list[i];
     identifyArea.innerHTML = '<div class="spinner"></div><p class="hint" style="text-align:center;">Adding "' + esc(g.title) + '"' + (list.length > 1 ? ' (' + (i + 1) + ' of ' + list.length + ')' : '') + '…</p>';
     try {
-      // A friend's own shelf, or Dan's collection (BGG details, box art and an icon: up to a minute)
-      const r = await n8nFetch(viewingMine() ? '/shelf-add' : '/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(g.payload), signal: AbortSignal.timeout(60000) });
+      // Onto your own shelf (BGG details, box art, a blurb and an icon for a game new to the catalog: up to a minute)
+      const r = await n8nFetch('/shelf-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(g.payload), signal: AbortSignal.timeout(60000) });
       all.added.push(...(r.added || [])); all.expansions.push(...(r.expansions || [])); all.skipped.push(...(r.skipped || []));
     } catch (err) { failed.push(g.title + ': ' + err.message); }
   }
@@ -1403,8 +1388,8 @@ document.getElementById('identifyBtn').addEventListener('click', async () => {
   try {
     const form = new FormData();
     form.append('photo', await shrinkPhoto(file), 'boxes.jpg');
-    // A friend's own shelf, or Dan's collection
-    const res = await routedFetch(viewingMine() ? '/shelf-identify' : '/identify', { method: 'POST', body: form, headers: { Authorization: 'Bearer ' + await ensureToken() } });
+    // Onto your own shelf
+    const res = await routedFetch('/shelf-identify', { method: 'POST', body: form, headers: { Authorization: 'Bearer ' + await ensureToken() } });
     if (res.status === 401) throw handleUnauthorized();
     let result = {};
     try { result = await res.json(); } catch (e) {}
@@ -2423,7 +2408,7 @@ wishModal.addEventListener('click', async (e) => {
     const g = myWishes.find(x => x.bggId === id) || {};
     got.disabled = true; got.textContent = 'Adding…';
     try {
-      await n8nFetch(isOwner() ? '/add' : '/shelf-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bggId: id }) });
+      await n8nFetch('/shelf-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bggId: id }) });
       await changeWish('remove', id);
       renderWishes();
       toast('"' + (g.title || 'That game') + '" is on your shelf now. Enjoy!');

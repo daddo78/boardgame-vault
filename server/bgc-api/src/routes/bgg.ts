@@ -1,16 +1,16 @@
-// BoardGameGeek: searching it, and adding a game from it to your own shelf. Ported from the n8n workflows Search BGG
-// and Add To My Shelf (n8n/gen.js sections 9 and 27); their code nodes run word for word (nodes.gen.ts), so results
-// are found, ranked and shaped exactly as before. Adding to Dan's own collection (Add Game By Name: AI blurb, BGG
-// details, icon) stays in n8n.
+// BoardGameGeek: searching it, and adding a game from it to your own shelf, Dan's included. Ported from the n8n workflows
+// Search BGG and Add To My Shelf (n8n/gen.js sections 9 and 27); their code nodes run word for word (nodes.gen.ts), so
+// results are found, ranked and shaped exactly as before. A game new to the catalog then gets its polish (catalog.ts).
 import { Hono } from 'hono';
 import type { AuthEnv } from '../auth.js';
+import { polishGame } from '../catalog.js';
 import type { Db } from '../db.js';
 import { ApiError, fromDb } from '../errors.js';
 import type { Fetch } from '../http.js';
 import { runNode } from '../nodes.js';
 import { body } from '../request.js';
 
-export type BggDeps = { db: Db; bggToken?: string; fetch?: Fetch };
+export type BggDeps = { db: Db; bggToken?: string; openrouterKey?: string; fetch?: Fetch };
 
 const BGG = 'https://boardgamegeek.com/xmlapi2/';
 const UNAVAILABLE = 'BoardGameGeek isn’t answering right now. Try again in a minute.';
@@ -29,7 +29,7 @@ async function bggText(f: Fetch, token: string | undefined, url: string): Promis
   return null;
 }
 
-export function bggRoutes({ db, bggToken, fetch: f = fetch }: BggDeps) {
+export function bggRoutes({ db, bggToken, openrouterKey, fetch: f = fetch }: BggDeps) {
   return new Hono<AuthEnv>()
     // GET /vault/bgg-search?q=<title>: up to 12 BGG games and expansions, exact and prefix matches first
     .get('/bgg-search', async (c) => {
@@ -43,7 +43,7 @@ export function bggRoutes({ db, bggToken, fetch: f = fetch }: BggDeps) {
       return c.json(runNode('bggSearch', 'Shape Results', { data: things }, { Validate: v }));
     })
     // POST /vault/shelf-add { bggId } | { title }: onto your own shelf. A game someone already has comes from the shared
-    // catalog; a new one gets its BGG details and box art (bgc.shelf_add decides, as for n8n)
+    // catalog; a new one gets its BGG details and box art (bgc.shelf_add decides, as for n8n), then its blurb and icon
     .post('/shelf-add', async (c) => {
       const v = fromDb(runNode('shelfAdd', 'Validate', { body: await body(c), _auth: c.get('auth') }));
       let thing = null;
@@ -59,6 +59,9 @@ export function bggRoutes({ db, bggToken, fetch: f = fetch }: BggDeps) {
         } catch { /* no cover */ }
         thing = runNode('shelfAdd', 'Add Cover', images, { 'Parse Thing': parsed }).thing;
       }
-      return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.shelf_add($1, $2::jsonb, $3)', [v.email, JSON.stringify(thing), v.title])));
+      const r = fromDb(await db.one<Record<string, any>>('SELECT bgc.shelf_add($1, $2::jsonb, $3)', [v.email, JSON.stringify(thing), v.title]));
+      const key = r.added?.[0]?.id;
+      if (key) await polishGame({ db, openrouterKey, fetch: f }, v.email, String(key), thing);
+      return c.json(r);
     });
 }

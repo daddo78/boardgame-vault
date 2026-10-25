@@ -1,12 +1,12 @@
-// The slow adds, answered right away and finished by the jobs worker: a member's plays from BGG (Connect BGG Plays),
-// a spreadsheet of games (Add To My Shelf From CSV), and Dan's "Sync plays now" (which waits for its result).
-// Ported from n8n/gen.js sections 24, 24b and 7; progress shows on /shelf (members.import_status).
+// The slow adds, answered right away and finished by the jobs worker: a member's plays from BGG (Connect BGG Plays, and
+// Dan's own since 2026-10-25) and a spreadsheet of games (Add To My Shelf From CSV). Ported from n8n/gen.js sections 24
+// and 24b; progress shows on /shelf (members.import_status).
 import { Hono } from 'hono';
 import type { AuthEnv } from '../auth.js';
 import type { Db } from '../db.js';
 import { ApiError, fromDb } from '../errors.js';
 import type { JobsClient } from '../jobsClient.js';
-import { body, ownerOnly } from '../request.js';
+import { body } from '../request.js';
 
 export function importRoutes(db: Db, jobs: JobsClient) {
   return new Hono<AuthEnv>()
@@ -32,13 +32,5 @@ export function importRoutes(db: Db, jobs: JobsClient) {
       const start = fromDb(await db.one<Record<string, any>>('SELECT bgc.start_csv($1, $2::jsonb)', [email, JSON.stringify(clean)]));
       await jobs.run('shelfCsv', { email, start: { ids: start.ids || [], search: start.search || [], alreadyHad: start.alreadyHad || 0 } });
       return c.json({ ok: true, started: true, matched: (start.ids || []).length, lookingUp: (start.search || []).length, alreadyHad: start.alreadyHad || 0 });
-    })
-    // POST /vault/sync-plays: Dan's plays from BGG now (the owner only); waits for the result, as n8n did
-    .post('/sync-plays', async (c) => {
-      ownerOnly(c);
-      const r = await jobs.run('syncPlays', {}, { wait: true });
-      const res: any = r.result;
-      if (res && typeof res === 'object' && res.error) throw new ApiError(502, String(res.error));
-      return c.json({ ok: true, ...(res && typeof res === 'object' ? res : {}) });
     });
 }

@@ -18,7 +18,6 @@ Everything under `/vault` needs the sign-in. One line each; the route's own comm
 | `GET /vault/memory[?chat=key]` | Nathan Memory | `bgc.memory_page` |
 | `POST /vault/me-save` | Save My Profile | `bgc.save_profile` |
 | `POST /vault/memory` `{ action: forget\|forgetAll, id }` | Nathan Forget | `bgc.memory_forget` |
-| `GET /vault/collection` | Get Collection | `at.request` (Dan's games) |
 | `GET /vault/shelf` | My Shelf | `bgc.shelf` |
 | `GET /vault/friends[?shelf=id]` | Friends | `bgc.friends`, `bgc.friend_shelf` |
 | `GET /vault/people[?shelf=mine\|friend:id]` | People | `bgc.shelf_view`, `bgc.my_ratings_on`, `bgc.asks_used` |
@@ -26,17 +25,19 @@ Everything under `/vault` needs the sign-in. One line each; the route's own comm
 | `POST /vault/shelf-update` `{ id, fields }` | Update My Shelf | `bgc.shelf_update` |
 | `POST /vault/shelf-remove` `{ id }` | Remove From My Shelf | `bgc.shelf_remove` |
 | `POST /vault/friends` `{ action: add\|remove, code \| id }` | Friends (change) | `bgc.add_friend`, `bgc.remove_friend` |
-| `POST /vault/update` `{ id, fields }` (owner) | Update Game | `at.request` (PATCH) |
-| `POST /vault/delete` `{ id }` (owner) | Delete Game | `at.request` (DELETE) |
 | `GET /vault/bgg-search?q=title` | Search BGG | BoardGameGeek's XML API |
-| `POST /vault/shelf-add` `{ bggId \| title }` | Add To My Shelf | BGG, then `bgc.shelf_add` |
+| `POST /vault/shelf-add` `{ bggId \| title }` | Add To My Shelf | BGG, then `bgc.shelf_add`, then `bgc.polish_game` (blurb, icon) |
 | `GET /vault/wishlist[?friend=id]` | Wishlist | `bgc.wishlist` |
 | `POST /vault/wishlist` `{ action: add\|remove, bggId, title, cover }` | Wishlist (change) | `bgc.wish_change` |
 | `GET /vault/rulebook?bgg=id \| ?games=1` | Rulebook (list) | `bgc.rule_docs_of`, `bgc.rule_doc_games` |
 | `POST /vault/rulebook-change` `{ id, action: remove \| kind, title, source }` | Rulebook (change) | `bgc.rule_doc_change` |
 | `GET /vault/admin`, `/dashboard`, `/costs` | Admin, Dashboard, Costs | `bgc.admin_overview`, `bgc.dashboard`, `bgc.costs_page` |
-| `GET /vault/players-admin` (owner) | Players Admin | `at.request` (Dan's people) |
-| `POST /vault/player-save` (owner) | Save Player | `at.request` (POST / PATCH) |
+| `GET /vault/players-admin` (admins) | Players Admin | `bgc.players_admin` |
+| `POST /vault/player-save` (admins) | Save Player | `bgc.player_save` |
+| `POST /vault/shelf-identify` (multipart photo) | Add To My Shelf From Photo | vision model, BGG, `bgc.shelf_add`, `bgc.polish_game` |
+| `POST /vault/import` `{ bggUsername }` | Connect BGG Plays | `bgc.start_import`, then the worker's memberPlays |
+| `POST /vault/shelf-csv` `{ rows }` | Add To My Shelf From CSV | `bgc.start_csv`, then the worker's shelfCsv |
+| `POST /vault/rulebook` (multipart) | Rulebook (upload) | `bgc.rule_doc_new`, bgc-pages, `bgc.rule_doc_stored`, then the worker's ruleReader |
 | `POST /vault/admin` `{ action: invite\|remove\|admin\|resetAsks\|askLimit, … }` | Admin actions | `bgc.admin_action`; an invite emails the new member (Resend) |
 | `POST /vault/costs` `{ fixed: [...] }` | Costs (save) | `bgc.costs_fixed_save` |
 | `POST /vault/feedback` `{ kind, mood, message, page, device } \| { action: status, id, status }` | Feedback | `bgc.feedback`; Dan gets an email (Resend) |

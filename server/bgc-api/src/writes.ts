@@ -6,7 +6,7 @@ import { VALIDATE } from './validate.gen.js';
 
 // The changes whose Validate node runs here. validate.gen.ts is generated and types its names only as strings, so this
 // list is what makes a typo a compile error; at start, a name without a node is caught here instead of on first use.
-export const WORKFLOWS = ['meSave', 'memoryForget', 'wishChange', 'ruleChange', 'rate', 'update', 'del', 'playerSave'] as const;
+export const WORKFLOWS = ['meSave', 'memoryForget', 'wishChange', 'ruleChange', 'rate', 'playerSave'] as const;
 export type Workflow = (typeof WORKFLOWS)[number];
 for (const w of WORKFLOWS) if (typeof VALIDATE[w] !== 'function') throw new Error(`validate.gen.ts has no Validate node for ${w}`);
 
