@@ -1694,7 +1694,7 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
       '{',
       '  "onTopic": true if this is about board games (any game, owned or not), choosing or playing them, buying them, the games on this shelf, or the people who play here (their tastes, profile, play history), else false,',
       '  "intent": "browse" if they ask what games they have, or to list, show, rank, count or sum up part of the shelf (e.g. "what sci-fi games do I have", "show me our co-ops", "my top ten most played", "do I have Azul", "games by Uwe Rosenberg"); "recommend" if they want something to play; "person" if they ask about a person rather than games (e.g. "what do you know about me", "what does Keith like", "how do I do at Catan", "who wins most"); "game" if they ask about one or more specific games themselves, owned or not (e.g. "what genre is Terraforming Mars", "how long is Brass", "would I like Ark Nova", "is Spirit Island good for 2", "should I buy Cascadia", "does Dan own Spirit Island", "who has Brass", "which of my friends would love Brass"); "rules" if they ask how to play a game or about its rules (e.g. "how do I set up Brass", "how does combat work in Spirit Island", "can you trade in Catan on someone else\'s turn", "how many cards do you draw in Wingspan"); "buy" if they want ideas for games to buy or get next (e.g. "what should I buy next", "what game should I add to my collection", "a co-op I don\'t own yet"),',
-      '  "atFriend": the first name of a friend if they are playing at that friend\'s place or ask about that friend\'s shelf or collection ("what can we play at Keith\'s", "anything good on Matt\'s shelf for 4"), else null,',
+      '  "atFriend": the first name (never the ROSTER id) of a friend if they are playing at that friend\'s place or ask about that friend\'s shelf or collection ("what can we play at Keith\'s", "anything good on Matt\'s shelf for 4"), else null,',
       '  "acrossFriends": true if they ask which friend owns something or want games from any of their friends\' shelves ("who has a co-op for 6", "can anyone lend me a party game", "which of my friends owns Brass", "which of my friends would love Brass"), else false,',
       '  "games": [for intent "game" or "rules": the official BoardGameGeek titles of the games they name, spelling corrected and completed (e.g. "Teraforming Mars" -> "Terraforming Mars", "Tanares Adventures" -> "Arena: The Contest – Tanares Adventures"). If they describe a game without naming it ("that Viking game by Uwe Rosenberg", "the trick-taking game in space"), always 2 or 3 different guesses of its official title, most likely first, so the right one is among them. Every guess must fit EVERY detail they give (theme, setting, designer, mechanism): for "the Viking game by Uwe Rosenberg where you fill your board with tiles" that is A Feast for Odin, not his farming games],',
       '  "guessed": true if "games" are your guesses from a description rather than names they typed, else false,',
@@ -1770,6 +1770,11 @@ const ask = wf(ID.ask, 'Vault — Ask Nathan', [
     const prev = $('Validate').first().json.previous;
     const followsOwn = !!(prev && prev.fromOwn && (prev.setIds || []).length); // "which of those…" after an answer from their own shelf
     // Social: "at Keith's" plays from that friend's shelf; "who has…" / "can anyone lend me…" looks across all friends' shelves
+    // The model sometimes gives the ROSTER id ("recmAa7…") instead of the name: use that person's first name
+    if (typeof c.atFriend === 'string' && /^rec[A-Za-z0-9]{6,}$/.test(c.atFriend.trim())) {
+      const p = $('List Players').all().flatMap((i) => i.json.records || []).map(toPlayer).find((x) => x.id === c.atFriend.trim());
+      c.atFriend = p ? p.name : null;
+    }
     const atFriend = typeof c.atFriend === 'string' && c.atFriend.trim() && !/^(me|my|mine|you)$/i.test(c.atFriend.trim()) ? c.atFriend.replace(/\(.*$/, '').trim().split(/\s+/)[0].slice(0, 40) : '';
     const across = !atFriend && (c.acrossFriends === true || /\b(who (owns|has)|any(one|body) (own|has|have)|can anyone lend|which (of my )?friends?)\b/i.test(q))
       && c.intent !== 'person';
