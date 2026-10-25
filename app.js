@@ -415,10 +415,10 @@ function renderImportPanel() {
       bggPlaysForm() + '</div></div>';
     return;
   }
-  // Shelf has games: a quiet line for BGG plays
-  panel.hidden = false;
-  panel.innerHTML = missingCard + '<p class="import-note"><span><i class="ti ti-home"></i> Your shelf' + (myShelf.bggUsername ? ' · plays from BGG user <b>' + esc(myShelf.bggUsername) + '</b>' : '') + '.</span>' +
-    (myShelf.bggUsername ? '<button type="button" data-reimport>Update plays from BGG</button>' : '<button type="button" data-connect-bgg>Bring in my BGG plays</button>') + '</p>' + failed;
+  // Shelf has games: nothing to say unless a spreadsheet left games unfound or the last import failed (syncing plays lives
+  // in the Settings cog, "My plays", for everyone)
+  panel.innerHTML = missingCard + failed;
+  panel.hidden = !(missingCard || failed);
 }
 async function startImport(username) {
   try {
@@ -435,16 +435,11 @@ document.getElementById('importPanel').addEventListener('submit', (e) => {
   if (u) startImport(u);
 });
 document.getElementById('importPanel').addEventListener('click', (e) => {
-  if (e.target.closest('[data-reimport]') && myShelf && myShelf.bggUsername) startImport(myShelf.bggUsername);
   const way = e.target.closest('[data-add-way]');
   if (way) openAddModal(way.dataset.addWay);
   const find = e.target.closest('[data-find]');
   if (find) openAddModal('name', find.dataset.find);
   if (e.target.closest('[data-csv-done]')) { try { localStorage.setItem(LS_CSV_SEEN, (myShelf.status || {}).finished || ''); } catch (err) {} renderImportPanel(); }
-  if (e.target.closest('[data-connect-bgg]')) {
-    const u = prompt('Your BoardGameGeek username (brings in your logged plays, not games):', myShelf.bggUsername || '');
-    if (u && u.trim()) startImport(u.trim());
-  }
 });
 
 // Which shelf to show: your own (Dan's included), a friend's, or nothing until you sign in (the site is members only)
@@ -1065,12 +1060,17 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
 });
 document.getElementById('settingsCancel').addEventListener('click', () => settingsModal.classList.remove('open'));
 document.getElementById('settingsClose').addEventListener('click', () => settingsModal.classList.remove('open'));
-// A member's own plays: the same import as "Connect BGG", run again with their username
+// Your own plays, for everyone (Dan included): the same import as "Connect BGG", run again with your username; without
+// one yet, it asks for it first
 document.getElementById('syncMyPlaysBtn').addEventListener('click', async () => {
   try { if (!myShelf || !myShelf.bggUsername) myShelf = await n8nFetch('/shelf', { method: 'GET' }); } catch (e) {}
   settingsModal.classList.remove('open');
-  if (!myShelf || !myShelf.bggUsername) { toast('Connect your BoardGameGeek username on your shelf first ("Bring in my BGG plays").', true); return; }
-  if (await startImport(myShelf.bggUsername)) toast('Syncing your plays from BGG. They’ll show up in a minute or two.');
+  let username = (myShelf && myShelf.bggUsername) || '';
+  if (!username) {
+    username = (prompt('Your BoardGameGeek username (brings in your logged plays, not games):', '') || '').trim();
+    if (!username) return;
+  }
+  if (await startImport(username)) toast('Syncing your plays from BGG. They’ll show up in a minute or two.');
 });
 // What's new: the release notes (CHANGELOG.md, published with the site), newest first
 const newsModal = document.getElementById('newsModal');
