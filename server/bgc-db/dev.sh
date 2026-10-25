@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # A dev copy of the Board Game Curator database, on Unraid, so a migration and the checks run against real data before
 # deploy.sh touches the VPS. One Postgres container (bgc-postgres-dev) holding yesterday's-or-fresher copy of bgc.
-#   bash dev.sh up                 create the container (or start it), data under /mnt/user/appdata/bgc-dev
+#   bash dev.sh up                 create the container (or start it), data under /mnt/evo870pool/devbox/bgc-dev
 #   bash dev.sh refresh            replace its data with a dump of the live database, taken now (about 26 MB, a minute)
 #   bash dev.sh migrate [--dry-run]  copy schema/ over and apply the pending migrations there (schema/apply.sh)
 #   bash dev.sh check              run tests/checks.sql against it: PASS lines, stops at the first FAIL
 #   bash dev.sh sql 'SELECT count(*) FROM shelves'
 #   bash dev.sh down               stop and remove the container (the data folder stays)
 # Before a database deploy:  bash dev.sh refresh && bash dev.sh migrate && bash dev.sh check
-# The dev password is made once on Unraid (/mnt/user/appdata/bgc-dev/.env, root only) and never leaves it. The container
+# The dev password is made once on Unraid (/mnt/evo870pool/devbox/bgc-dev/.env, root only) and never leaves it. The container
 # publishes no port: everything goes through `ssh unraid docker exec`. The copy holds members' emails like the live
 # database does; it lives on Dan's own server and nowhere else.
 set -euo pipefail
@@ -16,7 +16,7 @@ cd "$(dirname "$0")"
 
 UNRAID=unraid                                              # ssh alias (root@ondorilabo.local)
 VPS="ssh -i $HOME/.ssh/claude_hostinger claude-ops@148.230.83.130"
-DIR=/mnt/user/appdata/bgc-dev
+DIR=/mnt/evo870pool/devbox/bgc-dev
 C=bgc-postgres-dev
 U="ssh $UNRAID"
 PSQL="docker exec -i $C psql -U bgc -d bgc -v ON_ERROR_STOP=1"
