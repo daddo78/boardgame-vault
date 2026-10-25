@@ -229,12 +229,12 @@
       </div>
       <div class="tn-arrow"><svg class="icon"><use href="#i-arrow"/></svg></div>
       <div class="tn-card tn-now">
-        <span class="tn-label">Became · Oct 21</span>
+        <span class="tn-label">Became · Oct 25</span>
         <ul>
-          <li><svg class="icon"><use href="#i-users"/></svg><span>An invite-only site: every member has a shelf, friends connect by code</span></li>
-          <li><svg class="icon"><use href="#i-chat"/></svg><span>Nathan, an AI curator who remembers you, reads photos, and cites rulebook pages</span></li>
-          <li><svg class="icon"><use href="#i-database"/></svg><span>Postgres for the data, 53 n8n workflows for the logic, all on one VPS</span></li>
-          <li><svg class="icon"><use href="#i-image"/></svg><span>A 1,685-game catalog with BoardGameGeek box art, and plays synced nightly</span></li>
+          <li><svg class="icon"><use href="#i-users"/></svg><span>An invite-only site: every member has a shelf, Dan's an ordinary one among them, and friends connect by code</span></li>
+          <li><svg class="icon"><use href="#i-chat"/></svg><span>Nathan, an AI curator who remembers you, reads photos, cites rulebook pages, and streams his answers</span></li>
+          <li><svg class="icon"><use href="#i-database"/></svg><span>Postgres for the data, one small API and its jobs worker for the logic, all on one VPS</span></li>
+          <li><svg class="icon"><use href="#i-image"/></svg><span>A 1,682-game catalog with BoardGameGeek box art, and plays synced nightly</span></li>
         </ul>
       </div>
     </div>
@@ -248,13 +248,13 @@
     </div>
     <div class="stats">
       <div class="stat"><b>7</b><span>members, 5 with shelves</span></div>
-      <div class="stat"><b>1,215</b><span>games on members' shelves</span></div>
-      <div class="stat"><b>1,681</b><span>games in the shared catalog, 1,675 filled in from BGG</span></div>
-      <div class="stat"><b>8,184</b><span>plays logged, back to February 2010</span></div>
+      <div class="stat"><b>1,216</b><span>games on members' shelves</span></div>
+      <div class="stat"><b>1,682</b><span>games in the shared catalog, 1,679 filled in from BGG</span></div>
+      <div class="stat"><b>8,191</b><span>plays logged, back to February 2010</span></div>
       <div class="stat"><b>414</b><span>people who've played at the table</span></div>
       <div class="stat"><b>190</b><span>rulebook pages Nathan has read, in 918 sections across 8 documents</span></div>
-      <div class="stat"><b>13</b><span>releases to testers, v0.8 to v0.17</span></div>
-      <div class="stat"><b>57</b><span>database checks on every deploy, plus 32 test questions for Nathan and 46 for the API</span></div>
+      <div class="stat"><b>16</b><span>releases to testers, v0.8 to v0.22</span></div>
+      <div class="stat"><b>76</b><span>database checks on every deploy, plus 37 test questions for Nathan and 74 for the API</span></div>
     </div>
   </section>
 
@@ -489,6 +489,36 @@
         </li>
       </ol>
     </div>
+
+    <div class="era">
+      <div class="era-label">One service, one shelf · Oct 24–25 <span class="new">New</span></div>
+      <ol class="spine">
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-server"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 24 · overnight</span><h3>Everything leaves n8n</h3>
+            <p>Dan went to bed and said "do it all while I sleep." By morning the scheduled jobs (nightly play syncs, the self-test, the backup check, Fill Catalog, cost readings), the rulebook reader, photos, CSV and play imports and the failure emails all run in a second copy of the API, the jobs worker, with every run written to the database. n8n's nine schedules were switched off; its webhooks stay only as a fallback.</p>
+            <span class="metric">11 jobs · 70 API tests · 65 database checks</span></div>
+        </li>
+        <li class="node crisis" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-shield"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 24</span><h3>A look around the server</h3>
+            <p>The spreadsheet view (NocoDB) had been restarting all night, out of memory; it got more room. A walk through every process on the server found an old automation container to clean out and a remote-desktop relay (RustDesk) that would accept anyone; it now takes only clients holding its key. Access to the server is by key, as a non-root user.</p>
+            <span class="metric">one open relay closed · root password due for a change</span></div>
+        </li>
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-home"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 25 · morning</span><h3>Dan's shelf is an ordinary shelf</h3>
+            <p>"Why is my collection treated differently?" It had its own routes and its own adapter dating from the Airtable days. Now Dan adds, edits, removes and syncs through the same routes and the same database functions as everyone, and any game new to the catalog gets its blurb and icon the way only his used to. Only the visibility rule still tells his shelf apart. The last of the Airtable-era write code is gone.</p>
+            <span class="metric">4 routes and 3 modules removed · 213 games, every count intact</span></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-users"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 25 · morning</span><h3>The same site for everyone</h3>
+            <p>Dan's rule, said plainly: features are the same for him and for members; only admin vs member differs. So "Sync my plays" lives in the Settings cog for everyone and asks for your BGG username the first time, the Players screen is for admins (not just the owner), members can finally tap the stars on their own cards and see the 📖 rulebook markers, and plays logged from the site tell BG Stats they came from Board Game Curator.</p>
+            <span class="metric">v0.22 · 76 checks, 74 tests</span></div>
+        </li>
+      </ol>
+    </div>
   </section>
 
   <!-- ===================== THE WORK ===================== -->
@@ -500,12 +530,12 @@
     </div>
 
     <div class="stats three">
-      <div class="stat"><b>13</b><span>calendar days, Oct 11 → Oct 23</span></div>
-      <div class="stat"><b>8</b><span>days of building; 5 days untouched</span></div>
-      <div class="stat"><b>41–60</b><span>hours of active build time</span></div>
-      <div class="stat"><b>181</b><span>commits</span></div>
-      <div class="stat"><b>86,761</b><span>lines added, 34,665 removed</span></div>
-      <div class="stat"><b>2</b><span>services: the API, and 53 n8n workflows written as code</span></div>
+      <div class="stat"><b>15</b><span>calendar days, Oct 11 → Oct 25</span></div>
+      <div class="stat"><b>10</b><span>days of building; 5 days untouched</span></div>
+      <div class="stat"><b>44–66</b><span>hours of active build time, plus one unattended overnight run</span></div>
+      <div class="stat"><b>201</b><span>commits</span></div>
+      <div class="stat"><b>98,403</b><span>lines added, 43,454 removed</span></div>
+      <div class="stat"><b>2</b><span>services: the API and its jobs worker, from one codebase; 53 n8n workflows kept as a fallback</span></div>
     </div>
 
     <div class="grid2">
@@ -520,7 +550,9 @@
           <div class="day"><span class="d">Oct 20</span><span class="bar"><i style="width:64.2%"></i><i style="left:64.2%; width:17.1%"></i></span><span class="h">8–10 h</span></div>
           <div class="day"><span class="d">Oct 21</span><span class="bar"><i style="width:57.7%"></i><i style="left:57.7%; width:27.7%"></i></span><span class="h">7–10.5 h</span></div>
           <div class="day"><span class="d">Oct 22</span><span class="bar"><i style="width:9.8%"></i><i style="left:9.8%; width:16.3%"></i></span><span class="h">1–3 h</span></div>
-          <div class="day"><span class="d">Oct 23</span><span class="bar"><i style="width:23.6%"></i><i style="left:23.6%; width:55.3%"></i></span><span class="h">3–10 h</span></div>
+          <div class="day"><span class="d">Oct 23</span><span class="bar"><i style="width:36.6%"></i><i style="left:36.6%; width:63.4%"></i></span><span class="h">4.5–12.8 h</span></div>
+          <div class="day"><span class="d">Oct 24</span><span class="bar"><i style="width:4.9%"></i></span><span class="h">0.6 h + overnight</span></div>
+          <div class="day"><span class="d">Oct 25</span><span class="bar"><i style="width:7.3%"></i><i style="left:7.3%; width:15.4%"></i></span><span class="h">1–3 h</span></div>
         </div>
         <div class="key"><span><i></i>Commit bursts</span><span><i class="est"></i>Likely work between them</span></div>
       </div>
@@ -528,12 +560,12 @@
       <div class="panel">
         <h3>What got built</h3>
         <div class="rows">
-          <div class="row"><span>The shelf page (<code>index.html</code>)</span><b>3,748 lines</b></div>
-          <div class="row"><span>Workflow generator (<code>n8n/gen.js</code>)</span><b>3,634 lines</b></div>
-          <div class="row"><span>The API (<code>server/bgc-api</code>), not counting the code it copies from n8n</span><b>2,139 lines</b></div>
-          <div class="row"><span>Admin portal (<code>admin.html</code>)</span><b>951 lines</b></div>
-          <div class="row"><span>Database changes, numbered and re-runnable</span><b>39 files</b></div>
-          <div class="row"><span>Releases with notes for testers</span><b>13</b></div>
+          <div class="row"><span>The shelf page (<code>index.html</code>, <code>app.js</code>, <code>styles.css</code>)</span><b>3,684 lines</b></div>
+          <div class="row"><span>Workflow generator (<code>n8n/gen.js</code>), now the fallback</span><b>3,590 lines</b></div>
+          <div class="row"><span>The API and its jobs (<code>server/bgc-api</code>), not counting the code it copies from n8n</span><b>2,665 lines, plus 1,522 of tests</b></div>
+          <div class="row"><span>Admin portal (<code>admin.html</code>, <code>admin.js</code>, <code>admin.css</code>)</span><b>946 lines</b></div>
+          <div class="row"><span>Database changes, numbered and re-runnable</span><b>46 files</b></div>
+          <div class="row"><span>Releases with notes for testers</span><b>16</b></div>
           <div class="row"><span>Times the data moved house</span><b>3</b></div>
           <div class="row"><span>Kinds of question Nathan tells apart</span><b>6</b></div>
         </div>
@@ -544,9 +576,9 @@
       <div class="panel">
         <h3>What the site spends on AI</h3>
         <div class="rows">
-          <div class="row"><span>Spent on the site's OpenRouter key so far (every answer, photo, rulebook page, test and icon)</span><b>$4.78</b></div>
-          <div class="row"><span>Key limit</span><b>$10.00</b></div>
-          <div class="row"><span>One question to Nathan, on average (Admin → Costs)</span><b>about $0.0005</b></div>
+          <div class="row"><span>Spent on the site's OpenRouter key since tracking began Oct 21 (every answer, photo, rulebook page, test and icon)</span><b>$1.03, of which $0.81 is the nightly tests</b></div>
+          <div class="row"><span>Balance left on the key</span><b>$5.42 of a $10 limit</b></div>
+          <div class="row"><span>One question to Nathan, on average (Admin → Costs)</span><b>about $0.0007</b></div>
           <div class="row"><span>Reading a rulebook</span><b>once, then free to ask</b></div>
         </div>
         <p class="note">Exact figures come from Admin → Costs, which reads OpenRouter every hour. Hosting (the Hostinger VPS) and domains are fixed costs, not listed here.</p>
@@ -563,10 +595,10 @@
     <div class="sec-head">
       <span class="eyebrow">Attached · the current architecture</span>
       <h2 id="arch-h">How it runs today</h2>
-      <p class="sub">A static page talks to one small API on one small server; Nathan lives there and streams his answers. n8n, beside it, runs the scheduled jobs and the heavier work (photos, imports, reading rulebooks). Both read and write one Postgres database and call Google, BoardGameGeek and AI models.</p>
+      <p class="sub">A static page talks to one small API on one small server; Nathan lives there and streams his answers. A second copy of the same code, the jobs worker, runs the scheduled jobs and the long ones (play syncs, the self-test, reading rulebooks, imports). Both read and write one Postgres database and call Google, BoardGameGeek and AI models. n8n idles beside them as a fallback.</p>
     </div>
 
-    <div class="map" role="img" aria-label="Diagram: members' browsers load the page from GitHub Pages through Cloudflare and call the API (and n8n, for what hasn't moved) through a Cloudflare tunnel. The API and n8n run on a Hostinger VPS beside Postgres, a page reader for rulebooks, NocoDB and a backup job. They call Google, BoardGameGeek, OpenRouter and email. Backups go to a private GitHub repo.">
+    <div class="map" role="img" aria-label="Diagram: members' browsers load the page from GitHub Pages through Cloudflare and call the API through a Cloudflare tunnel. The API hands long and scheduled work to a jobs worker. Both run on a Hostinger VPS beside Postgres, a page reader for rulebooks, NocoDB and a backup job. They call Google, BoardGameGeek, OpenRouter and email. Backups go to a private GitHub repo.">
       <svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -614,20 +646,20 @@
         <text class="k" x="316" y="122">HOSTINGER VPS · DOCKER</text>
         <path class="ln" d="M470,80 V128" marker-end="url(#ah)"/>
         <text class="lbl" x="478" y="110">api.ondorilabo.com/vault/*</text>
-        <path class="ln d" d="M312,80 V290 H316" marker-end="url(#ah)"/>
+        <path class="ln" d="M470,238 V246" marker-end="url(#ah)"/>
 
         <rect class="bx logic" x="320" y="134" width="300" height="104" rx="12"/>
         <text class="t" x="336" y="160">The API · bgc-api</text>
         <text class="s" x="336" y="180">Every page request: one Google sign-in</text>
         <text class="s" x="336" y="196">check, then the database.</text>
         <rect class="chip" x="336" y="204" width="128" height="26" rx="13"/><text class="ct" x="352" y="221">Nathan, streamed</text>
-        <rect class="chip" x="472" y="204" width="132" height="26" rx="13"/><text class="ct" x="486" y="221">14 switches</text>
+        <rect class="chip" x="472" y="204" width="132" height="26" rx="13"/><text class="ct" x="486" y="221">17 area switches</text>
 
         <rect class="bx logic" x="320" y="248" width="300" height="102" rx="12"/>
-        <text class="t" x="336" y="272">n8n workflows</text>
-        <rect class="chip" x="336" y="282" width="128" height="26" rx="13"/><text class="ct" x="352" y="299">9 scheduled jobs</text>
+        <text class="t" x="336" y="272">The jobs worker · bgc-jobs</text>
+        <rect class="chip" x="336" y="282" width="128" height="26" rx="13"/><text class="ct" x="352" y="299">11 jobs, logged</text>
         <rect class="chip" x="472" y="282" width="132" height="26" rx="13"/><text class="ct" x="486" y="299">Rulebook reader</text>
-        <text class="s" x="336" y="336">Photos, imports, alerts · built by n8n/gen.js</text>
+        <text class="s" x="336" y="336">Syncs, self-test, imports, alerts · same image as the API</text>
 
         <rect class="bx data" x="690" y="134" width="280" height="116" rx="12"/>
         <text class="t" x="706" y="162">Postgres · schema bgc</text>
@@ -716,10 +748,9 @@
       <div class="panel">
         <h3>What runs on its own (Eastern)</h3>
         <div class="clock">
-          <div><time>4:00</time><span>Sync Dan's plays from BoardGameGeek</span></div>
-          <div><time>4:20</time><span>Sync people and their BGG ratings</span></div>
-          <div><time>4:30</time><span>Sync every member's plays</span></div>
-          <div><time>5:40</time><span>Self-test: 57 checks and 28 questions; emails Dan only on a failure</span></div>
+          <div><time>4:30</time><span>Sync every member's plays from BGG, Dan's included</span></div>
+          <div><time>4:50</time><span>Everyone's BGG ratings</span></div>
+          <div><time>5:40</time><span>Self-test: 76 checks and 37 questions; emails Dan only on a failure</span></div>
           <div><time>9:00</time><span>Health check on the nightly backup</span></div>
           <div><time>2 min</time><span>Rulebook reader picks up the next upload</span></div>
           <div><time>10 min</time><span>Fill Catalog: BGG details and box art for 20 games</span></div>
@@ -729,11 +760,11 @@
       <div class="panel">
         <h3>How a change ships</h3>
         <ul>
-          <li>Edit the page, the API (<code>server/bgc-api</code>), <code>n8n/gen.js</code>, or a numbered SQL file.</li>
-          <li>Apply database changes; each file is safe to run again.</li>
-          <li>The API's <code>deploy.sh</code> runs its 46 tests, builds, and swaps in the new version only once it's healthy; a trial build answers Nathan's 32 test questions first.</li>
-          <li>n8n's <code>deploy.sh</code> generates and publishes the workflows, restarts n8n, and fails if any of the 57 checks fail.</li>
-          <li>A new area of the site switches to the API in Admin, once its answers match n8n's.</li>
+          <li>Edit the page, the API and its jobs (<code>server/bgc-api</code>), or a numbered SQL file.</li>
+          <li>Apply database changes with <code>apply.sh</code>; each file is safe to run again, and a ledger remembers which have run.</li>
+          <li>The API's <code>deploy.sh</code> runs its 74 tests, builds, swaps in the new version only once it's healthy, then recreates the jobs worker from the same image; a trial build answers Nathan's 37 test questions first.</li>
+          <li>The 76 database checks run on every deploy and every night; any failure stops the deploy or emails Dan.</li>
+          <li>A new area of the site starts Off in Admin, then Admins only, then Everyone.</li>
           <li><code>git push</code> to GitHub Pages, then clear Cloudflare's cache so it's live in a minute or two.</li>
           <li>Post the version's notes to the testers' Discord, only when Dan says so.</li>
         </ul>
@@ -745,28 +776,29 @@
   <!-- ===================== WHAT'S NEXT ===================== -->
   <section aria-labelledby="next-h" id="next">
     <div class="sec-head">
-      <span class="eyebrow">The roadmap · planned for October 25, mostly done by the 23rd</span>
+      <span class="eyebrow">The roadmap · planned for October 25, done by the 25th</span>
       <h2 id="next-h">Nathan's own service, and what's left</h2>
-      <p class="sub">Most of the n8n workflows were really small web endpoints. The usual way to build that is one small service: one sign-in check for every request, one deploy, one place to look when something breaks. Nathan moved first, because it's the change members feel. n8n keeps the scheduled jobs it's good at.</p>
+      <p class="sub">Most of the n8n workflows were really small web endpoints. The usual way to build that is one small service: one sign-in check for every request, one deploy, one place to look when something breaks. Nathan moved first, because it's the change members feel. The scheduled jobs went last, overnight on the 24th, into a worker built from the same code.</p>
     </div>
     <div class="grid2" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));">
         <div class="panel"><span class="node-date">Phase 1 · done Oct 22</span><h3>The service</h3><ul><li>A small TypeScript service (Hono on Node) in Docker on the same server, at <code>api.ondorilabo.com</code>. No new hosting cost</li><li>Every request checks the Google sign-in and membership in one place, with Google's keys cached (no call to Google each time)</li><li>Inputs checked, plain error messages, per-member limits, and only our site can call it</li><li>Updates go out without the site blinking: 43 of 43 health checks answered during a handover</li></ul></div>
         <div class="panel"><span class="node-date">Phase 2 · done Oct 23</span><h3>Nathan moves in</h3><ul><li><b>Answers stream:</b> first words in about 2.2 seconds, the whole answer in about 4.8 (was a 6-second wait)</li><li>His steps are n8n's own code, copied word for word, so the two can't drift apart</li><li>Stop, “Ask again”, and a half-written answer is kept</li><li>25 of 25 test questions, at the same cost per question</li></ul></div>
-        <div class="panel"><span class="node-date">Phase 3 · done Oct 23, nearly</span><h3>Everything else</h3><ul><li>Everything the page reads, and the everyday changes (stars, shelves, friends, wishlists, profiles, BGG search, feedback, invites), moved behind 14 switches in Admin, each checked against n8n first</li><li>Email goes out from the API through Resend</li><li>Dropped after measuring: one combined request on page load. The page already asks for its parts at once, so it waits only for the slowest; fixing that one (people) made it about 3× faster instead</li></ul></div>
-        <div class="panel"><span class="node-date">Phase 4 · no change</span><h3>What stays in n8n</h3><ul><li>Nightly play sync, Fill Catalog, the rulebook reader, cost readings, the backup check and failure alerts</li><li>Photos, imports, rulebook uploads and adding to Dan's own collection: long jobs and uploads, which n8n handles well</li></ul></div>
+        <div class="panel"><span class="node-date">Phase 3 · done Oct 23</span><h3>Everything else</h3><ul><li>Everything the page reads, and the everyday changes (stars, shelves, friends, wishlists, profiles, BGG search, feedback, invites), moved behind switches in Admin, each checked against n8n first</li><li>Email goes out from the API through Resend</li><li>Dropped after measuring: one combined request on page load. The page already asks for its parts at once, so it waits only for the slowest; fixing that one (people) made it about 3× faster instead</li></ul></div>
+        <div class="panel"><span class="node-date">Phase 4 · done Oct 24–25</span><h3>The jobs, and one shelf</h3><ul><li>A jobs worker from the same code: nightly syncs, Fill Catalog, the rulebook reader, cost readings, the backup check, the self-test and failure emails, each run logged</li><li>Photos, CSV and play imports and rulebook uploads moved to the API, the long parts handed to the worker</li><li>Dan's own collection became an ordinary shelf on the same routes; the Airtable-era adapter's write side is gone</li></ul></div>
     </div>
     <div class="panel">
       <h3>Still to do</h3>
       <div class="rows">
-        <div class="row"><span>Retire the n8n webhooks the API has replaced, once n8n's history shows no traffic to them</span><b>about Oct 30</b></div>
-        <div class="row"><span>Remove Nathan's off switch and n8n's Ask; the nightly self-test asks the API, memory questions included</span><b>about Nov 6</b></div>
-        <div class="row"><span>Also waiting: an email when the AI balance runs low, and a first-game-night answer that sometimes forgets to ask how many are coming</span><b>small</b></div>
+        <div class="row"><span>Try a photo add and a rulebook upload, then open both to everyone</span><b>Dan, any day</b></div>
+        <div class="row"><span>Unpublish the n8n webhooks the API has replaced, once n8n's history shows no traffic to them</span><b>about Oct 30</b></div>
+        <div class="row"><span>Remove Nathan's off switch and n8n's Ask, and the script that copies his steps from n8n</span><b>about Nov 6</b></div>
+        <div class="row"><span>Also waiting: a new server root password, the old automation container cleaned out, an email when the AI balance runs low, and the dashboard showing the jobs' runs</span><b>small</b></div>
       </div>
     </div>
   </section>
 
   <footer>
     <b>Built in public, broken in public, fixed in public.</b>
-    <span>Board Game Curator · v0.17 · October 23, 2026. Numbers from the live database, git history and OpenRouter.</span>
+    <span>Board Game Curator · v0.22 · October 25, 2026. Numbers from the live database, git history and OpenRouter.</span>
   </footer>
 </div>

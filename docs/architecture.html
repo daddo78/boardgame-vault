@@ -122,12 +122,12 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
   <a class="back" href="history.html">← The Board Game Curator story</a> <a class="back" href="history.html#next">What's next on the roadmap →</a>
   <span class="eyebrow">bg.ondorilabo.com · how it fits together</span>
   <h1>Board Game Curator Architecture</h1>
-  <p class="lede">A static web page talks to one small API service on a small server. The API (<code>api.ondorilabo.com</code>) answers what the page asks for: shelves, friends, wishlists, profiles, rulebooks, the admin portal, and Nathan, the curator, who streams his answers as he writes. n8n, beside it, runs the scheduled jobs and the heavier work: photos, imports, reading rulebooks, adding to Dan's own collection. Both use one Postgres database and call out to Google, BoardGameGeek and AI models.</p>
+  <p class="lede">A static web page talks to one small API service on a small server. The API (<code>api.ondorilabo.com</code>) answers what the page asks for: shelves, friends, wishlists, profiles, rulebooks, the admin portal, and Nathan, the curator, who streams his answers as he writes. A second copy of the same code, the jobs worker, runs the scheduled jobs and the long ones: nightly play syncs, the self-test, the rulebook reader, imports, filling the catalog. Both use one Postgres database and call out to Google, BoardGameGeek and AI models. n8n is still on the server, but only as a fallback the page can fall back to; nothing runs there on a schedule any more. Every member's shelf, Dan's included, takes the same path.</p>
 </header>
 
 <section aria-labelledby="map-h">
   <h2 id="map-h">The system map</h2>
-  <div class="map" role="img" aria-label="Diagram: members' browsers load the page from GitHub Pages and call the API (and, for what hasn't moved, n8n) through a Cloudflare tunnel. The API and n8n run on a Hostinger VPS beside Postgres, NocoDB and a backup job. They call Google, BoardGameGeek, OpenRouter and email. Backups go to a private GitHub repo.">
+  <div class="map" role="img" aria-label="Diagram: members' browsers load the page from GitHub Pages and call the API through a Cloudflare tunnel. The API hands long and scheduled work to a jobs worker. Both run on a Hostinger VPS beside Postgres, NocoDB and a backup job. They call Google, BoardGameGeek, OpenRouter and email. Backups go to a private GitHub repo.">
     <svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -179,7 +179,8 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
       <text class="k" x="316" y="122">HOSTINGER VPS · DOCKER</text>
       <path class="ln" d="M540,80 V128" marker-end="url(#ah)"/>
       <text class="lbl" x="548" y="110">api.ondorilabo.com/vault/*</text>
-      <path class="ln d" d="M312,80 V283 H316" marker-end="url(#ah)"/>
+      <path class="ln" d="M470,230 V248" marker-end="url(#ah)"/>
+      <text class="lbl" x="478" y="244">hands off jobs</text>
 
       <!-- The API -->
       <rect class="bx felt" x="320" y="134" width="300" height="96" rx="12"/>
@@ -188,13 +189,13 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
       <text class="s" x="336" y="196">inputs checked, per-member limits. Nathan</text>
       <text class="s" x="336" y="212">streams. Hono on Node, shipped by deploy.sh</text>
 
-      <!-- n8n -->
-      <rect class="bx felt" x="320" y="240" width="300" height="90" rx="12"/>
-      <text class="t" x="336" y="264">n8n workflows</text>
-      <text class="s" x="336" y="284">Schedules, the rulebook reader, photos,</text>
-      <text class="s" x="336" y="300">imports, Dan's own adds, failure alerts.</text>
-      <text class="s" x="336" y="316">Built by n8n/gen.js, shipped by deploy.sh</text>
-      <path class="ln" d="M624,286 Q660,286 686,240" marker-end="url(#ah)"/>
+      <!-- The jobs worker -->
+      <rect class="bx felt" x="320" y="250" width="300" height="80" rx="12"/>
+      <text class="t" x="336" y="274">The jobs worker · bgc-jobs</text>
+      <text class="s" x="336" y="294">Nightly syncs, self-test, the rulebook reader,</text>
+      <text class="s" x="336" y="310">Fill Catalog, imports, costs. Emails on failure.</text>
+      <text class="s" x="336" y="326">Same image as the API; n8n idles as a fallback</text>
+      <path class="ln" d="M624,290 Q660,290 686,240" marker-end="url(#ah)"/>
 
       <!-- Postgres -->
       <rect class="bx amb" x="690" y="134" width="280" height="116" rx="12"/>
@@ -270,9 +271,9 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
   <p>Every action on the page follows the same path, whether it's rating a game, adding one, or opening a friend's shelf.</p>
   <ol class="steps">
     <li><div><b>The page signs you in with Google</b><span class="who">browser · Google's own account chooser ("Continue as…"), with a "Sign in with Google" button as a fallback</span>One click, or none when the browser remembers you. It keeps the Google ID token in the browser and sends it with each request.</div></li>
-    <li><div><b>Cloudflare passes the request to the API</b><span class="who">api.ondorilabo.com/vault/…</span>The server has no open ports. The Cloudflare tunnel is the only way in. Which requests go to the API is decided per area by switches in Admin; anything switched off, or anything the API can't answer, goes to n8n (<code>n8n.ondorilabo.com/webhook/vault/…</code>) instead.</div></li>
+    <li><div><b>Cloudflare passes the request to the API</b><span class="who">api.ondorilabo.com/vault/…</span>The server has no open ports. The Cloudflare tunnel is the only way in. Each area of the site has a switch in Admin, and every area is on. If the API ever can't answer, the page asks n8n (<code>n8n.ondorilabo.com/webhook/vault/…</code>) instead, until those webhooks are retired.</div></li>
     <li><div><b>The API checks who you are</b><span class="who">Google's public keys (cached) → bgc.sign_in(email)</span>The token must be signed by Google for our site and not expired, and your email must belong to a member. The result says your role (member or admin) and which shelf is yours. Then a per-member rate limit, and the inputs are checked.</div></li>
-    <li><div><b>The route does the work in the database</b><span class="who">one SQL function call, e.g. bgc.shelf_view, bgc.rate, bgc.wish_change</span>The same functions n8n calls, so the rules are the same either way. Privacy rules live in the database. A friend's shelf, wishlist or profile only comes back if you're connected by friend code.</div></li>
+    <li><div><b>The route does the work in the database</b><span class="who">one SQL function call, e.g. bgc.shelf_view, bgc.rate, bgc.wish_change</span>The same functions the jobs worker calls, so the rules are the same either way, and the same ones for Dan as for every member: only admin vs member differs. Privacy rules live in the database. A friend's shelf, wishlist or profile only comes back if you're connected by friend code.</div></li>
     <li><div><b>The page redraws</b><span class="who">JSON back to index.html</span>Errors come back as a plain message, and the badge at the top shows "Signed out" when your sign-in has expired.</div></li>
   </ol>
 </section>
@@ -296,20 +297,20 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
 
 <section aria-labelledby="ep-h">
   <h2 id="ep-h">The routes</h2>
-  <p>API addresses start with <code>https://api.ondorilabo.com/vault/</code>; the ones still in n8n start with <code>https://n8n.ondorilabo.com/webhook/vault/</code>. All of them need a signed-in member. Each API area has its own switch in Admin → Dashboard → New API (off, admins only, or everyone), and the check there asks the API and n8n the same questions to compare before an area goes on.</p>
+  <p>Every address starts with <code>https://api.ondorilabo.com/vault/</code> and needs a signed-in member. Each area has its own switch in Admin → Dashboard → New API (off, admins only, or everyone); photos and rulebook uploads are admins-only until Dan has tried them, everything else is on for everyone. n8n's old webhooks (<code>https://n8n.ondorilabo.com/webhook/vault/</code>) answer only if the API can't, until they're retired around October 30.</p>
   <div class="tablewrap">
     <table>
       <thead><tr><th>Area</th><th>Address</th><th>What it does</th><th>Who</th><th>Served by</th></tr></thead>
       <tbody>
-        <tr><td>Shelf</td><td class="ep"><span class="m">GET</span>shelf · collection<br><span class="m post">POST</span>shelf-update · shelf-remove · rate · update · delete</td><td>Your own shelf, favorites, want-to-play, culling, stars, removing games; Dan's collection and its edits</td><td class="who-pill">member · owner</td><td>API</td></tr>
-        <tr><td>Adding games</td><td class="ep"><span class="m">GET</span>bgg-search<br><span class="m post">POST</span>shelf-add</td><td>Search BGG and add a game to your shelf</td><td class="who-pill">member</td><td>API</td></tr>
-        <tr><td></td><td class="ep"><span class="m post">POST</span>shelf-identify · shelf-csv · add · identify</td><td>From a photo, from a CSV file, and adding to Dan's collection (AI blurb, BGG details, icon)</td><td class="who-pill">member · owner</td><td>n8n</td></tr>
-        <tr><td>Plays</td><td class="ep"><span class="m post">POST</span>import · sync-plays</td><td>Connect a BGG username and bring in plays (never games)</td><td class="who-pill">member</td><td>n8n</td></tr>
+        <tr><td>Shelf</td><td class="ep"><span class="m">GET</span>shelf<br><span class="m post">POST</span>shelf-update · shelf-remove · rate</td><td>Your own shelf (Dan's is one of them), favorites, want-to-play, culling, stars, removing games</td><td class="who-pill">member</td><td>API</td></tr>
+        <tr><td>Adding games</td><td class="ep"><span class="m">GET</span>bgg-search<br><span class="m post">POST</span>shelf-add</td><td>Search BGG and add a game to your shelf. Any game new to the catalog gets its blurb (genre, type, one-liner) and icon from a small AI call, filling only the blanks</td><td class="who-pill">member</td><td>API</td></tr>
+        <tr><td></td><td class="ep"><span class="m post">POST</span>shelf-identify · shelf-csv</td><td>From a photo of your shelf (a vision model reads the boxes, up to 8 at a time), or from a CSV file (the worker matches each row to BGG)</td><td class="who-pill">admin for photos · member for CSV</td><td>API</td></tr>
+        <tr><td>Plays</td><td class="ep"><span class="m post">POST</span>import</td><td>Connect a BGG username (asked once, in the cog) and bring in plays, never games; the worker does the fetching</td><td class="who-pill">member</td><td>API</td></tr>
         <tr><td>People</td><td class="ep"><span class="m">GET</span>people · whoami · me · profile<br><span class="m post">POST</span>me-save</td><td>Who's logged plays with you, your role, your taste profile and Top 10, friends' profile pages</td><td class="who-pill">member</td><td>API</td></tr>
         <tr><td>Friends</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>friends</td><td>Friend codes, connecting and removing, a friend's shelf</td><td class="who-pill">member</td><td>API</td></tr>
         <tr><td>Wishlists</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>wishlist</td><td>Yours or a friend's; "Got it!" moves a game onto your shelf</td><td class="who-pill">member</td><td>API</td></tr>
         <tr><td>Rulebooks</td><td class="ep"><span class="m">GET</span>rulebook<br><span class="m post">POST</span>rulebook-change</td><td>A game's documents; editing a document's type, name or link, or removing it</td><td class="who-pill">member · admin to change</td><td>API</td></tr>
-        <tr><td></td><td class="ep"><span class="m post">POST</span>rulebook</td><td>Upload a rulebook, expansion rulebook, reference guide, appendix, FAQ or solo rules once for everyone; Nathan reads it page by page, names it, then the PDF is deleted</td><td class="who-pill">member</td><td>n8n</td></tr>
+        <tr><td></td><td class="ep"><span class="m post">POST</span>rulebook</td><td>Upload a rulebook, expansion rulebook, reference guide, appendix, FAQ or solo rules once for everyone; Nathan reads it page by page, names it, then the PDF is deleted</td><td class="who-pill">admin, for now</td><td>API, read by the worker</td></tr>
         <tr><td>Nathan</td><td class="ep"><span class="m post">POST</span>ask · ask/stream</td><td>The question pipeline above; <code>ask/stream</code> sends his words as he writes</td><td class="who-pill">member · 30/day</td><td>API (n8n as fallback)</td></tr>
         <tr><td>Memory</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>memory</td><td>Your latest chat to show again, what Nathan remembers, forgetting a note or everything</td><td class="who-pill">member</td><td>API</td></tr>
         <tr><td>Feedback</td><td class="ep"><span class="m post">POST</span>feedback</td><td>Sent from the cog: saved, and emailed to Dan with reply-to</td><td class="who-pill">member</td><td>API</td></tr>
@@ -325,23 +326,23 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
   <div class="grid2">
     <div class="panel">
       <h3>Every night (Eastern)</h3>
+      <p class="note" style="margin-top:0">All of it runs in the jobs worker (<code>bgc-jobs</code>, from <code>server/bgc-api/src/jobs</code>). Every run is written to the <code>job_runs</code> table, and <code>GET /jobs</code> on the worker lists each job's last run and next time.</p>
       <div class="clock">
-        <div><time>4:00</time><span>Sync Dan's plays from BoardGameGeek</span></div>
-        <div><time>4:30</time><span>Sync every other member's plays from their BGG account (they can also tap "Sync my plays" in the cog)</span></div>
-        <div><time>4:20</time><span>Sync people: who has logged plays with whom, and their BGG ratings</span></div>
-        <div><time>5:40</time><span>Self-test: 57 database checks, then 28 real questions to Nathan. Emails Dan only if something fails (the 4 memory questions need the API's test tool, so they run with <code>TARGET=api node n8n/test-nathan.js</code>)</span></div>
+        <div><time>4:30</time><span>Sync every member's plays from their BGG account, Dan's included; anyone can also tap "Sync my plays" in the cog</span></div>
+        <div><time>4:50</time><span>Sync people: the BGG ratings of everyone with a BGG username (who played with whom is kept up as plays arrive)</span></div>
+        <div><time>5:40</time><span>Self-test: 76 database checks, then 37 real questions to Nathan, the memory ones included. Emails Dan only if something fails</span></div>
         <div><time>9:00</time><span>Health check: emails Dan if the database backup hasn't run in 26 hours</span></div>
-        <div><time>nightly</time><span>Backup: both databases dumped to the private GitHub repo</span></div>
+        <div><time>nightly</time><span>Backup: both databases dumped to the private GitHub repo (its own container)</span></div>
       </div>
     </div>
     <div class="panel">
       <h3>All the time</h3>
       <ul>
-        <li><b>Every 15 minutes:</b> a photo sweep finishes any box photo an earlier run left half done.</li>
-        <li><b>Every 2 minutes:</b> the rulebook reader picks up the next uploaded rulebook, if any. When it finishes one, a small call reads the first two pages to say what it is (the game's rulebook, an expansion's, an appendix…) and its name, filling only what was left blank.</li>
+        <li><b>Every 2 minutes:</b> the rulebook reader picks up the next uploaded rulebook, if any (an upload also pokes it straight away). When it finishes one, a small call reads the first two pages to say what it is (the game's rulebook, an expansion's, an appendix…) and its name, filling only what was left blank.</li>
         <li><b>Every 10 minutes:</b> Fill Catalog gets BGG details and box art for 20 games that came in without them (wishlists and Top 10s first).</li>
         <li><b>Every hour:</b> records what the site's OpenRouter key has spent and the account balance, for Admin → Costs. Each AI call also records its own cost.</li>
-        <li><b>On any failure:</b> the Error Alert workflow emails Dan which workflow broke and where.</li>
+        <li><b>On request:</b> a member's play import and a CSV import run as jobs the API hands over; if the worker is down, the API runs them itself.</li>
+        <li><b>On any failure:</b> the worker emails Dan which job broke and where, once per job per half hour at most.</li>
       </ul>
       <h3>Never automatic</h3>
       <ul>
@@ -355,14 +356,13 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
 <section aria-labelledby="ship-h">
   <h2 id="ship-h">How a change ships</h2>
   <ol class="steps">
-    <li><div><b>Edit the source</b><span class="who">index.html · admin.html · server/bgc-api/src · n8n/gen.js · server/bgc-db/schema/NNN_*.sql</span>Workflows are written as code in one file, never clicked together in the n8n editor. The API runs n8n's own code where the two overlap (Nathan's steps, input checks, BGG parsing): <code>node server/bgc-api/scripts/extract-nathan.cjs</code> copies it word for word.</div></li>
-    <li><div><b>Apply database changes</b><span class="who">psql &lt; schema/039_people_without_games.sql</span>Each schema file is numbered and safe to run again. Bigger ones are tried first inside a transaction that's rolled back.</div></li>
-    <li><div><b>Deploy the API</b><span class="who">server/bgc-api/deploy.sh (or --trial)</span>Types, 46 tests and the build pass first. A trial build can answer Nathan's questions before it serves anyone. The new container starts beside the old one and takes over only once it's healthy, so the site never blinks.</div></li>
-    <li><div><b>Deploy the workflows</b><span class="who">n8n/deploy.sh ask</span>Generates the workflow JSON, imports and publishes it, then restarts n8n and waits until it answers.</div></li>
-    <li><div><b>Run the checks</b><span class="who">bgc.self_check(): 57 rules, rolled back afterwards</span>The deploy fails if any check fails. It covers membership, privacy, ratings, wishlists, admin, game matching, rulebooks and Nathan's memory. <code>TARGET=api node n8n/test-nathan.js</code> runs the 32 Nathan questions against the API.</div></li>
-    <li><div><b>Switch an area over</b><span class="who">Admin → Dashboard → New API</span>Run the check against n8n, then Off, Admins only, Everyone. If the API is ever down, the page asks n8n.</div></li>
+    <li><div><b>Edit the source</b><span class="who">index.html · app.js · admin.js · server/bgc-api/src · server/bgc-db/schema/NNN_*.sql</span>The API still runs n8n's own code where the two overlap (Nathan's steps, input checks, BGG parsing): <code>node server/bgc-api/scripts/extract-nathan.cjs</code> copies it word for word from <code>n8n/gen.js</code>, until Nathan's fallback is retired. Rules that decide what's true (who may see or change what) go in SQL functions, not in routes.</div></li>
+    <li><div><b>Apply database changes</b><span class="who">server/bgc-db/schema/apply.sh</span>Each schema file is numbered (46 so far) and safe to run again; a ledger table records which have run. Bigger ones are tried first inside a transaction that's rolled back.</div></li>
+    <li><div><b>Check, then deploy</b><span class="who">server/bgc-api/check.sh · deploy.sh (or --trial)</span>Types, 74 tests and the build pass first. A trial build can answer Nathan's questions before it serves anyone. The new API container starts beside the old one and takes over only once it's healthy, so the site never blinks; then the jobs worker is recreated from the same image.</div></li>
+    <li><div><b>Run the checks</b><span class="who">bgc.self_check(): 76 rules, rolled back afterwards</span>The deploy fails if any check fails. It covers membership, privacy, ratings, wishlists, admin, game matching, rulebooks, Nathan's memory, and that every shelf is treated alike. <code>node n8n/test-nathan.js</code> asks the 37 Nathan questions; the worker asks them every night.</div></li>
+    <li><div><b>Switch an area over</b><span class="who">Admin → Dashboard → New API</span>A new area starts Off, then Admins only, then Everyone. The check there asks the API and n8n the same questions while both still answer.</div></li>
     <li><div><b>Push the page</b><span class="who">git push → GitHub Pages → node tools/purge-cache.js</span>Once GitHub has published it, clearing Cloudflare's cache makes it live right away.</div></li>
-    <li><div><b>Tell the testers</b><span class="who">CHANGELOG.md → node tools/post-update.js v0.17</span>Posts that version's notes to the bgc-testers channel on Discord, only when Dan says so.</div></li>
+    <li><div><b>Tell the testers</b><span class="who">CHANGELOG.md → node tools/post-update.js v0.22</span>Posts that version's notes to the bgc-testers channel on Discord, only when Dan says so.</div></li>
   </ol>
 </section>
 
@@ -379,13 +379,15 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
         <li><b>wishlist</b>; <b>rule_docs</b>, <b>rule_sections</b>: the text Nathan read from each rulebook, by page (the PDFs themselves aren't kept)</li>
         <li><b>chat_turns</b>, <b>member_notes</b>: Nathan's memory. Chats are kept 6 months; notes stay until you delete them</li>
         <li><b>ask_log</b>, <b>settings</b>: question types and timings, limits, the last self-test, and the switches for which areas the API serves</li>
+        <li><b>job_runs</b>: every run of every scheduled job, with its result or its error</li>
       </ul>
     </div>
     <div class="panel">
       <h3>Kept off the repo</h3>
       <ul>
         <li>The database password stays on the server (<code>~/bgc-db/.env</code>).</li>
-        <li>The API's keys for OpenRouter, BGG and Resend (email) are in <code>~/bgc-db/.env</code> on the server, placed there by Dan; n8n keeps its own as n8n credentials.</li>
+        <li>The API's and the worker's keys for OpenRouter, BGG and Resend (email) are in <code>~/bgc-db/.env</code> on the server, placed there by Dan; n8n keeps its own as n8n credentials.</li>
+        <li>The server is reached only over SSH with a key, as a non-root user; its remote desktop relay (RustDesk) takes only clients that hold its key.</li>
         <li>The Discord webhook is on Dan's PC (<code>%USERPROFILE%\.bgc</code>).</li>
         <li>Chats are stored for Nathan's memory, and only the asker sees them. The admin dashboard shows question types, never the words.</li>
       </ul>
@@ -393,5 +395,5 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
   </div>
 </section>
 
-<footer>Board Game Curator · v0.17 · October 23, 2026. Drawn from the live code: server/bgc-api, n8n/gen.js, server/bgc-db/schema and the two deploy.sh scripts.</footer>
+<footer>Board Game Curator · v0.22 · October 25, 2026. Drawn from the live code: server/bgc-api (routes and jobs), server/bgc-db/schema and their deploy scripts.</footer>
 </div>
