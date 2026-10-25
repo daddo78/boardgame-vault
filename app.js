@@ -181,7 +181,7 @@ function googleRedirectSignIn() {
   const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
   try { sessionStorage.setItem('vault_oauth_nonce', nonce); } catch (e) {}
   const p = new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, response_type: 'id_token', scope: 'openid email profile',
-    redirect_uri: location.origin + '/', nonce, prompt: 'select_account' });
+    redirect_uri: location.origin, nonce, prompt: 'select_account' }); // registered on the Google OAuth client as https://bg.ondorilabo.com (no slash)
   if (profile && profile.email) p.set('login_hint', profile.email); // renewing: Google's chooser is one tap
   location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p.toString();
 }
