@@ -123,16 +123,17 @@ SELECT pg_temp.check(bgc.bgg_ratings_save('check_bgg_user', '[{"bggId": 13, "rat
 SELECT pg_temp.check(bgc.bgg_ratings_save('check_bgg_user', '[{"bggId": 14, "rating10": 7}, {"bggId": 14, "rating10": 8}]') = 1, 'a game listed twice in a BGG collection (two copies) is saved once');
 SELECT pg_temp.check(jsonb_array_length(bgc.bgg_usernames()) >= 1, 'the BGG ratings sync has usernames to fetch');
 -- Thumbs on Nathan's replies (047): a member votes, the same thumb again clears it, a note sends the question along, admins read them
+-- (a vote and the read of what it stored are separate checks: the two sides of one AND may run in either order)
 SELECT pg_temp.check((bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question", "vote": "up"}') ->> 'vote') = 'up', 'a member can give a reply a thumbs up');
-SELECT pg_temp.check((bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question", "vote": "down", "note": "check note"}') ->> 'note') = 'check note'
-  AND (SELECT count(*) FROM ask_votes WHERE chat_key = 'check-chat') = 1, 'the other thumb changes the vote, one vote per reply');
+SELECT pg_temp.check((bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question", "vote": "down", "note": "check note"}') ->> 'note') = 'check note', 'the other thumb changes the vote and takes a note');
+SELECT pg_temp.check((SELECT count(*) FROM ask_votes WHERE chat_key = 'check-chat') = 1 AND (SELECT vote FROM ask_votes WHERE chat_key = 'check-chat') = 'down', 'one vote per reply');
 SELECT pg_temp.check((SELECT question FROM ask_votes WHERE chat_key = 'check-chat') = 'check question'
   AND bgc.ask_votes_admin('dandehaan@gmail.com') -> 'items' -> 0 ->> 'note' = 'check note', 'with a note, the question goes to Admin → Nathan');
-SELECT pg_temp.check((bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question 2", "vote": "up"}') ->> 'ok')::boolean
-  AND (SELECT question FROM ask_votes WHERE chat_key = 'check-chat' AND question_key = md5('check question 2')) = '', 'a thumb alone keeps no question text');
+SELECT pg_temp.check((bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question 2", "vote": "up"}') ->> 'ok')::boolean, 'a thumb alone is accepted');
+SELECT pg_temp.check((SELECT question FROM ask_votes WHERE chat_key = 'check-chat' AND question_key = md5('check question 2')) = '', 'a thumb alone keeps no question text');
 SELECT pg_temp.check(NOT (bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question", "vote": "meh"}') ->> 'ok')::boolean, 'a vote that isn''t up or down is turned away');
-SELECT pg_temp.check((bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question", "vote": ""}') ->> 'vote') = ''
-  AND (SELECT count(*) FROM ask_votes WHERE chat_key = 'check-chat') = 1, 'clearing a vote removes it');
+SELECT pg_temp.check((bgc.ask_vote('check.member@example.invalid', '{"chatKey": "check-chat", "question": "check question", "vote": ""}') ->> 'vote') = '', 'the same thumb again clears a vote');
+SELECT pg_temp.check((SELECT count(*) FROM ask_votes WHERE chat_key = 'check-chat') = 1, 'a cleared vote is gone');
 SELECT pg_temp.check(bgc.ask_votes_admin('check.member@example.invalid') IS NULL AND (bgc.ask_votes_admin('dandehaan@gmail.com') ->> 'upAll')::int >= 1, 'only admins read the thumbs');
 
 ROLLBACK;
