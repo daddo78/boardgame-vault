@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate, import, publish and reload Board Game Garage workflows on the Hostinger n8n.
+# Regenerate, import, publish and reload Board Game Curator workflows on the Hostinger n8n.
 # Usage: ./deploy.sh [workflowFile ...]   e.g. ./deploy.sh iconOne bggOne   (default: all)
 set -euo pipefail
 cd "$(dirname "$0")"

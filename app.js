@@ -1007,8 +1007,8 @@ document.getElementById('logPlaySend').addEventListener('click', () => {
   const duration = Number(document.getElementById('playDuration').value) || undefined;
   const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const data = {
-    sourceName: 'Board Game Garage',
-    sourcePlayId: 'bgg-garage-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+    sourceName: 'Board Game Curator',
+    sourcePlayId: 'bgc-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     playDate,
     ...(duration ? { durationMin: duration } : {}),
     game: { name: g.title, sourceGameId: g.id, ...(g.bggId ? { bggId: Number(g.bggId) } : {}), highestWins: true },
