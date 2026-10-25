@@ -15,7 +15,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 UNRAID=unraid                                              # ssh alias (root@ondorilabo.local)
-VPS="ssh -i $HOME/.ssh/claude_hostinger claude-ops@148.230.83.130"
+VPS="ssh -i $HOME/.ssh/claude_hostinger claude-ops@100.101.202.120"
 DIR=/mnt/evo870pool/devbox/bgc-dev
 C=bgc-postgres-dev
 U="ssh $UNRAID"

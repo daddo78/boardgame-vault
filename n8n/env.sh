@@ -1,6 +1,6 @@
-# The Hostinger server that runs n8n. Sourced by deploy.sh, run-as.sh and test-ask.sh; test-nathan.js reads it too
-# (plain NAME=value lines only, $HOME allowed).
-N8N_SSH_HOST=claude-ops@148.230.83.130
+# The Hostinger server that runs n8n, the API and the database, reached over Tailscale (its public port 22 is firewalled since 2026-10-25;
+# 100.101.202.120 is srv927242 on the tailnet). Sourced by deploy.sh, run-as.sh and test-ask.sh; test-nathan.js reads it too (plain NAME=value lines only, $HOME allowed).
+N8N_SSH_HOST=claude-ops@100.101.202.120
 N8N_SSH_KEY="$HOME/.ssh/claude_hostinger"
 N8N_CONTAINER=n8n-ckq4-n8n-1
 

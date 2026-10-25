@@ -12,7 +12,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-HOST=claude-ops@148.230.83.130
+HOST=claude-ops@100.101.202.120
 KEY="$HOME/.ssh/claude_hostinger"
 SSH="ssh -i $KEY $HOST"
 PUBLIC=https://api.ondorilabo.com/health   # through the Cloudflare tunnel, as members reach it
