@@ -1748,9 +1748,63 @@ function attachMentions(input, box, onSend) {
 const closeBarMentions = attachMentions(bar, document.getElementById('mentionList'), () => { if (!openShelfMatch()) askNathan(bar.value, false); });
 const closeNpMentions = attachMentions(npInput, document.getElementById('npMentionList'), () => askNathan(npInput.value, true));
 bar.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden && document.getElementById('mentionList').hidden) setPanel('hidden'); });
-// An empty, focused bar offers a few ideas in a dropdown, like search suggestions
+// An empty, focused bar offers a few ideas in a dropdown, like search suggestions: four drawn at random from
+// this pool each time it opens, so the same seven don't greet every visit
+const IDEA_POOL = [
+  'What can four of us finish in under 30 minutes?',
+  'What haven\u2019t we played in a really long time?',
+  'Something cozy and cooperative for two of us tonight',
+  'We have all evening. What big strategy game is worth pulling down?',
+  'A party game for six that gets everyone laughing',
+  'What are my top ten most played games?',
+  'What sci-fi games do I have?',
+  'Which games have I never played?',
+  'What did we play most this year?',
+  'A quick filler while we wait for the pizza',
+  'Something I can teach to new players in five minutes',
+  'What\u2019s good for three players?',
+  'A heavy game for two that rewards planning',
+  'Which games are best with exactly five?',
+  'What are my highest-rated games I haven\u2019t played lately?',
+  'Something with lots of dice rolling',
+  'A game with trading or negotiation',
+  'What fantasy games do I have?',
+  'Something for a rainy afternoon with the kids',
+  'A deck-building game I\u2019ve been neglecting',
+  'What can seven or more of us play?',
+  'A game that plays in under an hour but still feels meaty',
+  'Which games have I rated five stars?',
+  'What do my friends own that I don\u2019t?',
+  'A cooperative game where we all win or lose together',
+  'What tile-laying games are on the shelf?',
+  'Something tense and competitive for two',
+  'Which of my games are good for a date night?',
+  'A game with a strong theme and a story to tell',
+  'What should I play if I only have 15 minutes?',
+  'What are my newest games I haven\u2019t tried yet?',
+  'A word or trivia game for the family',
+  'Something strategic but not too long for a weeknight',
+  'What games do I own with a space or exploration theme?',
+  'Which games would be good for a group of mixed ages?',
+  'What haven\u2019t I rated yet?',
+];
 const ideas = document.getElementById('askExamples');
-const showIdeas = () => { ideas.hidden = !!bar.value.trim() || !document.getElementById('mentionList').hidden || document.activeElement !== bar; };
+function drawIdeas() {
+  const pool = IDEA_POOL.slice();
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  ideas.querySelectorAll('[data-example]').forEach(el => el.remove());
+  pool.slice(0, 4).forEach(q => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'mention-opt'; b.setAttribute('role', 'option'); b.dataset.example = q;
+    b.innerHTML = '<span class="at"><i class="ti ti-sparkles"></i></span>' + esc(q);
+    ideas.appendChild(b);
+  });
+}
+const showIdeas = () => {
+  const hide = !!bar.value.trim() || !document.getElementById('mentionList').hidden || document.activeElement !== bar;
+  if (!hide && ideas.hidden) drawIdeas(); // a fresh four each time it opens
+  ideas.hidden = hide;
+};
 bar.addEventListener('focus', showIdeas);
 bar.addEventListener('input', showIdeas);
 bar.addEventListener('blur', () => setTimeout(() => { ideas.hidden = true; }, 120));
