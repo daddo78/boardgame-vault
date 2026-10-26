@@ -43,7 +43,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [x] My profile: signed-in members fill in their own card (dials, likes, dislikes, about me, BGG username) from the account menu; the Players screen keeps only names, aliases, email and BGG username
 - [x] Friend profile pages: their words, dials, all-time Top 10, most played and wishlist (Friends > Profile)
 - [ ] Phase 4: friend takes (private); BG Stats players link to members
-- [ ] Log a play in the app, and send plays, collection and stars to a linked BGG account (schema/049, bggOutbox) *(built Oct 25 night, on the dev setup; not deployed: needs BGG_LINK_KEY in Infisical and a live check with a test BGG account)*
+- [x] Log a play in the app (any game, any device), My plays (view, change, delete, sync), and plays, collection and stars sent to a linked BGG account (schema/049, bggOutbox); Players and Places for every member, with merging (050) *(v0.25, live Oct 26)*
 - [ ] Lent to: a mark on a shelf row for who has borrowed it, so Nathan's "borrow X's copy" stays true and "where's my Brass?" has an answer
 - [x] Phase 5: social Nathan: "what can we play at Keith's?", "who has a co-op for 2?", "which of my friends would love Brass?"
 - First testers: Aaron Wiesinger and Matt Kruse (emails on their cards, added as Google test users), Keith McKimmy (still need his email); BGG usernames for all three
