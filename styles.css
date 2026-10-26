@@ -574,6 +574,8 @@ button.pill.active { background: var(--brand); color: #fff; }
 /* A modal's buttons at the top right (My plays: Sync, then Close), staying in view as it scrolls */
 .modal-tools { position: sticky; top: 0; float: right; display: flex; gap: 0.45rem; margin: -0.4rem -0.4rem 0 0.5rem; z-index: 2; }
 .modal-tools .mini-btn { box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+/* The close X every scrolling modal has: top right, and still there when you've scrolled (no scrolling to close) */
+.modal > .modal-x { position: sticky; top: 0; float: right; margin: -0.4rem -0.4rem 0 0.5rem; z-index: 3; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
 .modal-tools .mini-btn[hidden] { display: none; }
 /* Log a Play: the people picked, and a search to add more */
 .picked-list { display: grid; gap: 0.35rem; margin-top: 0.4rem; }

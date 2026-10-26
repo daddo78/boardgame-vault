@@ -2565,6 +2565,14 @@ document.getElementById('authBtn').addEventListener('click', (e) => {
 });
 document.addEventListener('click', (e) => { if (!accountMenu.hidden && !e.target.closest('.account')) setMenu(false); });
 accountMenu.addEventListener('click', (e) => { if (e.target.closest('[role=menuitem]')) setMenu(false); });
+// A modal's X does what its own Close or Cancel does (each may tidy up), or just closes it
+document.addEventListener('click', (e) => {
+  const x = e.target.closest('.modal-x');
+  if (!x) return;
+  const overlay = x.closest('.modal-overlay');
+  const own = [...overlay.querySelectorAll('[data-profile-close], #feedbackCancel, #logPlayCancel, #addCancel, #friendsClose, [data-close-modal]')].find(b => !b.classList.contains('modal-x'));
+  if (own) own.click(); else overlay.classList.remove('open');
+});
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal', 'newsModal', 'settingsModal', 'playsModal', 'placesModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
 document.getElementById('menuSignOut').addEventListener('click', () => {
   setMenu(false);
