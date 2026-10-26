@@ -2606,6 +2606,9 @@ function renderProfile() {
     [1, 2, 3, 4, 5].map(v => '<button type="button" class="' + (p[d.key] === v ? 'on' : '') + '" data-me-dial="' + d.key + '" data-v="' + v + '">' + v + '</button>').join('') + '</div></div>';
   body.innerHTML = '<form class="pl-form" id="profileForm">' +
     '<div class="me-head">' + pic + '<div><h2>' + esc(p.name || 'My profile') + '</h2><p class="hint">In your own words. Nathan reads this when you’re at the table, and your friends will see it.</p></div></div>' +
+    // First: your BoardGameGeek account, which everything to do with plays and your collection hangs on
+    '<div class="section-label" style="margin-top:0.8rem;" id="bggLinkLabel">BoardGameGeek</div>' +
+    '<div id="bggLinkBox"><div class="spinner"></div></div>' +
     '<div class="section-label" style="margin-top:0.8rem;">How I like to play</div>' +
     '<p class="hint" style="margin-top:0;">Tap a number; tap it again to leave it unset.</p>' +
     DIALS.map(dial).join('') +
@@ -2620,8 +2623,6 @@ function renderProfile() {
     '<div class="section-label" style="margin-top:1rem;" id="memLabel">What Nathan remembers about me</div>' +
     '<p class="hint" style="margin-top:0;">Nathan picks these up when you tell him about yourself, and uses them in every answer. Only you can see them. Remove anything that’s wrong.</p>' +
     '<div class="wl-list" id="memList"><div class="spinner"></div></div>' +
-    '<div class="section-label" style="margin-top:1rem;" id="bggLinkLabel">BoardGameGeek</div>' +
-    '<div id="bggLinkBox"><div class="spinner"></div></div>' +
     '<div class="pl-two"><div id="meBggRow"><label for="meBgg">BGG username <span style="font-weight:600;">(optional)</span></label><input type="text" id="meBgg" maxlength="60" value="' + esc(p.bggUsername || '') + '"></div>' +
     '<div><label for="meAge">Age <span style="font-weight:600;">(optional)</span></label><input type="number" id="meAge" min="1" max="120" value="' + (p.age || '') + '"></div></div>' +
     '<div class="modal-actions"><button type="button" class="btn ghost" data-profile-close>Cancel</button><button type="submit" class="btn primary" id="profileSave">Save</button></div>' +
