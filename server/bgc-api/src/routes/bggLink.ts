@@ -2,7 +2,7 @@
 //   GET  /vault/bgg-link                                      { ok, link: { linked, username, state, waiting, failed, ... } }
 //   POST /vault/bgg-link { action: link, username, password }  signs in on BGG once; keeps BGG's session token, sealed
 //   POST /vault/bgg-link { action: unlink }                    forgets it
-//   POST /vault/bgg-link { action: settings, plays?, collection?, ratings? }  what goes to BGG (BG Stats' sync switches)
+//   POST /vault/bgg-link { action: settings, plays?, collection?, ratings?, location? }  what goes to BGG (BG Stats' sync switches)
 //   POST /vault/log-play { gameId | bggId + title + cover, date, minutes?, location?, comments?, players: [{ name, win? }] }
 //        gameId: a game on your shelf; bggId: any BGG game (played at a friend's, or not owned)
 //   GET  /vault/plays[?skip=n]                                 your plays, newest first, 50 at a time
@@ -26,7 +26,7 @@ import { parse, parseBody } from '../request.js';
 const Link = z.discriminatedUnion('action', [
   z.object({ action: z.literal('link'), username: z.string().trim().regex(/^[A-Za-z0-9_ .-]{2,40}$/), password: z.string().min(1).max(200) }),
   z.object({ action: z.literal('unlink') }),
-  z.object({ action: z.literal('settings'), plays: z.boolean().optional(), collection: z.boolean().optional(), ratings: z.boolean().optional() }),
+  z.object({ action: z.literal('settings'), plays: z.boolean().optional(), collection: z.boolean().optional(), ratings: z.boolean().optional(), location: z.boolean().optional() }),
 ]);
 
 const today = () => new Date().toISOString().slice(0, 10);

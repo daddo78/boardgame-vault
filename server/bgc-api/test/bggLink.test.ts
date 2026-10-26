@@ -53,6 +53,7 @@ test('POST /vault/bgg-link: a wrong password is a plain 400; five tries an hour;
   assert.equal((await post(app, '/vault/bgg-link', { action: 'link', username: 'bad name!', password: 'x' })).status, 400);
   assert.equal((await json(await post(app, '/vault/bgg-link', { action: 'unlink' }))).body.link.linked, false);
   assert.deepEqual(JSON.parse((await json(await post(app, '/vault/bgg-link', { action: 'settings', ratings: false }))).body.got[1]), { ratings: false });
+  assert.deepEqual(JSON.parse((await json(await post(app, '/vault/bgg-link', { action: 'settings', location: true }))).body.got[1]), { location: true });
   assert.equal((await post(app, '/vault/bgg-link', { action: 'settings', ratings: 'no' })).status, 400);
   const { app: noKey } = makeApp({ db, fetch: site.f });
   assert.equal((await post(noKey, '/vault/bgg-link', { action: 'link', username: 'nathan_bgc', password: 'right' })).status, 503);

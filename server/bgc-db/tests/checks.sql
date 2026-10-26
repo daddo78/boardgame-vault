@@ -247,4 +247,16 @@ UPDATE plays SET location = 'Check Cafe' WHERE id = (SELECT id FROM plays WHERE 
 SELECT pg_temp.check(bgc.apply_place_aliases('check.member@example.invalid') = 1, 'a sync bringing it back is cleared again');
 SELECT pg_temp.check(NOT (bgc.my_places('check.member@example.invalid') -> 'places') @> '[{"name": ""}]', 'the hidden row never shows as a place');
 
+-- Places stay yours (052)
+SELECT pg_temp.check((at.save_plays('check.member@example.invalid', '[{"id": 987650001, "date": "2026-10-15", "bggId": 999901, "gameName": "Check BGG Game", "location": "H.", "players": [{"seat": 1, "name": "Check Member"}]}]') ->> 'newPlays')::int = 1, 'a play from BGG with a place');
+SELECT pg_temp.check((SELECT location = '' AND bgg_location = 'H.' FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_play_id = 987650001), 'BGG''s place is kept apart, not used as the place');
+UPDATE plays SET location = 'Check Den' WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_play_id = 987650001;
+SELECT pg_temp.check((at.save_plays('check.member@example.invalid', '[{"id": 987650001, "date": "2026-10-15", "bggId": 999901, "gameName": "Check BGG Game", "location": "H.", "players": [{"seat": 1, "name": "Check Member"}]}]') ->> 'newPlays')::int = 0, 'the same play synced again');
+SELECT pg_temp.check((SELECT location FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_play_id = 987650001) = 'Check Den', 'a place set here survives the sync');
+SELECT pg_temp.check((bgc.bgg_link_save('check.member@example.invalid', 'check_bgg_user', 'v1.sealed4', NULL) -> 'link' ->> 'location') = 'false', 'sending where you played is off unless you turn it on');
+SELECT pg_temp.check((bgc.play_edit('check.member@example.invalid', (SELECT id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_play_id = 987650001), '{"date": "2026-10-15", "location": "Check Den", "players": [{"name": "Check Member"}]}') ->> 'ok')::boolean, 'edit that play');
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.bgg_out_next(200)) x WHERE x -> 'play' ->> 'location' = 'H.' AND (x ->> 'memberId')::bigint = bgc.member_id('check.member@example.invalid')), 'with the switch off, BGG gets its own place back, unchanged');
+SELECT pg_temp.check((bgc.bgg_link_settings('check.member@example.invalid', '{"location": true}') -> 'link' ->> 'location') = 'true', 'turn it on');
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.bgg_out_next(200)) x WHERE x -> 'play' ->> 'location' = 'Check Den' AND (x ->> 'memberId')::bigint = bgc.member_id('check.member@example.invalid')), 'then BGG gets the place you gave it');
+
 ROLLBACK;

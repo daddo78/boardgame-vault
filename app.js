@@ -1053,7 +1053,8 @@ function renderLogPlayHint() {
       : editPlay.onBgg ? 'Your changes go to BGG too.' : (bggLink && bggLink.linked && bggLink.plays !== false ? 'Saved here, and sent to BGG.' : 'Saved here.');
     return;
   }
-  if (bggLink && bggLink.linked && bggLink.state === 'ok' && bggLink.plays !== false) h.innerHTML = 'Saved here and sent to your BGG account (<b>' + esc(bggLink.username) + '</b>).';
+  if (bggLink && bggLink.linked && bggLink.state === 'ok' && bggLink.plays !== false) h.innerHTML = 'Saved here and sent to your BGG account (<b>' + esc(bggLink.username) + '</b>)' +
+    (bggLink.location ? ', where you played included (anyone can see it on BGG).' : '. Where you played stays here.');
   else if (bggLink && bggLink.linked && bggLink.state === 'ok') h.innerHTML = 'Saved here. Sending plays to BGG is switched off in My profile.';
   else if (bggLink && bggLink.linked) h.innerHTML = 'Saved here. BGG wants you to sign in again (My profile) before it goes there too.';
   else h.innerHTML = 'Saved here, and your play count updates right away. To send plays to BGG too, link BGG in <a href="#" data-open-bgglink>My profile</a>.';
@@ -2693,8 +2694,10 @@ function renderBggLinkBox() {
   if (!bggLinkReady) box.innerHTML = '<p class="hint" style="margin-top:0;">Sending plays and your collection to BGG isn’t switched on yet.</p>';
   else if (l.linked && l.state === 'ok') box.innerHTML = '<p class="hint" style="margin-top:0;">Linked to <b>' + esc(l.username) + '</b>.' +
       (l.waiting ? ' <b>' + l.waiting + '</b> waiting to go.' : '') + (l.failed ? ' ' + l.failed + ' didn’t make it this week.' : '') + '</p>' +
-      [['plays', 'Send plays I log here'], ['collection', 'Send games I add or remove, and my wishlist'], ['ratings', 'Send my stars (5 stars = 10 on BGG), and bring BGG ratings back as stars']]
-        .map(([k, t]) => '<label class="bgg-switch"><input type="checkbox" data-bgg-setting="' + k + '"' + (l[k] !== false ? ' checked' : '') + '> ' + t + '</label>').join('') +
+      [['plays', 'Send plays I log here'], ['collection', 'Send games I add or remove, and my wishlist'], ['ratings', 'Send my stars (5 stars = 10 on BGG), and bring BGG ratings back as stars'],
+       ['location', 'Send where I played (anyone can see it on BGG)']]
+        // Where you played is off unless you turn it on (it's public on BGG); the others are on unless you turn them off
+        .map(([k, t]) => '<label class="bgg-switch"><input type="checkbox" data-bgg-setting="' + k + '"' + ((k === 'location' ? l[k] === true : l[k] !== false) ? ' checked' : '') + '> ' + t + '</label>').join('') +
       '<button type="button" class="btn ghost" id="bggUnlink" style="justify-self:start;">' + (bggUnlinkArmed ? 'Tap again to unlink' : 'Unlink BGG') + '</button>';
   else if (l.linked) box.innerHTML = form('BGG signed you out (' + esc(l.username) + '). Sign in again and what’s waiting goes there.');
   else box.innerHTML = form('Link your BGG account and plays you log here, games you add or remove, your wishlist and your stars go to your BGG collection too, the way BG Stats does it.');

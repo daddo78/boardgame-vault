@@ -2,6 +2,10 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.27 · October 26, 2026
+
+- **Where you played stays yours.** BG Stats sends places to BoardGameGeek as just an initial ("H." for both Home and Haworth), and anyone can read a play's place on BGG. So places no longer come in from BGG, and the old initials are gone from your plays and stats. Places you give a play here are kept, and they go to BGG only if you turn on *Send where I played* (My profile → BoardGameGeek, off to start).
+
 ## v0.26 · October 26, 2026
 
 - **My stats** (the menu under your name): your plays as a story. Totals, hours and your win rate; when you play (month by month, a year of days, your big weekday); your most-played games, what's new to you and what's gathering dust; who you play with and how you do against each of them, your nemesis included; where you play; and a few fun facts. Pick all time or any year, and tap anything for the exact numbers.
