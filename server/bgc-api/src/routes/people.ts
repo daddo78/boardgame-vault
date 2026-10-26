@@ -6,7 +6,8 @@
 //   GET  /vault/places                                           saved places and the places in your plays
 //   POST /vault/place-save { action: add | remove, name }
 //   POST /vault/person-merge { from, into }                      two names for one person: from's plays and names go to into
-//   POST /vault/place-merge { from, into }                       two names for one place: plays move, the old name is kept
+//   POST /vault/place-merge { from, into }                       two names for one place (or a rename): plays move, the old name is kept
+//   POST /vault/place-clear { name }                             take a place off every play (and the list), for good
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuthEnv } from '../auth.js';
@@ -46,6 +47,10 @@ export function peopleRoutes(db: Db) {
     .post('/place-merge', async (c) => {
       const m = await parseBody(c, Merge, 'Pick which place to merge into which');
       return c.json(await call('SELECT bgc.place_merge($1, $2, $3)', [c.get('auth').email, m.from, m.into]));
+    })
+    .post('/place-clear', async (c) => {
+      const p = await parseBody(c, z.object({ name: z.string().trim().min(1).max(100) }), 'Which place?');
+      return c.json(await call('SELECT bgc.place_clear($1, $2)', [c.get('auth').email, p.name]));
     })
     .get('/places', async (c) => c.json(await call('SELECT bgc.my_places($1)', [c.get('auth').email])))
     .post('/place-save', async (c) => {

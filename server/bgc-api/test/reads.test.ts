@@ -38,6 +38,7 @@ test('GET /vault/people: public cards only, best rating per person, your asks le
   const player = (id: string, name: string, active: boolean) => ({ id, fields: { fldWVws64FVcdtuSJ: name, fldCTgjMOoTTokadR: active, fldnwPL9Z33JcXoj2: name + '@x.com', fld7R2WFALqZ2gkR7: 'secret likes', fldGI1Kr6p107QdZp: '{}' } });
   const rating = (p: string, g: string, stars: number, source: string) => ({ id: 'r' + p + g + source, fields: { fldB2cw5ie4ypHPGl: p, fldhrJoBfiLAg1E8q: g, fldSM283jOPAOs2YP: stars, fldaPLq2gL3UP6zon: source } });
   const db = fakeDb({
+    'bgc.hidden_people': () => [],
     'bgc.shelf_view': () => ({
       v: { players: [player('p2', 'Zed', true), player('p1', 'Amy', true), player('p3', 'Old', false)], ratings: [rating('p1', 'g1', 4, 'site'), rating('p1', 'g1', 4.5, 'bgg')],
         askerKey: 'p1', ownerKey: 'p9', shelf: 'main' },

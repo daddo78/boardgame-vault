@@ -219,7 +219,9 @@ SELECT pg_temp.check(NOT (bgc.person_save('check.member@example.invalid', NULL, 
 SELECT pg_temp.check((bgc.log_play('check.member@example.invalid', NULL, '{"bggId": 999903, "title": "Check Third Game", "date": "2026-10-18", "players": [{"name": "Check Regular"}]}') ->> 'ok')::boolean, 'a play with Check Regular');
 SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.my_people('check.member@example.invalid') -> 'people') x WHERE x ->> 'name' = 'Check Regular' AND (x ->> 'plays')::int = 1), 'your people, with their plays');
 SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.my_people('check.member@example.invalid') -> 'people') x WHERE x ? 'googleEmail'), 'a member never sees emails in their people');
-SELECT pg_temp.check(NOT (bgc.person_remove('check.member@example.invalid', (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Regular')) ->> 'ok')::boolean, 'someone in your plays can''t be removed');
+SELECT pg_temp.check((bgc.person_remove('check.member@example.invalid', (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Regular')) ->> 'hidden')::boolean, 'someone in your plays is hidden, not deleted');
+SELECT pg_temp.check(NOT (bgc.my_people('check.member@example.invalid') -> 'people') @> '[{"name": "Check Regular"}]' AND bgc.hidden_people('check.member@example.invalid') ? (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Regular'), 'off your list, and their plays keep them');
+SELECT pg_temp.check((bgc.person_save('check.member@example.invalid', NULL, '{"name": "check regular"}') -> 'person' ->> 'plays')::int = 1, 'adding them again brings them back, plays and all');
 SELECT pg_temp.check((bgc.person_remove('check.member@example.invalid', (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Pal')) ->> 'ok')::boolean, 'someone with no plays can');
 SELECT pg_temp.check(NOT (bgc.person_save('nathan.schmidt@curator.invalid', (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Regular'), '{"name": "Hacked"}') ->> 'ok')::boolean, 'nobody changes someone else''s people');
 SELECT pg_temp.check((bgc.place_save('check.member@example.invalid', '{"action": "add", "name": "Check Library"}') -> 'places') @> '[{"name": "Check Library", "saved": true}]', 'save a place');
@@ -232,5 +234,17 @@ SELECT pg_temp.check((bgc.wish_change('check.member@example.invalid', 'add', 999
 SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND state = 'pending'), 'with collection sync off, a wish stays here');
 SELECT pg_temp.check((bgc.bgg_link_remove('check.member@example.invalid') -> 'link' ->> 'linked') = 'false', 'unlink BGG');
 SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND state = 'pending'), 'unlinking forgets the token and what was waiting');
+
+-- My stats (051)
+SELECT pg_temp.check((bgc.my_stats('check.member@example.invalid', NULL) -> 'totals' ->> 'plays')::int >= 1, 'my stats count my plays');
+SELECT pg_temp.check((bgc.my_stats('check.member@example.invalid', 2026) ->> 'year')::int = 2026 AND jsonb_array_length(bgc.my_stats('check.member@example.invalid', 2026) -> 'months') = 12, 'stats for one year, month by month');
+SELECT pg_temp.check(NOT (bgc.my_stats('nobody@example.invalid', NULL) ->> 'ok')::boolean, 'stats are only for members');
+
+-- Clearing a place from every play (051)
+SELECT pg_temp.check((bgc.place_clear('check.member@example.invalid', 'check cafe') ->> 'cleared')::int >= 1, 'clear a place from every play');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND lower(location) = 'check cafe'), 'no play has it now');
+UPDATE plays SET location = 'Check Cafe' WHERE id = (SELECT id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') ORDER BY id LIMIT 1);
+SELECT pg_temp.check(bgc.apply_place_aliases('check.member@example.invalid') = 1, 'a sync bringing it back is cleared again');
+SELECT pg_temp.check(NOT (bgc.my_places('check.member@example.invalid') -> 'places') @> '[{"name": ""}]', 'the hidden row never shows as a place');
 
 ROLLBACK;

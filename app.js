@@ -1752,8 +1752,12 @@ function playerFormHtml(p) {
       adminPlayers.filter(o => o.id !== p.id).sort((a, b) => a.name.localeCompare(b.name)).map(o => '<option value="' + esc(o.id) + '">' + esc(o.name) + (o.me ? ' (you)' : '') + '</option>').join('') +
       '</select><button type="button" class="btn ghost" id="playerMerge">Merge</button></div>' +
       '<p class="hint">' + esc(p.name) + '’s plays move to them, and “' + esc(p.name) + '” becomes one of their other names, so plays synced from BGG land there too.</p></div>' : '') +
-    '<div class="modal-actions">' + (p.id && !p.me && !p.plays ? '<button type="button" class="btn ghost" id="playerRemove" style="margin-right:auto; color:var(--danger);">' + (plRemoveArmed ? 'Tap again to remove' : 'Remove') + '</button>' : '') +
+    // Someone with plays is hidden (your plays keep them); someone without is deleted
+    (p.id && !p.me && p.plays && plRemoveArmed ? '<p class="hint">They leave your Players and Log a Play’s search; your plays still show they played. Add the name again to bring them back.</p>' : '') +
+    '<div class="modal-actions">' +
     '<button type="button" class="btn ghost" id="playerBack">Back</button><button type="submit" class="btn primary" id="playerSave">Save</button></div>' +
+  (p.id && !p.me ? '<button type="button" class="btn danger-line' + (plRemoveArmed ? ' armed' : '') + '" id="playerRemove"><i class="ti ti-' + (p.plays ? 'eye-off' : 'trash') + '"></i> ' +
+      (plRemoveArmed ? (p.plays ? 'Tap again: hide ' + esc(p.name) : 'Tap again to remove ' + esc(p.name)) : (p.plays ? 'Hide ' : 'Remove ') + esc(p.name)) + '</button>' : '') +
   '</form>';
 }
 document.getElementById('openPlayersBtn').addEventListener('click', openPlayers);
@@ -1777,7 +1781,7 @@ document.getElementById('playersBody').addEventListener('click', (e) => {
   if (e.target.closest('#playerRemove')) {
     if (!plRemoveArmed) { plRemoveArmed = true; renderPlayers(); return; }
     apiFetch('/person-remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id }) })
-      .then(() => { adminPlayers = adminPlayers.filter(p => p.id !== editing.id); toast('Removed ' + editing.name + '.'); editing = null; renderPlayers(); loadPeople(); })
+      .then((r) => { adminPlayers = adminPlayers.filter(p => p.id !== editing.id); toast((r.hidden ? 'Hid ' : 'Removed ') + editing.name + '.'); editing = null; renderPlayers(); loadPeople(); })
       .catch((err) => toast(err.message, true));
   }
 });
@@ -1808,16 +1812,19 @@ document.getElementById('playersBody').addEventListener('submit', async (e) => {
 
 // ---------- Places: where you play ----------
 const placesModal = document.getElementById('placesModal');
-let myPlaceList = [];
+let myPlaceList = [], placeEditing = null, placeDelArmed = false; // placeEditing: the place opened to rename or delete
 async function openPlaces() {
   settingsModal.classList.remove('open');
+  placeEditing = null; placeDelArmed = false;
   placesModal.classList.add('open');
   document.getElementById('placesList').innerHTML = '<div class="spinner"></div>';
   try { myPlaceList = (await apiFetch('/places', { method: 'GET' })).places || []; renderPlaces(); }
   catch (e) { document.getElementById('placesList').innerHTML = '<p class="hint" style="margin:0;">' + esc(e.message) + '</p>'; }
 }
 function renderPlaces() {
-  document.getElementById('placesList').innerHTML = myPlaceList.length ? myPlaceList.map(p => '<div class="wl-row"><span class="ph"><i class="ti ti-' + (p.saved ? 'map-pin-check' : 'map-pin') + '"></i></span>' +
+  const merge = document.getElementById('placesMerge');
+  if (placeEditing) { merge.innerHTML = ''; document.getElementById('placesList').innerHTML = placeEditorHtml(placeEditing); return; }
+  document.getElementById('placesList').innerHTML = myPlaceList.length ? myPlaceList.map(p => '<div class="wl-row play-row" data-place-open="' + esc(p.name) + '" role="button" tabindex="0" aria-label="Open ' + esc(p.name) + '"><span class="ph"><i class="ti ti-' + (p.saved ? 'map-pin-check' : 'map-pin') + '"></i></span>' +
     '<div class="t"><b>' + esc(p.name) + '</b><span>' + esc([p.saved ? 'Saved' : '', p.plays ? p.plays + (p.plays === 1 ? ' play' : ' plays') : 'No plays yet', p.last ? 'last ' + agoText(String(p.last).slice(0, 10)) : ''].filter(Boolean).join(' · ')) + '</span></div>' +
     (p.saved ? '<button type="button" class="mini-btn" data-place-remove="' + esc(p.name) + '" title="Take off the list" aria-label="Take ' + esc(p.name) + ' off the list"><i class="ti ti-x"></i></button>'
       : '<button type="button" class="mini-btn" data-place-add="' + esc(p.name) + '" title="Save it" aria-label="Save ' + esc(p.name) + '"><i class="ti ti-plus"></i></button>') + '</div>').join('')
@@ -1828,6 +1835,21 @@ function renderPlaces() {
     '<div class="row"><select id="placeFrom" aria-label="Merge this place"><option value="">This…</option>' + opts + '</select><span>into</span>' +
     '<select id="placeInto" aria-label="Into this place"><option value="">this</option>' + opts + '</select><button type="button" class="btn ghost" id="placeMergeGo">Merge</button></div>' +
     '<p class="hint">Plays at the first move to the second, and its name is remembered, so plays synced from BGG under it move too.</p></div>' : '';
+}
+// One place, opened: rename it (its plays move, and a sync under the old name follows), or delete it
+function placeEditorHtml(p) {
+  const del = p.plays ? (placeDelArmed ? 'Tap again: take it off ' + p.plays + (p.plays === 1 ? ' play' : ' plays') : 'Remove from ' + p.plays + (p.plays === 1 ? ' play' : ' plays'))
+    : (placeDelArmed ? 'Tap again to remove' : 'Remove');
+  return '<div class="pl-form"><label for="placeRename">Name</label><input type="text" id="placeRename" maxlength="100" value="' + esc(p.name) + '">' +
+    '<p class="hint">' + esc([p.saved ? 'Saved' : 'From your plays', p.plays ? p.plays + (p.plays === 1 ? ' play' : ' plays') : 'no plays yet'].join(' · ')) +
+    '. Renaming changes it in every play; to an existing place, it merges the two.</p>' +
+    (p.plays && placeDelArmed ? '<p class="hint">Those plays keep everything else; only where they were is cleared, and it stays cleared when plays sync from BGG.</p>' : '') +
+    '<div class="modal-actions"><button type="button" class="btn ghost" id="placeBack">Back</button><button type="button" class="btn primary" id="placeSaveName">Save</button></div>' +
+    '<button type="button" class="btn danger-line' + (placeDelArmed ? ' armed' : '') + '" id="placeDelete"><i class="ti ti-trash"></i> ' + del + '</button></div>';
+}
+async function placeCall(path, body, done) {
+  try { const r = await apiFetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); myPlaceList = r.places || []; playPlaces = null; placeEditing = null; placeDelArmed = false; renderPlaces(); toast(done(r)); }
+  catch (e) { toast(e.message, true); }
 }
 async function savePlace(action, name) {
   name = String(name || '').trim();
@@ -1858,7 +1880,25 @@ placesModal.addEventListener('click', async (e) => {
     return;
   }
   const a = e.target.closest('[data-place-add]'), r = e.target.closest('[data-place-remove]');
-  if (a) savePlace('add', a.dataset.placeAdd); else if (r) savePlace('remove', r.dataset.placeRemove);
+  if (a) { savePlace('add', a.dataset.placeAdd); return; }
+  if (r) { savePlace('remove', r.dataset.placeRemove); return; }
+  const o = e.target.closest('[data-place-open]');
+  if (o) { placeEditing = myPlaceList.find(p => p.name === o.dataset.placeOpen) || null; placeDelArmed = false; renderPlaces(); return; }
+  if (!placeEditing) return;
+  if (e.target.closest('#placeBack')) { placeEditing = null; renderPlaces(); return; }
+  if (e.target.closest('#placeSaveName')) {
+    const to = document.getElementById('placeRename').value.trim(), from = placeEditing.name;
+    if (!to || to === from) { placeEditing = null; renderPlaces(); return; }
+    const into = myPlaceList.find(p => p.name.toLowerCase() === to.toLowerCase() && p.name !== from);
+    placeCall('/place-merge', { from, into: into ? into.name : to }, (r) => (into ? from + ' merged into ' + into.name : 'Renamed to ' + to) + (r.moved ? ' (' + r.moved + (r.moved === 1 ? ' play' : ' plays') + ').' : '.'));
+    return;
+  }
+  if (e.target.closest('#placeDelete')) {
+    if (!placeDelArmed) { placeDelArmed = true; renderPlaces(); return; }
+    const p = placeEditing;
+    if (p.plays) placeCall('/place-clear', { name: p.name }, (r) => p.name + ' is off ' + (r.cleared || 0) + ((r.cleared || 0) === 1 ? ' play.' : ' plays.'));
+    else placeCall('/place-save', { action: 'remove', name: p.name }, () => 'Removed ' + p.name + '.');
+  }
 });
 
 // ---------- Ask ----------
@@ -2573,7 +2613,7 @@ document.addEventListener('click', (e) => {
   const own = [...overlay.querySelectorAll('[data-profile-close], #feedbackCancel, #logPlayCancel, #addCancel, #friendsClose, [data-close-modal]')].find(b => !b.classList.contains('modal-x'));
   if (own) own.click(); else overlay.classList.remove('open');
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal', 'newsModal', 'settingsModal', 'playsModal', 'placesModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal', 'newsModal', 'settingsModal', 'playsModal', 'placesModal', 'statsModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
 document.getElementById('menuSignOut').addEventListener('click', () => {
   setMenu(false);
   if (gisReady) google.accounts.id.disableAutoSelect();
@@ -2712,8 +2752,9 @@ function renderMemory() {
       '<div class="t"><b>' + esc(n.note) + '</b><span>' + esc(new Date(n.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + '</span></div>' +
       '<button type="button" class="mini-btn" data-mem-forget="' + Number(n.id) + '" title="Forget this" aria-label="Forget this"><i class="ti ti-x"></i></button></div>').join('')
     : '<p class="hint" style="margin:0;">Nothing yet. Tell Nathan about yourself ("on weeknights I only have an hour") and he’ll remember.</p>') +
-    (notes.length || memPage.chats ? '<button type="button" class="btn ghost" data-mem-all style="margin-top:0.5rem;justify-self:start;">' +
-      (memConfirm ? 'Tap again to forget everything' : 'Forget everything (notes and past chats)') + '</button>' : '');
+    // Forgetting everything can't be undone, so it looks like it: red, a radioactive sign, and a second tap that says so
+    (notes.length || memPage.chats ? '<button type="button" class="btn nuke' + (memConfirm ? ' armed' : '') + '" data-mem-all>' +
+      '<i class="ti ti-radioactive"></i> ' + (memConfirm ? 'Tap again: Nathan forgets everything, for good' : 'Forget everything (notes and past chats)') + '</button>' : '');
   if (memScroll) { memScroll = false; document.getElementById('memLabel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 }
 profileModal.addEventListener('click', async (e) => {
@@ -3075,6 +3116,143 @@ playsModal.addEventListener('click', async (e) => {
     loadPlays();
   } catch (err) { toast(err.message, true); renderPlays(); }
 });
+
+// ---------- My stats ----------
+// Your plays as a story: headline numbers, when you play (months, a year of days, weekdays), what, with whom (and who
+// wins), where, and a few fun facts. One hue for amounts (more is darker); every mark tells its numbers on hover or tap.
+const statsModal = document.getElementById('statsModal');
+let statsYear = null, statsData = null;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const fmtDay = (d, year) => d ? new Date(String(d).slice(0, 10) + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(year ? { year: 'numeric' } : {}) }) : '';
+const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+const plural = (n, one, many) => n + ' ' + (n === 1 ? one : (many || one + 's'));
+async function openStats(year) {
+  statsModal.classList.add('open');
+  statsYear = year === undefined ? statsYear : year;
+  const body = document.getElementById('statsBody');
+  if (!statsData) body.innerHTML = '<div class="spinner"></div>';
+  try {
+    statsData = await apiFetch('/stats' + (statsYear ? '?year=' + statsYear : ''), { method: 'GET' });
+    renderStats();
+  } catch (e) { body.innerHTML = '<p class="hint">' + esc(e.message) + '</p>'; }
+}
+function tile(label, value, sub, extra) {
+  return '<div class="st-tile"><div class="st-label">' + label + '</div><div class="st-value">' + value + '</div>' + (sub ? '<div class="st-sub">' + sub + '</div>' : '') + (extra || '') + '</div>';
+}
+// Plays per month: columns from one baseline, the busiest labelled, every one tells its count
+function monthsSvg(months) {
+  const W = 340, H = 120, top = 16, base = H - 18, n = months.length, slot = W / n, bw = Math.min(16, slot - 3);
+  const max = Math.max(1, ...months.map(m => m.n));
+  const best = months.reduce((b, m, i) => (m.n > (months[b] || {}).n ? i : b), 0);
+  let g = '<line x1="0" x2="' + W + '" y1="' + base + '" y2="' + base + '" class="st-axis"/>';
+  months.forEach((m, i) => {
+    const h = m.n ? Math.max(3, ((base - top) * m.n) / max) : 0, x = i * slot + (slot - bw) / 2, y = base - h;
+    const [yy, mm] = m.m.split('-');
+    const tip = MONTHS[Number(mm) - 1] + ' ' + yy + ': ' + plural(m.n, 'play');
+    g += '<rect class="st-hit" x="' + (i * slot) + '" y="0" width="' + slot + '" height="' + H + '" data-tip="' + esc(tip) + '"/>';
+    if (h) g += '<path class="st-bar' + (i === best ? ' hi' : '') + '" d="M' + x + ',' + base + 'V' + (y + 3) + 'q0,-3 3,-3h' + (bw - 6) + 'q3,0 3,3V' + base + 'Z" pointer-events="none"/>';
+    if (i === best && m.n) g += '<text class="st-val" x="' + (x + bw / 2) + '" y="' + (y - 4) + '" text-anchor="middle">' + m.n + '</text>';
+    if (n <= 12 || Number(mm) === 1 || i === 0) g += '<text class="st-tick" x="' + (i * slot + slot / 2) + '" y="' + (H - 4) + '" text-anchor="middle">' + (n <= 12 ? MONTHS[Number(mm) - 1][0] : (Number(mm) === 1 ? yy : MONTHS[Number(mm) - 1])) + '</text>';
+  });
+  return '<svg class="st-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Plays per month, busiest ' + esc(months[best] ? months[best].m : '') + '">' + g + '</svg>';
+}
+// A year of days, GitHub-style: weeks across, Monday at the top; darker is more plays
+function calendarSvg(days, year) {
+  const end = year ? new Date(year, 11, 31, 12) : new Date(), start = year ? new Date(year, 0, 1, 12) : new Date(end.getTime() - 364 * 864e5);
+  const counts = new Map(days.map(d => [String(d.d).slice(0, 10), d.n]));
+  const step = (n) => (n >= 5 ? 4 : n >= 3 ? 3 : n === 2 ? 2 : n === 1 ? 1 : 0);
+  const first = new Date(start); first.setDate(first.getDate() - ((first.getDay() + 6) % 7)); // back to Monday
+  const c = 9, gap = 2, weeks = Math.ceil((end - first) / (7 * 864e5)) + 1;
+  let g = '', lastMonth = -1;
+  for (let w = 0; w < weeks; w++) for (let dw = 0; dw < 7; dw++) {
+    const d = new Date(first.getTime() + (w * 7 + dw) * 864e5);
+    if (d < start || d > end) continue;
+    const key = d.toLocaleDateString('en-CA'), n = counts.get(key) || 0;
+    if (dw === 0 && d.getMonth() !== lastMonth && d.getDate() <= 7) { lastMonth = d.getMonth(); g += '<text class="st-tick" x="' + (w * (c + gap)) + '" y="8">' + MONTHS[d.getMonth()] + '</text>'; }
+    g += '<rect class="st-day s' + step(n) + '" x="' + (w * (c + gap)) + '" y="' + (12 + dw * (c + gap)) + '" width="' + c + '" height="' + c + '" rx="2" data-tip="' + esc(fmtDay(key, true) + ': ' + (n ? plural(n, 'play') : 'no plays')) + '"/>';
+  }
+  const W = weeks * (c + gap), H = 12 + 7 * (c + gap);
+  return '<div class="st-scroll"><svg class="st-cal" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="Plays by day">' + g + '</svg></div>' +
+    '<div class="st-legend"><span>Less</span>' + [0, 1, 2, 3, 4].map(i => '<i class="st-day s' + i + '"></i>').join('') + '<span>More</span></div>';
+}
+// A horizontal bar per row: label, bar (one hue), value at the tip
+function barRows(rows, opts) {
+  const max = Math.max(1, ...rows.map(r => r.n));
+  return '<div class="st-rows">' + rows.map((r, i) => '<div class="st-row" data-tip="' + esc(r.tip || '') + '">' + (r.pic || '') +
+    '<div class="st-row-main"><div class="st-row-top"><span class="st-row-name">' + esc(r.name) + '</span><span class="st-row-val">' + r.label + '</span></div>' +
+    '<div class="st-track"><div class="st-fill' + (opts && opts.hi === i ? ' hi' : '') + '" style="width:' + Math.max(2, (100 * r.n) / max) + '%"></div></div>' +
+    (r.sub ? '<div class="st-row-sub">' + r.sub + '</div>' : '') + '</div></div>').join('') + '</div>';
+}
+// You against one person: your wins from the left, theirs from the right, out of the games one of you won
+function vsBar(p) {
+  const tot = Math.max(1, p.myWins + p.theirWins), a = (100 * p.myWins) / tot;
+  return '<div class="st-vs" data-tip="' + esc('You won ' + p.myWins + ', ' + firstName(p.name) + ' won ' + p.theirWins + ' (of ' + p.decided + ' games with a winner)') + '">' +
+    '<span class="st-vs-n">' + p.myWins + '</span><div class="st-vs-bar"><div class="st-vs-me" style="width:' + a + '%"></div><div class="st-vs-them" style="width:' + (100 - a) + '%"></div></div>' +
+    '<span class="st-vs-n">' + p.theirWins + '</span></div>';
+}
+const cover = (c, icon) => (c ? '<img class="st-pic" src="' + esc(c) + '" alt="" loading="lazy">' : '<span class="st-pic ph"><i class="ti ti-' + esc(icon || DEFAULT_ICON) + '"></i></span>');
+function renderStats() {
+  const st = statsData, t = st.totals || {}, body = document.getElementById('statsBody');
+  document.getElementById('statsYears').innerHTML = [null].concat(st.years || []).map(y => '<button type="button" role="tab" class="st-year' + ((y || null) === (statsYear || null) ? ' on' : '') + '" data-stats-year="' + (y || '') + '" aria-selected="' + ((y || null) === (statsYear || null)) + '">' + (y || 'All time') + '</button>').join('');
+  if (!t.plays) { body.innerHTML = '<p class="hint">No plays ' + (statsYear ? 'in ' + statsYear : 'yet') + '. Log one (My plays), or bring in your plays from BGG (the ⚙️ cog).</p>'; return; }
+  const hours = Math.round((t.estMinutes || 0) / 60), winRate = pct(t.wins, t.decided), sk = st.streak || {}, f = st.facts || {};
+  const wd = st.weekdays || [], wdMax = Math.max(...wd), wdBest = wd.indexOf(wdMax);
+  const people = st.people || [], places = st.places || [], games = st.topGames || [];
+  let h = '<div class="st-tiles">' +
+    tile('Plays', t.plays.toLocaleString(), plural(t.days, 'game day')) +
+    tile('Games', t.games, 'h-index <b>' + st.hIndex + '</b>', '<div class="st-hint" data-tip="' + esc(st.hIndex + ' games played at least ' + st.hIndex + ' times each') + '">?</div>') +
+    tile('Hours', '≈' + hours.toLocaleString(), t.timed ? 'logged and box times' : 'from box times') +
+    tile('You win', winRate + '%', t.wins + ' of ' + t.decided, '<div class="st-meter"><div style="width:' + winRate + '%"></div></div>') +
+    tile('Week streak', sk.current || 0, sk.longest ? 'best ' + sk.longest.weeks + ' (' + fmtDay(sk.longest.from, true) + ')' : '') +
+    tile('Table', (t.avgSeats || 0) + '', 'players on average' + (t.solo ? ' · ' + t.solo + ' solo' : '')) + '</div>';
+  h += '<section class="st-sec"><h3>When you play</h3>' + monthsSvg(st.months || []) +
+    '<p class="st-cap">' + (statsYear ? 'Each month of ' + statsYear : 'The last two years, month by month') + '. ' +
+    (wdMax ? '<b>' + ['Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays', 'Sundays'][wdBest] + '</b> are your big day: ' + pct(wdMax, wd.reduce((a, b) => a + b, 0)) + '% of your plays.' : '') + '</p>' +
+    calendarSvg(st.calendar || [], statsYear) +
+    '<div class="st-week">' + wd.map((n, i) => '<div class="st-wd" data-tip="' + esc(WEEKDAYS[i] + ': ' + plural(n, 'play')) + '"><div class="st-wd-bar"><div class="' + (i === wdBest ? 'hi' : '') + '" style="height:' + (wdMax ? Math.max(3, (100 * n) / wdMax) : 0) + '%"></div></div><span>' + WEEKDAYS[i][0] + '</span></div>').join('') + '</div></section>';
+  if (games.length) h += '<section class="st-sec"><h3>What you play</h3>' + barRows(games.slice(0, 8).map((g, i) => ({
+      name: g.title, n: g.n, label: plural(g.n, 'play'), pic: cover(g.cover, g.icon),
+      sub: (g.decided ? 'you won ' + pct(g.wins, g.decided) + '%' : '') + (g.last ? (g.decided ? ' · ' : '') + 'last ' + agoText(String(g.last).slice(0, 10)) : ''),
+      tip: g.title + ': ' + plural(g.n, 'play') + (g.decided ? ', you won ' + g.wins + ' of ' + g.decided : '') })), { hi: 0 }) +
+    ((st.newGames || {}).count ? '<div class="st-strip-h">New to you' + (statsYear ? ' in ' + statsYear : '') + ': <b>' + st.newGames.count + '</b></div><div class="st-strip">' +
+      st.newGames.recent.slice(0, 12).map(g => '<div class="st-chip" data-tip="' + esc(g.title + ', first played ' + fmtDay(g.first, true)) + '">' + cover(g.cover) + '</div>').join('') + '</div>' : '') +
+    ((st.dusty || {}).count ? '<div class="st-strip-h">Gathering dust: <b>' + st.dusty.count + '</b> ' + (st.dusty.count === 1 ? 'game' : 'games') + ' on your shelf not played in a year</div><div class="st-strip">' +
+      st.dusty.games.map(g => '<div class="st-chip" data-tip="' + esc(g.title + (g.last ? ', last played ' + fmtDay(g.last, true) : ', never played')) + '">' + cover(g.cover) + '</div>').join('') + '</div>' : '') + '</section>';
+  if (people.length) {
+    h += '<section class="st-sec"><h3>Who you play with</h3>';
+    if (st.nemesis || st.victim) h += '<div class="st-duo">' +
+      (st.nemesis ? '<div class="st-card"><div class="st-emoji">😈</div><div class="st-label">Your nemesis</div><b>' + esc(st.nemesis.name) + '</b><span>beat you ' + st.nemesis.theirWins + ' of ' + st.nemesis.decided + '</span></div>' : '') +
+      (st.victim ? '<div class="st-card"><div class="st-emoji">🏆</div><div class="st-label">You have their number</div><b>' + esc(st.victim.name) + '</b><span>you won ' + st.victim.myWins + ' of ' + st.victim.decided + '</span></div>' : '') + '</div>';
+    h += '<div class="st-people-key"><span><i class="me"></i> your wins</span><span><i class="them"></i> theirs</span></div>' +
+      '<div class="st-people">' + people.slice(0, 10).map(p => '<div class="st-person"><div class="st-row-top"><span class="st-row-name">' + esc(p.name) + '</span><span class="st-row-val">' + plural(p.n, 'play') + ' together</span></div>' + vsBar(p) + '</div>').join('') + '</div></section>';
+  }
+  if (places.length) h += '<section class="st-sec"><h3>Where you play</h3>' + barRows(places.map(p => ({ name: p.name, n: p.n, label: plural(p.n, 'play'),
+      sub: p.decided ? 'you win ' + pct(p.wins, p.decided) + '% here' : '', tip: p.name + ': ' + plural(p.n, 'play') + (p.decided ? ', you won ' + p.wins + ' of ' + p.decided : '') })), { hi: 0 }) + '</section>';
+  const facts = [];
+  if (f.busiest) facts.push(['🔥', 'Biggest game day', fmtDay(f.busiest.d, true), plural(f.busiest.n, 'play') + ' of ' + plural(f.busiest.games, 'game')]);
+  if (f.marathon) facts.push(['🔁', 'One more game?', f.marathon.title, f.marathon.n + ' in a row on ' + fmtDay(f.marathon.d, true)]);
+  if (f.longestGap && f.longestGap.days > 14) facts.push(['🏝️', 'Longest break', plural(f.longestGap.days, 'day'), fmtDay(f.longestGap.from, true) + ' to ' + fmtDay(f.longestGap.to, true)]);
+  if (f.firstEver) facts.push(['🌱', 'Where it started', f.firstEver.title, fmtDay(f.firstEver.d, true)]);
+  if (t.avgWeight) facts.push(['⚖️', 'Your average weight', t.avgWeight + ' / 5', t.avgWeight < 2 ? 'light and lively' : t.avgWeight < 3 ? 'medium, the sweet spot' : 'you like them crunchy']);
+  if (f.longest && f.longest.minutes >= 90) facts.push(['⏳', 'Longest logged game', f.longest.title, Math.round(f.longest.minutes / 6) / 10 + ' hours, ' + fmtDay(f.longest.d, true)]);
+  if (facts.length) h += '<section class="st-sec"><h3>Fun facts</h3><div class="st-facts">' + facts.map(x => '<div class="st-fact"><div class="st-emoji">' + x[0] + '</div><div class="st-label">' + x[1] + '</div><b>' + esc(x[2]) + '</b><span>' + esc(x[3]) + '</span></div>').join('') + '</div></section>';
+  body.innerHTML = h;
+}
+document.getElementById('menuStats').addEventListener('click', () => { statsData = null; openStats(null); });
+document.getElementById('statsYears').addEventListener('click', (e) => { const b = e.target.closest('[data-stats-year]'); if (b) openStats(b.dataset.statsYear ? Number(b.dataset.statsYear) : null); });
+statsModal.addEventListener('click', (e) => { if (e.target === statsModal) statsModal.classList.remove('open'); });
+// One tooltip for every mark: follows the pointer on a mouse, sits above the mark on a tap
+(function statsTips() {
+  const tip = document.getElementById('statsTip');
+  const show = (el, x, y) => { tip.textContent = el.dataset.tip; tip.hidden = false; const r = tip.getBoundingClientRect();
+    tip.style.left = Math.max(8, Math.min(window.innerWidth - r.width - 8, x - r.width / 2)) + 'px'; tip.style.top = Math.max(8, y - r.height - 12) + 'px'; };
+  statsModal.addEventListener('pointermove', (e) => { const el = e.target.closest('[data-tip]'); if (el && el.dataset.tip && e.pointerType === 'mouse') show(el, e.clientX, e.clientY); else if (e.pointerType === 'mouse') tip.hidden = true; });
+  statsModal.addEventListener('click', (e) => { const el = e.target.closest('[data-tip]'); if (el && el.dataset.tip) { const r = el.getBoundingClientRect(); show(el, r.left + r.width / 2, r.top); } else tip.hidden = true; });
+  statsModal.addEventListener('pointerleave', () => { tip.hidden = true; });
+  document.getElementById('statsBody').addEventListener('scroll', () => { tip.hidden = true; }, true);
+  statsModal.querySelector('.modal').addEventListener('scroll', () => { tip.hidden = true; });
+})();
 
 // ---------- Tip jar ----------
 // The Ko-fi page; were it ever empty, only the owner would see the button, with a reminder

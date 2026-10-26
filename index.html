@@ -20,7 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css" integrity="sha384-IcAOG/1tqv9Qnam+j3mZYPAFcNQMnQpMcafc8Nsvd44AUeTCzhUzdQiJkrROmqW6" crossorigin="anonymous">
 <script src="https://accounts.google.com/gsi/client" async></script>
-<link rel="stylesheet" href="styles.css?v=0.25.2">
+<link rel="stylesheet" href="styles.css?v=0.26">
 </head>
 <body>
   <!-- Welcome page for visitors; the collection, Nathan and people are for signed-in members only -->
@@ -71,6 +71,7 @@
       <div class="account-menu" id="accountMenu" role="menu" hidden>
         <button type="button" role="menuitem" id="menuProfile"><i class="ti ti-id-badge"></i> My profile</button>
         <button type="button" role="menuitem" id="menuPlays"><i class="ti ti-player-play"></i> My plays</button>
+        <button type="button" role="menuitem" id="menuStats"><i class="ti ti-chart-bar"></i> My stats</button>
         <button type="button" role="menuitem" id="menuWishlist"><i class="ti ti-gift"></i> My wishlist</button>
         <button type="button" role="menuitem" class="member-only" id="friendsBtn"><i class="ti ti-users"></i> Friends</button>
         <button type="button" role="menuitem" id="tipBtn" hidden><i class="ti ti-coffee"></i> Tip jar</button>
@@ -276,6 +277,16 @@
       <div class="modal-actions"><button class="btn ghost" type="button" id="playsMore" hidden>Show more</button><button class="btn ghost" type="button" data-close-modal>Close</button></div>
     </div>
   </div>
+  <!-- My stats: your play history, the people you play with, where, and fun facts (GET /vault/stats) -->
+  <div class="modal-overlay" id="statsModal">
+    <div class="modal stats-modal" role="dialog" aria-modal="true" aria-labelledby="statsTitle">
+      <button type="button" class="mini-btn modal-x" title="Close" aria-label="Close"><i class="ti ti-x"></i></button>
+      <h2 id="statsTitle"><i class="ti ti-chart-bar" style="color:var(--brand);"></i> My stats</h2>
+      <div class="st-years" id="statsYears" role="tablist" aria-label="Which years"></div>
+      <div id="statsBody"><div class="spinner"></div></div>
+    </div>
+  </div>
+  <div class="st-tip" id="statsTip" role="tooltip" hidden></div>
   <!-- A friend's profile page (or your own, as friends see it) -->
   <div class="modal-overlay" id="pageModal">
     <div class="modal" style="text-align:center;" role="dialog" aria-modal="true" aria-label="Profile page">
@@ -491,6 +502,6 @@
   <div class="toast" id="toast"></div>
 
   <script src="api.js?v=0.19"></script>
-  <script src="app.js?v=0.25.2"></script>
+  <script src="app.js?v=0.26"></script>
 </body>
 </html>

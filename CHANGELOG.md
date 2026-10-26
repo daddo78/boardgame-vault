@@ -2,6 +2,14 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.26 · October 26, 2026
+
+- **My stats** (the menu under your name): your plays as a story. Totals, hours and your win rate; when you play (month by month, a year of days, your big weekday); your most-played games, what's new to you and what's gathering dust; who you play with and how you do against each of them, your nemesis included; where you play; and a few fun facts. Pick all time or any year, and tap anything for the exact numbers.
+- **Places:** tap a place to rename it (every play follows) or delete it, even one that's in your plays.
+- **Players:** anyone can be removed now. Someone in your plays is hidden instead: gone from your lists, still in your history. Add the name again to bring them back.
+- **Every long window has an ✕ at the top** that stays put as you scroll, and BoardGameGeek is first in My profile.
+- *Forget everything* in My profile now looks as final as it is.
+
 ## v0.25 · October 26, 2026
 
 - **Log a play on any device:** *Log play* now saves the play here, on your phone or computer, and your count updates right away. Pick who played from a search of your people (or add someone new), tap 🏆 for the winner, and fill in *Where* if you like. On a phone, BG Stats is still a tap away.

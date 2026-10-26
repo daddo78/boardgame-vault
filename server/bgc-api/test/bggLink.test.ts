@@ -109,7 +109,7 @@ test('people, places, and changing a play: checked inputs reach the database; a 
   const db = fakeDb({ 'bgc.person_save': (p) => ({ ok: true, got: p }), 'bgc.person_remove': (p) => ({ ok: true, got: p }), 'bgc.my_people': () => ({ ok: true, people: [] }),
     'bgc.place_save': (p) => ({ ok: true, got: p }), 'bgc.my_places': () => ({ ok: true, places: [] }),
     'bgc.play_get': (p) => ({ ok: true, play: { id: Number(p[1]) } }), 'bgc.play_edit': (p) => ({ ok: true, toBgg: true, got: p }),
-    'bgc.person_merge': (p) => ({ ok: true, got: p }), 'bgc.place_merge': (p) => ({ ok: true, got: p }) });
+    'bgc.person_merge': (p) => ({ ok: true, got: p }), 'bgc.place_merge': (p) => ({ ok: true, got: p }), 'bgc.my_stats': (p) => ({ ok: true, got: p }), 'bgc.place_clear': (p) => ({ ok: true, got: p }) });
   const { app } = makeApp({ db, jobs });
   const s = await json(await post(app, '/vault/person-save', { name: ' Grandma Joan ', aliases: 'Joan, Gran ,', active: false }));
   assert.deepEqual([s.body.got[1], JSON.parse(s.body.got[2])], [null, { name: 'Grandma Joan', aliases: ['Joan', 'Gran'], active: false, bggUsername: '' }]);
@@ -128,6 +128,12 @@ test('people, places, and changing a play: checked inputs reach the database; a 
   const lm = await json(await post(app, '/vault/place-merge', { from: ' Game café ', into: 'Game Night Cafe' }));
   assert.deepEqual(lm.body.got.slice(1), ['Game café', 'Game Night Cafe']);
   assert.equal((await post(app, '/vault/place-merge', { from: 'X' })).status, 400);
+  const st = async (q: string) => app.request('/vault/stats' + q, { headers: bearer(await token()) });
+  assert.deepEqual((await json(await st('?year=2025'))).body.got.slice(1), [2025]);
+  assert.deepEqual((await json(await st(''))).body.got.slice(1), [null]);
+  assert.equal((await st('?year=nope')).status, 400);
+  assert.deepEqual((await json(await post(app, '/vault/place-clear', { name: ' Haworth ' }))).body.got.slice(1), ['Haworth']);
+  assert.equal((await post(app, '/vault/place-clear', { name: '' })).status, 400);
 });
 
 test('plan: only what differs from BGG; a new game is added first; removing marks it previously owned; a cleared rating on a game BGG lacks sends nothing', () => {

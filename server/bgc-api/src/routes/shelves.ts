@@ -46,13 +46,15 @@ export function shelfRoutes(db: Db) {
     .get('/people', async (c) => {
       const { shelf = '' } = parse(PeopleQuery, c.req.query());
       const a = c.get('auth');
+      // People you've hidden (schema/051) stay in your plays but out of your lists
+      const hidden = new Set<string>(((await db.one<string[]>('SELECT bgc.hidden_people($1)', [a.email])) || []).map(String));
       // The shelf view without its games (with_games false, schema/039): the people and their ratings are all this needs
       const r = await db.one<Record<string, any>>(
         "SELECT jsonb_build_object('v', v, 'mine', bgc.my_ratings_on($1, (v ->> 'ownerId')::bigint), 'used', bgc.asks_used($1), 'lim', bgc.ask_limit()) " +
         'FROM (SELECT bgc.shelf_view($1, $2, $3, false, false) AS v) q',
         [a.email, /^(mine|friend:\d+)$/.test(shelf) ? shelf : 'main', a.playerId]);
       const sv = r?.v || {};
-      const players = (sv.players || []).map(toPlayer).map(publicPlayer)
+      const players = (sv.players || []).map(toPlayer).filter((p: any) => !hidden.has(String(p.id))).map(publicPlayer)
         .sort((x: any, y: any) => (y.active - x.active) || x.name.localeCompare(y.name));
       const best: Record<string, Record<string, unknown>> = {}; // gameId -> playerId -> { stars, bgg }
       for (const e of Object.values(ratingsByPlayerGame((sv.ratings || []).map(toRating))) as any[]) {

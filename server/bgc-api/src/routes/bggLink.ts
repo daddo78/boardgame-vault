@@ -10,6 +10,7 @@
 //   POST /vault/play-delete { id }                              one of yours; on BGG too when it's there and BGG is linked
 //   POST /vault/plays-sync                                      sync now: what's waiting goes to BGG, then your BGG plays come in
 //   GET  /vault/play?id=n                                       one of your plays, and whether it can be changed here
+//   GET  /vault/stats[?year=yyyy]                               My stats: your plays, people, places and fun facts (schema/051)
 //   POST /vault/play-edit { id, date, minutes?, location?, comments?, players }   change it (on BGG too when it's there)
 // The password goes to BGG and nowhere else: it isn't logged (app.ts logs routes, never bodies), stored or sent back.
 import { Hono } from 'hono';
@@ -42,6 +43,7 @@ const LogPlay = z.object({
 }).refine((p) => !!p.gameId !== !!p.bggId, 'one game');
 const Skip = z.object({ skip: z.coerce.number().int().min(0).max(100_000).optional().default(0) });
 const PlayId = z.object({ id: z.coerce.number().int().positive() });
+const StatsYear = z.object({ year: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().int().min(1970).max(2100).optional()) });
 const PlayEdit = z.object({ id: z.coerce.number().int().positive(), date: LogPlay.shape.date, minutes: LogPlay.shape.minutes,
   location: LogPlay.shape.location, comments: LogPlay.shape.comments, players: LogPlay.shape.players });
 
@@ -102,6 +104,10 @@ export function bggLinkRoutes(db: Db, deps: { fetch: Fetch; linkKey: string | un
       const start = await db.one<{ ok: boolean; message?: string }>('SELECT bgc.start_import($1, $2)', [email, username]);
       if (start?.ok) await deps.jobs.run('memberPlays', { email, username });
       return c.json({ ok: true, started: !!start?.ok, running: !start?.ok });
+    })
+    .get('/stats', async (c) => {
+      const q = parse(StatsYear, c.req.query(), 'Pick a year');
+      return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.my_stats($1, $2::int)', [c.get('auth').email, q.year ?? null])));
     })
     .get('/play', async (c) => {
       const q = parse(PlayId, c.req.query(), 'Which play?');
