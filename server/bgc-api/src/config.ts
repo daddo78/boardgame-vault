@@ -21,6 +21,8 @@ const Env = z.object({
   OPENROUTER_API_KEY: z.string().optional(),
   BGG_TOKEN: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
+  // Seals members' BGG session tokens (bggAccount.ts): 64 hex characters, in Infisical. Unset: nobody can link BGG.
+  BGG_LINK_KEY: z.string().optional(),
   // Whose BGG plays the nightly sync and a new game's play count come from (Dan's); unset: the admin's BGG username in the database
   BGG_USERNAME: z.string().optional(),
   // The jobs worker (bgc-jobs, the same image started with node dist/jobs/server.js): where the API hands background work
@@ -46,6 +48,7 @@ export type Config = {
   openrouterKey: string | undefined;
   bggToken: string | undefined;
   resendKey: string | undefined;
+  bggLinkKey: string | undefined;
   bggUsername: string | undefined;
   jobsUrl: string | undefined;
   jobsPort: number;
@@ -74,6 +77,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     openrouterKey: e.OPENROUTER_API_KEY || undefined,
     bggToken: e.BGG_TOKEN || undefined,
     resendKey: e.RESEND_API_KEY || undefined,
+    bggLinkKey: e.BGG_LINK_KEY || undefined,
     bggUsername: e.BGG_USERNAME || undefined,
     jobsUrl: e.JOBS_URL ? e.JOBS_URL.replace(/\/+$/, '') : undefined,
     jobsPort: e.JOBS_PORT,

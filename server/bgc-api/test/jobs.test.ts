@@ -70,7 +70,7 @@ function jobsDb(over: Record<string, (p: unknown[]) => unknown> = {}, store: Rec
     if (method === 'DELETE') { const i = t.findIndex((x: any) => x.id === String(path).slice(1)); if (i >= 0) t.splice(i, 1); return { deleted: true }; }
     return null;
   };
-  const db = fakeDb({ 'at.request': atRequest, 'INSERT INTO job_runs': () => 1, 'UPDATE job_runs': () => null, ...over, 'bgc.log_ai': () => null });
+  const db = fakeDb({ 'at.request': atRequest, 'INSERT INTO job_runs': () => 1, 'UPDATE job_runs': () => null, 'bgc.merge_site_plays': () => 0, 'bgc.apply_place_aliases': () => 0, 'bgc.stars_from_bgg': () => 0, ...over, 'bgc.log_ai': () => null });
   return Object.assign(db, { store });
 }
 const game = (id: string, title: string, bggId: number | null, extra: Record<string, unknown> = {}) => ({ id: 'rec' + id.padEnd(14, 'x'), fields: { [F.title]: title, [F.gameId]: id, [F.num]: Number(id.replace(/\D/g, '')) || 1, [F.bggId]: bggId, [F.playCount]: 0, ...extra } });
@@ -258,7 +258,7 @@ test('syncPeople job: BGG ratings for everyone with a BGG username, saved per us
   const { f, calls } = jobsFetch();
   const { ctx } = ctxWith(db, f);
   const r: any = await syncPeople.run(ctx, {});
-  assert.deepEqual(r, { usernames: 2, fetched: 2, ratings: 4, missed: [] });
+  assert.deepEqual(r, { usernames: 2, fetched: 2, ratings: 4, stars: 0, missed: [] });
   assert.deepEqual([saved[0][0], JSON.parse(saved[0][1])], ['daddo_78', [{ bggId: 13, rating10: 8 }, { bggId: 77, rating10: 6 }]]);
   assert.equal(calls.filter((c) => c.url.includes('xmlapi2/collection')).length, 2);
 });

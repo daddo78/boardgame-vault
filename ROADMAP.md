@@ -18,7 +18,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 **Agreed decisions**
 - Shared game catalog: one row per game with the BGG facts; each person's shelf row holds everything personal (favorite, wants-to-play, culling, plays, notes, expansions owned, extra BGG ids)
 - Friend connections by code: each member has a code to share; entering someone's code connects you both right away (no browsing the member list). You see a member's shelf only if you are friends; Dan's collection is visible to every member
-- BGC stars are each person's own rating; BGG ratings are kept separate, out of 10; nobody rates for someone else
+- BGC stars are each person's own rating, in halves; for a member who linked BGG they are their BGG rating (stars x 2); nobody rates for someone else
 - People speak for themselves: each member sets their own taste profile (complexity, conflict, luck, table talk, theme, likes, dislikes); nobody writes notes or dials about someone else. People who never join are known only from play history
 - Friend takes: you can fill in the same card (dials, likes, dislikes) about a friend. Takes are private to the writer: the friend never sees them, and Nathan uses a take only when its writer is the one asking. Nathan weighs a person's own words above a friend's take, and both above plays
 - Private to the owner: the culling list, and plays with people other than the viewer
@@ -43,7 +43,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [x] My profile: signed-in members fill in their own card (dials, likes, dislikes, about me, BGG username) from the account menu; the Players screen keeps only names, aliases, email and BGG username
 - [x] Friend profile pages: their words, dials, all-time Top 10, most played and wishlist (Friends > Profile)
 - [ ] Phase 4: friend takes (private); BG Stats players link to members
-- [ ] Log a play in the app: a plain form that writes to the plays table, with the BG Stats hand-off kept as an option. Today a member without BG Stats has no plays, and Nathan knows them only from Dan's history
+- [ ] Log a play in the app, and send plays, collection and stars to a linked BGG account (schema/049, bggOutbox) *(built Oct 25 night, on the dev setup; not deployed: needs BGG_LINK_KEY in Infisical and a live check with a test BGG account)*
 - [ ] Lent to: a mark on a shelf row for who has borrowed it, so Nathan's "borrow X's copy" stays true and "where's my Brass?" has an answer
 - [x] Phase 5: social Nathan: "what can we play at Keith's?", "who has a co-op for 2?", "which of my friends would love Brass?"
 - First testers: Aaron Wiesinger and Matt Kruse (emails on their cards, added as Google test users), Keith McKimmy (still need his email); BGG usernames for all three

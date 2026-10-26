@@ -75,12 +75,14 @@ header.hero { position: relative; background: #efe3cc url(assets/hero.webp) cent
 .account { position: relative; }
 .account-menu { position: absolute; top: calc(100% + 0.4rem); left: 0; min-width: 12rem; background: #fff; border-radius: 0.9rem; box-shadow: 0 12px 30px rgba(40,25,10,0.18); padding: 0.35rem; z-index: 60; }
 .account-menu[hidden] { display: none; }
+.account-menu button[hidden], body:not(.member):not(.owner) .account-menu .member-only { display: none; }
 .account-menu button { display: flex; align-items: center; gap: 0.55rem; width: 100%; border: none; background: none; text-align: left; padding: 0.6rem 0.7rem; border-radius: 0.6rem; font-family: var(--font-body); font-size: 0.92rem; font-weight: 600; color: var(--ink); cursor: pointer; }
 .account-menu button:hover { background: #fbf3e6; }
 .account-menu i { font-size: 1.1rem; color: var(--brand); }
 .tip-btn[hidden] { display: none; }
 .member-only { display: none; }
 body.member .member-only, body.owner .member-only { display: inline-block; }
+body.member .account-menu button.member-only, body.owner .account-menu button.member-only { display: flex; }
 .tip-art { width: 5.5rem; height: 5.5rem; border-radius: 50%; margin: 0 auto 0.6rem; background: #0b8fc0 url(assets/nathan-avatar.webp) no-repeat; background-size: 108%; background-position: 50% 50%; box-shadow: 0 0 0 4px #fff, 0 6px 14px rgba(120,60,0,0.25); }
 .me-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.4rem; }
 .me-head img, .me-head .ph { width: 3.2rem; height: 3.2rem; border-radius: 50%; background: var(--exp-bg); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: var(--text-muted); }
@@ -170,6 +172,7 @@ body.member .shelf-switch:not([hidden]) { display: inline-flex; flex-wrap: wrap;
 .wl-row img, .wl-row .ph { width: 3rem; height: 3rem; border-radius: 0.6rem; object-fit: cover; flex: none; background: #fff; display: grid; place-items: center; color: var(--text-muted); }
 .wl-row .t { flex: 1; min-width: 0; }
 .wl-row .t b { display: block; overflow: hidden; text-overflow: ellipsis; }
+.plays-list .wl-row .t b { white-space: normal; }
 .wl-row .t span { font-size: 0.8rem; color: var(--text-muted); }
 .wl-row .rank { font-weight: 800; color: var(--brand); min-width: 1.4rem; text-align: right; }
 .wl-row .btn { flex: none; padding: 0.4rem 0.75rem; font-size: 0.82rem; }
@@ -552,6 +555,44 @@ button.pill.active { background: var(--brand); color: #fff; }
 .star-btn { background: none; border: none; font-size: 1.05rem; color: #d5dbe5; cursor: pointer; transition: transform 0.15s, color 0.15s; padding: 0.1rem; }
 .star-btn:hover { transform: scale(1.2); }
 .star-btn.active { color: var(--orange); }
+.bgg-switch { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; font-weight: 600; margin: 0.35rem 0; text-transform: none; letter-spacing: 0; }
+.bgg-switch input { width: auto; margin: 0; }
+.plays-list .day { font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0.5rem 0 -0.1rem; }
+.plays-list .who { display: block; font-size: 0.82rem; color: var(--ink); white-space: normal; }
+.plays-list .pl-sync { font-size: 1rem; margin-left: 0.35rem; vertical-align: -0.1em; color: var(--text-muted); }
+.plays-list .pl-sync.on { color: #2e9e5b; }
+.plays-list .pl-sync.going { color: var(--brand); }
+.mini-btn.armed { background: var(--danger); color: #fff; }
+/* Merging two names for one person or place */
+.merge-row { margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--exp-bg); }
+.merge-row .row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; margin-top: 0.35rem; }
+.merge-row select { flex: 1; min-width: 0; padding: 0.55rem 0.6rem; border: none; border-radius: 0.5rem; background: var(--exp-bg); color: var(--ink); font-family: var(--font-body); font-size: 0.9rem; }
+.merge-row .row span { font-size: 0.85rem; color: var(--text-muted); }
+.merge-row .btn { flex: 1 0 100%; }
+.play-row { cursor: pointer; }
+.play-row:hover { background: var(--tag-bg); }
+/* A modal's buttons at the top right (My plays: Sync, then Close), staying in view as it scrolls */
+.modal-tools { position: sticky; top: 0; float: right; display: flex; gap: 0.45rem; margin: -0.4rem -0.4rem 0 0.5rem; z-index: 2; }
+.modal-tools .mini-btn { box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+.modal-tools .mini-btn[hidden] { display: none; }
+/* Log a Play: the people picked, and a search to add more */
+.picked-list { display: grid; gap: 0.35rem; margin-top: 0.4rem; }
+.picked-list:empty { display: none; }
+.picked { display: flex; align-items: center; gap: 0.4rem; background: var(--exp-bg); border-radius: 0.7rem; padding: 0.3rem 0.35rem 0.3rem 0.75rem; font-weight: 700; font-size: 0.9rem; }
+.picked span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picked .mini-btn { width: 2rem; height: 2rem; background: #fff; font-size: 1rem; }
+.picked .mini-btn.win { background: var(--gold); }
+.picked .mini-btn:not(.win) .trophy { filter: grayscale(1); opacity: 0.45; }
+.who-search { position: relative; margin-top: 0.45rem; }
+.suggest { position: absolute; left: 0; right: 0; top: calc(100% + 0.25rem); background: #fff; border-radius: 0.8rem; box-shadow: 0 10px 26px rgba(40,25,10,0.18); padding: 0.3rem; z-index: 5; max-height: 14rem; overflow-y: auto; }
+.suggest[hidden] { display: none; }
+.suggest button { display: block; width: 100%; text-align: left; border: none; background: none; padding: 0.55rem 0.7rem; border-radius: 0.55rem; font-family: var(--font-body); font-size: 0.92rem; font-weight: 600; color: var(--ink); cursor: pointer; }
+.suggest button:hover, .suggest button.hl { background: #fbf3e6; }
+.suggest button.add { color: var(--brand); }
+.modal .linklike { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--accent); text-decoration: underline; cursor: pointer; }
+/* Half a star: the grey star with the filled font's half star (\f6a7) over its left side */
+.star-btn i, .rate-stars button i { position: relative; }
+.star-btn.half i::after, .rate-stars button.half i::after { content: '\f6a7'; position: absolute; left: 0; top: 0; color: var(--orange); }
 .mini-btn { width: 2.1rem; height: 2.1rem; border-radius: 0.55rem; background: var(--exp-bg); border: none; color: var(--ink); cursor: pointer; font-size: 1.1rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .mini-btn:hover { background: var(--tag-bg); }
 .mini-btn.on { background: var(--red); color: #fff; }
@@ -587,6 +628,9 @@ button.pill.active { background: var(--brand); color: #fff; }
 .btn.danger:hover { background: var(--red); color: #fff; }
 .btn.on { background: var(--red); color: #fff; }
 .modal input[type=date], .modal input[type=number] { width: 100%; background: var(--exp-bg); border: none; padding: 0.6rem 0.8rem; border-radius: 0.5rem; color: var(--ink); font-size: 0.9rem; font-family: var(--font-body); }
+/* iOS draws a date field at its own width (past the modal's edge) unless it's told not to */
+.modal input[type=date] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; min-height: 2.5rem; text-align: left; }
+.modal input[type=date]::-webkit-date-and-time-value { text-align: left; }
 .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.5rem; }
 .player-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
 .player-chip { background: var(--exp-bg); border: none; border-radius: 999px; padding: 0.35rem 0.65rem; font-family: var(--font-body); font-weight: 700; font-size: 0.82rem; color: var(--ink); cursor: pointer; }
@@ -621,7 +665,7 @@ body.modal-locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 .modal { background: var(--card-bg); border-radius: 1.25rem; padding: 1.75rem; max-width: 460px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(20,40,90,0.25); }
 .modal h2 { font-family: var(--font-display); margin-bottom: 1rem; color: var(--ink); font-weight: 800; letter-spacing: -0.01em; }
 .modal label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem; margin-top: 0.9rem; font-weight: 700; }
-.modal input[type=text], .modal input[type=file] { width: 100%; background: var(--exp-bg); border: none; padding: 0.6rem 0.8rem; border-radius: 0.5rem; color: var(--ink); font-size: 0.9rem; font-family: var(--font-body); }
+.modal input[type=text], .modal input[type=password], .modal input[type=file] { width: 100%; background: var(--exp-bg); border: none; padding: 0.6rem 0.8rem; border-radius: 0.5rem; color: var(--ink); font-size: 0.9rem; font-family: var(--font-body); }
 .modal-actions { display: flex; gap: 0.6rem; margin-top: 1.5rem; }
 .btn { flex: 1; padding: 0.65rem 1.1rem; border-radius: 999px; border: none; background: var(--exp-bg); color: var(--ink); cursor: pointer; font-weight: 700; font-size: 0.9rem; }
 .btn.primary { background: var(--brand); color: #fff; }

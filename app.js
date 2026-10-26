@@ -240,6 +240,19 @@ async function n8nFetch(path, opts, auth = true) {
   return ct.includes('application/json') ? res.json() : res.text();
 }
 
+// Requests only the new service answers (n8n never had them): linking BGG, logging a play
+async function apiFetch(path, opts) {
+  const o = { ...(opts || {}), headers: { ...((opts || {}).headers || {}), Authorization: 'Bearer ' + await ensureToken() } };
+  if (!o.signal) o.signal = AbortSignal.timeout(30000);
+  let res;
+  try { res = await fetch(API + path, o); }
+  catch (e) { throw new Error(e.name === 'TimeoutError' ? 'The server took too long to answer. Try again in a moment.' : 'Can’t reach the server. Try again in a moment.'); }
+  if (res.status === 401) throw handleUnauthorized();
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok || j.ok === false) throw new Error(j.message || 'That didn’t work (' + res.status + ')');
+  return j;
+}
+
 // Which requests go to the new service (api.ondorilabo.com) instead of n8n, e.g. 'GET /shelf' or 'POST /ask' (Nathan).
 // Admin turns each area on (Roadmap 7, Phase 3). Asked once per sign-in; meanwhile the list this browser last saw is
 // used, so loading never waits for it. Anything the new service can't answer goes to n8n.
@@ -549,10 +562,20 @@ function playsText(g) {
   if (!c) return '';
   return c + (c === 1 ? ' play' : ' plays') + (g.lastPlayed ? ' · ' + agoText(g.lastPlayed) : '');
 }
+// Stars go in halves (BGG's 1-10 halved): 3.5 is three stars and a half. Each star's left half is the half step.
+const starClass = (i, stars) => (stars >= i ? 'active' : stars === i - 0.5 ? 'half' : '');
+const starText = (n) => (Number(n) % 1 ? String(Math.floor(n)) + '½' : String(Number(n)));
+// The star filter's bands: "★★★★" holds 4 and 4.5; half a star still counts as rated (band 1)
+const starBand = (n) => (n > 0 ? Math.max(1, Math.floor(n)) : 0);
+function starValue(btn, e, i) {
+  const r = btn.getBoundingClientRect();
+  return e && r.width && e.clientX && e.clientX - r.left < r.width / 2 ? i - 0.5 : i;
+}
 function starsHtml(g) {
   let s = '';
+  const mine = ownerStars(g);
   for (let i = 1; i <= 5; i++) {
-    s += '<button class="star-btn ' + (i <= Math.round(ownerStars(g)) ? 'active' : '') + '" data-id="' + esc(g.id) + '" data-rank="' + i + '" title="' + (canEdit() ? 'Rate it ' + i : 'Rated ' + ownerStars(g)) + '"><i class="ti ti-filled ti-star-filled"></i></button>';
+    s += '<button class="star-btn ' + starClass(i, mine) + '" data-id="' + esc(g.id) + '" data-rank="' + i + '" title="' + (canEdit() ? 'Rate it ' + (i - 0.5) + ' or ' + i : 'Rated ' + starText(mine)) + '"><i class="ti ti-filled ti-star-filled"></i></button>';
   }
   return '<div class="stars">' + s + '</div>';
 }
@@ -640,7 +663,7 @@ function render() {
 
   let filtered = askIds ? askIds.map(id => collection.find(g => g.id === id)).filter(Boolean) : collection.filter(g => {
     if (genre !== 'ALL' && !(g.genre || '').includes(genre)) return false;
-    if (ratingFilter !== 'ALL' && Math.round(ownerStars(g)) !== Number(ratingFilter)) return false;
+    if (ratingFilter !== 'ALL' && starBand(ownerStars(g)) !== Number(ratingFilter)) return false;
     if (thinOnly && !g.thinningCandidate) return false;
     if (favOnly && !g.favorite) return false;
     if (players !== 'ALL') {
@@ -941,7 +964,7 @@ function handleGameAction(e) {
   // Edit controls are hidden for visitors; ignore them anyway if one is reached
   if (!canEdit() && e.target.closest('.star-btn, [data-thin], [data-fav], [data-delete], [data-logplay]')) return false;
   const star = e.target.closest('.star-btn');
-  if (star) { savePlayerRating(star.dataset.id, Number(star.dataset.rank)); return true; }
+  if (star) { savePlayerRating(star.dataset.id, starValue(star, e, Number(star.dataset.rank))); return true; }
   const thin = e.target.closest('[data-thin]');
   if (thin) { toggleThinning(thin.dataset.thin); return true; }
   const fav = e.target.closest('[data-fav]');
@@ -963,68 +986,215 @@ grid.addEventListener('keydown', (e) => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-open]')) { e.preventDefault(); openDetail(e.target.dataset.open); }
 });
 
-// ---------- log a play via BG Stats ----------
-const LS_PLAYERS = 'vault_players_v1';
+// ---------- log a play ----------
+// Saved here on any device (POST /log-play), so the count changes right away. With BGG linked (My profile), the play
+// also goes to your BGG account. On a phone with BG Stats, "Open in BG Stats" still hands the play over instead.
+const LS_PLAYERS = 'vault_players_v1'; // names typed in here before, on this device
 const logPlayModal = document.getElementById('logPlayModal');
-let logPlayId = null;
+let logPlayTarget = null; // { id } a game on your shelf, or { bggId, title, cover } any BGG game (from My plays)
 let playerState = {}; // name -> 'sel' | 'win'
+let bggLink = null;   // GET /bgg-link: { linked, username, state, waiting, failed } once asked this sign-in
+let bggLinkReady = true; // false: the server can't link BGG yet (no BGG_LINK_KEY)
+let bggLinkOpen = false; // open My profile at the BGG section
 function knownPlayers() { try { return JSON.parse(localStorage.getItem(LS_PLAYERS) || '[]'); } catch (e) { return []; } }
-function renderPlayerChips() {
+function rememberPlayer(n) {
   const names = knownPlayers();
-  document.getElementById('playerChips').innerHTML = names.length
-    ? names.map(n => '<button class="player-chip ' + (playerState[n] || '') + '" data-player="' + esc(n) + '">' + (playerState[n] === 'win' ? '🏆 ' : '') + esc(n) + '</button>').join('')
-    : '<span class="hint" style="margin:0;">No saved players yet — add names below.</span>';
+  if (!names.includes(n)) { names.push(n); try { localStorage.setItem(LS_PLAYERS, JSON.stringify(names.slice(-40))); } catch (err) {} }
+}
+// Everyone you could pick: your people (the active ones first, as the people list sorts them), then names typed on this device
+function playerNames() {
+  const out = [];
+  const add = (n) => { n = String(n || '').trim(); if (n && !out.some(x => x.toLowerCase() === n.toLowerCase())) out.push(n); };
+  (people.players || []).forEach(p => add(p.name));
+  knownPlayers().forEach(add);
+  return out;
+}
+// Who's playing: the ones picked (🏆 toggles the winner, × takes them off), and a search to add someone: your people
+// as you type, or "Add …" for a name that isn't one of them yet (it becomes one of your people when the play is saved)
+function renderPlayersPicked() {
+  const names = Object.keys(playerState);
+  document.getElementById('playersPicked').innerHTML = names.map(n => '<div class="picked"><span>' + esc(n) + '</span>' +
+    '<button type="button" class="mini-btn' + (playerState[n] === 'win' ? ' win' : '') + '" data-win="' + esc(n) + '" title="Winner" aria-label="' + esc(n) + ' won" aria-pressed="' + (playerState[n] === 'win') + '"><span class="trophy">🏆</span></button>' +
+    '<button type="button" class="mini-btn" data-unpick="' + esc(n) + '" title="Take off" aria-label="Take ' + esc(n) + ' off"><i class="ti ti-x"></i></button></div>').join('');
+}
+let suggestHl = 0;
+function renderSuggest() {
+  const box = document.getElementById('playerSuggest'), input = document.getElementById('playerQuery');
+  const q = input.value.trim(), ql = q.toLowerCase(), picked = new Set(Object.keys(playerState).map(n => n.toLowerCase()));
+  if (document.activeElement !== input) { box.hidden = true; return; }
+  const all = playerNames().filter(n => !picked.has(n.toLowerCase()));
+  const hits = (q ? all.filter(n => n.toLowerCase().split(/\s+/).some(w => w.startsWith(ql)) || n.toLowerCase().includes(ql)) : all).slice(0, 6);
+  const exact = q && (all.concat(Object.keys(playerState))).some(n => n.toLowerCase() === ql);
+  const opts = hits.map(n => ({ name: n, add: false })).concat(q && !exact ? [{ name: q, add: true }] : []);
+  if (suggestHl >= opts.length) suggestHl = 0;
+  box.innerHTML = opts.map((o, i) => '<button type="button" role="option" class="' + (o.add ? 'add' : '') + (i === suggestHl ? ' hl' : '') + '" data-player-pick="' + esc(o.name) + '">' +
+    (o.add ? '<i class="ti ti-plus"></i> Add “' + esc(o.name) + '”' : esc(o.name)) + '</button>').join('');
+  box.hidden = !opts.length;
+}
+function pickPlayer(n) {
+  n = String(n || '').trim();
+  if (!n) return;
+  if (!playerNames().some(x => x.toLowerCase() === n.toLowerCase())) rememberPlayer(n);
+  if (!Object.keys(playerState).some(x => x.toLowerCase() === n.toLowerCase())) playerState[n] = 'sel';
+  const input = document.getElementById('playerQuery');
+  input.value = '';
+  suggestHl = 0;
+  renderPlayersPicked();
+  renderSuggest();
+}
+async function loadBggLink() {
+  try { const r = await apiFetch('/bgg-link', { method: 'GET' }); bggLink = r.link || null; bggLinkReady = r.ready !== false; } catch (e) { bggLink = null; }
+  return bggLink;
+}
+function renderLogPlayHint() {
+  const h = document.getElementById('logPlayHint');
+  if (editPlay) {
+    h.innerHTML = !editPlay.editable ? 'This play comes from BGG. Change it there (or in BG Stats), or link BGG in <a href="#" data-open-bgglink>My profile</a> to change it here.'
+      : editPlay.onBgg ? 'Your changes go to BGG too.' : (bggLink && bggLink.linked && bggLink.plays !== false ? 'Saved here, and sent to BGG.' : 'Saved here.');
+    return;
+  }
+  if (bggLink && bggLink.linked && bggLink.state === 'ok' && bggLink.plays !== false) h.innerHTML = 'Saved here and sent to your BGG account (<b>' + esc(bggLink.username) + '</b>).';
+  else if (bggLink && bggLink.linked && bggLink.state === 'ok') h.innerHTML = 'Saved here. Sending plays to BGG is switched off in My profile.';
+  else if (bggLink && bggLink.linked) h.innerHTML = 'Saved here. BGG wants you to sign in again (My profile) before it goes there too.';
+  else h.innerHTML = 'Saved here, and your play count updates right away. To send plays to BGG too, link BGG in <a href="#" data-open-bgglink>My profile</a>.';
 }
 function openLogPlay(id) {
   const g = collection.find(x => x.id === id);
-  if (!g) return;
-  logPlayId = id;
-  playerState = {};
-  document.getElementById('logPlayGame').textContent = g.title + (g.bggId ? '' : ' — not linked to BGG yet, so BG Stats will ask you to pick the game.');
-  document.getElementById('playDate').value = new Date().toLocaleDateString('en-CA');
-  document.getElementById('playDuration').value = '';
-  document.getElementById('newPlayerInput').value = '';
-  renderPlayerChips();
-  logPlayModal.classList.add('open');
+  if (g) openLogPlayFor({ id, bggId: g.bggId, title: g.title });
 }
-document.getElementById('playerChips').addEventListener('click', (e) => {
-  const chip = e.target.closest('[data-player]');
-  if (!chip) return;
-  const n = chip.dataset.player;
-  playerState[n] = !playerState[n] ? 'sel' : playerState[n] === 'sel' ? 'win' : undefined;
-  if (!playerState[n]) delete playerState[n];
-  renderPlayerChips();
+// The game a play is for: on your shelf ({ id }), or any BGG game. A BGG game that is on your shelf counts as that copy.
+function logPlayGame() {
+  const t = logPlayTarget || {};
+  return (t.id && collection.find(x => x.id === t.id)) || (viewingMine() && t.bggId && collection.find(x => String(x.bggId) === String(t.bggId))) || null;
+}
+let editPlay = null; // the play being changed (from My plays), or null when logging a new one
+function openLogPlayFor(target, play) {
+  logPlayTarget = target;
+  editPlay = play || null;
+  const g = logPlayGame();
+  const title = g ? g.title : target.title, bggId = g ? g.bggId : target.bggId;
+  playerState = {};
+  const me = (people.players || []).find(p => p.id === people.me);
+  if (editPlay) (editPlay.players || []).forEach(x => { playerState[x.name] = x.win ? 'win' : 'sel'; });
+  else if (me) playerState[me.name] = 'sel';
+  document.getElementById('logPlayTitle').textContent = editPlay ? (editPlay.editable ? 'Edit play' : 'Play') : 'Log a Play';
+  document.getElementById('logPlaySend').textContent = editPlay ? 'Save changes' : 'Save play';
+  document.getElementById('logPlaySend').hidden = !!(editPlay && !editPlay.editable);
+  document.getElementById('logPlayGame').textContent = title + (bggId ? '' : ' — not linked to BGG yet, so it can’t be logged here.');
+  document.getElementById('playDate').value = editPlay && editPlay.date ? String(editPlay.date).slice(0, 10) : new Date().toLocaleDateString('en-CA');
+  document.getElementById('playDate').max = new Date().toLocaleDateString('en-CA');
+  document.getElementById('playDuration').value = editPlay && editPlay.minutes ? editPlay.minutes : '';
+  document.getElementById('playComments').value = editPlay ? editPlay.comments || '' : '';
+  document.getElementById('playerQuery').value = '';
+  document.getElementById('playWhere').value = editPlay ? editPlay.location || '' : '';
+  loadPlaces();
+  document.getElementById('logPlaySend').disabled = !bggId;
+  // BG Stats only opens on a phone or tablet that has it
+  document.getElementById('logPlayBgStatsRow').hidden = !!editPlay || !window.matchMedia('(pointer: coarse)').matches;
+  renderPlayersPicked();
+  renderSuggest();
+  renderLogPlayHint();
+  logPlayModal.classList.add('open');
+  if (!bggLink) loadBggLink().then(renderLogPlayHint);
+}
+document.getElementById('playersPicked').addEventListener('click', (e) => {
+  const win = e.target.closest('[data-win]'), off = e.target.closest('[data-unpick]');
+  if (win) playerState[win.dataset.win] = playerState[win.dataset.win] === 'win' ? 'sel' : 'win';
+  else if (off) delete playerState[off.dataset.unpick];
+  else return;
+  renderPlayersPicked();
 });
-document.getElementById('newPlayerInput').addEventListener('keydown', (e) => {
+const playerQuery = document.getElementById('playerQuery');
+playerQuery.addEventListener('input', () => { suggestHl = 0; renderSuggest(); });
+playerQuery.addEventListener('focus', renderSuggest);
+playerQuery.addEventListener('blur', () => setTimeout(renderSuggest, 150)); // after a tap on a suggestion lands
+playerQuery.addEventListener('keydown', (e) => {
+  const opts = [...document.querySelectorAll('#playerSuggest [data-player-pick]')];
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); suggestHl = (suggestHl + (e.key === 'ArrowDown' ? 1 : opts.length - 1)) % Math.max(opts.length, 1); renderSuggest(); return; }
+  if (e.key === 'Escape') { playerQuery.blur(); return; }
   if (e.key !== 'Enter') return;
   e.preventDefault();
-  const n = e.target.value.trim();
-  if (!n) return;
-  const names = knownPlayers();
-  if (!names.includes(n)) { names.push(n); try { localStorage.setItem(LS_PLAYERS, JSON.stringify(names)); } catch (err) {} }
-  playerState[n] = 'sel';
-  e.target.value = '';
-  renderPlayerChips();
+  pickPlayer(opts[suggestHl] ? opts[suggestHl].dataset.playerPick : playerQuery.value);
+});
+document.getElementById('playerSuggest').addEventListener('mousedown', (e) => e.preventDefault()); // keep the keyboard up
+// Done adding: a tap anywhere outside the search closes the list (on a phone, tapping elsewhere doesn't leave the field)
+document.addEventListener('pointerdown', (e) => {
+  if (document.getElementById('playerSuggest').hidden || e.target.closest('.who-search')) return;
+  playerQuery.blur();
+  document.getElementById('playerSuggest').hidden = true;
+});
+document.getElementById('playerSuggest').addEventListener('click', (e) => {
+  const o = e.target.closest('[data-player-pick]');
+  if (o) pickPlayer(o.dataset.playerPick); // the list stays open for the next name; a tap outside closes it
+});
+// Where: the places you've played before, as suggestions (asked once per sign-in)
+let playPlaces = null;
+async function loadPlaces() {
+  if (!playPlaces) { try { playPlaces = (await apiFetch('/play-places', { method: 'GET' })).places || []; } catch (e) { playPlaces = []; } }
+  document.getElementById('playPlaces').innerHTML = playPlaces.map(p => '<option value="' + esc(p) + '"></option>').join('');
+}
+logPlayModal.addEventListener('click', (e) => {
+  if (!e.target.closest('[data-open-bgglink]')) return;
+  e.preventDefault();
+  logPlayModal.classList.remove('open');
+  bggLinkOpen = true;
+  document.getElementById('menuProfile').click();
 });
 document.getElementById('logPlayCancel').addEventListener('click', () => logPlayModal.classList.remove('open'));
-document.getElementById('logPlaySend').addEventListener('click', () => {
-  const g = collection.find(x => x.id === logPlayId);
-  if (!g) return;
+function playForm() {
+  if (playerQuery.value.trim()) pickPlayer(playerQuery.value); // typed but not added yet
   const names = Object.keys(playerState);
-  if (!names.length) { toast('Pick at least one player.', true); return; }
-  const day = document.getElementById('playDate').value || new Date().toLocaleDateString('en-CA');
+  if (!names.length) { toast('Add at least one player.', true); return null; }
+  const where = document.getElementById('playWhere').value.trim();
+  return { names, where, day: document.getElementById('playDate').value || new Date().toLocaleDateString('en-CA'),
+    duration: Number(document.getElementById('playDuration').value) || undefined, comments: document.getElementById('playComments').value.trim() };
+}
+document.getElementById('logPlaySend').addEventListener('click', async () => {
+  const g = logPlayGame(), t = logPlayTarget || {};
+  const f = (g || t.bggId) && playForm();
+  if (!f) return;
+  const btn = document.getElementById('logPlaySend');
+  btn.disabled = true;
+  try {
+    const players = f.names.map(n => ({ name: n, win: playerState[n] === 'win' }));
+    if (editPlay) {
+      const r = await apiFetch('/play-edit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editPlay.id, date: f.day, minutes: f.duration || null, location: f.where, comments: f.comments, players }) });
+      logPlayModal.classList.remove('open');
+      toast(r.toBgg && editPlay.onBgg ? 'Play changed, here and on BGG.' : 'Play changed.');
+      editPlay = null;
+      if (playsModal.classList.contains('open')) loadPlays();
+      return;
+    }
+    const r = await apiFetch('/log-play', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...(g ? { gameId: g.id } : { bggId: Number(t.bggId), title: t.title || '', cover: t.cover || '' }), date: f.day, minutes: f.duration || null, location: f.where, comments: f.comments, players: f.names.map(n => ({ name: n, win: playerState[n] === 'win' })) }) });
+    if (g && r.playCount != null) g.playCount = r.playCount;
+    if (g && r.lastPlayed) g.lastPlayed = String(r.lastPlayed).slice(0, 10);
+    logPlayModal.classList.remove('open');
+    render();
+    if (detailId) renderDetail();
+    if (f.where && playPlaces && !playPlaces.includes(f.where)) playPlaces.unshift(f.where);
+    if (playsModal.classList.contains('open')) { closePlaysSearch(); loadPlays(); }
+    toast(r.toBgg ? 'Play saved, and on its way to BGG.' : 'Play saved.');
+  } catch (e) { toast('Couldn’t save the play: ' + e.message, true); }
+  finally { btn.disabled = false; }
+});
+document.getElementById('logPlayBgStats').addEventListener('click', () => {
+  const t = logPlayTarget || {}, g = logPlayGame() || { id: 'bgg-' + t.bggId, title: t.title, bggId: t.bggId };
+  const f = g.bggId && playForm();
+  if (!f) return;
   // BG Stats wants the UTC end time as "yyyy-MM-dd HH:mm:ss"; use local noon (or now, for today) of the chosen day
-  const local = day === new Date().toLocaleDateString('en-CA') ? new Date() : new Date(day + 'T12:00:00');
+  const local = f.day === new Date().toLocaleDateString('en-CA') ? new Date() : new Date(f.day + 'T12:00:00');
   const playDate = local.toISOString().slice(0, 19).replace('T', ' ');
-  const duration = Number(document.getElementById('playDuration').value) || undefined;
   const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const data = {
     sourceName: 'Board Game Curator',
     sourcePlayId: 'bgc-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     playDate,
-    ...(duration ? { durationMin: duration } : {}),
+    ...(f.duration ? { durationMin: f.duration } : {}),
+    ...(f.comments ? { comments: f.comments } : {}),
     game: { name: g.title, sourceGameId: g.id, ...(g.bggId ? { bggId: Number(g.bggId) } : {}), highestWins: true },
-    players: names.map(n => ({ name: n, sourcePlayerId: 'p-' + slug(n), winner: playerState[n] === 'win' })),
+    players: f.names.map(n => ({ name: n, sourcePlayerId: 'p-' + slug(n), winner: playerState[n] === 'win' })),
   };
   window.location.href = 'https://app.bgstatsapp.com/createPlay.html?data=' + encodeURIComponent(JSON.stringify(data));
   logPlayModal.classList.remove('open');
@@ -1435,13 +1605,14 @@ function identifySummaryHtml(r) {
     section('Not processed — take another photo of these', (r.deferred || []).map(esc));
 }
 
-// ---------- Ratings (per person, 1-5) ----------
+// ---------- Ratings (per person, 0.5-5 in halves) ----------
 function starsPicker(attr, gameId, current, extra) {
   let h = '';
-  for (let i = 1; i <= 5; i++) h += '<button type="button" class="' + (current >= i - 0.25 ? 'on' : '') + '" ' + attr + '="' + esc(gameId) + '" data-stars="' + i + '"' + (extra || '') + ' title="' + i + ' star' + (i > 1 ? 's' : '') + '"><i class="ti ti-filled ti-star-filled"></i></button>';
+  for (let i = 1; i <= 5; i++) h += '<button type="button" class="' + (starClass(i, current) === 'active' ? 'on' : starClass(i, current)) + '" ' + attr + '="' + esc(gameId) + '" data-stars="' + i + '"' + (extra || '') + ' title="' + (i - 0.5) + ' or ' + i + ' stars (tap the left or right half)"><i class="ti ti-filled ti-star-filled"></i></button>';
   return '<div class="rate-stars">' + h + '</div>';
 }
-// Stars are each person's own BGC rating; BGG ratings are shown apart, out of 10
+// Stars are each person's own rating. A member who linked BGG has the same rating there (stars x 2, out of 10);
+// for everyone else, BGG ratings are shown apart
 // An expansion's BGG page: a search for the base game plus its name ("Pantheon Expansion" → "A Feast for Odin Pantheon")
 function expansionLink(g, e) {
   const name = String(e).replace(/\b(expansion|box|pack)\b/gi, '').replace(/\s+/g, ' ').trim();
@@ -1470,12 +1641,15 @@ function ratingsHtml(g) {
   const rows = [];
   if (isMember() && me) rows.push('<div class="rate-row"><span class="who">Your rating</span>' + starsPicker('data-rate-self', g.id, (byPlayer[me] || {}).stars || 0) + '</div>');
   const bgc = Object.entries(byPlayer).filter(([, r]) => r.stars).sort((x, y) => y[1].stars - x[1].stars);
-  const bgg = Object.entries(byPlayer).filter(([, r]) => r.bgg).sort((x, y) => y[1].bgg - x[1].bgg);
+  // A BGG rating that is just someone's stars x 2 (they linked BGG) says nothing new
+  // Your own BGG rating is your stars once you've linked BGG; anyone's that is just their stars x 2 says nothing new
+  const linkedMe = bggLink && bggLink.linked;
+  const bgg = Object.entries(byPlayer).filter(([pid, r]) => r.bgg && !(linkedMe && pid === me) && !(r.stars && Math.round(r.stars * 2) === Math.round(r.bgg))).sort((x, y) => y[1].bgg - x[1].bgg);
   const others = bgc.filter(([pid]) => pid !== me);
   const avg = bgc.length ? bgc.reduce((n, [, r]) => n + r.stars, 0) / bgc.length : 0;
   return '<div class="ratings-block"><div class="section-label" style="margin:0;">Ratings' + (bgc.length > 1 ? ' · ' + avg.toFixed(1) + '★ average' : '') + '</div>' +
     rows.join('') +
-    (others.length ? '<div class="rate-list">' + others.map(([pid, r]) => '<span class="rate-chip">' + esc(firstName(name(pid))) + ' ' + r.stars + ' <i class="ti ti-filled ti-star-filled"></i></span>').join('') + '</div>'
+    (others.length ? '<div class="rate-list">' + others.map(([pid, r]) => '<span class="rate-chip">' + esc(firstName(name(pid))) + ' ' + starText(r.stars) + ' <i class="ti ti-filled ti-star-filled"></i></span>').join('') + '</div>'
       : (!rows.length ? '<p class="hint" style="margin:0;">No ratings yet.</p>' : '')) +
     (bgg.length ? '<div class="section-label" style="margin:0.4rem 0 0;">On BGG</div><div class="rate-list">' + bgg.map(([pid, r]) => '<span class="rate-chip">' + esc(firstName(name(pid))) + ' ' + r.bgg + '<small>/10</small></span>').join('') + '</div>' : '') +
   '</div>';
@@ -1484,7 +1658,7 @@ async function savePlayerRating(gameId, stars) {
   const pid = people.me || myPlayerId();
   const byPlayer = ((people.ratings ||= {})[gameId] ||= {});
   const prev = byPlayer[pid] ? { ...byPlayer[pid] } : null;
-  const clear = prev && Math.round(prev.stars || 0) === stars; // tapping your current rating clears it
+  const clear = prev && Number(prev.stars || 0) === stars; // tapping your current rating clears it
   const next = clear ? 0 : stars;
   const keep = prev && prev.bgg ? { bgg: prev.bgg } : {};
   if (next) byPlayer[pid] = { ...keep, stars: next }; else if (keep.bgg) byPlayer[pid] = keep; else delete byPlayer[pid];
@@ -1501,10 +1675,10 @@ async function savePlayerRating(gameId, stars) {
 }
 document.getElementById('detailModal').addEventListener('click', (e) => {
   const self = e.target.closest('[data-rate-self]');
-  if (self) savePlayerRating(self.dataset.rateSelf, Number(self.dataset.stars));
+  if (self) savePlayerRating(self.dataset.rateSelf, starValue(self, e, Number(self.dataset.stars)));
 });
 
-// ---------- Players (owner) ----------
+// ---------- Players: your people (everyone's own shelf; an admin also links a Google email) ----------
 const DIALS = [
   { key: 'complexity', label: 'Complexity', lo: 'Light', hi: 'Heavy' },
   { key: 'conflict', label: 'Conflict', lo: 'Co-op only', hi: 'Cutthroat' },
@@ -1515,13 +1689,14 @@ const DIALS = [
 const playersModal = document.getElementById('playersModal');
 let adminPlayers = [];
 let editing = null; // the player object being edited (a copy)
+let plRemoveArmed = false;
 async function openPlayers() {
   settingsModal.classList.remove('open');
   playersModal.classList.add('open');
   editing = null;
   document.getElementById('playersBody').innerHTML = '<div class="spinner"></div>';
   try {
-    adminPlayers = (await n8nFetch('/players-admin', { method: 'GET' })).players || [];
+    adminPlayers = (await apiFetch('/people-mine', { method: 'GET' })).people || [];
     renderPlayers();
   } catch (e) {
     document.getElementById('playersBody').innerHTML = '<p class="hint">' + esc(e.message) + '</p>';
@@ -1533,8 +1708,9 @@ let plQuery = '', plPage = 0;
 function renderPlayers() {
   const body = document.getElementById('playersBody');
   if (editing) { body.innerHTML = playerFormHtml(editing); return; }
-  body.innerHTML = '<p class="hint" style="margin-top:0;">Everyone you’ve logged a play with is added automatically each night. Friends you connect with by code are known to Nathan too. Active players show first when asking Nathan.</p>' +
-    '<div class="top-search" style="margin:0 0 0.6rem;"><input type="search" id="plSearch" placeholder="Search ' + adminPlayers.length + ' people by name" autocomplete="off" value="' + esc(plQuery) + '"></div>' +
+  body.innerHTML = '<p class="hint" style="margin-top:0;">The people you play with. Everyone in your plays is added on their own; add anyone else here. Active people show first when logging a play or asking Nathan.</p>' +
+    '<div class="top-search" style="margin:0 0 0.6rem;"><input type="search" id="plSearch" placeholder="Search ' + adminPlayers.length + ' people by name" autocomplete="off" value="' + esc(plQuery) + '">' +
+    '<button type="button" class="btn" id="plAdd" title="Add someone"><i class="ti ti-user-plus"></i></button></div>' +
     '<div id="plList"></div>';
   renderPlayerList();
 }
@@ -1550,7 +1726,7 @@ function renderPlayerList() {
   box.innerHTML = (shown.length ? '<div class="pl-list">' + shown.map(p => '<button type="button" class="pl-row" data-edit-player="' + esc(p.id) + '">' +
       '<span class="dot' + (p.active ? ' on' : '') + '" title="' + (p.active ? 'Active' : 'Inactive') + '"></span>' +
       '<span class="n">' + esc(p.name) + '</span>' +
-      (p.googleEmail ? '<span class="pl-badge" title="Can sign in and rate">Google</span>' : '') +
+      (p.me ? '<span class="pl-badge" title="That’s you">You</span>' : p.member ? '<span class="pl-badge" title="A member here">BGC</span>' : '') +
       (p.bggUsername ? '<span class="pl-badge" title="BGG ratings sync">BGG</span>' : '') +
       '<span class="m">' + (p.plays ? p.plays + ' plays' : 'no plays') + '</span></button>').join('') + '</div>'
     : '<p class="hint" style="margin:0;">No one by that name.</p>') +
@@ -1565,31 +1741,58 @@ function playerFormHtml(p) {
   return '<form class="pl-form" id="playerForm">' +
     '<div class="pl-two"><div><label for="pfName">Name</label><input type="text" id="pfName" value="' + esc(p.name || '') + '" required></div>' +
     '<div><label for="pfAliases">Other names <span style="font-weight:600;">(as logged in BG Stats)</span></label><input type="text" id="pfAliases" value="' + esc((p.aliases || []).join(', ')) + '"></div></div>' +
-    '<label class="pl-check"><input type="checkbox" id="pfActive"' + (p.active ? ' checked' : '') + '> Active (shows first when asking Nathan)</label>' +
-    '<label for="pfBgg">BGG username <span style="font-weight:600;">(syncs their BGG ratings)</span></label><input type="text" id="pfBgg" value="' + esc(p.bggUsername || '') + '">' +
-    '<p class="hint">Their taste profile (likes, dislikes, how they like to play) is theirs to fill in under My profile once they sign in.</p>' +
-    '<label for="pfEmail">Google email <span style="font-weight:600;">(lets them sign in and rate games for themselves)</span></label><input type="email" id="pfEmail" value="' + esc(p.googleEmail || '') + '" placeholder="name@gmail.com">' +
-    '<div class="modal-actions"><button type="button" class="btn ghost" id="playerBack">Back</button><button type="submit" class="btn primary" id="playerSave">Save</button></div>' +
+    '<label class="pl-check"><input type="checkbox" id="pfActive"' + (p.active !== false ? ' checked' : '') + '> Active (shows first when logging a play or asking Nathan)</label>' +
+    '<label for="pfBgg">BGG username <span style="font-weight:600;">(optional: ties them to BGG in your plays, and brings in their BGG ratings)</span></label><input type="text" id="pfBgg" value="' + esc(p.bggUsername || '') + '">' +
+    (p.member ? '<p class="hint">Their taste profile is theirs to fill in under My profile.</p>' : '') +
+    // Letting someone in by Google email stays an admin's job, on their own shelf
+    (isAdmin() && !p.me ? '<label for="pfEmail">Google email <span style="font-weight:600;">(lets them sign in and rate games for themselves)</span></label><input type="email" id="pfEmail" value="' + esc(p.googleEmail || '') + '" placeholder="name@gmail.com">' : '') +
+    (p.plays ? '<p class="hint">' + p.plays + (p.plays === 1 ? ' play' : ' plays') + ' together' + (p.games ? ', ' + p.games + (p.games === 1 ? ' game' : ' games') : '') + '.</p>' : '') +
+    // Two names for one person (Joan and Grandma Joan): this one goes into the one picked
+    (p.id && !p.me ? '<div class="merge-row"><label for="pfMergeInto">Same person as someone else?</label><div class="row"><select id="pfMergeInto"><option value="">Pick who…</option>' +
+      adminPlayers.filter(o => o.id !== p.id).sort((a, b) => a.name.localeCompare(b.name)).map(o => '<option value="' + esc(o.id) + '">' + esc(o.name) + (o.me ? ' (you)' : '') + '</option>').join('') +
+      '</select><button type="button" class="btn ghost" id="playerMerge">Merge</button></div>' +
+      '<p class="hint">' + esc(p.name) + '’s plays move to them, and “' + esc(p.name) + '” becomes one of their other names, so plays synced from BGG land there too.</p></div>' : '') +
+    '<div class="modal-actions">' + (p.id && !p.me && !p.plays ? '<button type="button" class="btn ghost" id="playerRemove" style="margin-right:auto; color:var(--danger);">' + (plRemoveArmed ? 'Tap again to remove' : 'Remove') + '</button>' : '') +
+    '<button type="button" class="btn ghost" id="playerBack">Back</button><button type="submit" class="btn primary" id="playerSave">Save</button></div>' +
   '</form>';
 }
 document.getElementById('openPlayersBtn').addEventListener('click', openPlayers);
 document.getElementById('playersClose').addEventListener('click', () => playersModal.classList.remove('open'));
 document.getElementById('playersBody').addEventListener('click', (e) => {
   const row = e.target.closest('[data-edit-player]');
-  if (row) { editing = { ...adminPlayers.find(p => p.id === row.dataset.editPlayer) }; renderPlayers(); playersModal.querySelector('.modal').scrollTop = 0; return; }
+  if (row) { editing = { ...adminPlayers.find(p => p.id === row.dataset.editPlayer) }; plRemoveArmed = false; renderPlayers(); playersModal.querySelector('.modal').scrollTop = 0; return; }
+  if (e.target.closest('#plAdd')) { editing = { name: (document.getElementById('plSearch') || {}).value || '', active: true }; plRemoveArmed = false; renderPlayers(); return; }
   if (e.target.closest('#playerBack')) { editing = null; renderPlayers(); return; }
+  if (e.target.closest('#playerMerge')) {
+    const into = document.getElementById('pfMergeInto').value, btn = document.getElementById('playerMerge');
+    const other = adminPlayers.find(o => o.id === into);
+    if (!other) { toast('Pick who ' + editing.name + ' is.', true); return; }
+    if (btn.dataset.armed !== into) { btn.dataset.armed = into; btn.textContent = 'Tap again: into ' + other.name; return; }
+    btn.disabled = true;
+    apiFetch('/person-merge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: editing.id, into }) })
+      .then((r) => { adminPlayers = r.people || adminPlayers.filter(o => o.id !== editing.id); toast(editing.name + ' merged into ' + other.name + '.'); editing = null; renderPlayers(); loadPeople(); })
+      .catch((err) => { toast(err.message, true); btn.disabled = false; });
+    return;
+  }
+  if (e.target.closest('#playerRemove')) {
+    if (!plRemoveArmed) { plRemoveArmed = true; renderPlayers(); return; }
+    apiFetch('/person-remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id }) })
+      .then(() => { adminPlayers = adminPlayers.filter(p => p.id !== editing.id); toast('Removed ' + editing.name + '.'); editing = null; renderPlayers(); loadPeople(); })
+      .catch((err) => toast(err.message, true));
+  }
 });
 document.getElementById('playersBody').addEventListener('submit', async (e) => {
   if (e.target.id !== 'playerForm') return;
   e.preventDefault();
   const val = (id) => document.getElementById(id).value;
   const payload = { ...(editing.id ? { id: editing.id } : {}), name: val('pfName').trim(), aliases: val('pfAliases'),
-    active: document.getElementById('pfActive').checked, googleEmail: val('pfEmail').trim(), bggUsername: val('pfBgg').trim() };
+    active: document.getElementById('pfActive').checked, bggUsername: val('pfBgg').trim(),
+    ...(document.getElementById('pfEmail') ? { googleEmail: val('pfEmail').trim() } : {}) };
   const btn = document.getElementById('playerSave');
   btn.disabled = true;
   try {
-    const r = await n8nFetch('/player-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const saved = r.player;
+    const r = await apiFetch('/person-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const saved = r.person;
     const i = adminPlayers.findIndex(p => p.id === saved.id);
     const merged = { ...(i >= 0 ? adminPlayers[i] : { plays: 0, games: 0 }), ...saved };
     if (i >= 0) adminPlayers[i] = merged; else adminPlayers.unshift(merged);
@@ -1601,6 +1804,61 @@ document.getElementById('playersBody').addEventListener('submit', async (e) => {
     toast(err.message, true);
     btn.disabled = false;
   }
+});
+
+// ---------- Places: where you play ----------
+const placesModal = document.getElementById('placesModal');
+let myPlaceList = [];
+async function openPlaces() {
+  settingsModal.classList.remove('open');
+  placesModal.classList.add('open');
+  document.getElementById('placesList').innerHTML = '<div class="spinner"></div>';
+  try { myPlaceList = (await apiFetch('/places', { method: 'GET' })).places || []; renderPlaces(); }
+  catch (e) { document.getElementById('placesList').innerHTML = '<p class="hint" style="margin:0;">' + esc(e.message) + '</p>'; }
+}
+function renderPlaces() {
+  document.getElementById('placesList').innerHTML = myPlaceList.length ? myPlaceList.map(p => '<div class="wl-row"><span class="ph"><i class="ti ti-' + (p.saved ? 'map-pin-check' : 'map-pin') + '"></i></span>' +
+    '<div class="t"><b>' + esc(p.name) + '</b><span>' + esc([p.saved ? 'Saved' : '', p.plays ? p.plays + (p.plays === 1 ? ' play' : ' plays') : 'No plays yet', p.last ? 'last ' + agoText(String(p.last).slice(0, 10)) : ''].filter(Boolean).join(' · ')) + '</span></div>' +
+    (p.saved ? '<button type="button" class="mini-btn" data-place-remove="' + esc(p.name) + '" title="Take off the list" aria-label="Take ' + esc(p.name) + ' off the list"><i class="ti ti-x"></i></button>'
+      : '<button type="button" class="mini-btn" data-place-add="' + esc(p.name) + '" title="Save it" aria-label="Save ' + esc(p.name) + '"><i class="ti ti-plus"></i></button>') + '</div>').join('')
+    : '<p class="hint" style="margin:0;">No places yet. Add one above, or fill in Where when you log a play.</p>';
+  // Two names for one place (Game café and Game Night Cafe): the plays move, and the old name is remembered
+  const opts = myPlaceList.map(p => '<option value="' + esc(p.name) + '">' + esc(p.name) + '</option>').join('');
+  document.getElementById('placesMerge').innerHTML = myPlaceList.length > 1 ? '<div class="merge-row"><label for="placeFrom">Two names for one place?</label>' +
+    '<div class="row"><select id="placeFrom" aria-label="Merge this place"><option value="">This…</option>' + opts + '</select><span>into</span>' +
+    '<select id="placeInto" aria-label="Into this place"><option value="">this</option>' + opts + '</select><button type="button" class="btn ghost" id="placeMergeGo">Merge</button></div>' +
+    '<p class="hint">Plays at the first move to the second, and its name is remembered, so plays synced from BGG under it move too.</p></div>' : '';
+}
+async function savePlace(action, name) {
+  name = String(name || '').trim();
+  if (!name) return;
+  try {
+    myPlaceList = (await apiFetch('/place-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, name }) })).places || [];
+    playPlaces = null; // Where asks again
+    renderPlaces();
+    if (action === 'add') document.getElementById('placeNew').value = '';
+  } catch (e) { toast(e.message, true); }
+}
+document.getElementById('openPlacesBtn').addEventListener('click', openPlaces);
+document.getElementById('placeAdd').addEventListener('click', () => savePlace('add', document.getElementById('placeNew').value));
+document.getElementById('placeNew').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); savePlace('add', e.target.value); } });
+placesModal.addEventListener('click', async (e) => {
+  if (e.target === placesModal || e.target.closest('[data-close-modal]')) { placesModal.classList.remove('open'); return; }
+  const go = e.target.closest('#placeMergeGo');
+  if (go) {
+    const from = document.getElementById('placeFrom').value, into = document.getElementById('placeInto').value;
+    if (!from || !into || from === into) { toast('Pick two different places.', true); return; }
+    if (go.dataset.armed !== from + '>' + into) { go.dataset.armed = from + '>' + into; go.textContent = 'Tap again'; return; }
+    go.disabled = true;
+    try {
+      const r = await apiFetch('/place-merge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from, into }) });
+      myPlaceList = r.places || []; playPlaces = null; renderPlaces();
+      toast(from + ' merged into ' + into + (r.moved ? ' (' + r.moved + (r.moved === 1 ? ' play' : ' plays') + ' moved).' : '.'));
+    } catch (err) { toast(err.message, true); go.disabled = false; }
+    return;
+  }
+  const a = e.target.closest('[data-place-add]'), r = e.target.closest('[data-place-remove]');
+  if (a) savePlace('add', a.dataset.placeAdd); else if (r) savePlace('remove', r.dataset.placeRemove);
 });
 
 // ---------- Ask ----------
@@ -1617,6 +1875,7 @@ async function loadPeople() {
       byPlayer[people.me] = { ...(byPlayer[people.me] || {}), stars: Number(stars) };
     }
   }
+  if (!bggLink && viewingMine()) loadBggLink().then(() => { if (detailId) renderDetail(); }); // your BGG link decides what "On BGG" shows
   renderAskPlayers();
   render(); // the cards' stars come with the people data
   if (detailId) renderDetail();
@@ -2305,14 +2564,15 @@ document.getElementById('authBtn').addEventListener('click', (e) => {
   setMenu(accountMenu.hidden);
 });
 document.addEventListener('click', (e) => { if (!accountMenu.hidden && !e.target.closest('.account')) setMenu(false); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal', 'newsModal', 'settingsModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
+accountMenu.addEventListener('click', (e) => { if (e.target.closest('[role=menuitem]')) setMenu(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal', 'newsModal', 'settingsModal', 'playsModal', 'placesModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
 document.getElementById('menuSignOut').addEventListener('click', () => {
   setMenu(false);
   if (gisReady) google.accounts.id.disableAutoSelect();
   clearTimeout(cacheTimer);
   try { localStorage.removeItem(LS_ROLE); localStorage.removeItem(LS_CACHE); } catch (e) {}
   setToken(null);
-  collection = []; people = { players: [], ratings: {} };
+  collection = []; people = { players: [], ratings: {} }; bggLink = null; playPlaces = null;
   render();
   window.scrollTo(0, 0);
 });
@@ -2360,13 +2620,73 @@ function renderProfile() {
     '<div class="section-label" style="margin-top:1rem;" id="memLabel">What Nathan remembers about me</div>' +
     '<p class="hint" style="margin-top:0;">Nathan picks these up when you tell him about yourself, and uses them in every answer. Only you can see them. Remove anything that’s wrong.</p>' +
     '<div class="wl-list" id="memList"><div class="spinner"></div></div>' +
-    '<div class="pl-two"><div><label for="meBgg">BGG username <span style="font-weight:600;">(optional)</span></label><input type="text" id="meBgg" maxlength="60" value="' + esc(p.bggUsername || '') + '"></div>' +
+    '<div class="section-label" style="margin-top:1rem;" id="bggLinkLabel">BoardGameGeek</div>' +
+    '<div id="bggLinkBox"><div class="spinner"></div></div>' +
+    '<div class="pl-two"><div id="meBggRow"><label for="meBgg">BGG username <span style="font-weight:600;">(optional)</span></label><input type="text" id="meBgg" maxlength="60" value="' + esc(p.bggUsername || '') + '"></div>' +
     '<div><label for="meAge">Age <span style="font-weight:600;">(optional)</span></label><input type="number" id="meAge" min="1" max="120" value="' + (p.age || '') + '"></div></div>' +
     '<div class="modal-actions"><button type="button" class="btn ghost" data-profile-close>Cancel</button><button type="submit" class="btn primary" id="profileSave">Save</button></div>' +
   '</form>';
   renderTop();
   loadMemory();
+  loadBggLink().then(renderBggLinkBox);
 }
+// Linking BGG: sign in once, and what you do here (plays, adds and removals, wishlist, stars) goes to BGG as well
+let bggUnlinkArmed = false;
+function renderBggLinkBox() {
+  const box = document.getElementById('bggLinkBox');
+  if (!box) return;
+  const l = bggLink || {};
+  const form = (why) => '<p class="hint" style="margin-top:0;">' + why + '</p>' +
+    '<div class="pl-two"><div><label for="bggLinkUser">BGG username</label><input type="text" id="bggLinkUser" autocomplete="username" maxlength="40" value="' + esc(l.username || (myProfile && myProfile.bggUsername) || '') + '"></div>' +
+    '<div><label for="bggLinkPass">BGG password</label><input type="password" id="bggLinkPass" autocomplete="current-password" maxlength="200"></div></div>' +
+    '<p class="hint">Your password goes to BGG once, to sign in, and is never kept. We keep BGG’s sign-in, as BG Stats does; unlink any time.</p>' +
+    '<button type="button" class="btn" id="bggLinkGo" style="justify-self:start;"><i class="ti ti-link"></i> Link BGG</button>';
+  if (!bggLinkReady) box.innerHTML = '<p class="hint" style="margin-top:0;">Sending plays and your collection to BGG isn’t switched on yet.</p>';
+  else if (l.linked && l.state === 'ok') box.innerHTML = '<p class="hint" style="margin-top:0;">Linked to <b>' + esc(l.username) + '</b>.' +
+      (l.waiting ? ' <b>' + l.waiting + '</b> waiting to go.' : '') + (l.failed ? ' ' + l.failed + ' didn’t make it this week.' : '') + '</p>' +
+      [['plays', 'Send plays I log here'], ['collection', 'Send games I add or remove, and my wishlist'], ['ratings', 'Send my stars (5 stars = 10 on BGG), and bring BGG ratings back as stars']]
+        .map(([k, t]) => '<label class="bgg-switch"><input type="checkbox" data-bgg-setting="' + k + '"' + (l[k] !== false ? ' checked' : '') + '> ' + t + '</label>').join('') +
+      '<button type="button" class="btn ghost" id="bggUnlink" style="justify-self:start;">' + (bggUnlinkArmed ? 'Tap again to unlink' : 'Unlink BGG') + '</button>';
+  else if (l.linked) box.innerHTML = form('BGG signed you out (' + esc(l.username) + '). Sign in again and what’s waiting goes there.');
+  else box.innerHTML = form('Link your BGG account and plays you log here, games you add or remove, your wishlist and your stars go to your BGG collection too, the way BG Stats does it.');
+  // The BoardGameGeek section holds the username once linking is on; the old field stays only where it isn't
+  const row = document.getElementById('meBggRow');
+  if (row) row.hidden = bggLinkReady;
+  if (bggLinkOpen) { bggLinkOpen = false; document.getElementById('bggLinkLabel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
+async function linkBgg() {
+  const user = document.getElementById('bggLinkUser').value.trim(), pass = document.getElementById('bggLinkPass');
+  if (!user || !pass.value) { toast('Enter your BGG username and password.', true); return; }
+  const btn = document.getElementById('bggLinkGo');
+  btn.disabled = true;
+  try {
+    const r = await apiFetch('/bgg-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'link', username: user, password: pass.value }) });
+    pass.value = '';
+    bggLink = r.link;
+    if (myProfile) myProfile.bggUsername = user;
+    const meBgg = document.getElementById('meBgg'); if (meBgg) meBgg.value = user;
+    renderBggLinkBox();
+    toast('BGG linked.');
+  } catch (e) { toast(e.message, true); btn.disabled = false; }
+}
+profileModal.addEventListener('click', async (e) => {
+  if (e.target.closest('#bggLinkGo')) { linkBgg(); return; }
+  if (!e.target.closest('#bggUnlink')) return;
+  if (!bggUnlinkArmed) { bggUnlinkArmed = true; renderBggLinkBox(); return; }
+  bggUnlinkArmed = false;
+  try { bggLink = (await apiFetch('/bgg-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'unlink' }) })).link; renderBggLinkBox(); toast('BGG unlinked.'); }
+  catch (err) { toast(err.message, true); }
+});
+profileModal.addEventListener('change', async (e) => {
+  const sw = e.target.closest('[data-bgg-setting]');
+  if (!sw) return;
+  try { bggLink = (await apiFetch('/bgg-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'settings', [sw.dataset.bggSetting]: sw.checked }) })).link; }
+  catch (err) { sw.checked = !sw.checked; toast(err.message, true); }
+});
+// Enter in the BGG sign-in links BGG instead of saving the profile around it
+profileModal.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.closest('#bggLinkBox input')) { e.preventDefault(); linkBgg(); }
+});
 let memPage = null, memConfirm = false, memScroll = false;
 async function loadMemory() {
   const box = document.getElementById('memList');
@@ -2617,6 +2937,135 @@ document.getElementById('friendsList').addEventListener('click', async (e) => {
 });
 document.getElementById('friendsClose').addEventListener('click', () => friendsModal.classList.remove('open'));
 friendsModal.addEventListener('click', (e) => { if (e.target === friendsModal) friendsModal.classList.remove('open'); });
+
+// ---------- My plays ----------
+// Every play of yours (from BGG, BG Stats or logged here), newest first, and logging one for any game: your shelf
+// first, then BGG. A play on BGG says so; one logged here before linking BGG stays here.
+const playsModal = document.getElementById('playsModal');
+let myPlays = [], playsTotal = 0, playsLinked = false, playDelArmed = null, playsSync = null, playsUser = '', syncPoll = null;
+// more: the next page; otherwise the first page again, quietly: what's on screen stays until the new list is in hand
+// (opening My plays shows the spinner itself), so a refresh during a sync doesn't blink
+async function loadPlays(more) {
+  const list = document.getElementById('playsList');
+  try {
+    const r = await apiFetch('/plays?skip=' + (more ? myPlays.length : 0), { method: 'GET' });
+    const was = playsSync && playsSync.state;
+    myPlays = (more ? myPlays : []).concat(r.plays || []); playsTotal = r.total || 0; playsLinked = !!r.linked; playsSync = r.sync || null; playsUser = r.bggUsername || '';
+    if (was === 'running' && playsSync && playsSync.state === 'done') toast('Synced with BGG.');
+    renderPlays();
+  } catch (e) {
+    if (myPlays.length) toast(e.message, true); // keep the list on screen
+    else { list.innerHTML = '<p class="hint" style="margin:0;">' + esc(e.message) + '</p>'; list.dataset.html = ''; }
+  }
+}
+const playDay = (d) => d ? new Date(String(d).slice(0, 10) + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: String(d).slice(0, 4) === String(new Date().getFullYear()) ? undefined : 'numeric' }) : 'No date';
+function renderPlays() {
+  // The Sync button: what's waiting goes to BGG, then your BGG plays come in. Shown once there's a BGG username to sync with.
+  const syncing = playsSync && playsSync.state === 'running' && Date.now() - new Date(playsSync.at).getTime() < 15 * 60 * 1000;
+  const when = playsSync && playsSync.finished && playsSync.state === 'done' ? ' · synced ' + agoText(String(playsSync.finished).slice(0, 10)) : '';
+  document.getElementById('playsSummary').textContent = (playsTotal ? playsTotal + (playsTotal === 1 ? ' play' : ' plays') : 'No plays yet') +
+    (syncing ? ' · syncing with BGG…' : playsSync && playsSync.state === 'error' ? ' · the last sync didn’t finish' : when);
+  const sb = document.getElementById('playsSync');
+  sb.hidden = !playsUser;
+  sb.disabled = !!syncing;
+  sb.querySelector('i').classList.toggle('spin', !!syncing);
+  sb.title = syncing ? 'Syncing with BGG…' : 'Sync with BGG';
+  if (syncing && !syncPoll) syncPoll = setTimeout(() => { syncPoll = null; if (playsModal.classList.contains('open')) loadPlays(); }, 3000);
+  const list = document.getElementById('playsList');
+  let day = null;
+  const html = myPlays.length ? myPlays.map(p => {
+    const d = String(p.date || '').slice(0, 10), head = d !== day ? '<div class="day">' + esc(playDay(p.date)) + '</div>' : '';
+    day = d;
+    const who = (p.players || []).map(x => (x.win ? '🏆 ' : '') + esc(x.name)).join(', ');
+    // BGG sync: synced, on its way, or not synced (BGG not linked, or sending plays switched off)
+    const sync = p.onBgg ? ['cloud-check', 'on', 'Synced with BGG'] : p.sending ? ['cloud-upload', 'going', 'Syncing to BGG'] : ['cloud-off', 'off', 'Not synced with BGG'];
+    const tag = '<i class="ti ti-' + sync[0] + ' pl-sync ' + sync[1] + '" title="' + sync[2] + '" role="img" aria-label="' + sync[2] + '"></i>';
+    const armed = playDelArmed === p.id;
+    return head + '<div class="wl-row play-row" data-play-open="' + p.id + '" role="button" tabindex="0" aria-label="Open this play">' +
+      (p.cover ? '<img src="' + esc(p.cover) + '" alt="" loading="lazy">' : '<span class="ph"><i class="ti ti-' + esc(p.icon || DEFAULT_ICON) + '"></i></span>') +
+      '<div class="t"><b>' + esc(p.title) + tag + '</b><span class="who">' + (who || 'No players') + '</span>' +
+      (p.location || p.minutes || p.comments ? '<span>' + esc([p.location ? 'At ' + p.location : '', p.minutes ? p.minutes + ' min' : '', p.comments || ''].filter(Boolean).join(' · ')) + '</span>' : '') + '</div>' +
+      '<button type="button" class="mini-btn' + (armed ? ' armed' : '') + '" data-play-del="' + p.id + '" title="' + (armed ? 'Tap again to delete' : 'Delete this play') + '" aria-label="Delete this play"><i class="ti ti-' + (armed ? 'check' : 'trash') + '"></i></button></div>';
+  }).join('') : '<p class="hint" style="margin:0;">No plays yet. Find a game above to log one, or bring in your plays from BGG (the cog).</p>';
+  if (list.dataset.html !== html) { list.innerHTML = html; list.dataset.html = html; } // the same list again isn't redrawn (no image flicker)
+  document.getElementById('playsMore').hidden = myPlays.length >= playsTotal;
+}
+function openPlays() {
+  playsModal.classList.add('open');
+  myPlays = [];
+  const list = document.getElementById('playsList');
+  list.innerHTML = '<div class="spinner"></div>'; list.dataset.html = '';
+  playDelArmed = null;
+  closePlaysSearch();
+  loadPlays();
+}
+// A play from My plays, in the Log a Play form: to look at, and to change when it can be changed here
+async function openPlayEdit(id) {
+  try {
+    const { play } = await apiFetch('/play?id=' + id, { method: 'GET' });
+    openLogPlayFor({ id: play.shelfId || null, bggId: play.bggId, title: play.title, cover: play.cover }, play);
+  } catch (e) { toast(e.message, true); }
+}
+playsModal.addEventListener('keydown', (e) => { const r = e.target.closest && e.target.closest('[data-play-open]'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPlayEdit(Number(r.dataset.playOpen)); } });
+function closePlaysSearch() { document.getElementById('playsQuery').value = ''; document.getElementById('playsResults').innerHTML = ''; }
+const playPick = (x) => '<div class="wl-row">' + (x.cover ? '<img src="' + esc(x.cover) + '" alt="" loading="lazy">' : '<span class="ph"><i class="ti ti-' + esc(x.icon || DEFAULT_ICON) + '"></i></span>') +
+  '<div class="t"><b>' + esc(x.title) + '</b><span>' + esc(x.note || '') + '</span></div>' +
+  '<button type="button" class="btn primary" data-play-pick="' + esc(x.bggId) + '" data-title="' + esc(x.title) + '" data-cover="' + esc(x.cover || '') + '"' + (x.id ? ' data-id="' + esc(x.id) + '"' : '') + '>Log</button></div>';
+// Your shelf as you type; BGG on Enter or the search button
+function findPlayGame() {
+  const q = document.getElementById('playsQuery').value.trim().toLowerCase(), box = document.getElementById('playsResults');
+  if (q.length < 2) { box.innerHTML = ''; return; }
+  const mine = viewingMine() ? collection.filter(g => g.bggId && String(g.title || '').toLowerCase().includes(q)).slice(0, 5) : [];
+  box.innerHTML = mine.map(g => playPick({ id: g.id, bggId: g.bggId, title: g.title, cover: g.coverCard, icon: g.icon, note: 'On your shelf' })).join('') +
+    '<p class="hint" style="margin:0;">Not there? Press Enter to search BGG.</p>';
+}
+async function findPlayGameBgg() {
+  const q = document.getElementById('playsQuery').value.trim(), box = document.getElementById('playsResults');
+  if (q.length < 2) return;
+  findPlayGame();
+  box.insertAdjacentHTML('beforeend', '<div class="spinner"></div>');
+  try {
+    const { results } = await n8nFetch('/bgg-search?q=' + encodeURIComponent(q), { method: 'GET', signal: AbortSignal.timeout(30000) });
+    const have = new Set(collection.map(g => String(g.bggId)));
+    findPlayGame();
+    box.lastElementChild && box.lastElementChild.classList.contains('hint') && box.lastElementChild.remove();
+    box.insertAdjacentHTML('beforeend', results.filter(x => !viewingMine() || !have.has(String(x.bggId))).slice(0, 6)
+      .map(x => playPick({ bggId: x.bggId, title: x.title, cover: x.thumbnail, note: [x.year, x.kind === 'expansion' ? 'Expansion' : ''].filter(Boolean).join(' · ') })).join('') || '<p class="hint" style="margin:0;">Nothing on BGG by that name.</p>');
+  } catch (err) { box.insertAdjacentHTML('beforeend', '<p class="hint" style="margin:0;">' + esc(err.message) + '</p>'); }
+}
+document.getElementById('menuPlays').addEventListener('click', openPlays);
+document.getElementById('playsQuery').addEventListener('input', findPlayGame);
+document.getElementById('playsQuery').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); findPlayGameBgg(); } });
+document.getElementById('playsFind').addEventListener('click', findPlayGameBgg);
+document.getElementById('playsMore').addEventListener('click', () => loadPlays(true));
+document.getElementById('playsSync').addEventListener('click', async () => {
+  const sb = document.getElementById('playsSync');
+  sb.disabled = true; sb.querySelector('i').classList.add('spin');
+  try {
+    await apiFetch('/plays-sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    playsSync = { state: 'running', at: new Date().toISOString() };
+    loadPlays();
+  } catch (e) { toast(e.message, true); renderPlays(); }
+});
+playsModal.addEventListener('click', async (e) => {
+  if (e.target === playsModal || e.target.closest('[data-close-modal]')) { playsModal.classList.remove('open'); return; }
+  const pick = e.target.closest('[data-play-pick]');
+  if (pick) { openLogPlayFor({ id: pick.dataset.id || null, bggId: Number(pick.dataset.playPick), title: pick.dataset.title, cover: pick.dataset.cover }); return; }
+  const del = e.target.closest('[data-play-del]');
+  const open = !del && e.target.closest('[data-play-open]');
+  if (open) { if (playDelArmed) { playDelArmed = null; renderPlays(); } openPlayEdit(Number(open.dataset.playOpen)); return; }
+  if (!del) { if (playDelArmed) { playDelArmed = null; renderPlays(); } return; }
+  const id = Number(del.dataset.playDel);
+  if (playDelArmed !== id) { playDelArmed = id; renderPlays(); return; }
+  playDelArmed = null;
+  try {
+    const r = await apiFetch('/play-delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    toast(r.fromBgg ? 'Play deleted, here and on BGG.' : 'Play deleted.');
+    const gone = myPlays.find(p => p.id === id), g = gone && gone.shelfId && collection.find(x => x.id === gone.shelfId);
+    if (g && viewingMine()) { g.playCount = Math.max(0, (g.playCount || 0) - (gone.quantity || 1)); render(); }
+    loadPlays();
+  } catch (err) { toast(err.message, true); renderPlays(); }
+});
 
 // ---------- Tip jar ----------
 // The Ko-fi page; were it ever empty, only the owner would see the button, with a reminder

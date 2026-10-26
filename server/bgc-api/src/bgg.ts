@@ -80,7 +80,7 @@ export function parseSearchXml(xml: string | null | undefined): SearchHit[] {
 }
 
 export type Play = { id: number; date: string; quantity: number; minutes: number; incomplete: boolean; location: string; bggId: number; gameName: string; comments: string;
-  players: { seat: number; name: string; user: string; win: boolean; score: string; isNew: boolean }[] };
+  players: { seat: number; name: string; user: string; win: boolean; score: string; isNew: boolean; color: string; position: string; rating: string }[] };
 
 // Pages of /plays -> plain play rows for at.save_plays (who played, won, how long). ok is false only when BGG answered with
 // an error and no plays (an unknown username); the rows are always there, so a sync saves them either way
@@ -95,7 +95,8 @@ export function parsePlays(pages: string[]): { ok: boolean; message: string | nu
         minutes: Number(a(head, 'length')) || 0, incomplete: a(head, 'incomplete') === '1', location: a(head, 'location'),
         bggId: Number(a(item, 'objectid')), gameName: a(item, 'name'), comments: decode((p.match(/<comments>([\s\S]*?)<\/comments>/) || ['', ''])[1]).trim(),
         players: (p.match(/<player [^>]*\/?>/g) || []).map((t, i) => ({ seat: i + 1, name: a(t, 'name') || a(t, 'username') || 'Anonymous',
-          user: a(t, 'username'), win: a(t, 'win') === '1', score: a(t, 'score'), isNew: a(t, 'new') === '1' })) });
+          user: a(t, 'username'), win: a(t, 'win') === '1', score: a(t, 'score'), isNew: a(t, 'new') === '1',
+          color: a(t, 'color'), position: a(t, 'startposition'), rating: a(t, 'rating') === '0' ? '' : a(t, 'rating') })) });
     }
   }
   const err = (String(pages[0] || '').match(/<error>\s*<message>([^<]*)<\/message>/) || [])[1];
@@ -195,12 +196,14 @@ export class Bgg {
   }
   async withCover(t: Thing): Promise<Thing> { return { ...t, ...(await this.imageSizes(t.picId)) }; }
 
-  // Every page of a user's logged plays (BG Stats posts there); id: only this game's. Pages arrive 2 s apart, 100 at most.
-  async plays(username: string, opts: { id?: number; maxPages?: number } = {}): Promise<string[]> {
+  // Every page of a user's logged plays (BG Stats posts there); id: only this game's; from/to: only those days
+  // (yyyy-mm-dd). Pages arrive 2 s apart, 100 at most.
+  async plays(username: string, opts: { id?: number; from?: string; to?: string; maxPages?: number } = {}): Promise<string[]> {
     const pages: string[] = [];
     for (let page = 1; page <= (opts.maxPages ?? 100); page++) {
       if (page > 1) await sleep(Math.max(0, 2000 - this.gapMs));
-      const xml = await this.text('plays', { username, type: 'thing', subtype: 'boardgame', page: String(page), ...(opts.id ? { id: String(opts.id) } : {}) });
+      const xml = await this.text('plays', { username, type: 'thing', subtype: 'boardgame', page: String(page), ...(opts.id ? { id: String(opts.id) } : {}),
+        ...(opts.from ? { mindate: opts.from } : {}), ...(opts.to ? { maxdate: opts.to } : {}) });
       if (xml == null) { if (!pages.length) pages.push(''); break; }
       pages.push(xml);
       if (!xml.includes('<play ')) break;
@@ -224,6 +227,33 @@ export class Bgg {
     const ratings = [...xml.matchAll(/<item objecttype="thing" objectid="(\d+)"[\s\S]*?<rating value="([\d.]+)"/g)]
       .map((m) => ({ bggId: Number(m[1]), rating10: Number(m[2]) })).filter((r) => r.rating10 > 0);
     return { ok: xml.includes('<items'), ratings };
+  }
+
+  // One game in a user's collection, for writing it back with only our change (bggAccount.ts parseCollectionItem).
+  // Base games, then expansions (BGG lists them apart). null: BGG couldn't answer; '' would mean not in the collection.
+  async collectionItemXml(username: string, bggId: number): Promise<string | null> {
+    if (!this.token) return null;
+    let all = '';
+    for (const subtype of ['boardgame', 'boardgameexpansion']) {
+      const url = API + 'collection?' + new URLSearchParams({ username, id: String(bggId), stats: '1', subtype, ...(subtype === 'boardgame' ? { excludesubtype: 'boardgameexpansion' } : {}) });
+      let xml: string | null = null;
+      for (const wait of [0, 5000, 15000]) {
+        if (wait) await sleep(wait);
+        const gap = this.lastAt + this.gapMs - Date.now();
+        if (gap > 0) await sleep(gap);
+        this.lastAt = Date.now();
+        try {
+          const r = await this.f(url, { headers: { Authorization: 'Bearer ' + this.token }, signal: AbortSignal.timeout(30_000) });
+          const body = await r.text();
+          if (r.status === 200 && body.includes('<items')) { xml = body; break; }
+          if (r.status !== 202 && r.status !== 429 && r.status < 500) return null;
+        } catch { /* try again */ }
+      }
+      if (xml == null) return null;
+      if (xml.includes('objectid="' + bggId + '"')) return xml;
+      all += xml;
+    }
+    return all;
   }
 
   // A title -> the BGG game it most likely means: exact title matches (or, when allowed, "Anno 1800" ~ "Anno 1800: The

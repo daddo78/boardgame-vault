@@ -20,7 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css" integrity="sha384-IcAOG/1tqv9Qnam+j3mZYPAFcNQMnQpMcafc8Nsvd44AUeTCzhUzdQiJkrROmqW6" crossorigin="anonymous">
 <script src="https://accounts.google.com/gsi/client" async></script>
-<link rel="stylesheet" href="styles.css?v=0.24">
+<link rel="stylesheet" href="styles.css?v=0.25">
 </head>
 <body>
   <!-- Welcome page for visitors; the collection, Nathan and people are for signed-in members only -->
@@ -70,13 +70,14 @@
       <button class="auth-btn" id="authBtn" type="button" aria-haspopup="menu" aria-expanded="false"><i class="ti ti-login-2"></i> <span>Sign in</span></button>
       <div class="account-menu" id="accountMenu" role="menu" hidden>
         <button type="button" role="menuitem" id="menuProfile"><i class="ti ti-id-badge"></i> My profile</button>
+        <button type="button" role="menuitem" id="menuPlays"><i class="ti ti-player-play"></i> My plays</button>
         <button type="button" role="menuitem" id="menuWishlist"><i class="ti ti-gift"></i> My wishlist</button>
+        <button type="button" role="menuitem" class="member-only" id="friendsBtn"><i class="ti ti-users"></i> Friends</button>
+        <button type="button" role="menuitem" id="tipBtn" hidden><i class="ti ti-coffee"></i> Tip jar</button>
         <button type="button" role="menuitem" id="menuSignOut"><i class="ti ti-logout-2"></i> Sign out</button>
       </div>
     </div>
     <div class="actions">
-      <button class="icon-btn friends-btn member-only" id="friendsBtn" type="button" title="Friends" aria-label="Friends"><i class="ti ti-users"></i></button>
-      <button class="icon-btn tip-btn" id="tipBtn" type="button" title="Tip jar" aria-label="Tip jar" hidden><i class="ti ti-coffee"></i></button>
       <span class="total-badge" id="totalBadge" title="Games in the collection"><span id="badgeStatus"><span class="badge-spin"></span> Loading…</span><span id="badgeTotal" hidden><i class="ti ti-dice-5"></i> <b id="totalCount"></b> games</span></span>
       <button class="icon-btn member-only" id="settingsBtn" title="Settings" aria-label="Settings"><i class="ti ti-settings"></i></button>
     </div>
@@ -211,12 +212,23 @@
   <button class="fab edit-only" id="addFab" title="Add games"><i class="ti ti-plus"></i></button>
   <button class="to-top" id="toTop" type="button" aria-label="Back to top"><i class="ti ti-arrow-up"></i> Top</button>
 
-  <!-- Players (owner only) -->
+  <!-- Players: the people on your shelf, whom you play with (members here or not) -->
   <div class="modal-overlay" id="playersModal">
     <div class="modal players-modal" role="dialog" aria-modal="true" aria-labelledby="playersTitle">
       <button class="mini-btn detail-close" id="playersClose" title="Close"><i class="ti ti-x"></i></button>
       <h2 id="playersTitle">Players</h2>
       <div id="playersBody"></div>
+    </div>
+  </div>
+  <!-- Places: where you play, for Log a Play's Where -->
+  <div class="modal-overlay" id="placesModal">
+    <div class="modal players-modal" role="dialog" aria-modal="true" aria-labelledby="placesTitle">
+      <button class="mini-btn detail-close" type="button" data-close-modal title="Close" aria-label="Close"><i class="ti ti-x"></i></button>
+      <h2 id="placesTitle">Places</h2>
+      <p class="hint" style="margin-top:0;">Where you play. Saved places come first when you fill in Where; the places in your plays are here too.</p>
+      <div class="top-search" style="margin:0 0 0.6rem;"><input type="text" id="placeNew" maxlength="100" placeholder="Add a place, e.g. Keith’s" autocomplete="off" aria-label="Add a place"><button type="button" class="btn" id="placeAdd" title="Add"><i class="ti ti-plus"></i></button></div>
+      <div class="wl-list" id="placesList"><div class="spinner"></div></div>
+      <div id="placesMerge"></div>
     </div>
   </div>
 
@@ -245,6 +257,21 @@
       <p class="hint" style="margin-top:0;">Games you'd like to own. Your friends can see it (gift ideas!), and Nathan won't suggest these again. Got one? Tap "Got it!" and it moves onto your shelf.</p>
       <div id="wishBody"><div class="spinner"></div></div>
       <div class="modal-actions"><button class="btn ghost" type="button" data-close-modal>Close</button></div>
+    </div>
+  </div>
+  <!-- My plays: every play (from BGG, BG Stats or logged here), and logging one for any game -->
+  <div class="modal-overlay" id="playsModal">
+    <div class="modal plays-modal" role="dialog" aria-modal="true" aria-labelledby="playsTitle">
+      <div class="modal-tools">
+        <button class="mini-btn" type="button" id="playsSync" title="Sync with BGG" aria-label="Sync with BGG" hidden><i class="ti ti-refresh"></i></button>
+        <button class="mini-btn" type="button" data-close-modal title="Close" aria-label="Close"><i class="ti ti-x"></i></button>
+      </div>
+      <h2 style="margin-bottom:0.3rem;" id="playsTitle"><i class="ti ti-player-play" style="color:var(--brand);"></i> My plays</h2>
+      <p class="hint" style="margin-top:0;" id="playsSummary"></p>
+      <div class="top-search"><input type="text" id="playsQuery" placeholder="Log a play: find a game" autocomplete="off" aria-label="Find a game to log a play of"><button type="button" class="btn" id="playsFind" title="Search BGG"><i class="ti ti-search"></i></button></div>
+      <div class="wl-list" id="playsResults"></div>
+      <div class="wl-list plays-list" id="playsList"><div class="spinner"></div></div>
+      <div class="modal-actions"><button class="btn ghost" type="button" id="playsMore" hidden>Show more</button><button class="btn ghost" type="button" data-close-modal>Close</button></div>
     </div>
   </div>
   <!-- A friend's profile page (or your own, as friends see it) -->
@@ -307,10 +334,13 @@
         <p class="hint" style="margin-top:0;">How Board Game Curator came to be, day by day, what's under the hood, and what's next.</p>
         <a class="btn" id="openHistoryBtn" href="docs/history.html" target="_blank" rel="noopener" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem; box-sizing:border-box; text-decoration:none;"><i class="ti ti-book-2"></i> The story so far</a>
       </div>
-      <div class="admin-only">
-        <label>People</label>
-        <p class="hint" style="margin-top:0;">Names and aliases from BG Stats. A Google email lets that friend sign in, rate games and fill in their own profile.</p>
-        <button class="btn" id="openPlayersBtn" style="width:100%; margin-top:0.5rem; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-users"></i> Players</button>
+      <div class="member-block">
+        <label>People and places</label>
+        <p class="hint" style="margin-top:0;">The people you play with (from your plays, or added here) and where you play: what Log a Play offers.</p>
+        <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+          <button class="btn" id="openPlayersBtn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-users"></i> Players</button>
+          <button class="btn" id="openPlacesBtn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem;"><i class="ti ti-map-pin"></i> Places</button>
+        </div>
       </div>
       <div class="admin-only">
         <label>Admin</label>
@@ -424,22 +454,29 @@
     </div>
   </div>
 
-  <!-- Log play modal: hands the play to BG Stats, which posts it to BGG -->
+  <!-- Log play modal: saved here (and sent to BGG when it's linked); on a phone, BG Stats can take it instead -->
   <div class="modal-overlay" id="logPlayModal">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="logPlayTitle">
       <h2 id="logPlayTitle">Log a Play</h2>
       <p style="color:var(--text-muted); font-size:0.9rem;" id="logPlayGame"></p>
       <label for="playDate">Date</label>
       <input type="date" id="playDate" />
-      <label>Who played? <span style="font-weight:600;">(tap to add · tap again to mark the winner)</span></label>
-      <div class="player-chips" id="playerChips"></div>
-      <input type="text" id="newPlayerInput" placeholder="Add a player name and press Enter" style="margin-top:0.5rem;" aria-label="Add a player name" />
+      <label for="playerQuery">Who played? <span style="font-weight:600;">(🏆 marks the winner)</span></label>
+      <div class="picked-list" id="playersPicked"></div>
+      <div class="who-search"><input type="text" id="playerQuery" placeholder="Add a player" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="playerSuggest" />
+        <div class="suggest" id="playerSuggest" role="listbox" hidden></div></div>
+      <label for="playWhere">Where (optional)</label>
+      <input type="text" id="playWhere" list="playPlaces" maxlength="100" placeholder="Home" autocomplete="off" />
+      <datalist id="playPlaces"></datalist>
       <label for="playDuration">Duration (minutes, optional)</label>
       <input type="number" id="playDuration" min="1" inputmode="numeric" />
-      <p class="hint">Opens BG Stats to confirm the play. With Auto-post on, BG Stats sends it to BGG, and your play count here updates on the next sync.</p>
+      <label for="playComments">Notes (optional)</label>
+      <input type="text" id="playComments" maxlength="500" placeholder="First time with the expansion" />
+      <p class="hint" id="logPlayHint"></p>
+      <p class="hint" id="logPlayBgStatsRow" hidden>Rather use BG Stats? <button type="button" class="linklike" id="logPlayBgStats">Open it in BG Stats</button></p>
       <div class="modal-actions">
         <button class="btn ghost" id="logPlayCancel">Cancel</button>
-        <button class="btn primary" id="logPlaySend">Open in BG Stats</button>
+        <button class="btn primary" id="logPlaySend">Save play</button>
       </div>
     </div>
   </div>
@@ -447,6 +484,6 @@
   <div class="toast" id="toast"></div>
 
   <script src="api.js?v=0.19"></script>
-  <script src="app.js?v=0.24.1"></script>
+  <script src="app.js?v=0.25"></script>
 </body>
 </html>

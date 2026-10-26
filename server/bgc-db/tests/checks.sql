@@ -140,4 +140,97 @@ SELECT pg_temp.check((bgc.ask_vote('check.member@example.invalid', '{"chatKey": 
 SELECT pg_temp.check((SELECT count(*) FROM ask_votes WHERE chat_key = 'check-chat') = 1, 'a cleared vote is gone');
 SELECT pg_temp.check(bgc.ask_votes_admin('check.member@example.invalid') IS NULL AND (bgc.ask_votes_admin('dandehaan@gmail.com') ->> 'upAll')::int >= 1, 'only admins read the thumbs');
 
+-- Plays logged here and changes sent to BGG (049)
+INSERT INTO games (bgg_id, title) VALUES (999901, 'Check BGG Game') ON CONFLICT (bgg_id) DO NOTHING;
+SELECT pg_temp.check((bgc.shelf_add('check.member@example.invalid', '{"id": 999901, "name": "Check BGG Game", "type": "boardgame"}', 'Check BGG Game') ->> 'ok')::boolean, 'a game for the BGG checks');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid')), 'nothing goes to BGG for a member who hasn''t linked it');
+SELECT pg_temp.check((bgc.log_play('check.member@example.invalid', (SELECT s.legacy_id FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.bgg_id = 999901 AND s.member_id = bgc.member_id('check.member@example.invalid')),
+  '{"date": "2026-10-19", "players": [{"name": "Check Member"}]}') ->> 'toBgg') = 'false', 'a play logged before linking BGG stays here for now');
+SELECT pg_temp.check((bgc.bgg_link_save('check.member@example.invalid', 'check_bgg_user', 'v1.sealed', now() + interval '1 year') -> 'link' ->> 'linked')::boolean, 'linking BGG keeps the sealed token');
+SELECT pg_temp.check((SELECT count(*) FROM bgg_outbox o JOIN plays p ON p.id = o.play_id WHERE o.member_id = bgc.member_id('check.member@example.invalid') AND p.played_on = '2026-10-19' AND o.state = 'pending') = 1, 'linking BGG sends the plays it doesn''t have yet');
+UPDATE bgg_outbox SET state = 'done' WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'play';
+UPDATE plays SET bgg_play_id = 987654320 WHERE owner_id = bgc.member_id('check.member@example.invalid') AND played_on = '2026-10-19';
+SELECT pg_temp.check((SELECT bgg_username FROM members WHERE google_email = 'check.member@example.invalid') = 'check_bgg_user', 'linking makes it the username plays sync from');
+SELECT pg_temp.check((bgc.log_play('check.member@example.invalid', (SELECT s.legacy_id FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.bgg_id = 999901 AND s.member_id = bgc.member_id('check.member@example.invalid')),
+  '{"date": "2026-10-20", "minutes": 45, "players": [{"name": "Check Member", "win": true}, {"name": "Check Newcomer"}]}') ->> 'playCount')::int = 2, 'a play logged here counts right away');
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Newcomer'), 'a new name in a play becomes one of your people');
+SELECT pg_temp.check((SELECT count(*) FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'play' AND state = 'pending') = 1, 'a linked member''s play waits to go to BGG');
+SELECT pg_temp.check(NOT (bgc.log_play('nathan.schmidt@curator.invalid', (SELECT s.legacy_id FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.bgg_id = 999901 AND s.member_id = bgc.member_id('check.member@example.invalid')), '{"date": "2026-10-20", "players": [{"name": "X"}]}') ->> 'ok')::boolean, 'nobody logs a play on someone else''s shelf');
+SELECT pg_temp.check((bgc.rate('check.member@example.invalid', (SELECT s.legacy_id FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.bgg_id = 999901 AND s.member_id = bgc.member_id('check.member@example.invalid')), 3) ->> 'ok')::boolean, 'rate a game (whole star)');
+SELECT pg_temp.check((bgc.rate('check.member@example.invalid', (SELECT s.legacy_id FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.bgg_id = 999901 AND s.member_id = bgc.member_id('check.member@example.invalid')), 3.5) ->> 'stars')::numeric = 3.5, 'and again, in halves');
+SELECT pg_temp.check((SELECT want FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND bgg_id = 999901 AND kind = 'item' AND state = 'pending') = '{"rating10": 7.0}'::jsonb, 'one waiting change per game: the last rating (3.5 stars = 7 on BGG); the add came before linking');
+SELECT pg_temp.check(jsonb_array_length(bgc.bgg_out_next(10)) >= 2, 'the worker sees what''s waiting');
+SELECT pg_temp.check(bgc.bgg_out_result((SELECT id FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'play' AND state = 'pending'), '{"outcome": "ok", "bggPlayId": 987654321}'), 'BGG took the play');
+SELECT pg_temp.check((SELECT bgg_play_id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_id = 999901 AND played_on = '2026-10-20') = 987654321, 'a play sent to BGG gets BGG''s id, so the nightly sync updates it instead of adding another');
+SELECT pg_temp.check(bgc.bgg_out_result((SELECT id FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'item' AND state = 'pending'), '{"outcome": "auth", "message": "You must login"}'), 'BGG asks for a new sign-in');
+SELECT pg_temp.check((bgc.bgg_link_status('check.member@example.invalid') ->> 'state') = 'expired' AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.bgg_out_next(50)) x WHERE (x ->> 'memberId')::bigint = bgc.member_id('check.member@example.invalid')), 'when BGG wants a new sign-in, the member''s changes wait for it');
+SELECT pg_temp.check((bgc.bgg_link_save('check.member@example.invalid', 'check_bgg_user', 'v1.sealed2', NULL) -> 'link' ->> 'state') = 'ok', 'signing in again picks them up');
+-- Logged here and also on BG Stats: the BGG copy stays, ours goes
+SELECT pg_temp.check((bgc.log_play('check.member@example.invalid', (SELECT s.legacy_id FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.bgg_id = 999901 AND s.member_id = bgc.member_id('check.member@example.invalid')), '{"date": "2026-10-21", "players": [{"name": "Check Member"}]}') ->> 'ok')::boolean, 'a second play, logged here');
+SELECT pg_temp.check((at.save_plays('check.member@example.invalid', '[{"id": 987654322, "date": "2026-10-21", "bggId": 999901, "gameName": "Check BGG Game", "quantity": 1, "players": [{"seat": 1, "name": "check member"}]}]') ->> 'newPlays')::int = 1, 'the same play arrives from BGG');
+SELECT pg_temp.check(bgc.merge_site_plays('check.member@example.invalid') = 1, 'a play logged here and on BGG becomes one');
+SELECT pg_temp.check((SELECT count(*) FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND played_on = '2026-10-21') = 1
+  AND NOT EXISTS (SELECT 1 FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'play' AND state = 'pending'), 'and isn''t sent to BGG a second time');
+SELECT pg_temp.check(bgc.merge_site_plays('check.member@example.invalid') = 0, 'a play posted from here isn''t its own duplicate');
+-- BGG's ratings become a linked member's stars, and aren't sent back
+UPDATE bgg_outbox SET state = 'done' WHERE member_id = bgc.member_id('check.member@example.invalid') AND state = 'pending';
+SELECT pg_temp.check(bgc.bgg_ratings_save('check_bgg_user', '[{"bggId": 999901, "rating10": 8.6}]') = 1, 'a BGG rating for the game');
+SELECT pg_temp.check(bgc.stars_from_bgg('check_bgg_user') >= 1, 'BGG ratings fill in a linked member''s stars');
+SELECT pg_temp.check((SELECT stars FROM ratings WHERE member_id = bgc.member_id('check.member@example.invalid') AND game_id = (SELECT id FROM games WHERE bgg_id = 999901)) = 4.5, 'a BGG rating of 8.6 is 4.5 stars');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND state = 'pending'), 'stars that came from BGG aren''t sent back to it');
+SELECT pg_temp.check((bgc.shelf_remove('check.member@example.invalid', (SELECT s.legacy_id FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.bgg_id = 999901 AND s.member_id = bgc.member_id('check.member@example.invalid'))) ->> 'ok')::boolean, 'remove the game');
+SELECT pg_temp.check((SELECT want ->> 'own' FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND state = 'pending') = 'false', 'removing a game from the shelf takes it out of what you own on BGG');
+SELECT pg_temp.check((bgc.log_play('check.member@example.invalid', NULL, '{"bggId": 999902, "title": "Check Friend Game", "date": "2026-10-22", "location": " Check Cafe ", "players": [{"name": "Check Member"}]}') ->> 'ok')::boolean, 'a play of a game you don''t own');
+SELECT pg_temp.check((SELECT count(*) FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_id = 999902) = 1
+  AND NOT EXISTS (SELECT 1 FROM shelves s JOIN games g ON g.id = s.game_id WHERE g.bgg_id = 999902), 'is kept without putting the game on your shelf');
+SELECT pg_temp.check(bgc.my_plays('check.member@example.invalid', 0, 50) -> 'plays' -> 0 ->> 'title' = 'Check Friend Game', 'your plays, newest first');
+SELECT pg_temp.check(bgc.my_plays('check.member@example.invalid', 0, 50) -> 'plays' -> 0 ->> 'location' = 'Check Cafe', 'with where it was played');
+SELECT pg_temp.check(bgc.play_places('check.member@example.invalid') ? 'Check Cafe', 'and the place is suggested next time');
+-- Merging two names for one person or place (050)
+SELECT pg_temp.check((bgc.person_save('check.member@example.invalid', NULL, '{"name": "Check Joan"}') ->> 'ok')::boolean, 'Check Joan');
+SELECT pg_temp.check((bgc.log_play('check.member@example.invalid', NULL, '{"bggId": 999902, "title": "Check Friend Game", "date": "2026-10-17", "location": "Check Caf", "players": [{"name": "Check Jo"}]}') ->> 'ok')::boolean, 'a play with Check Jo at Check Caf');
+UPDATE play_players SET color = 'Blue', start_position = '2' WHERE name = 'Check Jo';
+SELECT pg_temp.check((bgc.person_merge('check.member@example.invalid', (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Jo'),
+  (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Joan')) ->> 'ok')::boolean, 'merge Check Jo into Check Joan');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Jo')
+  AND (SELECT aliases FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Joan') = ARRAY['Check Jo'], 'Check Jo is now another name of Check Joan');
+SELECT pg_temp.check((SELECT string_agg(pp.name || '/' || pp.color, ',') FROM play_players pp JOIN plays p ON p.id = pp.play_id WHERE p.owner_id = bgc.member_id('check.member@example.invalid') AND p.played_on = '2026-10-17') = 'Check Joan/Blue', 'her play moved over, color and all');
+SELECT pg_temp.check(NOT (bgc.person_merge('check.member@example.invalid', (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND linked_member_id = bgc.member_id('check.member@example.invalid')),
+  (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Joan')) ->> 'ok')::boolean, 'you can''t be merged into someone else');
+SELECT pg_temp.check((bgc.place_merge('check.member@example.invalid', 'check caf', 'Check Cafe') ->> 'moved')::int = 1, 'merge a place: its plays move');
+SELECT pg_temp.check((SELECT location FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND played_on = '2026-10-17') = 'Check Cafe'
+  AND (SELECT aliases FROM places WHERE member_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Cafe') = ARRAY['check caf'], 'and its old name is kept');
+UPDATE plays SET location = 'Check Caf' WHERE owner_id = bgc.member_id('check.member@example.invalid') AND played_on = '2026-10-17';
+SELECT pg_temp.check(bgc.apply_place_aliases('check.member@example.invalid') = 1, 'a play synced from BGG under the old name moves too');
+-- Editing a play (050)
+SELECT pg_temp.check((bgc.play_edit('check.member@example.invalid', (SELECT id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_id = 999902 AND played_on = '2026-10-22'),
+  '{"date": "2026-10-21", "minutes": 50, "location": "Check Cafe", "players": [{"name": "Check Member", "win": true}, {"name": "Check Pal 2"}]}') -> 'play' ->> 'minutes')::int = 50, 'change a play logged here');
+SELECT pg_temp.check((SELECT string_agg(pp.name || ':' || pp.win, ',' ORDER BY pp.seat) FROM play_players pp JOIN plays p ON p.id = pp.play_id WHERE p.owner_id = bgc.member_id('check.member@example.invalid') AND p.bgg_id = 999902 AND p.played_on = '2026-10-21') = 'Check Member:true,Check Pal 2:false', 'with its people and winner');
+SELECT pg_temp.check(NOT (bgc.play_get('nathan.schmidt@curator.invalid', (SELECT id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_id = 999902 AND played_on = '2026-10-21')) ->> 'ok')::boolean, 'nobody opens someone else''s play');
+SELECT pg_temp.check(NOT (bgc.play_delete('nathan.schmidt@curator.invalid', (SELECT id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_id = 999902 AND played_on = '2026-10-21')) ->> 'ok')::boolean, 'nobody deletes someone else''s play');
+SELECT pg_temp.check((bgc.play_delete('check.member@example.invalid', (SELECT id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_id = 999902 AND played_on = '2026-10-21')) ->> 'ok')::boolean, 'delete a play logged here');
+SELECT pg_temp.check((bgc.play_delete('check.member@example.invalid', (SELECT id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_play_id = 987654321)) ->> 'fromBgg')::boolean, 'delete a play that is on BGG');
+SELECT pg_temp.check((SELECT want ->> 'bggPlayId' FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'unplay') = '987654321', 'and it is deleted on BGG too');
+UPDATE bgg_outbox SET state = 'done' WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'unplay';
+-- Your people and places (050)
+SELECT pg_temp.check((bgc.person_save('check.member@example.invalid', NULL, '{"name": "Check Pal", "aliases": ["Pal", "check pal"], "bggUsername": " "}') -> 'person' ->> 'name') = 'Check Pal', 'add one of your people');
+SELECT pg_temp.check((SELECT aliases FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Pal') = ARRAY['Pal'], 'other names, without the name itself');
+SELECT pg_temp.check(NOT (bgc.person_save('check.member@example.invalid', NULL, '{"name": "check pal"}') ->> 'ok')::boolean, 'no two people with one name');
+SELECT pg_temp.check((bgc.log_play('check.member@example.invalid', NULL, '{"bggId": 999903, "title": "Check Third Game", "date": "2026-10-18", "players": [{"name": "Check Regular"}]}') ->> 'ok')::boolean, 'a play with Check Regular');
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.my_people('check.member@example.invalid') -> 'people') x WHERE x ->> 'name' = 'Check Regular' AND (x ->> 'plays')::int = 1), 'your people, with their plays');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.my_people('check.member@example.invalid') -> 'people') x WHERE x ? 'googleEmail'), 'a member never sees emails in their people');
+SELECT pg_temp.check(NOT (bgc.person_remove('check.member@example.invalid', (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Regular')) ->> 'ok')::boolean, 'someone in your plays can''t be removed');
+SELECT pg_temp.check((bgc.person_remove('check.member@example.invalid', (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Pal')) ->> 'ok')::boolean, 'someone with no plays can');
+SELECT pg_temp.check(NOT (bgc.person_save('nathan.schmidt@curator.invalid', (SELECT legacy_id FROM players WHERE owner_id = bgc.member_id('check.member@example.invalid') AND name = 'Check Regular'), '{"name": "Hacked"}') ->> 'ok')::boolean, 'nobody changes someone else''s people');
+SELECT pg_temp.check((bgc.place_save('check.member@example.invalid', '{"action": "add", "name": "Check Library"}') -> 'places') @> '[{"name": "Check Library", "saved": true}]', 'save a place');
+SELECT pg_temp.check(bgc.play_places('check.member@example.invalid') ->> 0 IN ('Check Library', 'Check Cafe') AND (bgc.play_places('check.member@example.invalid') ->> 1) IN ('Check Library', 'Check Cafe'), 'saved places come first in Where');
+SELECT pg_temp.check(NOT (bgc.place_save('check.member@example.invalid', '{"action": "remove", "name": "check library"}') -> 'places') @> '[{"name": "Check Library"}]', 'remove a place');
+UPDATE bgg_outbox SET state = 'done' WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'play' AND state = 'pending';
+SELECT pg_temp.check((bgc.bgg_link_settings('check.member@example.invalid', '{"collection": false}') -> 'link' ->> 'collection') = 'false', 'collection sync can be switched off');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND state = 'pending'), 'switching it off drops what was waiting under it');
+SELECT pg_temp.check((bgc.wish_change('check.member@example.invalid', 'add', 999901, 'Check BGG Game', NULL) ->> 'ok')::boolean, 'wish for a game');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND state = 'pending'), 'with collection sync off, a wish stays here');
+SELECT pg_temp.check((bgc.bgg_link_remove('check.member@example.invalid') -> 'link' ->> 'linked') = 'false', 'unlink BGG');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND state = 'pending'), 'unlinking forgets the token and what was waiting');
+
 ROLLBACK;

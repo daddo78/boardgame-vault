@@ -2,6 +2,15 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.25 · October 26, 2026
+
+- **Log a play on any device:** *Log play* now saves the play here, on your phone or computer, and your count updates right away. Pick who played from a search of your people (or add someone new), tap 🏆 for the winner, and fill in *Where* if you like. On a phone, BG Stats is still a tap away.
+- **My plays** (the menu under your name): every play, newest first, with who played, who won and where. Log a play of any game from there, even one you don't own. Tap a play to change it; the 🗑 deletes one.
+- **Link your BoardGameGeek account** (My profile → BoardGameGeek): plays you log here, games you add or remove, your wishlist and your stars go to BGG too, the way BG Stats does it. A cloud by each play shows whether it's on BGG, and *Sync* in My plays brings in plays from BGG right away. Three switches choose what's sent. BGG asks you to sign in again every 30 days.
+- **Half stars:** tap the left half of a star for ½. Five stars is a 10 on BGG.
+- **Players and Places** (⚙️ cog): the people you play with and where you play, for everyone now. Add someone, rename them, or merge two names for the same person; the same for places.
+- **Friends and the tip jar** moved into the menu under your name.
+
 ## v0.24 · October 25, 2026
 
 - **Put it on your home screen:** in Safari on iPhone, tap Share → *Add to Home Screen*; on Android, Chrome's menu → *Add to Home screen*. It opens full-screen like an app, as **BGC** with Nathan as the icon. (Signing in from there goes through Google's page and comes straight back.)

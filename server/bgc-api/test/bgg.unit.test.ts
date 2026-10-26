@@ -37,7 +37,8 @@ test('parsePlays, tallyPlays and tallyPeople: rows for at.save_plays, counts per
   assert.equal(p.ok, true);
   assert.equal(p.plays.length, 2);
   assert.deepEqual(p.plays[0], { id: 101, date: '2026-10-01', quantity: 2, minutes: 45, incomplete: false, location: 'Home', bggId: 13, gameName: 'Catan', comments: 'Fun & games',
-    players: [{ seat: 1, name: 'Dan', user: 'daddo_78', win: true, score: '10', isNew: false }, { seat: 2, name: 'Matt', user: '', win: false, score: '8', isNew: true }] });
+    players: [{ seat: 1, name: 'Dan', user: 'daddo_78', win: true, score: '10', isNew: false, color: '', position: '', rating: '' },
+      { seat: 2, name: 'Matt', user: '', win: false, score: '8', isNew: true, color: '', position: '', rating: '' }] });
   assert.deepEqual(parsePlays(['<error><message>Invalid username specified</message></error>']), { ok: false, message: 'Invalid username specified', plays: [] });
   const t = tallyPlays([PLAYS_PAGE]);
   assert.deepEqual(t, { byGame: { '13': { count: 2, last: '2026-10-01' }, '230802': { count: 1, last: null } }, total: 3, gamesPlayed: 2 });
