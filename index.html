@@ -20,7 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css" integrity="sha384-IcAOG/1tqv9Qnam+j3mZYPAFcNQMnQpMcafc8Nsvd44AUeTCzhUzdQiJkrROmqW6" crossorigin="anonymous">
 <script src="https://accounts.google.com/gsi/client" async></script>
-<link rel="stylesheet" href="styles.css?v=0.27.1">
+<link rel="stylesheet" href="styles.css?v=0.27.2">
 </head>
 <body>
   <!-- Welcome page for visitors; the collection, Nathan and people are for signed-in members only -->
@@ -369,6 +369,19 @@
   </div>
 
   <!-- Send feedback -->
+  <div class="modal-overlay" id="voteNoteModal">
+    <form class="modal" id="voteNoteForm" novalidate role="dialog" aria-modal="true" aria-labelledby="voteNoteTitle">
+      <button type="button" class="mini-btn modal-x" title="Close" aria-label="Close"><i class="ti ti-x"></i></button>
+      <h2 id="voteNoteTitle">Thanks!</h2>
+      <label for="voteNoteText" style="margin-top:0;">Anything to add? (optional)</label>
+      <textarea id="voteNoteText" maxlength="1000" placeholder="What did Nathan get right, or miss?"></textarea>
+      <p class="hint">A note goes to Dan with your question and Nathan’s answer. A thumb alone is only counted.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="voteNoteSkip" data-close-modal>Skip</button>
+        <button type="submit" class="btn primary" id="voteNoteSend">Send</button>
+      </div>
+    </form>
+  </div>
   <div class="modal-overlay" id="feedbackModal">
     <form class="modal" id="feedbackForm" novalidate role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
       <button type="button" class="mini-btn modal-x" title="Close" aria-label="Close"><i class="ti ti-x"></i></button>
@@ -502,6 +515,6 @@
   <div class="toast" id="toast"></div>
 
   <script src="api.js?v=0.19"></script>
-  <script src="app.js?v=0.27"></script>
+  <script src="app.js?v=0.27.2"></script>
 </body>
 </html>

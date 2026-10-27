@@ -2555,28 +2555,43 @@ async function voteReply(btn) {
     box.querySelector('.n-vote-ask').textContent = vote ? 'Thanks!' : 'Was this helpful?';
     const more = box.querySelector('.n-vote-more');
     if (!vote) { if (more) more.remove(); return; }
-    if (!more) box.insertAdjacentHTML('beforeend', '<div class="n-vote-more"><input type="text" maxlength="1000" placeholder="Anything to add? (optional)" aria-label="A note for Dan">' +
-      '<button type="button" class="btn small" data-vote-send>Send</button><p class="hint">A note goes to Dan with your question and Nathan’s answer. A thumb alone is only counted.</p></div>');
+    if (!more) box.insertAdjacentHTML('beforeend', '<div class="n-vote-more"><button type="button" class="n-vote-note" data-vote-note><i class="ti ti-message"></i> Add a note</button></div>');
+    openVoteNote(box);
   } catch (err) { toast(err.message, true); }
   finally { box.classList.remove('busy'); }
 }
-async function sendVoteNote(box) {
-  const input = box.querySelector('.n-vote-more input'), btn = box.querySelector('[data-vote-send]');
-  const note = input.value.trim();
-  if (!note) { input.focus(); return; }
-  btn.disabled = true; input.disabled = true;
-  try { await sendVote(box, box.dataset.vote, note); box.querySelector('.n-vote-more').innerHTML = '<p class="hint">Sent. Dan reads every one.</p>'; }
-  catch (err) { toast(err.message, true); btn.disabled = false; input.disabled = false; }
+// The note opens in its own box over the page; Skip (or the X) keeps just the thumb
+const voteNoteModal = document.getElementById('voteNoteModal'), voteNoteText = document.getElementById('voteNoteText');
+let voteNoteFor = null;
+function openVoteNote(box) {
+  voteNoteFor = box;
+  voteNoteText.value = '';
+  document.getElementById('voteNoteTitle').textContent = box.dataset.vote === 'down' ? 'Sorry about that' : 'Thanks!';
+  document.getElementById('voteNoteSend').disabled = false;
+  voteNoteModal.classList.add('open');
+  setTimeout(() => voteNoteText.focus(), 50);
 }
-thread.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && e.target.matches('.n-vote-more input')) { e.preventDefault(); sendVoteNote(e.target.closest('.n-vote')); }
+const closeVoteNote = () => voteNoteModal.classList.remove('open');
+document.getElementById('voteNoteSkip').addEventListener('click', closeVoteNote);
+voteNoteModal.addEventListener('click', (e) => { if (e.target === voteNoteModal) closeVoteNote(); });
+document.getElementById('voteNoteForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const box = voteNoteFor, note = voteNoteText.value.trim(), btn = document.getElementById('voteNoteSend');
+  if (!note) { voteNoteText.focus(); return; }
+  btn.disabled = true;
+  try {
+    await sendVote(box, box.dataset.vote, note);
+    closeVoteNote();
+    const more = box.querySelector('.n-vote-more');
+    if (more) more.innerHTML = '<p class="hint">Sent. Dan reads every one.</p>';
+  } catch (err) { toast(err.message, true); btn.disabled = false; }
 });
 thread.addEventListener('click', (e) => {
   if (e.target.closest('[data-ask-stop]')) { if (askStop) askStop.abort(); return; }
   if (e.target.closest('[data-ask-retry]') && retryAsk && !askBusy) { pendingPhoto = retryAsk.photo; askNathan(retryAsk.text, retryAsk.followUp); return; }
-  const thumb = e.target.closest('[data-vote]');
+  const thumb = e.target.closest('.n-thumb[data-vote]');
   if (thumb) { voteReply(thumb); return; }
-  if (e.target.closest('[data-vote-send]')) { sendVoteNote(e.target.closest('.n-vote')); return; }
+  if (e.target.closest('[data-vote-note]')) { openVoteNote(e.target.closest('.n-vote')); return; }
   const open = e.target.closest('[data-ask-open]');
   if (open) { openDetail(open.dataset.askOpen); return; }
   const see = e.target.closest('[data-see-all]');
@@ -2614,7 +2629,7 @@ document.addEventListener('click', (e) => {
   const own = [...overlay.querySelectorAll('[data-profile-close], #feedbackCancel, #logPlayCancel, #addCancel, #friendsClose, [data-close-modal]')].find(b => !b.classList.contains('modal-x'));
   if (own) own.click(); else overlay.classList.remove('open');
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal', 'newsModal', 'settingsModal', 'playsModal', 'placesModal', 'statsModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(false); ['profileModal', 'tipModal', 'friendsModal', 'wishModal', 'pageModal', 'newsModal', 'settingsModal', 'playsModal', 'placesModal', 'statsModal', 'voteNoteModal'].forEach(id => document.getElementById(id).classList.remove('open')); } });
 document.getElementById('menuSignOut').addEventListener('click', () => {
   setMenu(false);
   if (gisReady) google.accounts.id.disableAutoSelect();
