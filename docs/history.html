@@ -166,6 +166,8 @@
   .cta:hover { background: var(--brand-dark); }
   .cta:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
+  .home { justify-self: start; display: inline-flex; align-items: center; gap: 0.4rem; color: var(--navy); background: var(--surface); text-decoration: none; font-weight: 700; font-size: 0.92rem; padding: 0.5rem 1rem; border-radius: 999px; box-shadow: 0 2px 8px rgba(36, 54, 90, 0.08); }
+  .home:hover { color: var(--brand); }
   footer { text-align: center; color: var(--muted); font-size: 0.86rem; display: grid; gap: 0.3rem; }
   footer b { font: 400 1.1rem/1 var(--display); color: var(--brand); letter-spacing: 0.03em; }
 </style>
@@ -207,13 +209,14 @@
 
   <!-- ===================== HERO ===================== -->
   <header style="display:grid; gap:2rem;">
+    <a class="home" href="../">← Back to Board Game Curator</a>
     <div class="hero">
       <img src="../assets/nathan-avatar.webp" width="256" height="256" alt="Nathan, the site's curator: a cartoon man with glasses and a plaid shirt">
       <div class="hero-copy">
-        <span class="eyebrow">Production history · October 11–21, 2026 · <a href="#next">what's next</a></span>
+        <span class="eyebrow">Production history · October 11–26, 2026 · <a href="#next">what's next</a></span>
         <h1 class="title">Board Game Curator</h1>
         <span class="tag">From a garage shelf tracker to a curator for friends</span>
-        <p class="lede">Eleven days, three homes for the data, one near-total wipe, and a curator named Nathan. This is how a page for tracking one shelf became an invite-only site where friends share their collections and an AI curator reads their rulebooks.</p>
+        <p class="lede">Sixteen days, three homes for the data, one near-total wipe, and a curator named Nathan. This is how a page for tracking one shelf became an invite-only site where friends share their collections, log their plays, and an AI curator reads their rulebooks.</p>
       </div>
     </div>
 
@@ -229,12 +232,13 @@
       </div>
       <div class="tn-arrow"><svg class="icon"><use href="#i-arrow"/></svg></div>
       <div class="tn-card tn-now">
-        <span class="tn-label">Became · Oct 25</span>
+        <span class="tn-label">Became · Oct 26</span>
         <ul>
           <li><svg class="icon"><use href="#i-users"/></svg><span>An invite-only site: every member has a shelf, Dan's an ordinary one among them, and friends connect by code</span></li>
           <li><svg class="icon"><use href="#i-chat"/></svg><span>Nathan, an AI curator who remembers you, reads photos, cites rulebook pages, and streams his answers</span></li>
           <li><svg class="icon"><use href="#i-database"/></svg><span>Postgres for the data, one small API and its jobs worker for the logic, all on one VPS</span></li>
-          <li><svg class="icon"><use href="#i-image"/></svg><span>A 1,682-game catalog with BoardGameGeek box art, and plays synced nightly</span></li>
+          <li><svg class="icon"><use href="#i-image"/></svg><span>A 1,684-game catalog with BoardGameGeek box art</span></li>
+          <li><svg class="icon"><use href="#i-refresh"/></svg><span>Plays logged on any device, your stats as a story, and two-way sync with your own BoardGameGeek account: the plan from day one, done</span></li>
         </ul>
       </div>
     </div>
@@ -243,18 +247,18 @@
   <!-- ===================== WHERE IT STANDS ===================== -->
   <section aria-labelledby="now-h">
     <div class="sec-head">
-      <span class="eyebrow">Where it stands tonight</span>
+      <span class="eyebrow">Where it stands · October 27</span>
       <h2 id="now-h">The site by the numbers</h2>
     </div>
     <div class="stats">
       <div class="stat"><b>7</b><span>members, 5 with shelves</span></div>
       <div class="stat"><b>1,216</b><span>games on members' shelves</span></div>
-      <div class="stat"><b>1,682</b><span>games in the shared catalog, 1,679 filled in from BGG</span></div>
-      <div class="stat"><b>8,191</b><span>plays logged, back to February 2010</span></div>
+      <div class="stat"><b>1,684</b><span>games in the shared catalog, 1,681 filled in from BGG</span></div>
+      <div class="stat"><b>8,194</b><span>plays logged, back to February 2010</span></div>
       <div class="stat"><b>414</b><span>people who've played at the table</span></div>
       <div class="stat"><b>190</b><span>rulebook pages Nathan has read, in 918 sections across 8 documents</span></div>
-      <div class="stat"><b>16</b><span>releases to testers, v0.8 to v0.22</span></div>
-      <div class="stat"><b>85</b><span>database checks on every deploy, plus 37 test questions for Nathan and 75 for the API</span></div>
+      <div class="stat"><b>21</b><span>releases to testers, v0.8 to v0.27</span></div>
+      <div class="stat"><b>176</b><span>database checks on every deploy, plus 37 test questions for Nathan and 93 for the API</span></div>
     </div>
   </section>
 
@@ -345,7 +349,7 @@
     </div>
 
     <div class="era">
-      <div class="era-label">Meet Nathan · Oct 18 <span class="new">New since the first write-up</span></div>
+      <div class="era-label">Meet Nathan · Oct 18</div>
       <ol class="spine">
         <li class="node" data-side="right">
           <span class="node-badge"><svg class="icon"><use href="#i-chat"/></svg></span>
@@ -372,7 +376,7 @@
     </div>
 
     <div class="era">
-      <div class="era-label">A site for friends · Oct 19 <span class="new">New</span></div>
+      <div class="era-label">A site for friends · Oct 19</div>
       <ol class="spine">
         <li class="node" data-side="right">
           <span class="node-badge"><svg class="icon"><use href="#i-gauge"/></svg></span>
@@ -394,7 +398,7 @@
     </div>
 
     <div class="era">
-      <div class="era-label">Nathan grows up · Oct 20 <span class="new">New</span></div>
+      <div class="era-label">Nathan grows up · Oct 20</div>
       <ol class="spine">
         <li class="node" data-side="left">
           <span class="node-badge"><svg class="icon"><use href="#i-users"/></svg></span>
@@ -416,7 +420,7 @@
     </div>
 
     <div class="era">
-      <div class="era-label">Reading the rules · Oct 21 <span class="new">New</span></div>
+      <div class="era-label">Reading the rules · Oct 21</div>
       <ol class="spine">
         <li class="node crisis" data-side="right">
           <span class="node-badge"><svg class="icon"><use href="#i-mail"/></svg></span>
@@ -491,7 +495,7 @@
     </div>
 
     <div class="era">
-      <div class="era-label">One service, one shelf · Oct 24–25 <span class="new">New</span></div>
+      <div class="era-label">One service, one shelf · Oct 24–25</div>
       <ol class="spine">
         <li class="node" data-side="right">
           <span class="node-badge"><svg class="icon"><use href="#i-server"/></svg></span>
@@ -519,6 +523,47 @@
         </li>
       </ol>
     </div>
+
+    <div class="era">
+      <div class="era-label">Your plays, your BGG · Oct 25–26 <span class="new">New</span></div>
+      <ol class="spine">
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-chat"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 25 · afternoon</span><h3>Telling Nathan how he did</h3>
+            <p>A 👍 and a 👎 under every reply. A thumb alone is only counted, by kind of question; a note goes to Dan with the question and the answer. The cog gets "The story so far", this page.</p>
+            <span class="metric">v0.23</span></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-home"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 25 · evening</span><h3>On the home screen</h3>
+            <p>The site installs like an app, as BGC with Nathan as the icon; sign-in from there goes through Google's own page and comes straight back. Nathan's chat ideas rotate, and he talks to you, not about you: "you've played it 25 times", not "Dan has".</p>
+            <span class="metric">v0.24</span></div>
+        </li>
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-shield"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 25 · night</span><h3>A test site, and a test Nathan</h3>
+            <p>"Do not push it, we have a dev server now." The new BGG features were built on a copy of the site at bg-dev.ondorilabo.com, behind Cloudflare Access, with its own database and a test member: Nathan Schmidt, with his own Gmail and his own BoardGameGeek account. Nothing touched Dan's BGG until it had worked on Nathan's.</p></div>
+        </li>
+        <li class="node" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-refresh"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 26 · morning</span><h3>Log a play anywhere, and BGG both ways</h3>
+            <p>"Log play" only worked on phones, through BG Stats. Now it saves here on any device, for any game, even one you don't own, with a search for who played and where. Link your BGG account and your plays, shelf, wishlist and stars go there too, the way BG Stats does it, checked against BGG first so nothing posts twice. Half stars, so five is a 10 on BGG. Players and Places for everyone.</p>
+            <span class="metric">v0.25 · rehearsed on a copy of the live data: 651 plays, every count unchanged</span></div>
+        </li>
+        <li class="node" data-side="right">
+          <span class="node-badge"><svg class="icon"><use href="#i-gauge"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 26 · midday</span><h3>My stats</h3>
+            <p>Your plays as a story: hours played and win rate, a year of days, your big weekday, most played and gathering dust, who you play with and your nemesis among them. Players can be hidden, places renamed or deleted, every long window gets an ✕ that stays put, and "Forget everything" looks as final as it is.</p>
+            <span class="metric">v0.26</span></div>
+        </li>
+        <li class="node crisis" data-side="left">
+          <span class="node-badge"><svg class="icon"><use href="#i-search"/></svg></span>
+          <div class="node-card"><span class="node-date">Oct 26 · evening</span><h3>The mystery of "H."</h3>
+            <p>Dan's places showed hundreds of plays at "H.", and "H." was both Home and Haworth. The cause: BG Stats sends BoardGameGeek only an initial, and anyone can read a play's place there. So places stop coming in from BGG, and they go out only if you turn on "Send where I played", off to start.</p>
+            <span class="metric">v0.27 · 581 imported places set aside, none lost</span></div>
+        </li>
+      </ol>
+    </div>
   </section>
 
   <!-- ===================== THE WORK ===================== -->
@@ -530,11 +575,11 @@
     </div>
 
     <div class="stats three">
-      <div class="stat"><b>15</b><span>calendar days, Oct 11 → Oct 25</span></div>
-      <div class="stat"><b>10</b><span>days of building; 5 days untouched</span></div>
-      <div class="stat"><b>44–66</b><span>hours of active build time, plus one unattended overnight run</span></div>
-      <div class="stat"><b>201</b><span>commits</span></div>
-      <div class="stat"><b>98,403</b><span>lines added, 43,454 removed</span></div>
+      <div class="stat"><b>16</b><span>calendar days, Oct 11 → Oct 26</span></div>
+      <div class="stat"><b>11</b><span>days of building; 5 days untouched</span></div>
+      <div class="stat"><b>52–74</b><span>hours of active build time in commits, plus one unattended overnight run and a day on the test site</span></div>
+      <div class="stat"><b>232</b><span>commits</span></div>
+      <div class="stat"><b>102,371</b><span>lines added, 43,801 removed</span></div>
       <div class="stat"><b>2</b><span>services: the API and its jobs worker, from one codebase; 53 n8n workflows kept as a fallback</span></div>
     </div>
 
@@ -552,20 +597,22 @@
           <div class="day"><span class="d">Oct 22</span><span class="bar"><i style="width:9.8%"></i><i style="left:9.8%; width:16.3%"></i></span><span class="h">1–3 h</span></div>
           <div class="day"><span class="d">Oct 23</span><span class="bar"><i style="width:36.6%"></i><i style="left:36.6%; width:63.4%"></i></span><span class="h">4.5–12.8 h</span></div>
           <div class="day"><span class="d">Oct 24</span><span class="bar"><i style="width:4.9%"></i></span><span class="h">0.6 h + overnight</span></div>
-          <div class="day"><span class="d">Oct 25</span><span class="bar"><i style="width:7.3%"></i><i style="left:7.3%; width:15.4%"></i></span><span class="h">1–3 h</span></div>
+          <div class="day"><span class="d">Oct 25</span><span class="bar"><i style="width:70.7%"></i><i style="left:70.7%; width:14.6%"></i></span><span class="h">8.7–10.5 h</span></div>
+          <div class="day"><span class="d">Oct 26</span><span class="bar"><i style="width:6.5%"></i></span><span class="h">0.8 h + test site</span></div>
         </div>
         <div class="key"><span><i></i>Commit bursts</span><span><i class="est"></i>Likely work between them</span></div>
+        <p class="note">Oct 26 is mostly hidden from git: v0.25 to v0.27 were built and tried on the test site, then committed as three releases.</p>
       </div>
 
       <div class="panel">
         <h3>What got built</h3>
         <div class="rows">
-          <div class="row"><span>The shelf page (<code>index.html</code>, <code>app.js</code>, <code>styles.css</code>)</span><b>3,684 lines</b></div>
-          <div class="row"><span>Workflow generator (<code>n8n/gen.js</code>), now the fallback</span><b>3,590 lines</b></div>
-          <div class="row"><span>The API and its jobs (<code>server/bgc-api</code>), not counting the code it copies from n8n</span><b>2,665 lines, plus 1,522 of tests</b></div>
-          <div class="row"><span>Admin portal (<code>admin.html</code>, <code>admin.js</code>, <code>admin.css</code>)</span><b>946 lines</b></div>
-          <div class="row"><span>Database changes, numbered and re-runnable</span><b>46 files</b></div>
-          <div class="row"><span>Releases with notes for testers</span><b>16</b></div>
+          <div class="row"><span>The shelf page (<code>index.html</code>, <code>app.js</code>, <code>styles.css</code>)</span><b>4,673 lines</b></div>
+          <div class="row"><span>Workflow generator (<code>n8n/gen.js</code>), now the fallback</span><b>3,596 lines</b></div>
+          <div class="row"><span>The API and its jobs (<code>server/bgc-api</code>), not counting the code it copies from n8n</span><b>3,258 lines, plus 1,881 of tests</b></div>
+          <div class="row"><span>Admin portal (<code>admin.html</code>, <code>admin.js</code>, <code>admin.css</code>)</span><b>984 lines</b></div>
+          <div class="row"><span>Database changes, numbered and re-runnable</span><b>52 files</b></div>
+          <div class="row"><span>Releases with notes for testers</span><b>21</b></div>
           <div class="row"><span>Times the data moved house</span><b>3</b></div>
           <div class="row"><span>Kinds of question Nathan tells apart</span><b>6</b></div>
         </div>
@@ -595,7 +642,7 @@
     <div class="sec-head">
       <span class="eyebrow">Attached · the current architecture</span>
       <h2 id="arch-h">How it runs today</h2>
-      <p class="sub">A static page talks to one small API on one small server; Nathan lives there and streams his answers. A second copy of the same code, the jobs worker, runs the scheduled jobs and the long ones (play syncs, the self-test, reading rulebooks, imports). Both read and write one Postgres database and call Google, BoardGameGeek and AI models. n8n idles beside them as a fallback.</p>
+      <p class="sub">A static page talks to one small API on one small server; Nathan lives there and streams his answers. A second copy of the same code, the jobs worker, runs the scheduled jobs and the long ones (play syncs, the self-test, reading rulebooks, imports). Both read and write one Postgres database and call Google, BoardGameGeek and AI models; for members who link their BGG account, the worker sends their plays, shelf and stars there every two minutes. n8n idles beside them as a fallback.</p>
     </div>
 
     <div class="map" role="img" aria-label="Diagram: members' browsers load the page from GitHub Pages through Cloudflare and call the API through a Cloudflare tunnel. The API hands long and scheduled work to a jobs worker. Both run on a Hostinger VPS beside Postgres, a page reader for rulebooks, NocoDB and a backup job. They call Google, BoardGameGeek, OpenRouter and email. Backups go to a private GitHub repo.">
@@ -659,7 +706,7 @@
         <text class="t" x="336" y="272">The jobs worker · bgc-jobs</text>
         <rect class="chip" x="336" y="282" width="128" height="26" rx="13"/><text class="ct" x="352" y="299">11 jobs, logged</text>
         <rect class="chip" x="472" y="282" width="132" height="26" rx="13"/><text class="ct" x="486" y="299">Rulebook reader</text>
-        <text class="s" x="336" y="336">Syncs, self-test, imports, alerts · same image as the API</text>
+        <text class="s" x="336" y="336">Syncs both ways, self-test, imports · same image</text>
 
         <rect class="bx data" x="690" y="134" width="280" height="116" rx="12"/>
         <text class="t" x="706" y="162">Postgres · schema bgc</text>
@@ -701,9 +748,9 @@
 
         <rect class="bx" x="216" y="440" width="180" height="104" rx="10"/>
         <text class="t" x="230" y="466">BoardGameGeek</text>
-        <text class="s" x="230" y="488">Game details, search,</text>
-        <text class="s" x="230" y="504">box art, everyone's plays</text>
-        <text class="s" x="230" y="520">(BG Stats posts there)</text>
+        <text class="s" x="230" y="488">Game details, search, box</text>
+        <text class="s" x="230" y="504">art, plays in; for linked</text>
+        <text class="s" x="230" y="520">accounts, plays and stars out</text>
 
         <rect class="bx" x="412" y="440" width="180" height="104" rx="10"/>
         <text class="t" x="426" y="466">OpenRouter</text>
@@ -750,9 +797,10 @@
         <div class="clock">
           <div><time>4:30</time><span>Sync every member's plays from BGG, Dan's included</span></div>
           <div><time>4:50</time><span>Everyone's BGG ratings</span></div>
-          <div><time>5:40</time><span>Self-test: 76 checks and 37 questions; emails Dan only on a failure</span></div>
+          <div><time>5:40</time><span>Self-test: 176 checks and 37 questions; emails Dan only on a failure</span></div>
           <div><time>9:00</time><span>Health check on the nightly backup</span></div>
           <div><time>2 min</time><span>Rulebook reader picks up the next upload</span></div>
+          <div><time>2 min</time><span>Send what changed to linked BGG accounts: plays, shelf, wishlist, stars</span></div>
           <div><time>10 min</time><span>Fill Catalog: BGG details and box art for 20 games</span></div>
           <div><time>hourly</time><span>AI spending and balance from OpenRouter</span></div>
         </div>
@@ -760,15 +808,15 @@
       <div class="panel">
         <h3>How a change ships</h3>
         <ul>
-          <li>Edit the page, the API and its jobs (<code>server/bgc-api</code>), or a numbered SQL file.</li>
+          <li>Edit the page, the API and its jobs (<code>server/bgc-api</code>), or a numbered SQL file, and try it on the test site (bg-dev) as Nathan, the test member.</li>
           <li>Apply database changes with <code>apply.sh</code>; each file is safe to run again, and a ledger remembers which have run.</li>
-          <li>The API's <code>deploy.sh</code> runs its 75 tests, builds, swaps in the new version only once it's healthy, then recreates the jobs worker from the same image; a trial build answers Nathan's 37 test questions first.</li>
-          <li>The 85 database checks run on every deploy and every night; any failure stops the deploy or emails Dan.</li>
+          <li>The API's <code>deploy.sh</code> runs its 93 tests, builds, swaps in the new version only once it's healthy, then recreates the jobs worker from the same image; a trial build answers Nathan's 37 test questions first.</li>
+          <li>The 176 database checks run on every deploy and every night; any failure stops the deploy or emails Dan.</li>
           <li>A new area of the site starts Off in Admin, then Admins only, then Everyone.</li>
-          <li><code>git push</code> to GitHub Pages, then clear Cloudflare's cache so it's live in a minute or two.</li>
+          <li>Back up the live database, then <code>git push</code> to GitHub Pages, then clear Cloudflare's cache so it's live in a minute or two.</li>
           <li>Post the version's notes to the testers' Discord, only when Dan says so.</li>
         </ul>
-        <a class="cta" href="https://bg.ondorilabo.com/docs/architecture.html" target="_blank" rel="noopener">Open the full architecture page <svg class="icon"><use href="#i-arrow"/></svg></a>
+        <a class="cta" href="architecture.html">Open the full architecture page <svg class="icon"><use href="#i-arrow"/></svg></a>
       </div>
     </div>
   </section>
@@ -776,7 +824,7 @@
   <!-- ===================== WHAT'S NEXT ===================== -->
   <section aria-labelledby="next-h" id="next">
     <div class="sec-head">
-      <span class="eyebrow">The roadmap · planned for October 25, done by the 25th</span>
+      <span class="eyebrow">The roadmap · planned for October 25, done by the 25th; BGG both ways by the 26th</span>
       <h2 id="next-h">Nathan's own service, and what's left</h2>
       <p class="sub">Most of the n8n workflows were really small web endpoints. The usual way to build that is one small service: one sign-in check for every request, one deploy, one place to look when something breaks. Nathan moved first, because it's the change members feel. The scheduled jobs went last, overnight on the 24th, into a worker built from the same code.</p>
     </div>
@@ -792,6 +840,7 @@
         <div class="row"><span>Try a photo add and a rulebook upload, then open both to everyone</span><b>Dan, any day</b></div>
         <div class="row"><span>Unpublish the n8n webhooks the API has replaced, once n8n's history shows no traffic to them</span><b>about Oct 30</b></div>
         <div class="row"><span>Remove Nathan's off switch and n8n's Ask, and the script that copies his steps from n8n</span><b>about Nov 6</b></div>
+        <div class="row"><span>Before member 100: a privacy page, download and delete your account, and Google's app verification</span><b>weeks, so start early</b></div>
         <div class="row"><span>Also waiting: a new server root password, the old automation container cleaned out, an email when the AI balance runs low, and the dashboard showing the jobs' runs</span><b>small</b></div>
       </div>
     </div>
@@ -799,6 +848,7 @@
 
   <footer>
     <b>Built in public, broken in public, fixed in public.</b>
-    <span>Board Game Curator · v0.22 · October 25, 2026. Numbers from the live database, git history and OpenRouter.</span>
+    <span>Board Game Curator · v0.27 · October 27, 2026. Numbers from the live database, git history and OpenRouter.</span>
+    <a class="home" href="../" style="justify-self:center; margin-top:0.6rem;">← Back to Board Game Curator</a>
   </footer>
 </div>

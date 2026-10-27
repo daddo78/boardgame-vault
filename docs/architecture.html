@@ -53,7 +53,10 @@ h2 { font-size: 1.7rem; font-weight: 800; color: var(--navy); }
 h3 { font-size: 1.1rem; font-weight: 700; }
 p { margin: 0; max-width: 65ch; }
 .eyebrow { font: 700 0.74rem/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--meeple); }
-.back { justify-self: start; font-weight: 700; font-size: 0.9rem; text-decoration: none; }
+.back { justify-self: start; font-weight: 700; font-size: 0.9rem; text-decoration: none; color: var(--felt); }
+.links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.home { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--navy); background: var(--surface); text-decoration: none; font-weight: 700; font-size: 0.92rem; padding: 0.5rem 1rem; border-radius: 999px; box-shadow: var(--shadow); }
+.home:hover { color: var(--meeple); }
 .lede { font-size: 1.15rem; color: var(--muted); }
 code, .mono { font-family: var(--mono); font-size: 0.86em; }
 code { background: var(--felt-soft); padding: 0.1em 0.35em; border-radius: 4px; }
@@ -119,10 +122,11 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
 <div class="wrap">
 
 <header>
-  <a class="back" href="history.html">← The Board Game Curator story</a> <a class="back" href="history.html#next">What's next on the roadmap →</a>
+  <a class="home" href="../" style="justify-self:start;">← Back to Board Game Curator</a>
+  <div class="links"><a class="back" href="history.html">The Board Game Curator story</a> <a class="back" href="history.html#next">What's next on the roadmap →</a></div>
   <span class="eyebrow">bg.ondorilabo.com · how it fits together</span>
   <h1>Board Game Curator Architecture</h1>
-  <p class="lede">A static web page talks to one small API service on a small server. The API (<code>api.ondorilabo.com</code>) answers what the page asks for: shelves, friends, wishlists, profiles, rulebooks, the admin portal, and Nathan, the curator, who streams his answers as he writes. A second copy of the same code, the jobs worker, runs the scheduled jobs and the long ones: nightly play syncs, the self-test, the rulebook reader, imports, filling the catalog. Both use one Postgres database and call out to Google, BoardGameGeek and AI models. n8n is still on the server, but only as a fallback the page can fall back to; nothing runs there on a schedule any more. Every member's shelf, Dan's included, takes the same path.</p>
+  <p class="lede">A static web page talks to one small API service on a small server. The API (<code>api.ondorilabo.com</code>) answers what the page asks for: shelves, friends, wishlists, profiles, rulebooks, the admin portal, and Nathan, the curator, who streams his answers as he writes. A second copy of the same code, the jobs worker, runs the scheduled jobs and the long ones: nightly play syncs, the self-test, the rulebook reader, imports, filling the catalog. Both use one Postgres database and call out to Google, BoardGameGeek and AI models. A member who links their BoardGameGeek account has their plays, shelf, wishlist and stars sent there too, the way BG Stats does it. n8n is still on the server, but only as a fallback the page can fall back to; nothing runs there on a schedule any more. Every member's shelf, Dan's included, takes the same path.</p>
 </header>
 
 <section aria-labelledby="map-h">
@@ -192,8 +196,8 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
       <!-- The jobs worker -->
       <rect class="bx felt" x="320" y="250" width="300" height="80" rx="12"/>
       <text class="t" x="336" y="274">The jobs worker · bgc-jobs</text>
-      <text class="s" x="336" y="294">Nightly syncs, self-test, the rulebook reader,</text>
-      <text class="s" x="336" y="310">Fill Catalog, imports, costs. Emails on failure.</text>
+      <text class="s" x="336" y="294">Nightly syncs, sends to linked BGG accounts,</text>
+      <text class="s" x="336" y="310">self-test, rulebooks, Fill Catalog, imports.</text>
       <text class="s" x="336" y="326">Same image as the API; n8n idles as a fallback</text>
       <path class="ln" d="M624,290 Q660,290 686,240" marker-end="url(#ah)"/>
 
@@ -202,7 +206,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
       <text class="t" x="706" y="162">Postgres  ·  schema bgc</text>
       <text class="s" x="706" y="184">Members, games, shelves, plays,</text>
       <text class="s" x="706" y="200">ratings, friends, wishlists, rulebooks,</text>
-      <text class="s" x="706" y="216">question counts. Rules live in SQL</text>
+      <text class="s" x="706" y="216">BGG links, the outbox. Rules in SQL</text>
       <text class="s" x="706" y="232">functions (sign_in, shelf_view, …).</text>
       <path class="ln" d="M624,182 H686" marker-start="url(#ah)" marker-end="url(#ah)"/>
       <text class="lbl" x="632" y="174">SQL</text>
@@ -235,9 +239,9 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
 
       <rect class="bx" x="216" y="420" width="180" height="100" rx="10"/>
       <text class="t" x="230" y="446">BoardGameGeek</text>
-      <text class="s" x="230" y="468">XML API: game details,</text>
-      <text class="s" x="230" y="484">search, box art, plays</text>
-      <text class="s" x="230" y="500">(BG Stats posts there)</text>
+      <text class="s" x="230" y="468">XML API: details, search,</text>
+      <text class="s" x="230" y="484">art, plays. Linked accounts:</text>
+      <text class="s" x="230" y="500">plays, shelf, stars sent back</text>
 
       <rect class="bx" x="412" y="420" width="180" height="100" rx="10"/>
       <text class="t" x="426" y="446">OpenRouter</text>
@@ -305,7 +309,10 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
         <tr><td>Shelf</td><td class="ep"><span class="m">GET</span>shelf<br><span class="m post">POST</span>shelf-update · shelf-remove · rate</td><td>Your own shelf (Dan's is one of them), favorites, want-to-play, culling, stars, removing games</td><td class="who-pill">member</td><td>API</td></tr>
         <tr><td>Adding games</td><td class="ep"><span class="m">GET</span>bgg-search<br><span class="m post">POST</span>shelf-add</td><td>Search BGG and add a game to your shelf. Any game new to the catalog gets its blurb (genre, type, one-liner) and icon from a small AI call, filling only the blanks</td><td class="who-pill">member</td><td>API</td></tr>
         <tr><td></td><td class="ep"><span class="m post">POST</span>shelf-identify · shelf-csv</td><td>From a photo of your shelf (a vision model reads the boxes, up to 8 at a time), or from a CSV file (the worker matches each row to BGG)</td><td class="who-pill">admin for photos · member for CSV</td><td>API</td></tr>
-        <tr><td>Plays</td><td class="ep"><span class="m post">POST</span>import</td><td>Connect a BGG username (asked once, in the cog) and bring in plays, never games; the worker does the fetching</td><td class="who-pill">member</td><td>API</td></tr>
+        <tr><td>Plays</td><td class="ep"><span class="m post">POST</span>import</td><td>Connect a BGG username (asked once, in the cog) and bring in plays, never games, and never their places; the worker does the fetching</td><td class="who-pill">member</td><td>API</td></tr>
+        <tr><td></td><td class="ep"><span class="m">GET</span>plays · play · play-places · stats<br><span class="m post">POST</span>log-play · play-edit · play-delete · plays-sync</td><td>Log a play of any game on any device, My plays (view, change, delete), the places you've played, and My stats for all time or a year. With a linked account, a change goes to BGG too</td><td class="who-pill">member</td><td>API</td></tr>
+        <tr><td>BGG account</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>bgg-link</td><td>Link (BGG's own sign-in, 5 tries an hour; the password isn't kept, only BGG's 30-day token, sealed), unlink, and four switches: plays, collection, stars, and where you played (off to start, since anyone can read it on BGG)</td><td class="who-pill">member</td><td>API, sent by the worker</td></tr>
+        <tr><td>Players &amp; places</td><td class="ep"><span class="m">GET</span>people-mine · places<br><span class="m post">POST</span>person-save · person-remove · person-merge · place-save · place-merge · place-clear</td><td>The people you play with and where: add, rename, merge two names for one; remove a player (hidden if they're in your plays) or a place (taken off every play)</td><td class="who-pill">member</td><td>API</td></tr>
         <tr><td>People</td><td class="ep"><span class="m">GET</span>people · whoami · me · profile<br><span class="m post">POST</span>me-save</td><td>Who's logged plays with you, your role, your taste profile and Top 10, friends' profile pages</td><td class="who-pill">member</td><td>API</td></tr>
         <tr><td>Friends</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>friends</td><td>Friend codes, connecting and removing, a friend's shelf</td><td class="who-pill">member</td><td>API</td></tr>
         <tr><td>Wishlists</td><td class="ep"><span class="m">GET</span><span class="m post">POST</span>wishlist</td><td>Yours or a friend's; "Got it!" moves a game onto your shelf</td><td class="who-pill">member</td><td>API</td></tr>
@@ -328,9 +335,9 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
       <h3>Every night (Eastern)</h3>
       <p class="note" style="margin-top:0">All of it runs in the jobs worker (<code>bgc-jobs</code>, from <code>server/bgc-api/src/jobs</code>). Every run is written to the <code>job_runs</code> table, and <code>GET /jobs</code> on the worker lists each job's last run and next time.</p>
       <div class="clock">
-        <div><time>4:30</time><span>Sync every member's plays from their BGG account, Dan's included; anyone can also tap "Sync my plays" in the cog</span></div>
+        <div><time>4:30</time><span>Sync every member's plays from their BGG account, Dan's included, and fold in any copy of a play logged here; anyone can also tap Sync in My plays</span></div>
         <div><time>4:50</time><span>Sync people: the BGG ratings of everyone with a BGG username (who played with whom is kept up as plays arrive)</span></div>
-        <div><time>5:40</time><span>Self-test: 85 database checks, then 37 real questions to Nathan, the memory ones included. Emails Dan only if something fails</span></div>
+        <div><time>5:40</time><span>Self-test: 176 database checks, then 37 real questions to Nathan, the memory ones included. Emails Dan only if something fails</span></div>
         <div><time>9:00</time><span>Health check: emails Dan if the database backup hasn't run in 26 hours</span></div>
         <div><time>nightly</time><span>Backup: both databases dumped to the private GitHub repo (its own container)</span></div>
       </div>
@@ -339,6 +346,7 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
       <h3>All the time</h3>
       <ul>
         <li><b>Every 2 minutes:</b> the rulebook reader picks up the next uploaded rulebook, if any (an upload also pokes it straight away). When it finishes one, a small call reads the first two pages to say what it is (the game's rulebook, an expansion's, an appendix…) and its name, filling only what was left blank.</li>
+        <li><b>Every 2 minutes:</b> the BGG outbox sends what changed for members with a linked account: a play logged, changed or deleted, a game added or removed, the wishlist, stars. Before posting a play it looks on BGG for the same game, day and players, so nothing posts twice (a change made on BGG itself isn't sent back). An expired BGG sign-in pauses it until the member signs in again.</li>
         <li><b>Every 10 minutes:</b> Fill Catalog gets BGG details and box art for 20 games that came in without them (wishlists and Top 10s first).</li>
         <li><b>Every hour:</b> records what the site's OpenRouter key has spent and the account balance, for Admin → Costs. Each AI call also records its own cost.</li>
         <li><b>On request:</b> a member's play import and a CSV import run as jobs the API hands over; if the worker is down, the API runs them itself.</li>
@@ -357,12 +365,13 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
   <h2 id="ship-h">How a change ships</h2>
   <ol class="steps">
     <li><div><b>Edit the source</b><span class="who">index.html · app.js · admin.js · server/bgc-api/src · server/bgc-db/schema/NNN_*.sql</span>The API still runs n8n's own code where the two overlap (Nathan's steps, input checks, BGG parsing): <code>node server/bgc-api/scripts/extract-nathan.cjs</code> copies it word for word from <code>n8n/gen.js</code>, until Nathan's fallback is retired. Rules that decide what's true (who may see or change what) go in SQL functions, not in routes.</div></li>
-    <li><div><b>Apply database changes</b><span class="who">server/bgc-db/schema/apply.sh</span>Each schema file is numbered (46 so far) and safe to run again; a ledger table records which have run. Bigger ones are tried first inside a transaction that's rolled back.</div></li>
-    <li><div><b>Check, then deploy</b><span class="who">server/bgc-api/check.sh · deploy.sh (or --trial)</span>Types, 75 tests and the build pass first. A trial build can answer Nathan's questions before it serves anyone. The new API container starts beside the old one and takes over only once it's healthy, so the site never blinks; then the jobs worker is recreated from the same image.</div></li>
-    <li><div><b>Run the checks</b><span class="who">bgc.self_check(): 85 rules, rolled back afterwards</span>The deploy fails if any check fails. It covers membership, privacy, ratings, wishlists, admin, game matching, rulebooks, Nathan's memory, and that every shelf is treated alike. <code>node n8n/test-nathan.js</code> asks the 37 Nathan questions; the worker asks them every night.</div></li>
+    <li><div><b>Try it on the test site</b><span class="who">bg-dev.ondorilabo.com, behind Cloudflare Access</span>A copy of the site with its own database and API on Dan's home server. It signs in as Nathan Schmidt, a test member with his own Gmail and BoardGameGeek account, so new features meet a real BGG account that isn't Dan's.</div></li>
+    <li><div><b>Back up, then apply database changes</b><span class="who">server/bgc-db/schema/apply.sh</span>Each schema file is numbered (52 so far) and safe to run again; a ledger table records which have run. Bigger ones are tried first inside a transaction that's rolled back.</div></li>
+    <li><div><b>Check, then deploy</b><span class="who">server/bgc-api/check.sh · deploy.sh (or --trial)</span>Types, 93 tests and the build pass first. A trial build can answer Nathan's questions before it serves anyone. The new API container starts beside the old one and takes over only once it's healthy, so the site never blinks; then the jobs worker is recreated from the same image.</div></li>
+    <li><div><b>Run the checks</b><span class="who">bgc.self_check(): 176 rules, rolled back afterwards</span>The deploy fails if any check fails. It covers membership, privacy, ratings, wishlists, admin, game matching, rulebooks, Nathan's memory, plays and the BGG outbox, players and places, stats, and that every shelf is treated alike. <code>node n8n/test-nathan.js</code> asks the 37 Nathan questions; the worker asks them every night.</div></li>
     <li><div><b>Switch an area over</b><span class="who">Admin → Dashboard → New API</span>A new area starts Off, then Admins only, then Everyone. The check there asks the API and n8n the same questions while both still answer.</div></li>
     <li><div><b>Push the page</b><span class="who">git push → GitHub Pages → node tools/purge-cache.js</span>Once GitHub has published it, clearing Cloudflare's cache makes it live right away.</div></li>
-    <li><div><b>Tell the testers</b><span class="who">CHANGELOG.md → node tools/post-update.js v0.22</span>Posts that version's notes to the bgc-testers channel on Discord, only when Dan says so.</div></li>
+    <li><div><b>Tell the testers</b><span class="who">CHANGELOG.md → node tools/post-update.js v0.27</span>Posts that version's notes to the bgc-testers channel on Discord, only when Dan says so.</div></li>
   </ol>
 </section>
 
@@ -375,11 +384,13 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
         <li><b>members</b>, <b>friends</b>: who's in, roles, friend codes, Top 10</li>
         <li><b>games</b>: the shared catalog, filled in from BGG</li>
         <li><b>shelves</b>: who owns what, favorites</li>
-        <li><b>plays</b>, <b>ratings</b>: from BG Stats via BGG, and your stars</li>
+        <li><b>plays</b>, <b>ratings</b>: logged here or from BGG, and your stars in halves. A place from BGG is kept apart only to send back unchanged</li>
         <li><b>wishlist</b>; <b>rule_docs</b>, <b>rule_sections</b>: the text Nathan read from each rulebook, by page (the PDFs themselves aren't kept)</li>
         <li><b>chat_turns</b>, <b>member_notes</b>: Nathan's memory. Chats are kept 6 months; notes stay until you delete them</li>
         <li><b>ask_log</b>, <b>settings</b>: question types and timings, limits, the last self-test, and the switches for which areas the API serves</li>
         <li><b>job_runs</b>: every run of every scheduled job, with its result or its error</li>
+        <li><b>bgg_links</b>, <b>bgg_outbox</b>, <b>bgg_items</b>: who linked BGG and what they send, what's waiting to go, and what BGG last said about each game (its own copy can lag behind)</li>
+        <li><b>players</b>, <b>places</b>: your people (hidden ones too) and your places, with the old names a merge keeps</li>
       </ul>
     </div>
     <div class="panel">
@@ -388,12 +399,13 @@ footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--li
         <li>The database password stays on the server (<code>~/bgc-db/.env</code>).</li>
         <li>The API's and the worker's keys for OpenRouter, BGG and Resend (email) are in <code>~/bgc-db/.env</code> on the server, placed there by Dan; n8n keeps its own as n8n credentials.</li>
         <li>The server is reached only over SSH with a key, as a non-root user; its remote desktop relay (RustDesk) takes only clients that hold its key.</li>
-        <li>The Discord webhook is on Dan's PC (<code>%USERPROFILE%\.bgc</code>).</li>
+        <li>A member's BGG password is never stored. BGG's sign-in token is sealed with a key that lives only on the server (<code>BGG_LINK_KEY</code>).</li>
+        <li>Other secrets (the Discord webhook, Cloudflare, the test accounts) are in Infisical.</li>
         <li>Chats are stored for Nathan's memory, and only the asker sees them. The admin dashboard shows question types, never the words.</li>
       </ul>
     </div>
   </div>
 </section>
 
-<footer>Board Game Curator · v0.22 · October 25, 2026. Drawn from the live code: server/bgc-api (routes and jobs), server/bgc-db/schema and their deploy scripts.</footer>
+<footer>Board Game Curator · v0.27 · October 27, 2026. Drawn from the live code: server/bgc-api (routes and jobs), server/bgc-db/schema and their deploy scripts.<br><a class="home" href="../" style="margin-top:12px;">← Back to Board Game Curator</a></footer>
 </div>
