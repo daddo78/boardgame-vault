@@ -258,5 +258,13 @@ SELECT pg_temp.check((bgc.play_edit('check.member@example.invalid', (SELECT id F
 SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.bgg_out_next(200)) x WHERE x -> 'play' ->> 'location' = 'H.' AND (x ->> 'memberId')::bigint = bgc.member_id('check.member@example.invalid')), 'with the switch off, BGG gets its own place back, unchanged');
 SELECT pg_temp.check((bgc.bgg_link_settings('check.member@example.invalid', '{"location": true}') -> 'link' ->> 'location') = 'true', 'turn it on');
 SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.bgg_out_next(200)) x WHERE x -> 'play' ->> 'location' = 'Check Den' AND (x ->> 'memberId')::bigint = bgc.member_id('check.member@example.invalid')), 'then BGG gets the place you gave it');
+-- Scores and co-op (053)
+UPDATE games SET mechanics = ARRAY['Cooperative Game'] WHERE bgg_id = 999903;
+SELECT pg_temp.check((bgc.log_play('check.member@example.invalid', NULL, '{"bggId": 999903, "title": "Check Third Game", "date": "2026-10-14", "players": [{"name": "Check Member", "win": true, "score": " 42 "}, {"name": "Check Jo", "win": true, "score": "37"}]}') ->> 'ok')::boolean, 'a play logged with scores');
+SELECT pg_temp.check((SELECT string_agg(pp.name || ':' || pp.score, ',' ORDER BY pp.seat) FROM play_players pp JOIN plays p ON p.id = pp.play_id WHERE p.owner_id = bgc.member_id('check.member@example.invalid') AND p.bgg_id = 999903 AND p.played_on = '2026-10-14') = 'Check Member:42,Check Jo:37', 'keeps each player''s score');
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.my_plays('check.member@example.invalid', 0, 200) -> 'plays') x WHERE x ->> 'date' = '2026-10-14' AND (x ->> 'coop')::boolean AND x -> 'players' -> 0 ->> 'score' = '42'), 'my plays show the scores, and that the game is co-op');
+SELECT pg_temp.check((bgc.play_edit('check.member@example.invalid', (SELECT id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_id = 999903 AND played_on = '2026-10-14'),
+  '{"date": "2026-10-14", "players": [{"name": "Check Member", "score": "45"}, {"name": "Check Jo"}]}') -> 'play' -> 'players' -> 1 ->> 'score') = '37', 'an edit changes a score given and keeps one left out');
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.bgg_out_next(200)) x WHERE x -> 'play' ->> 'date' = '2026-10-14' AND x -> 'play' -> 'players' -> 0 ->> 'score' = '45'), 'and the score goes to BGG');
 
 ROLLBACK;

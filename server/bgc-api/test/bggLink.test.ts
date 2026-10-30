@@ -63,11 +63,11 @@ test('POST /vault/log-play: a checked play reaches bgc.log_play; one going to BG
   const jobs = fakeJobs();
   const db = fakeDb({ 'bgc.log_play': (p) => ({ ok: true, toBgg: true, playCount: 4, got: p }) });
   const { app } = makeApp({ db, jobs });
-  const r = await json(await post(app, '/vault/log-play', { gameId: 'recABC', date: '2026-10-25', minutes: '45', players: [{ name: ' Nathan ', win: true }, { name: 'Dan' }] }));
+  const r = await json(await post(app, '/vault/log-play', { gameId: 'recABC', date: '2026-10-25', minutes: '45', players: [{ name: ' Nathan ', win: true, score: ' 42 ' }, { name: 'Dan', score: 37 }, { name: 'Amy' }] }));
   assert.equal(r.status, 200);
-  assert.deepEqual(JSON.parse(r.body.got[2]), { gameId: 'recABC', title: '', cover: '', date: '2026-10-25', minutes: 45, location: '', comments: '', players: [{ name: 'Nathan', win: true }, { name: 'Dan', win: false }] });
+  assert.deepEqual(JSON.parse(r.body.got[2]), { gameId: 'recABC', title: '', cover: '', date: '2026-10-25', minutes: 45, location: '', comments: '', players: [{ name: 'Nathan', win: true, score: '42' }, { name: 'Dan', win: false, score: '37' }, { name: 'Amy', win: false }] });
   assert.deepEqual(jobs.runs.map((x) => x.name), ['bggOutbox']);
-  for (const bad of [{ gameId: 'recABC', date: '2026-10-25', players: [] }, { gameId: 'recABC', date: '2999-01-01', players: [{ name: 'A' }] }, { gameId: 'recABC', date: 'yesterday', players: [{ name: 'A' }] }])
+  for (const bad of [{ gameId: 'recABC', date: '2026-10-25', players: [] }, { gameId: 'recABC', date: '2999-01-01', players: [{ name: 'A' }] }, { gameId: 'recABC', date: 'yesterday', players: [{ name: 'A' }] }, { gameId: 'recABC', date: '2026-10-25', players: [{ name: 'A', score: 'x'.repeat(21) }] }])
     assert.equal((await post(app, '/vault/log-play', bad)).status, 400);
   assert.equal(db.calls.filter((c) => c.sql.includes('bgc.log_play')).length, 1);
 });

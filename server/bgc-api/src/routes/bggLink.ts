@@ -3,7 +3,7 @@
 //   POST /vault/bgg-link { action: link, username, password }  signs in on BGG once; keeps BGG's session token, sealed
 //   POST /vault/bgg-link { action: unlink }                    forgets it
 //   POST /vault/bgg-link { action: settings, plays?, collection?, ratings?, location? }  what goes to BGG (BG Stats' sync switches)
-//   POST /vault/log-play { gameId | bggId + title + cover, date, minutes?, location?, comments?, players: [{ name, win? }] }
+//   POST /vault/log-play { gameId | bggId + title + cover, date, minutes?, location?, comments?, players: [{ name, win?, score? }] }
 //        gameId: a game on your shelf; bggId: any BGG game (played at a friend's, or not owned)
 //   GET  /vault/plays[?skip=n]                                 your plays, newest first, 50 at a time
 //   GET  /vault/play-places                                     where you've played lately (the Where suggestions)
@@ -39,7 +39,9 @@ const LogPlay = z.object({
   minutes: z.coerce.number().int().min(0).max(24 * 60).optional().nullable(),
   location: z.string().trim().max(100).optional().default(''),
   comments: z.string().max(2000).optional().default(''),
-  players: z.array(z.object({ name: z.string().trim().min(1).max(60), win: z.boolean().optional().default(false) })).min(1).max(20),
+  players: z.array(z.object({ name: z.string().trim().min(1).max(60), win: z.boolean().optional().default(false),
+    // left out on an edit: the score the play had stays (one from BGG or BG Stats isn't lost)
+    score: z.union([z.string(), z.number()]).transform((v) => String(v).trim()).pipe(z.string().max(20)).optional() })).min(1).max(20),
 }).refine((p) => !!p.gameId !== !!p.bggId, 'one game');
 const Skip = z.object({ skip: z.coerce.number().int().min(0).max(100_000).optional().default(0) });
 const PlayId = z.object({ id: z.coerce.number().int().positive() });

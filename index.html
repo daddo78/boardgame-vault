@@ -20,7 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Luckiest+Guy&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.49.0/dist/tabler-icons.min.css" integrity="sha384-IcAOG/1tqv9Qnam+j3mZYPAFcNQMnQpMcafc8Nsvd44AUeTCzhUzdQiJkrROmqW6" crossorigin="anonymous">
 <script src="https://accounts.google.com/gsi/client" async></script>
-<link rel="stylesheet" href="styles.css?v=0.27.2">
+<link rel="stylesheet" href="styles.css?v=0.28">
 </head>
 <body>
   <!-- Welcome page for visitors; the collection, Nathan and people are for signed-in members only -->
@@ -492,7 +492,11 @@
       <p style="color:var(--text-muted); font-size:0.9rem;" id="logPlayGame"></p>
       <label for="playDate">Date</label>
       <input type="date" id="playDate" />
-      <label for="playerQuery">Who played? <span style="font-weight:600;">(🏆 marks the winner)</span></label>
+      <label for="playerQuery">Who played? <span style="font-weight:600;" id="whoHint">(🏆 marks the winner)</span></label>
+      <label class="bgg-switch play-coop"><input type="checkbox" id="playCoop"> Co-op: everyone wins or loses together</label>
+      <div class="coop-result" id="coopResult" role="group" aria-label="How did it go?" hidden>
+        <button type="button" class="st-year" data-coop-won="1" aria-pressed="false">🏆 We won</button>
+        <button type="button" class="st-year" data-coop-won="0" aria-pressed="false">We lost</button></div>
       <div class="picked-list" id="playersPicked"></div>
       <div class="who-search"><input type="text" id="playerQuery" placeholder="Add a player" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="playerSuggest" />
         <div class="suggest" id="playerSuggest" role="listbox" hidden></div></div>
@@ -515,6 +519,6 @@
   <div class="toast" id="toast"></div>
 
   <script src="api.js?v=0.19"></script>
-  <script src="app.js?v=0.27.2"></script>
+  <script src="app.js?v=0.28"></script>
 </body>
 </html>

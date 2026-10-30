@@ -590,10 +590,18 @@ button.pill.active { background: var(--brand); color: #fff; }
 .picked-list { display: grid; gap: 0.35rem; margin-top: 0.4rem; }
 .picked-list:empty { display: none; }
 .picked { display: flex; align-items: center; gap: 0.4rem; background: var(--exp-bg); border-radius: 0.7rem; padding: 0.3rem 0.35rem 0.3rem 0.75rem; font-weight: 700; font-size: 0.9rem; }
+.picked > .mini-btn:first-child { margin-left: -0.4rem; }
 .picked span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picked .mini-btn { width: 2rem; height: 2rem; background: #fff; font-size: 1rem; }
 .picked .mini-btn.win { background: var(--gold); }
 .picked .mini-btn:not(.win) .trophy { filter: grayscale(1); opacity: 0.45; }
+.modal .picked input.score { flex: none; width: 4.6rem; background: #fff; padding: 0.4rem 0.55rem; border-radius: 0.5rem; text-align: right; font-weight: 700; }
+.modal .play-coop { display: flex; margin: 0.15rem 0 0.3rem; font-size: 0.85rem; font-weight: 600; color: var(--ink); }
+.coop-result { display: flex; gap: 0.35rem; margin: 0.2rem 0 0.1rem; }
+.coop-result[hidden] { display: none; }
+.modal .picked input.score::placeholder { font-weight: 500; color: var(--text-muted); }
+.coop-result .st-year.on[data-coop-won="1"] { background: var(--gold); color: var(--ink); }
+.plays-list .wl-row .t b.pl-score { display: inline; font-weight: 800; color: var(--ink); }
 .who-search { position: relative; margin-top: 0.45rem; }
 .suggest { position: absolute; left: 0; right: 0; top: calc(100% + 0.25rem); background: #fff; border-radius: 0.8rem; box-shadow: 0 10px 26px rgba(40,25,10,0.18); padding: 0.3rem; z-index: 5; max-height: 14rem; overflow-y: auto; }
 .suggest[hidden] { display: none; }

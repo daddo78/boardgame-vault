@@ -2,6 +2,11 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.28 · October 29, 2026
+
+- **Scores when you log a play.** Each player has a score box next to their name. Scores show in My plays, go to BGG with the play, and come back when you edit it. Editing a play from BGG or BG Stats keeps the scores it already had.
+- **A co-op win is everyone's win.** For a co-op game (from BGG's info), the trophies give way to *We won* or *We lost*, which counts for the whole table. Tick or untick *Co-op* for a game we don't know about. In My plays, a co-op win shows as "Won together".
+
 ## v0.27 · October 26, 2026
 
 - **Where you played stays yours.** BG Stats sends places to BoardGameGeek as just an initial ("H." for both Home and Haworth), and anyone can read a play's place on BGG. So places no longer come in from BGG, and the old initials are gone from your plays and stats. Places you give a play here are kept, and they go to BGG only if you turn on *Send where I played* (My profile → BoardGameGeek, off to start).

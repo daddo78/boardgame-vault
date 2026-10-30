@@ -992,7 +992,8 @@ grid.addEventListener('keydown', (e) => {
 const LS_PLAYERS = 'vault_players_v1'; // names typed in here before, on this device
 const logPlayModal = document.getElementById('logPlayModal');
 let logPlayTarget = null; // { id } a game on your shelf, or { bggId, title, cover } any BGG game (from My plays)
-let playerState = {}; // name -> 'sel' | 'win'
+let playerState = {}; // name -> { win, score }
+let playCoop = false, coopWon = null; // a co-op game: everyone wins or loses together (coopWon: true, false, or not said yet)
 let bggLink = null;   // GET /bgg-link: { linked, username, state, waiting, failed } once asked this sign-in
 let bggLinkReady = true; // false: the server can't link BGG yet (no BGG_LINK_KEY)
 let bggLinkOpen = false; // open My profile at the BGG section
@@ -1009,12 +1010,20 @@ function playerNames() {
   knownPlayers().forEach(add);
   return out;
 }
-// Who's playing: the ones picked (🏆 toggles the winner, × takes them off), and a search to add someone: your people
-// as you type, or "Add …" for a name that isn't one of them yet (it becomes one of your people when the play is saved)
+// Who's playing: the ones picked (a score, 🏆 toggles the winner, × takes them off), and a search to add someone: your people
+// as you type, or "Add …" for a name that isn't one of them yet (it becomes one of your people when the play is saved).
+// A co-op game has no single winner: "We won" or "We lost" goes for everyone, and the trophies step aside.
 function renderPlayersPicked() {
   const names = Object.keys(playerState);
-  document.getElementById('playersPicked').innerHTML = names.map(n => '<div class="picked"><span>' + esc(n) + '</span>' +
-    '<button type="button" class="mini-btn' + (playerState[n] === 'win' ? ' win' : '') + '" data-win="' + esc(n) + '" title="Winner" aria-label="' + esc(n) + ' won" aria-pressed="' + (playerState[n] === 'win') + '"><span class="trophy">🏆</span></button>' +
+  document.getElementById('playCoop').checked = playCoop;
+  document.getElementById('whoHint').textContent = playCoop ? '' : '(🏆 marks the winner)';
+  const res = document.getElementById('coopResult');
+  res.hidden = !playCoop;
+  res.querySelectorAll('[data-coop-won]').forEach(b => { const on = coopWon === (b.dataset.coopWon === '1'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  document.getElementById('playersPicked').innerHTML = names.map(n => '<div class="picked">' +
+    (playCoop ? '' : '<button type="button" class="mini-btn' + (playerState[n].win ? ' win' : '') + '" data-win="' + esc(n) + '" title="Winner" aria-label="' + esc(n) + ' won" aria-pressed="' + !!playerState[n].win + '"><span class="trophy">🏆</span></button>') +
+    '<span>' + esc(n) + '</span>' +
+    '<input type="text" class="score" inputmode="decimal" maxlength="20" placeholder="Score" autocomplete="off" aria-label="' + esc(n) + '’s score" data-score="' + esc(n) + '" value="' + esc(playerState[n].score || '') + '">' +
     '<button type="button" class="mini-btn" data-unpick="' + esc(n) + '" title="Take off" aria-label="Take ' + esc(n) + ' off"><i class="ti ti-x"></i></button></div>').join('');
 }
 let suggestHl = 0;
@@ -1035,7 +1044,7 @@ function pickPlayer(n) {
   n = String(n || '').trim();
   if (!n) return;
   if (!playerNames().some(x => x.toLowerCase() === n.toLowerCase())) rememberPlayer(n);
-  if (!Object.keys(playerState).some(x => x.toLowerCase() === n.toLowerCase())) playerState[n] = 'sel';
+  if (!Object.keys(playerState).some(x => x.toLowerCase() === n.toLowerCase())) playerState[n] = { win: false, score: '' };
   const input = document.getElementById('playerQuery');
   input.value = '';
   suggestHl = 0;
@@ -1076,8 +1085,12 @@ function openLogPlayFor(target, play) {
   const title = g ? g.title : target.title, bggId = g ? g.bggId : target.bggId;
   playerState = {};
   const me = (people.players || []).find(p => p.id === people.me);
-  if (editPlay) (editPlay.players || []).forEach(x => { playerState[x.name] = x.win ? 'win' : 'sel'; });
-  else if (me) playerState[me.name] = 'sel';
+  if (editPlay) (editPlay.players || []).forEach(x => { playerState[x.name] = { win: !!x.win, score: x.score || '' }; });
+  else if (me) playerState[me.name] = { win: false, score: '' };
+  // Co-op from BGG's mechanics (the game on your shelf, or the play's game); switched by hand for a game we don't know
+  playCoop = !!((g && (g.mechanics || []).includes('Cooperative Game')) || target.coop || (editPlay && editPlay.coop));
+  const seats = Object.values(playerState);
+  coopWon = !editPlay || !seats.length ? null : seats.every(x => x.win) ? true : seats.some(x => x.win) ? null : false;
   document.getElementById('logPlayTitle').textContent = editPlay ? (editPlay.editable ? 'Edit play' : 'Play') : 'Log a Play';
   document.getElementById('logPlaySend').textContent = editPlay ? 'Save changes' : 'Save play';
   document.getElementById('logPlaySend').hidden = !!(editPlay && !editPlay.editable);
@@ -1100,11 +1113,26 @@ function openLogPlayFor(target, play) {
 }
 document.getElementById('playersPicked').addEventListener('click', (e) => {
   const win = e.target.closest('[data-win]'), off = e.target.closest('[data-unpick]');
-  if (win) playerState[win.dataset.win] = playerState[win.dataset.win] === 'win' ? 'sel' : 'win';
+  if (win) playerState[win.dataset.win].win = !playerState[win.dataset.win].win;
   else if (off) delete playerState[off.dataset.unpick];
   else return;
   renderPlayersPicked();
 });
+document.getElementById('playersPicked').addEventListener('input', (e) => {
+  const sc = e.target.closest('[data-score]');
+  if (sc && playerState[sc.dataset.score]) playerState[sc.dataset.score].score = sc.value;
+});
+document.getElementById('playCoop').addEventListener('change', (e) => { playCoop = e.target.checked; renderPlayersPicked(); });
+document.getElementById('coopResult').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-coop-won]');
+  if (!b) return;
+  const won = b.dataset.coopWon === '1';
+  coopWon = coopWon === won ? null : won;
+  renderPlayersPicked();
+});
+// Who won, as it's saved: in a co-op game everyone shares the result
+const playWin = (n) => playCoop ? coopWon === true : !!playerState[n].win;
+const playScore = (n) => String(playerState[n].score || '').trim();
 const playerQuery = document.getElementById('playerQuery');
 playerQuery.addEventListener('input', () => { suggestHl = 0; renderSuggest(); });
 playerQuery.addEventListener('focus', renderSuggest);
@@ -1157,7 +1185,7 @@ document.getElementById('logPlaySend').addEventListener('click', async () => {
   const btn = document.getElementById('logPlaySend');
   btn.disabled = true;
   try {
-    const players = f.names.map(n => ({ name: n, win: playerState[n] === 'win' }));
+    const players = f.names.map(n => ({ name: n, win: playWin(n), score: playScore(n) }));
     if (editPlay) {
       const r = await apiFetch('/play-edit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: editPlay.id, date: f.day, minutes: f.duration || null, location: f.where, comments: f.comments, players }) });
@@ -1168,7 +1196,7 @@ document.getElementById('logPlaySend').addEventListener('click', async () => {
       return;
     }
     const r = await apiFetch('/log-play', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...(g ? { gameId: g.id } : { bggId: Number(t.bggId), title: t.title || '', cover: t.cover || '' }), date: f.day, minutes: f.duration || null, location: f.where, comments: f.comments, players: f.names.map(n => ({ name: n, win: playerState[n] === 'win' })) }) });
+      body: JSON.stringify({ ...(g ? { gameId: g.id } : { bggId: Number(t.bggId), title: t.title || '', cover: t.cover || '' }), date: f.day, minutes: f.duration || null, location: f.where, comments: f.comments, players }) });
     if (g && r.playCount != null) g.playCount = r.playCount;
     if (g && r.lastPlayed) g.lastPlayed = String(r.lastPlayed).slice(0, 10);
     logPlayModal.classList.remove('open');
@@ -1194,8 +1222,8 @@ document.getElementById('logPlayBgStats').addEventListener('click', () => {
     playDate,
     ...(f.duration ? { durationMin: f.duration } : {}),
     ...(f.comments ? { comments: f.comments } : {}),
-    game: { name: g.title, sourceGameId: g.id, ...(g.bggId ? { bggId: Number(g.bggId) } : {}), highestWins: true },
-    players: f.names.map(n => ({ name: n, sourcePlayerId: 'p-' + slug(n), winner: playerState[n] === 'win' })),
+    game: { name: g.title, sourceGameId: g.id, ...(g.bggId ? { bggId: Number(g.bggId) } : {}), highestWins: true, cooperative: playCoop },
+    players: f.names.map(n => ({ name: n, sourcePlayerId: 'p-' + slug(n), winner: playWin(n), ...(playScore(n) ? { score: playScore(n) } : {}) })),
   };
   window.location.href = 'https://app.bgstatsapp.com/createPlay.html?data=' + encodeURIComponent(JSON.stringify(data));
   logPlayModal.classList.remove('open');
@@ -3044,7 +3072,8 @@ function renderPlays() {
   const html = myPlays.length ? myPlays.map(p => {
     const d = String(p.date || '').slice(0, 10), head = d !== day ? '<div class="day">' + esc(playDay(p.date)) + '</div>' : '';
     day = d;
-    const who = (p.players || []).map(x => (x.win ? '🏆 ' : '') + esc(x.name)).join(', ');
+    const pls = p.players || [], together = p.coop && pls.length > 1 && pls.every(x => x.win);
+    const who = (together ? '🏆 Won together: ' : '') + pls.map(x => (x.win && !together ? '🏆 ' : '') + esc(x.name) + (x.score ? ' <b class="pl-score">' + esc(x.score) + '</b>' : '')).join(', ');
     // BGG sync: synced, on its way, or not synced (BGG not linked, or sending plays switched off)
     const sync = p.onBgg ? ['cloud-check', 'on', 'Synced with BGG'] : p.sending ? ['cloud-upload', 'going', 'Syncing to BGG'] : ['cloud-off', 'off', 'Not synced with BGG'];
     const tag = '<i class="ti ti-' + sync[0] + ' pl-sync ' + sync[1] + '" title="' + sync[2] + '" role="img" aria-label="' + sync[2] + '"></i>';
