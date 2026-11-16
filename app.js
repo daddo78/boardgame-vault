@@ -21,9 +21,9 @@ function toast(msg, isErr) {
 }
 
 // ---------- Google sign-in ----------
-// The ID token (a signed JWT, valid ~1 hour) is sent with every change; n8n verifies it with Google and
-// only accepts the owner's account. Reading the collection needs no sign-in.
-const LS_ROLE = 'vault_role'; // { sub, role: 'owner' | 'friend', admin, playerId, playerName } as confirmed by n8n
+// The ID token (a signed JWT, valid ~1 hour) is sent with every request; the API verifies it with Google's keys and
+// only answers members.
+const LS_ROLE = 'vault_role'; // { sub, role: 'owner' | 'friend', admin, playerId, playerName } as confirmed by the API
 let idToken = null, profile = null;
 const credentialWaiters = [];
 const tokenFresh = () => !!(profile && profile.exp * 1000 > Date.now() + 60 * 1000);
@@ -40,7 +40,6 @@ const myPlayerId = () => (myRole() || {}).playerId || null;
 // page and comes back in the address (googleRedirectSignIn), which iOS does return to the app.
 const standalone = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } };
 function setToken(t) {
-  apiRoutesP = null; // ask the switches again for whoever is signed in now
   try { profile = t ? decodeJwt(t) : null; idToken = t || null; } catch (e) { profile = null; idToken = null; }
   try { idToken ? localStorage.setItem(LS_TOKEN, idToken) : localStorage.removeItem(LS_TOKEN); } catch (e) {}
   updateAuthUi();
@@ -67,13 +66,13 @@ function onCredential(resp) {
   document.getElementById('signInModal').classList.remove('open');
   verifyMember(wasMember).then(() => credentialWaiters.splice(0).forEach(w => w(isMember() ? idToken : null)));
 }
-// Ask n8n who this Google account is here: the owner, a friend with a player card, or nobody (view-only).
+// Ask the API who this Google account is here: the owner, a friend with a player card, or nobody (view-only).
 // The owner's email never appears in this page.
 async function verifyMember(wasMember) {
   const who = profile && (profile.email || profile.name);
   let res;
   try {
-    res = await routedFetch('/whoami', { headers: { Authorization: 'Bearer ' + idToken } });
+    res = await fetch(API + '/whoami', { headers: { Authorization: 'Bearer ' + idToken } });
   } catch (e) {
     toast('Couldn’t confirm your sign-in. Check your connection and try again.', true);
     setToken(null);
@@ -220,27 +219,30 @@ function handleUnauthorized() {
   return new Error('Sign in as the collection owner to make changes.');
 }
 
-// auth: send the owner's Google token (true for everything except reading the collection).
+// A request to the API (api.ondorilabo.com) with the member's Google token.
 // Gives up after 20 s unless the caller brings its own signal (Nathan, BGG lookups and play syncs take longer);
 // uploads and photo identification use fetch directly and have no limit
-async function n8nFetch(path, opts, auth = true) {
+async function vaultFetch(path, opts, auth = true) {
   const o = { ...(opts || {}) };
   if (auth) o.headers = { ...(o.headers || {}), Authorization: 'Bearer ' + await ensureToken() };
   if (!o.signal) o.signal = AbortSignal.timeout(20000);
   let res;
-  try { res = await routedFetch(path, o, auth); }
-  catch (e) { throw e.name === 'TimeoutError' ? new Error('The server took too long to answer. Try again in a moment.') : e; }
+  try { res = await fetch(API + path, o); }
+  catch (e) {
+    if (e.name === 'AbortError') throw e; // a caller's own Stop
+    throw new Error(e.name === 'TimeoutError' ? 'The server took too long to answer. Try again in a moment.' : 'Can’t reach the server. Try again in a moment.');
+  }
   if (res.status === 401) throw handleUnauthorized();
   if (!res.ok) {
     let detail = '';
     try { detail = (await res.json()).message || ''; } catch (e) {}
-    throw new Error('n8n request failed (' + res.status + ') ' + detail);
+    throw new Error('Request failed (' + res.status + ') ' + detail);
   }
   const ct = res.headers.get('content-type') || '';
   return ct.includes('application/json') ? res.json() : res.text();
 }
 
-// Requests only the new service answers (n8n never had them): linking BGG, logging a play
+// The same, for answers shaped { ok, ... }: linking BGG, logging a play, players and places
 async function apiFetch(path, opts) {
   const o = { ...(opts || {}), headers: { ...((opts || {}).headers || {}), Authorization: 'Bearer ' + await ensureToken() } };
   if (!o.signal) o.signal = AbortSignal.timeout(30000);
@@ -253,30 +255,8 @@ async function apiFetch(path, opts) {
   return j;
 }
 
-// Which requests go to the new service (api.ondorilabo.com) instead of n8n, e.g. 'GET /shelf' or 'POST /ask' (Nathan).
-// Admin turns each area on (Roadmap 7, Phase 3). Asked once per sign-in; meanwhile the list this browser last saw is
-// used, so loading never waits for it. Anything the new service can't answer goes to n8n.
-const LS_API_ROUTES = 'vault_api_routes';
-var apiRoutesP = null; // null: not asked yet for this sign-in
-function apiRoutes() {
-  if (apiRoutesP) return apiRoutesP;
-  const sub = profile && profile.sub, t = idToken;
-  if (!t) return Promise.resolve(new Set());
-  const asked = (async () => {
-    try {
-      const r = await fetch(API + '/routes', { headers: { Authorization: 'Bearer ' + t }, signal: AbortSignal.timeout(4000) });
-      const routes = r.ok ? (await r.json()).routes || [] : [];
-      try { localStorage.setItem(LS_API_ROUTES, JSON.stringify({ sub, routes })); } catch (e) {}
-      return new Set(routes);
-    } catch (e) { return new Set(); }
-  })();
-  let saved = null;
-  try { const s = JSON.parse(localStorage.getItem(LS_API_ROUTES) || 'null'); if (s && s.sub === sub) saved = new Set(s.routes || []); } catch (e) {}
-  const p = apiRoutesP = saved ? Promise.resolve(saved) : asked;
-  if (saved) asked.then((fresh) => { if (apiRoutesP === p) apiRoutesP = Promise.resolve(fresh); });
-  return p;
-}
-const useNathanApi = async () => (await apiRoutes()).has('POST /ask');
+// The list of switched-on areas this browser kept while the site was moving off n8n (Roadmap 7); no longer used
+try { localStorage.removeItem('vault_api_routes'); } catch (e) {}
 
 // Loading and errors show in the total badge in the top bar, not in the hero
 function setSyncStatus(msg, isErr) {
@@ -333,7 +313,7 @@ function renderShelfSwitch() {
 }
 async function loadFriends() {
   if (!isMember()) return;
-  try { friendsData = await n8nFetch('/friends', { method: 'GET' }); friendsFailed = false; }
+  try { friendsData = await vaultFetch('/friends', { method: 'GET' }); friendsFailed = false; }
   catch (e) { friendsFailed = true; renderFriendsPanel(); return; }
   // A saved friend view whose friendship is gone falls back to the main shelf
   if (viewingFriend() && !(friendsData.friends || []).some(f => f.id === viewingFriend())) { setShelfView(homeShelf()); return; }
@@ -347,7 +327,7 @@ async function loadFriendShelf(id) {
   const panel = document.getElementById('importPanel');
   const view = shelfView;
   try {
-    const r = await n8nFetch('/friends?shelf=' + id, { method: 'GET' });
+    const r = await vaultFetch('/friends?shelf=' + id, { method: 'GET' });
     if (shelfView !== view) return;
     collection = r.items || [];
     friendShelfName = r.name || 'a friend';
@@ -368,7 +348,7 @@ async function loadMyShelf() {
   setSyncStatus('Loading…');
   const view = shelfView;
   try {
-    const r = await n8nFetch('/shelf', { method: 'GET' });
+    const r = await vaultFetch('/shelf', { method: 'GET' });
     if (shelfView !== view) return;
     myShelf = r;
     collection = myShelf.items || [];
@@ -404,7 +384,7 @@ function renderImportPanel() {
       '<div class="import-progress"><div class="spinner"></div><span>' + esc(st.step || 'Working') + '</span></div></div>';
     importPoll = setTimeout(async () => {
       try {
-        const next = await n8nFetch('/shelf', { method: 'GET' });
+        const next = await vaultFetch('/shelf', { method: 'GET' });
         const done = next.status && next.status.state === 'done' && (!st.state || st.state === 'running');
         myShelf = next;
         if (viewingMine()) { collection = next.items || []; rebuildGenreFilter(); render(); }
@@ -444,7 +424,7 @@ function renderImportPanel() {
 }
 async function startImport(username) {
   try {
-    await n8nFetch('/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bggUsername: username }) });
+    await vaultFetch('/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bggUsername: username }) });
     myShelf = { ...(myShelf || {}), bggUsername: username, status: { state: 'running', kind: 'bgg', step: 'Reading your plays from BGG', at: new Date().toISOString() } };
     renderImportPanel();
     return true;
@@ -497,7 +477,7 @@ async function updateGame(id, patch) {
   collection[idx] = { ...collection[idx], ...patch };
   render();
   try {
-    await n8nFetch('/shelf-update', {
+    await vaultFetch('/shelf-update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, fields: patch })
@@ -636,7 +616,7 @@ document.getElementById('deleteConfirm').addEventListener('click', async () => {
   collection = collection.filter(g => g.id !== id);
   render();
   try {
-    await n8nFetch('/shelf-remove', {
+    await vaultFetch('/shelf-remove', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
@@ -794,7 +774,7 @@ let rbPoll = null;
 const RB_KINDS = [['rulebook', 'Rulebook'], ['learn', 'Learn to play / quick start'], ['expansion', 'Expansion rulebook'], ['reference', 'Rules reference / cheat sheet'], ['aid', 'Player aid'], ['appendix', 'Appendix / glossary'], ['faq', 'FAQ / errata'], ['solo', 'Solo rules'], ['other', 'Other']];
 async function loadRbGames() {
   if (!isMember()) return;
-  try { const r = await n8nFetch('/rulebook?games=1', { method: 'GET' }); rbGames = new Set((r.games || []).map(Number)); render(); } catch (e) {}
+  try { const r = await vaultFetch('/rulebook?games=1', { method: 'GET' }); rbGames = new Set((r.games || []).map(Number)); render(); } catch (e) {}
 }
 function rbDocHtml(d) {
   const name = esc(d.label) + (d.title ? ' · ' + esc(d.title) : '');
@@ -833,7 +813,7 @@ async function loadRulebook(g, fresh) {
   if (!box || !g.bggId) return;
   clearTimeout(rbPoll);
   try {
-    const info = (!fresh && rbCache[g.bggId]) || (rbCache[g.bggId] = await n8nFetch('/rulebook?bgg=' + Number(g.bggId), { method: 'GET' }));
+    const info = (!fresh && rbCache[g.bggId]) || (rbCache[g.bggId] = await vaultFetch('/rulebook?bgg=' + Number(g.bggId), { method: 'GET' }));
     if (document.getElementById('rbBlock') !== box) return;
     box.innerHTML = rbHtml(info, g);
     // While Nathan reads, the page count ticks up; when he's done, the 📖 appears on every shelf
@@ -855,7 +835,7 @@ async function uploadRulebook(form) {
   fd.append('kind', form.querySelector('[name=kind]').value); fd.append('title', form.querySelector('[name=title]').value.trim()); fd.append('source', source);
   form.querySelector('.hint').textContent = 'Uploading "' + file.name + '"…';
   try {
-    const res = await routedFetch('/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + await ensureToken() }, body: fd });
+    const res = await fetch(API + '/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + await ensureToken() }, body: fd });
     const r = await res.json().catch(() => ({}));
     if (!res.ok || !r.ok) throw new Error(r.message || 'Upload failed (' + res.status + ')');
     rbCache[bggId] = r;
@@ -866,7 +846,7 @@ async function uploadRulebook(form) {
 }
 async function changeRulebook(body, bggId) {
   try {
-    rbCache[bggId] = await n8nFetch('/rulebook-change', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    rbCache[bggId] = await vaultFetch('/rulebook-change', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     rbConfirm = null;
     if (!(rbCache[bggId].docs || []).some(d => d.status === 'ready')) { rbGames.delete(Number(bggId)); render(); }
     const g = collection.find(x => Number(x.bggId) === bggId) || { bggId };
@@ -1274,7 +1254,7 @@ document.getElementById('settingsClose').addEventListener('click', () => setting
 // Your own plays, for everyone (Dan included): the same import as "Connect BGG", run again with your username; without
 // one yet, it asks for it first
 document.getElementById('syncMyPlaysBtn').addEventListener('click', async () => {
-  try { if (!myShelf || !myShelf.bggUsername) myShelf = await n8nFetch('/shelf', { method: 'GET' }); } catch (e) {}
+  try { if (!myShelf || !myShelf.bggUsername) myShelf = await vaultFetch('/shelf', { method: 'GET' }); } catch (e) {}
   settingsModal.classList.remove('open');
   let username = (myShelf && myShelf.bggUsername) || '';
   if (!username) {
@@ -1355,7 +1335,7 @@ fbForm.addEventListener('submit', async (e) => {
   const where = [location.pathname + location.hash, viewingFriend() ? 'viewing a friend’s shelf' : '', document.getElementById('nathanPanel').classList.contains('full') ? 'Nathan full screen' : ''].filter(Boolean).join(' · ');
   const device = navigator.userAgent.slice(0, 220) + ' · ' + window.innerWidth + '×' + window.innerHeight;
   try {
-    const r = await n8nFetch('/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: fbKind, mood: fbMood, message, page: where, device }) });
+    const r = await vaultFetch('/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: fbKind, mood: fbMood, message, page: where, device }) });
     closeFeedback();
     toast(r.message || 'Thanks!');
   } catch (err) { toast(err.message, true); }
@@ -1395,7 +1375,7 @@ document.getElementById('nameSearchForm').addEventListener('submit', async (e) =
   picked.clear();
   box.innerHTML = '<div class="spinner"></div>';
   try {
-    const { results } = await n8nFetch('/bgg-search?q=' + encodeURIComponent(q), { method: 'GET', signal: AbortSignal.timeout(30000) });
+    const { results } = await vaultFetch('/bgg-search?q=' + encodeURIComponent(q), { method: 'GET', signal: AbortSignal.timeout(30000) });
     if (q !== lastSearch) return; // a newer search is in flight
     box.innerHTML = (results.length ? results.map(r => {
       const owned = ownedNote(r);
@@ -1435,7 +1415,7 @@ async function addGames(list) {
     identifyArea.innerHTML = '<div class="spinner"></div><p class="hint" style="text-align:center;">Adding "' + esc(g.title) + '"' + (list.length > 1 ? ' (' + (i + 1) + ' of ' + list.length + ')' : '') + '…</p>';
     try {
       // Onto your own shelf (BGG details, box art, a blurb and an icon for a game new to the catalog: up to a minute)
-      const r = await n8nFetch('/shelf-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(g.payload), signal: AbortSignal.timeout(60000) });
+      const r = await vaultFetch('/shelf-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(g.payload), signal: AbortSignal.timeout(60000) });
       all.added.push(...(r.added || [])); all.expansions.push(...(r.expansions || [])); all.skipped.push(...(r.skipped || []));
     } catch (err) { failed.push(g.title + ': ' + err.message); }
   }
@@ -1568,7 +1548,7 @@ document.getElementById('csvPreview').addEventListener('click', async (e) => {
   if (rows.length > 2000) { toast('That’s more than 2,000 games. Split the file in two.', true); return; }
   go.disabled = true; go.textContent = 'Starting…';
   try {
-    const r = await n8nFetch('/shelf-csv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows }) });
+    const r = await vaultFetch('/shelf-csv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows }) });
     addModal.classList.remove('open');
     csvPlan = null;
     if (viewingMine()) {
@@ -1590,7 +1570,7 @@ document.getElementById('identifyBtn').addEventListener('click', async () => {
     const form = new FormData();
     form.append('photo', await shrinkPhoto(file), 'boxes.jpg');
     // Onto your own shelf
-    const res = await routedFetch('/shelf-identify', { method: 'POST', body: form, headers: { Authorization: 'Bearer ' + await ensureToken() } });
+    const res = await fetch(API + '/shelf-identify', { method: 'POST', body: form, headers: { Authorization: 'Bearer ' + await ensureToken() } });
     if (res.status === 401) throw handleUnauthorized();
     let result = {};
     try { result = await res.json(); } catch (e) {}
@@ -1694,7 +1674,7 @@ async function savePlayerRating(gameId, stars) {
   if (detailId) renderDetail();
   render(); // the card's stars are the same rating
   try {
-    await n8nFetch('/rate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId, stars: next }) });
+    await vaultFetch('/rate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId, stars: next }) });
   } catch (e) {
     if (prev) byPlayer[pid] = prev; else delete byPlayer[pid];
     if (detailId) renderDetail();
@@ -1934,7 +1914,7 @@ placesModal.addEventListener('click', async (e) => {
 let people = { players: [], ratings: {} };
 async function loadPeople() {
   if (!isMember()) return;
-  try { people = await n8nFetch('/people' + (currentShelf() !== 'main' ? '?shelf=' + encodeURIComponent(currentShelf()) : ''), { method: 'GET' }); } catch (e) { /* Ask still works without the roster */ }
+  try { people = await vaultFetch('/people' + (currentShelf() !== 'main' ? '?shelf=' + encodeURIComponent(currentShelf()) : ''), { method: 'GET' }); } catch (e) { /* Ask still works without the roster */ }
   if (people && people.asks) { asks = people.asks; renderAskMeter(); }
   // Your own stars belong to your account: show them on any shelf, even where you're not in the people list
   if (people && people.ratings) {
@@ -2423,7 +2403,7 @@ document.addEventListener('change', async (e) => {
 });
 document.addEventListener('click', (e) => { if (e.target.closest('[data-photo-remove]')) { pendingPhoto = null; renderPhotoChips(); } });
 // Nathan from the new service, streamed: his words appear as he writes them, with a Stop button.
-// Returns null when the service can't be reached or is down before it starts, so the question goes to n8n instead.
+// Returns null when the service can't be reached or is down before it starts, so the question is asked again without streaming.
 let askStop = null, retryAsk = null;
 const STOP_BTN = '<button type="button" class="n-stop" data-ask-stop><i class="ti ti-filled ti-player-stop-filled"></i> Stop</button>';
 async function askViaApi(payload, turn) {
@@ -2441,7 +2421,7 @@ async function askViaApi(payload, turn) {
     } catch (e) { if (ctl.signal.aborted) throw cut(true); return null; }
     if (res.status === 401) throw handleUnauthorized();
     if (res.status >= 500 || !res.body) return null;
-    if (!res.ok) { let m = ''; try { m = (await res.json()).message || ''; } catch (e) {} throw new Error('n8n request failed (' + res.status + ') ' + m); }
+    if (!res.ok) { let m = ''; try { m = (await res.json()).message || ''; } catch (e) {} throw new Error('Request failed (' + res.status + ') ' + m); }
     const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
     let buf = '';
     try {
@@ -2462,12 +2442,12 @@ async function askViaApi(payload, turn) {
             body.innerHTML = nathanAnswerHtml(r) + '<div class="ask-thinking n-writing"><div class="spinner"></div><span>Nathan is writing…</span>' + STOP_BTN + '</div>';
             refreshClamp();
           } else if (ev === 'done') done = d;
-          else if (ev === 'error') throw new Error('n8n request failed (' + d.status + ') ' + d.message);
+          else if (ev === 'error') throw new Error('Request failed (' + d.status + ') ' + d.message);
         }
       }
     } catch (e) {
       if (ctl.signal.aborted) throw cut(true);
-      if (/^n8n request failed/.test(e.message) && !words) throw e;
+      if (/^Request failed/.test(e.message) && !words) throw e;
       throw cut(false);
     }
     if (!done) throw cut(ctl.signal.aborted);
@@ -2521,8 +2501,8 @@ async function askNathan(text, followUp) {
   else panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
     const payload = { question, playerIds: [...askSelected], previous: askLast, mentioned: [...joked], recent: recentPicks().map((x) => x.id), chatKey, image: photo, shelf: currentShelf() };
-    const r = (await useNathanApi() && await askViaApi(payload, turn))
-      || await n8nFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: AbortSignal.timeout(120000) });
+    const r = (await askViaApi(payload, turn))
+      || await vaultFetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: AbortSignal.timeout(120000) });
     if (r.chatKey) chatKey = r.chatKey;
     if (r.pick || (r.highlights || []).length) {
       // The whole answer (all ten of a top ten), so "which of those…" narrows it instead of starting over
@@ -2547,7 +2527,7 @@ async function askNathan(text, followUp) {
     const raw = String(err.message || '');
     // The AI service busy or down: say so kindly instead of showing the raw error
     const busy = /too many requests|rate.?limit|overloaded|temporarily|\((5\d\d)\)/i.test(raw) && !/questions for today/i.test(raw);
-    const msg = busy ? 'Nathan’s a little swamped at the shelves right now. Give him a moment and ask again!' : raw.replace(/^n8n request failed \(\d+\) /, '');
+    const msg = busy ? 'Nathan’s a little swamped at the shelves right now. Give him a moment and ask again!' : raw.replace(/^Request failed \(\d+\) /, '');
     if (/\(429\)/.test(String(err.message)) && asks) { asks.left = 0; renderAskMeter(); }
     turn.querySelector('.np-body').innerHTML = '<p class="ask-note" style="margin:0;">' + esc(msg || 'Nathan couldn’t answer that one. Try again in a moment.') + '</p>';
   } finally {
@@ -2566,7 +2546,7 @@ function voteBarHtml() {
 }
 function sendVote(box, vote, note) {
   const t = box.closest('.np-turn');
-  return n8nFetch('/ask-vote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatKey: t.dataset.voteChat, question: t.dataset.voteQ, vote, note: note || '' }) });
+  return vaultFetch('/ask-vote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatKey: t.dataset.voteChat, question: t.dataset.voteQ, vote, note: note || '' }) });
 }
 async function voteReply(btn) {
   const box = btn.closest('.n-vote');
@@ -2678,7 +2658,7 @@ document.getElementById('menuProfile').addEventListener('click', async () => {
   const body = document.getElementById('profileBody');
   body.innerHTML = '<div class="spinner"></div>';
   try {
-    myProfile = (await n8nFetch('/me', { method: 'GET' })).profile;
+    myProfile = (await vaultFetch('/me', { method: 'GET' })).profile;
     renderProfile();
   } catch (e) {
     body.innerHTML = '<p class="hint">' + esc(e.message) + '</p><div class="modal-actions"><button type="button" class="btn ghost" data-profile-close>Close</button></div>';
@@ -2787,7 +2767,7 @@ async function loadMemory() {
   const box = document.getElementById('memList');
   if (!box) return;
   memConfirm = false;
-  try { memPage = await n8nFetch('/memory?chat=none', { method: 'GET' }); renderMemory(); }
+  try { memPage = await vaultFetch('/memory?chat=none', { method: 'GET' }); renderMemory(); }
   catch (e) { box.innerHTML = '<p class="hint" style="margin:0;">' + esc(e.message) + '</p>'; }
 }
 function renderMemory() {
@@ -2809,7 +2789,7 @@ profileModal.addEventListener('click', async (e) => {
   if (!one && !all) return;
   if (all && !memConfirm) { memConfirm = true; renderMemory(); return; }
   try {
-    memPage = await n8nFetch('/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    memPage = await vaultFetch('/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(one ? { action: 'forget', id: Number(one.dataset.memForget) } : { action: 'forgetAll' }) });
     memConfirm = false;
     renderMemory();
@@ -2843,7 +2823,7 @@ async function findTop() {
   if (q.length < 2) return;
   box.innerHTML = '<div class="spinner"></div>';
   try {
-    const { results } = await n8nFetch('/bgg-search?q=' + encodeURIComponent(q), { method: 'GET', signal: AbortSignal.timeout(30000) });
+    const { results } = await vaultFetch('/bgg-search?q=' + encodeURIComponent(q), { method: 'GET', signal: AbortSignal.timeout(30000) });
     const have = new Set((myProfile.topGames || []).map(g => g.bggId));
     box.innerHTML = results.filter(x => x.kind !== 'expansion' && !have.has(x.bggId)).slice(0, 6).map(x => '<div class="wl-row">' +
       (x.thumbnail ? '<img src="' + esc(x.thumbnail) + '" alt="" loading="lazy">' : '<span class="ph"><i class="ti ti-' + esc(DEFAULT_ICON) + '"></i></span>') +
@@ -2881,7 +2861,7 @@ profileModal.addEventListener('submit', async (e) => {
   const btn = document.getElementById('profileSave');
   btn.disabled = true;
   try {
-    myProfile = (await n8nFetch('/me-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).profile;
+    myProfile = (await vaultFetch('/me-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).profile;
     profileModal.classList.remove('open');
     toast('Profile saved. Nathan will take it from here.');
   } catch (err) {
@@ -2911,12 +2891,12 @@ async function openWishlist() {
   setMenu(false);
   wishModal.classList.add('open');
   document.getElementById('wishBody').innerHTML = '<div class="spinner"></div>';
-  try { myWishes = (await n8nFetch('/wishlist', { method: 'GET' })).items || []; renderWishes(); }
+  try { myWishes = (await vaultFetch('/wishlist', { method: 'GET' })).items || []; renderWishes(); }
   catch (e) { document.getElementById('wishBody').innerHTML = '<p class="hint">' + esc(e.message) + '</p>'; }
 }
 document.getElementById('menuWishlist').addEventListener('click', openWishlist);
 async function changeWish(action, bggId, title, cover) {
-  const r = await n8nFetch('/wishlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, bggId, title, cover }) });
+  const r = await vaultFetch('/wishlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, bggId, title, cover }) });
   myWishes = r.items || [];
   return r;
 }
@@ -2930,7 +2910,7 @@ wishModal.addEventListener('click', async (e) => {
     const g = myWishes.find(x => x.bggId === id) || {};
     got.disabled = true; got.textContent = 'Adding…';
     try {
-      await n8nFetch('/shelf-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bggId: id }) });
+      await vaultFetch('/shelf-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bggId: id }) });
       await changeWish('remove', id);
       renderWishes();
       toast('"' + (g.title || 'That game') + '" is on your shelf now. Enjoy!');
@@ -2958,7 +2938,7 @@ async function openPage(friendId) {
   const body = document.getElementById('pageBody');
   body.innerHTML = '<div class="spinner"></div>';
   try {
-    const p = await n8nFetch('/profile' + (friendId ? '?friend=' + Number(friendId) : ''), { method: 'GET' });
+    const p = await vaultFetch('/profile' + (friendId ? '?friend=' + Number(friendId) : ''), { method: 'GET' });
     const first = firstName(p.name);
     const dials = DIALS.filter(d => p.dials && p.dials[d.key]).map(d => '<span class="tag">' + esc(d.label) + ' ' + p.dials[d.key] + '/5</span>').join('');
     const words = [p.likes ? '<p><b>Likes:</b> ' + esc(p.likes) + '</p>' : '', p.dislikes ? '<p><b>Not for ' + (p.self ? 'me' : first) + ':</b> ' + esc(p.dislikes) + '</p>' : '', p.about ? '<p>' + esc(p.about) + '</p>' : ''].join('');
@@ -3008,11 +2988,11 @@ document.getElementById('friendAddForm').addEventListener('submit', async (e) =>
   const code = input.value.trim();
   if (!code) return;
   try {
-    const r = await n8nFetch('/friends', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add', code }) });
+    const r = await vaultFetch('/friends', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add', code }) });
     input.value = '';
     toast(r.already ? 'You and ' + r.friend.name.split(' ')[0] + ' are already friends.' : 'You and ' + r.friend.name.split(' ')[0] + ' are now friends!');
     await loadFriends();
-  } catch (err) { toast(err.message.replace(/^n8n request failed \(\d+\) /, ''), true); }
+  } catch (err) { toast(err.message.replace(/^Request failed \(\d+\) /, ''), true); }
 });
 document.getElementById('friendsList').addEventListener('click', (e) => {
   const pg = e.target.closest('[data-friend-page]');
@@ -3025,7 +3005,7 @@ document.getElementById('friendsList').addEventListener('click', async (e) => {
   if (rm) {
     if (!confirm('Remove ' + rm.dataset.name + ' as a friend? You’ll stop seeing each other’s shelves.')) return;
     try {
-      await n8nFetch('/friends', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'remove', id: Number(rm.dataset.removeFriend) }) });
+      await vaultFetch('/friends', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'remove', id: Number(rm.dataset.removeFriend) }) });
       if (viewingFriend() === Number(rm.dataset.removeFriend)) setShelfView(homeShelf());
       await loadFriends();
     } catch (err) { toast(err.message, true); }
@@ -3122,7 +3102,7 @@ async function findPlayGameBgg() {
   findPlayGame();
   box.insertAdjacentHTML('beforeend', '<div class="spinner"></div>');
   try {
-    const { results } = await n8nFetch('/bgg-search?q=' + encodeURIComponent(q), { method: 'GET', signal: AbortSignal.timeout(30000) });
+    const { results } = await vaultFetch('/bgg-search?q=' + encodeURIComponent(q), { method: 'GET', signal: AbortSignal.timeout(30000) });
     const have = new Set(collection.map(g => String(g.bggId)));
     findPlayGame();
     box.lastElementChild && box.lastElementChild.classList.contains('hint') && box.lastElementChild.remove();

@@ -2,7 +2,7 @@
 
 What's next for Board Game Curator, roughly in priority order. Check items off as they land.
 
-**Picked next (Oct 25)**, from the open items below: finish retiring n8n (section 7), ~~the OpenRouter low-balance email~~ (done Oct 25), an outside uptime check, per-shelf game names, "What's like this?", then the culling helper.
+**Picked next (Oct 25)**, from the open items below: ~~finish retiring n8n (section 7)~~ (done Nov 16), ~~the OpenRouter low-balance email~~ (done Oct 25), an outside uptime check, per-shelf game names, "What's like this?", then the culling helper.
 
 ## 1. Real-world check on a phone
 Things that pass in testing but haven't been tried for real yet:
@@ -82,7 +82,7 @@ Friends sign in, build their own shelf, and see their friends' shelves. Runs on 
 - [x] Nathan full screen: pop the chat out to fill the screen (phones especially)
 - [x] Photos in the chat: attach a picture to a question ("what does this icon mean?", "what game is this?"); the vision model reads it with the game's rulebook
 - [ ] Search by meaning (pgvector) if full-text search misses questions phrased very differently from the rulebook
-- [ ] Move Nathan off n8n into his own service: planned, see section 7
+- [x] Move Nathan off n8n into his own service *(Oct 22–23; n8n's copy retired Nov 16)*
 
 ## 7. Next: Nathan's own service and one API (starting Sunday, Oct 25)
 Why: the 53 n8n workflows are mostly thin API endpoints. One small service is how this is normally built: one sign-in check for every route, one deploy, one place for errors, and Nathan can stream his answers. n8n keeps what it's best at, schedules and background jobs. Start in a fresh Claude session (this one got very long and costly).
@@ -122,13 +122,14 @@ On for everyone since Oct 22. Admin → Nathan keeps an Off switch as an undo un
 - [x] Writes that call BGG or AI: add (Dan's own: blurb, BGG details, art, plays, icon), identify and shelf-identify (photos), rulebook upload, and the imports (BGG plays, CSV, Sync plays now) handed to the jobs worker *(Oct 25, overnight: four new switches, off until checked live)*
 - [x] ~~The page opens with one request for everything it needs~~ Dropped after measuring *(Oct 23)*: the page already asks for the shelf, people and friends at the same time, so it waits for the slowest (people), not their sum; one combined answer would hold the games back until the people were ready. People was slow because each person's play history compared every play with every game on the shelf. Migration 038 makes it a plain lookup (same answers for all 414 people): people on Dan's shelf 336 -> 240 ms, on a friend's 844-game shelf 3.7 -> 1.2 s, and Nathan reads the same view
 - [x] /people no longer builds the shelf's games (migration 039, `shelf_view(..., with_games => false)`; same answer): Dan's shelf ~355 -> ~190 ms over today's two changes, a big friend's 3.9 -> 1.2 s *(Oct 23)*
-- [ ] Each area switches over only after its checks pass; the old webhooks are retired a week later
+- [x] Each area switches over only after its checks pass *(all on for everyone by Oct 25)*; the switches and the n8n fallback retired Nov 16
 
 **Phase 4: the schedules move too (the jobs worker, Oct 25)**
 - [x] `bgc-jobs`: the API's image as a worker (`server/bgc-api/src/jobs`): syncPlays 4:00, syncPeople 4:20, memberPlaysNightly 4:30, selfTest 5:40, healthCheck 9:00, aiUsage hourly, fillCatalog every 10 min, ruleReader every 2 min and on upload; plus memberPlays and shelfCsv on request. Runs in `job_runs` (migration 044); failures email Dan (one per job per 30 min). n8n's photo sweep has no equivalent: the API never writes photos to disk
 - [x] Deployed Oct 25 ~00:15 (db: 044 + NocoDB memory; api 457c7e1 + bgc-jobs). Every job run once by hand (job_runs 1-11): syncPlays 651 plays, syncPeople 56 people / 41 BGG ratings, aiUsage, healthCheck (emailed: no plays since Oct 19, a quiet week), fillCatalog and ruleReader (nothing to do), memberPlaysNightly, selfTest. n8n's 9 schedule workflows unpublished and n8n restarted. Switches: Dan's adds and imports for everyone; photos and rulebook uploads for admins until Dan has tried one of each
-- [ ] Dan: try a photo add and a rulebook upload on the API, then set those two switches to everyone
-- [ ] After a few quiet days: unpublish the n8n webhooks, remove `extract-nathan.cjs` and the Nathan Off switch (the Nov 6 plan), then retire n8n and its tunnel hostname
+- [x] Photos and rulebook uploads on the API for everyone *(both on by Nov 16)*
+- [x] *(Nov 16)* The switches and the n8n fallback removed from the page, Admin and the API (`areas.ts`, `nathanMode.ts`, `extract-nathan.cjs`; migration 054), and n8n's "Vault — …" workflows unpublished. The n8n server stays: it runs other projects' workflows
+- [ ] Later: move `n8n/test-nathan.js` into `server/bgc-api` and delete the rest of `n8n/` (gen.js, deploy.sh, workflows)
 
 **Small things waiting**
 - [ ] Release notes: add "pages no longer jump sideways when a popup opens" to the next version

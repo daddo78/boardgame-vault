@@ -44,26 +44,19 @@ Everything under `/vault` needs the sign-in. One line each; the route's own comm
 | `POST /vault/ask-vote` `{ chatKey, question, vote: up | down | '', note }` | | `bgc.ask_vote`: a thumb on one of Nathan's replies, shown under Admin → Nathan |
 | `POST /vault/ask` | Ask Nathan | Nathan's steps (below) |
 | `POST /vault/ask/stream` | | the same, streamed as he writes (Server-Sent Events) |
-| `GET /vault/routes` | | which requests the page sends here, from the area switches |
-| `GET/POST /vault/api-areas` (admins) | | `settings` key `api_areas`: each area off / admins / everyone |
-| `GET/POST /vault/nathan-mode` (POST: admins) | | `settings` key `nathan_api`: off / admins / everyone |
 | `GET /health` | | `SELECT 1` |
 
-## Moving the site over, one area at a time
+## Where it came from
 
-`src/routes/areas.ts` groups the routes into areas (account, shelves, wishlist, rulebooks, admin, and one per kind of change). Admin → Dashboard → New API runs every read against this service and n8n with your sign-in and shows where answers differ; each area then has its own switch (off / admins only / everyone). The page asks `GET /vault/routes` once per sign-in and sends only those requests here, anything else (and anything this service can't answer) to n8n.
+The site moved here from n8n one area at a time in October 2026, each behind an off / admins only / everyone switch in Admin, with n8n as the fallback. On Nov 16, 2026 the switches, the fallback and n8n's Vault workflows were retired: the page sends everything here.
 
-Games and people are shaped by n8n's own code: `src/shape.gen.ts` is `prelude()` from `n8n/gen.js`, and `src/nodes.gen.ts` the code nodes of the ported workflows (BGG search, feedback and invite emails, admin actions), copied by the same script as Nathan's steps.
+Games and people are shaped by code first copied from n8n: `src/shape.gen.ts` was `prelude()` in `n8n/gen.js`, and `src/nodes.gen.ts` the code nodes of the ported workflows (BGG search, feedback and invite emails, admin actions). The `.gen.ts` files are ordinary source now; edit them here.
 
 ## Nathan
 
-`src/nathan/steps.gen.ts` is Nathan's steps copied word for word from the Ask workflow in `n8n/gen.js`, so both give the same answers while both exist. Change Nathan in `gen.js`, then:
+`src/nathan/steps.gen.ts` is Nathan's steps, first copied word for word from the Ask workflow in `n8n/gen.js`. It's the only copy now: change Nathan here.
 
-```bash
-node scripts/extract-nathan.cjs
-```
-
-`src/nathan/ask.ts` runs the steps in n8n's order and does what n8n's other nodes did (database, OpenRouter, BGG). Only the last step (writing the answer) streams. Admin → Nathan chooses who gets this service; the page falls back to n8n if it can't be reached.
+`src/nathan/ask.ts` runs the steps in n8n's order and does what n8n's other nodes did (database, OpenRouter, BGG). Only the last step (writing the answer) streams. If the stream can't start, the page asks `POST /vault/ask` once more without streaming.
 
 The question set against the API (from `n8n/`): `TARGET=api node test-nathan.js`. It runs `node dist/tools/askAs.js` inside the container, which asks as a member without a web sign-in.
 

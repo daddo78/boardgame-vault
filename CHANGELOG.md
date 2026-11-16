@@ -2,6 +2,10 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.28.1 · November 16, 2026
+
+*Behind the scenes: the move to Board Game Curator's own server is finished. Everything you do on the site now goes to one place, with no older backup system behind it, and the switches Dan used to move each part over one at a time are gone from Admin. Nothing looks different; tell Dan if anything stops working.*
+
 ## v0.28 · October 29, 2026
 
 - **Scores when you log a play.** Each player has a score box next to their name. Scores show in My plays, go to BGG with the play, and come back when you edit it. Editing a play from BGG or BG Stats keeps the scores it already had.

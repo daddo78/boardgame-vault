@@ -30,17 +30,12 @@ function gate(msg, withButton) {
   };
   draw();
 }
-// Requests whose area is switched on for you (New API, on the Dashboard) go to api.ondorilabo.com, as on the shelf;
-// n8n otherwise, and whenever the new service can't be reached
-let apiRoutesP = null;
-const apiRoutes = () => (apiRoutesP ??= fetch(API + '/routes', { headers: { Authorization: 'Bearer ' + token() }, signal: AbortSignal.timeout(4000) })
-  .then((r) => (r.ok ? r.json() : {})).then((b) => new Set(b.routes || [])).catch(() => new Set()));
 class Gate extends Error { constructor(msg, button) { super(msg); this.button = button; } }
 async function call(path, opts = {}) {
   const t = token();
   if (!fresh(t)) throw new Gate('Sign in with your Google account to open Admin. It’s for admins only.', true);
   let res;
-  try { res = await routedFetch(path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + t } }); }
+  try { res = await fetch(API + path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + t } }); }
   catch (e) { throw new Gate('Couldn’t reach the server. Check your connection and refresh.', false); }
   if (res.status === 401) { try { localStorage.removeItem(LS_TOKEN); } catch (e) {} throw new Gate('Your sign-in expired. Sign in again to open Admin.', true); }
   if (res.status === 403) throw new Gate('Admin is for admins only.', false);
@@ -100,7 +95,7 @@ function renderDashboard(d) {
   const tile = (n, label, small) => '<div class="tile"><b>' + n + '</b><span>' + label + '</span>' + (small ? '<small>' + small + '</small>' : '') + '</div>';
   app.innerHTML =
     '<h1><i class="fa-solid fa-chart-line"></i> Dashboard</h1>' +
-    '<div class="sub">How people use Board Game Curator · updated ' + esc(new Date(d.generatedAt).toLocaleString()) + ' · times are Eastern</div>' + selfTestHtml(d.selfTest) + apiCheckHtml() +
+    '<div class="sub">How people use Board Game Curator · updated ' + esc(new Date(d.generatedAt).toLocaleString()) + ' · times are Eastern</div>' + selfTestHtml(d.selfTest) +
     '<div class="tiles">' +
       tile(num(k.members), 'Members') + tile(num(k.activeToday), 'Active today') + tile(num(k.active7), 'Active this week') + tile(num(k.active30), 'Active this month', 'avg ' + num(k.avgDaily30) + ' a day') +
       tile(num(k.questions7), 'Questions this week') + tile(num(k.questions30), 'Questions this month', num(k.questionsAll) + ' all time') +
@@ -136,11 +131,6 @@ function renderDashboard(d) {
       gamesCard('Wished for by the most members', d.mostWished, (g) => g.n + (g.n === 1 ? ' member' : ' members')) +
       gamesCard('Recently added by members', d.recentlyAdded, (g) => '', (g) => g.who + ' · ' + ago(g.at)) +
     '</div>';
-  document.getElementById('apiCheckGo').addEventListener('click', () => { document.getElementById('apiWrap').open = true; runApiCheck().then(apiFoldLabel); });
-  document.getElementById('apiFold').addEventListener('click', apiFold);
-  document.getElementById('apiWrap').addEventListener('toggle', apiFoldLabel, true); // toggle doesn't bubble: listen while it passes down
-  apiFoldLabel();
-  loadApiAreas();
   document.getElementById('range').addEventListener('click', (e) => { const b = e.target.closest('[data-days]'); if (b) { days = Number(b.dataset.days); document.querySelectorAll('#range button').forEach((x) => x.classList.toggle('on', x === b)); drawActivity(); } });
   drawActivity();
   drawNathan();
@@ -155,125 +145,6 @@ function selfTestHtml(t) {
     '<i class="fa-solid ' + (bad ? 'fa-triangle-exclamation' : 'fa-circle-check') + '" style="color:' + (bad ? 'var(--brand)' : 'var(--ok)') + ';"></i>' +
     '<div><b>Nightly check ' + (bad ? 'found ' + bad + ' problem' + (bad === 1 ? '' : 's') : 'passed') + '</b><div class="note" style="margin:0;">' + esc(ago(t.at)) + ' · site rules ' + t.dbPassed + '/' + t.dbTotal + ' · Nathan questions ' + t.nathanPassed + '/' + t.nathanTotal + '</div>' +
     (bad ? '<div class="note" style="margin:0.3rem 0 0;">' + t.failures.map((f) => esc(f.what) + (f.problems && f.problems.length ? ': ' + esc(f.problems.join('; ')) : '')).join('<br>') + '</div>' : '') + '</div></div>';
-}
-// The new API (Roadmap 7, Phase 3): each area of the site moves from n8n to api.ondorilabo.com behind its own switch.
-// The check asks both the same things with your sign-in and compares the answers; turn an area on once it's all ✅.
-const AREA_NAMES = { account: 'Account (sign-in, profiles, Nathan’s memory)', shelves: 'Shelves (collection, your shelf, friends, people)', wishlist: 'Wishlists', rulebooks: 'Rulebooks', admin: 'Admin (this page)',
-  accountChanges: 'Account changes (saving your profile, forgetting notes)', wishlistChanges: 'Wishlist changes (add, remove, “Got it!”)', rulebookChanges: 'Rulebook changes (admins editing or removing a document)',
-  shelfChanges: 'Shelf changes (stars, favorites, want-to-play, thinning, removing a game)', friendChanges: 'Friend changes (adding by code, removing)',
-  adminChanges: 'Admin changes (saving a player card, fixed costs)', addGames: 'Adding games (searching BGG, adding one to your own shelf)',
-  feedback: 'Feedback (saved, and emailed to Dan)', memberActions: 'Member actions (invites with their welcome email, removing, admins, question limits)',
-  photos: 'Photos (a box or a shelf, onto your own shelf)', imports: 'Imports (BGG plays and spreadsheets; the jobs worker finishes them)', rulebookUpload: 'Rulebook uploads (the PDF to the page service, then Nathan reads it)' };
-// Only admins use these, so "Admins only" and "Everyone" would be the same: a plain Off / On ("On" is admins)
-const ADMIN_AREAS = ['admin', 'rulebookChanges', 'adminChanges', 'memberActions'];
-const modeOf = (a, m) => (ADMIN_AREAS.includes(a) && m === 'everyone' ? 'admins' : m);
-// What the check asks in each area; {friend} and {bgg} are filled from n8n's own answers
-const AREA_CHECKS = {
-  account: ['/whoami', '/me', '/profile', '/profile?friend={friend}', '/memory?chat=none'],
-  shelves: ['/shelf', '/people', '/people?shelf=mine', '/people?shelf=friend:{friend}', '/friends', '/friends?shelf={friend}'],
-  wishlist: ['/wishlist', '/wishlist?friend={friend}'],
-  rulebooks: ['/rulebook?games=1', '/rulebook?bgg={bgg}'],
-  admin: ['/admin', '/dashboard', '/costs', '/players-admin'],
-  addGames: ['/bgg-search?q=catan', '/bgg-search?q=wingspan'],
-};
-// Parts of an answer that change between two asks a moment apart (each ask is itself a visit: bgc.sign_in counts it)
-const VOLATILE = ['generatedAt', 'lastSeen', 'visits', 'visits30'];
-function apiCheckHtml() {
-  return '<div class="card" style="margin-top:0.9rem;"><h3>New API <small>which parts of the site api.ondorilabo.com serves instead of n8n</small></h3>' +
-    '<div class="note" style="margin:0 0 0.6rem;">Run the check, then turn an area on (admins first) once all its answers match n8n. If the new service can’t be reached, the site asks n8n anyway. Nathan has his own switch under <a href="#nathan">Nathan</a>.</div>' +
-    '<div style="display:flex; gap:0.5rem; flex-wrap:wrap;"><button type="button" class="btn small" id="apiCheckGo">Run check</button>' +
-    '<button type="button" class="btn small" id="apiFold"></button></div>' +
-    '<details class="api-wrap" id="apiWrap"' + (foldOpen() ? ' open' : '') + '><summary id="apiSummary">The switches</summary>' +
-    '<div id="apiAreas" style="margin-top:0.4rem;"><div class="note">Checking the switches…</div></div></details></div>';
-}
-// The switches fold away to one line; the choice is remembered on this device
-const LS_API_FOLD = 'admin_api_open';
-function foldOpen() { try { return localStorage.getItem(LS_API_FOLD) === '1'; } catch (e) { return false; } }
-function apiFoldLabel() {
-  const any = [...document.querySelectorAll('#apiWrap, #apiWrap details')].some((d) => d.open);
-  const b = document.getElementById('apiFold');
-  if (b) b.innerHTML = any ? '<i class="fa-solid fa-angles-up"></i> Collapse all' : '<i class="fa-solid fa-angles-down"></i> Expand all';
-}
-function apiFold() {
-  const all = [...document.querySelectorAll('#apiWrap, #apiWrap details')];
-  const open = !all.some((d) => d.open);
-  all.forEach((d) => { d.open = open; });
-  try { localStorage.setItem(LS_API_FOLD, open ? '1' : '0'); } catch (e) {}
-  apiFoldLabel();
-}
-// "6 for everyone · 2 admins only · 4 off", shown when the switches are folded away
-function apiSummary(areas) {
-  const n = { everyone: 0, admins: 0, off: 0 };
-  for (const a of Object.keys(AREA_NAMES)) n[ADMIN_AREAS.includes(a) && areas[a] === 'everyone' ? 'admins' : areas[a] || 'off']++;
-  const s = document.getElementById('apiSummary');
-  if (s) s.textContent = Object.keys(AREA_NAMES).length + ' switches: ' + [n.everyone && n.everyone + ' for everyone', n.admins && n.admins + ' for admins', n.off && n.off + ' off'].filter(Boolean).join(' · ');
-}
-async function loadApiAreas() {
-  const box = document.getElementById('apiAreas');
-  let areas;
-  try { areas = (await apiCall('/api-areas')).areas; }
-  catch (e) { box.innerHTML = '<div class="note">Couldn’t reach the new service: ' + esc(e.message) + '</div>'; return; }
-  apiSummary(areas);
-  box.innerHTML = Object.keys(AREA_NAMES).map((a) => '<div style="padding:0.45rem 0; border-top:1px solid var(--soft);">' +
-    '<div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between;"><b>' + esc(AREA_NAMES[a]) + '</b>' +
-    '<span class="seg" data-area="' + a + '">' + (ADMIN_AREAS.includes(a) ? ['off', 'admins'] : ['off', 'admins', 'everyone']).map((m) => '<button type="button" data-mode="' + m + '"' + (modeOf(a, areas[a]) === m ? ' class="on"' : '') + '>' +
-      (ADMIN_AREAS.includes(a) ? { off: 'Off', admins: 'On' } : { off: 'Off', admins: 'Admins only', everyone: 'Everyone' })[m] + '</button>').join('') + '</span></div>' +
-    '<div class="note" id="apiCheck-' + a + '" style="margin:0.25rem 0 0;">' + (AREA_CHECKS[a] ? '' : 'Changes aren’t made twice to compare: they’re covered by the API tests and a run on the real database before each goes live.') + '</div></div>').join('');
-  box.addEventListener('click', async (e) => {
-    const b = e.target.closest('[data-mode]'), seg = b && b.closest('[data-area]');
-    if (!seg) return;
-    try {
-      const r = await apiCall('/api-areas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ area: seg.dataset.area, mode: b.dataset.mode }) });
-      seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.mode === modeOf(seg.dataset.area, r.areas[seg.dataset.area])));
-      apiSummary(r.areas);
-      apiRoutesP = null; // this page follows the switches too
-      toast('Saved. Pages pick it up the next time they load.');
-    } catch (err) { toast(err.message, true); }
-  });
-}
-async function runApiCheck() {
-  const t = token();
-  if (!fresh(t)) { toast('Your sign-in expired. Refresh the page to sign in again.', true); return; }
-  const canon = (v) => JSON.stringify(v, (k, x) => (VOLATILE.includes(k) ? undefined : x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((key) => [key, x[key]])) : x));
-  // Where two answers part ways, e.g. "items[3].playCount", for the console
-  const diff = (a, b, at = '') => {
-    if (canon(a) === canon(b)) return [];
-    if (a && b && typeof a === 'object' && typeof b === 'object') {
-      const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => !VOLATILE.includes(k));
-      return keys.flatMap((k) => diff(a[k], b[k], at + (Array.isArray(a) ? '[' + k + ']' : (at ? '.' : '') + k)));
-    }
-    return [at || '(whole answer)'];
-  };
-  const ask = async (base, p) => {
-    const t0 = performance.now();
-    try { const r = await fetch(base + p, { headers: { Authorization: 'Bearer ' + t } }); return { status: r.status, body: await r.json().catch(() => null), ms: Math.round(performance.now() - t0) }; }
-    catch (e) { return { status: 0, body: null, ms: Math.round(performance.now() - t0) }; }
-  };
-  const fill = {};
-  const n8nFriends = await ask(N8N_BASE, '/friends'), n8nRules = await ask(N8N_BASE, '/rulebook?games=1');
-  fill.friend = (((n8nFriends.body || {}).friends || [])[0] || {}).id;
-  fill.bgg = ((n8nRules.body || {}).games || [])[0];
-  for (const [area, paths] of Object.entries(AREA_CHECKS)) {
-    const out = document.getElementById('apiCheck-' + area);
-    if (!out) continue;
-    out.textContent = 'Checking…';
-    const rows = [];
-    for (const raw of paths) {
-      const missing = (raw.match(/\{(\w+)\}/g) || []).find((m) => fill[m.slice(1, -1)] == null);
-      if (missing) { rows.push('➖ <b>' + esc(raw.slice(1)) + '</b> · skipped, no ' + missing.slice(1, -1) + ' to try it with'); continue; }
-      const p = raw.replace(/\{(\w+)\}/g, (m, k) => encodeURIComponent(fill[k]));
-      const [a, n] = await Promise.all([ask(API, p), ask(N8N_BASE, p)]);
-      const same = a.status === n.status && canon(a.body) === canon(n.body);
-      const why = a.status === 0 ? 'couldn’t reach the API' : same ? 'same answer as n8n' + (a.status !== 200 ? ' (' + a.status + ')' : '')
-        : a.status !== n.status ? 'API said ' + a.status + ', n8n ' + n.status + ((a.body || {}).message ? ': ' + a.body.message : '')
-        : 'differs at ' + diff(a.body, n.body).slice(0, 3).join(', ');
-      rows.push((same ? '✅ ' : '❌ ') + '<b>' + esc(p.slice(1)) + '</b> · ' + esc(why) + ' · API ' + a.ms + ' ms, n8n ' + n.ms + ' ms');
-      if (!same) console.log('API check ' + p, { api: a, n8n: n });
-    }
-    // Each area's results fold to one line; one that differs from n8n opens by itself
-    const bad = rows.filter((x) => x.startsWith('❌')).length;
-    out.innerHTML = '<details class="api-res"' + (bad ? ' open' : '') + '><summary>' + (bad ? '❌ ' + bad + ' of ' + rows.length + ' differ from n8n' : '✅ ' + rows.length + ' checked, the same as n8n') + '</summary>' + rows.join('<br>') + '</details>';
-  }
 }
 function socialHtml(d) {
   const s = d.askSocial || {};
@@ -405,9 +276,6 @@ function renderNathan(a, d) {
   app.innerHTML =
     '<h1><i class="fa-solid fa-comments"></i> Nathan</h1><div class="sub">The curator: how much he’s asked, his daily limit, and the nightly check</div>' +
     selfTestHtml(d.selfTest) +
-    '<div class="card" style="margin-top:0.9rem;"><h3>Nathan’s new service <small>answers appear as he writes, with a Stop button</small></h3>' +
-      '<span class="seg" id="nathanMode"><button data-mode="off">Off</button><button data-mode="admins">Admins only</button><button data-mode="everyone">Everyone</button></span>' +
-      '<div class="note" id="nathanModeNote" style="margin:0.5rem 0 0;">Checking…</div></div>' +
     '<div class="tiles five">' +
       '<div class="tile"><b>' + num(a.totals.questionsToday) + '</b><span>Questions today</span></div>' +
       '<div class="tile"><b>' + num(a.totals.questions7) + '</b><span>This week</span></div>' +
@@ -430,7 +298,6 @@ function renderNathan(a, d) {
         '<div class="note">' + num(m.questions7) + ' this week · ' + num(m.questionsAll) + ' all time</div>' +
         '<div class="acts" style="margin-top:0.6rem;"><button type="button" class="btn small" data-reset="' + m.id + '"><i class="fa-solid fa-rotate-left"></i> Reset today’s questions</button></div></div>').join('') + '</div>'
       : '<p class="empty">Nobody has asked Nathan anything yet today.</p>');
-  loadNathanMode();
 }
 // The thumbs under his replies: a thumb alone is counted by kind of question (never the words); with a note, the member
 // sent the question and the answer along, so they show with the note
@@ -459,29 +326,6 @@ function votesHtml(v) {
             (x.note ? '<div class="msg">' + esc(x.note) + '</div>' + (x.question ? '<div class="meta"><b>Asked:</b> ' + esc(x.question) + (x.answer ? '<br><b>Nathan:</b> ' + esc(x.answer) : '') + '</div>' : '') : '') + '</div>').join('') + '</div>'
           : '<p class="empty">No thumbs yet. They show under every reply.</p>') + '</div>' +
     '</div>';
-}
-// Who gets Nathan from api.ondorilabo.com instead of n8n. If the new service is down, everyone gets n8n anyway.
-const MODE_NOTE = { off: 'Everyone gets Nathan from n8n, as before.', admins: 'Admins get the new service; everyone else gets n8n.', everyone: 'Everyone gets the new service (n8n if it can’t be reached).' };
-async function apiCall(path, opts = {}) {
-  const res = await fetch(API + path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + token() } });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.message || 'The new service didn’t answer (' + res.status + ')');
-  return body;
-}
-function showNathanMode(mode) {
-  document.querySelectorAll('#nathanMode button').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
-  document.getElementById('nathanModeNote').textContent = MODE_NOTE[mode] || '';
-}
-async function loadNathanMode() {
-  const seg = document.getElementById('nathanMode');
-  try { showNathanMode((await apiCall('/nathan-mode')).mode); }
-  catch (e) { document.getElementById('nathanModeNote').textContent = 'Couldn’t reach the new service: ' + e.message; }
-  seg.addEventListener('click', async (e) => {
-    const b = e.target.closest('[data-mode]');
-    if (!b) return;
-    try { showNathanMode((await apiCall('/nathan-mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: b.dataset.mode }) })).mode); toast('Saved'); }
-    catch (err) { toast(err.message, true); }
-  });
 }
 
 // ================= Costs =================
@@ -637,7 +481,7 @@ async function rbUpload(form) {
   const btn = form.querySelector('[type=submit]');
   rbNew.busy = true; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-upload"></i> Uploading…';
   try {
-    const res = await routedFetch('/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + t }, body: fd });
+    const res = await fetch(API + '/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + t }, body: fd });
     const r = await res.json().catch(() => ({}));
     if (!res.ok || !r.ok) throw new Error(r.message || 'Upload failed (' + res.status + ')');
     rbNew = null;

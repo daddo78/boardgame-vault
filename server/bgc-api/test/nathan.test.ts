@@ -211,22 +211,3 @@ test('ask: bad input gets n8n’s own messages; no key means not set up; OpenRou
     assert.deepEqual([r.status, ((await r.json()) as any).message], [502, 'Nathan couldn’t answer just now. Try again in a moment.']);
   } finally { console.error = orig; }
 });
-
-test('nathan-mode: off by default; admins only; everyone; only admins may change it', async () => {
-  let mode: string | null = null;
-  const db = nathanDb({ "FROM settings WHERE key = 'nathan_api'": () => mode, 'to_jsonb': (p) => { mode = p[0] as string; return null; } });
-  const app = makeAppWith({ db, fetch: fakeOpenRouter().f });
-  const amy = bearer(await token()), dan = bearer(await token({ email: 'owner@example.com' }));
-  const get = async (h: any) => (await app.request('/vault/nathan-mode', { headers: h })).json() as any;
-  const set = (h: any, m: string) => app.request('/vault/nathan-mode', { method: 'POST', headers: { ...h, 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: m }) });
-  assert.deepEqual(await get(amy), { ok: true, useApi: false });
-  assert.deepEqual(await get(dan), { ok: true, useApi: false, mode: 'off' });
-  assert.equal((await set(amy, 'everyone')).status, 403);
-  assert.equal((await set(dan, 'sometimes')).status, 400);
-  assert.equal((await set(dan, 'admins')).status, 200);
-  assert.deepEqual([(await get(amy)).useApi, (await get(dan)).useApi], [false, true]);
-  await set(dan, 'everyone');
-  assert.equal((await get(amy)).useApi, true);
-  const bare = makeAppWith({ db, fetch: fakeOpenRouter().f, env: { OPENROUTER_API_KEY: '' } });
-  assert.equal(((await (await bare.request('/vault/nathan-mode', { headers: amy })).json()) as any).useApi, false, 'never while Nathan isn’t set up here');
-});

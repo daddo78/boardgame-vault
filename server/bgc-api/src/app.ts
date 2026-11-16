@@ -14,13 +14,11 @@ import { jobsClient, localRunner, type JobsClient } from './jobsClient.js';
 import { sendMail } from './mail.js';
 import { perMember, rateLimiter } from './rateLimit.js';
 import { adminRoutes } from './routes/admin.js';
-import { areaRoutes } from './routes/areas.js';
 import { askRoutes } from './routes/ask.js';
 import { bggRoutes } from './routes/bgg.js';
 import { bggLinkRoutes } from './routes/bggLink.js';
 import { feedbackRoutes } from './routes/feedback.js';
 import { importRoutes } from './routes/imports.js';
-import { nathanModeRoutes } from './routes/nathanMode.js';
 import { peopleRoutes } from './routes/people.js';
 import { profileRoutes } from './routes/profile.js';
 import { rulebookUploadRoutes } from './routes/rulebookUpload.js';
@@ -91,9 +89,7 @@ export function createApp({ db, verify, config, now, fetch: f0, signInCacheMs, j
   vault.route('/', importRoutes(db, jobsC));
   vault.route('/', bggLinkRoutes(db, { fetch: f, linkKey: config.bggLinkKey, jobs: jobsC, now }));
   vault.route('/', peopleRoutes(db));
-  vault.route('/', areaRoutes(db, !!config.openrouterKey));
   vault.route('/', askRoutes(config.openrouterKey ? { db, openrouterKey: config.openrouterKey, bggToken: config.bggToken, fetch: f } : null));
-  vault.route('/', nathanModeRoutes(db, !!config.openrouterKey));
   app.route('/vault', vault);
 
   return app;

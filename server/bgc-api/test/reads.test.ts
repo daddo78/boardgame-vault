@@ -101,31 +101,3 @@ test('admin reads: the database decides who’s an admin; Players Admin is for t
   assert.deepEqual((await json(await get(app, '/vault/players-admin', await dan()))).body.players.map((p: any) => [p.name, p.games, p.plays, p.history]), [['Bo', 2, 5, undefined]]);
   assert.equal((await get(app, '/vault/players-admin', await amy())).status, 403);
 });
-
-test('areas: each switch sends its routes to this service; admins-only for admins; Nathan on his own switch', async () => {
-  let areas: Record<string, string> = {};
-  const db = fakeDb({
-    'api_areas': (p) => { if (p.length) { areas = { ...areas, [p[0] as string]: p[1] as string }; return null; } return areas; },
-    'nathan_api': () => 'admins',
-  });
-  const { app } = makeApp({ db });
-  assert.deepEqual((await json(await get(app, '/vault/routes', await amy()))).body, { ok: true, routes: [] });
-  const set = async (t: Record<string, string>, body: unknown) => app.request('/vault/api-areas', { method: 'POST', headers: { ...t, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  assert.equal((await set(await amy(), { area: 'shelves', mode: 'everyone' })).status, 403);
-  assert.equal((await set(await dan(), { area: 'nope', mode: 'everyone' })).status, 400);
-  assert.equal((await set(await dan(), { area: 'shelves', mode: 'everyone' })).status, 200);
-  assert.equal((await set(await dan(), { area: 'admin', mode: 'admins' })).status, 200);
-  assert.deepEqual((await json(await get(app, '/vault/routes', await amy()))).body.routes, ['GET /shelf', 'GET /people', 'GET /friends']);
-  assert.deepEqual((await json(await get(app, '/vault/routes', await dan()))).body.routes.slice(3), ['GET /admin', 'GET /dashboard', 'GET /costs', 'GET /players-admin']);
-  const a = await json(await get(app, '/vault/api-areas', await dan()));
-  assert.deepEqual(a.body.areas, { account: 'off', shelves: 'everyone', wishlist: 'off', rulebooks: 'off', admin: 'admins', accountChanges: 'off', wishlistChanges: 'off', rulebookChanges: 'off', shelfChanges: 'off', friendChanges: 'off', adminChanges: 'off', addGames: 'off', feedback: 'off', memberActions: 'off', photos: 'off', imports: 'off', rulebookUpload: 'off' });
-  assert.equal((await get(app, '/vault/api-areas', await amy())).status, 403);
-  // A saved value that isn't an object (a hand edit) reads as all off, and the next change starts a fresh object
-  // instead of letting jsonb's || turn scalar || object into an array
-  for (const odd of ['everyone', ['shelves'], 7]) {
-    const db2 = fakeDb({ 'api_areas': (p) => (p.length ? null : odd) });
-    const r = await json(await get(makeApp({ db: db2 }).app, '/vault/api-areas', await dan()));
-    assert.ok(Object.values(r.body.areas).every((m) => m === 'off'), JSON.stringify(odd));
-  }
-  assert.match(db.calls.find((c) => c.sql.includes('INSERT INTO settings'))!.sql, /CASE WHEN jsonb_typeof\(settings\.value\) = 'object'/);
-});
