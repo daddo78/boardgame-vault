@@ -1,8 +1,11 @@
 # Board Game Curator database on the Hostinger VPS (~/bgc-db):
-#   postgres  the data (private: only reachable from n8n, NocoDB, the API and the backup job)
+#   postgres  the data (private: only on the bgc network, with NocoDB, the API, the jobs worker and the backup job)
 #   nocodb    an Airtable-like grid over the data (127.0.0.1:8080, and via the Cloudflare tunnel)
 #   backup    nightly plain-SQL dump pushed to a private GitHub repo (git keeps every night); restore.sh brings one back
 #   pages     rulebook pages for Nathan to read (a PDF is kept only until it has been read)
+# Networks (review, Nov 16): everything Board Game Curator runs is on its own network, bgc. Only what the Cloudflare
+# tunnel has to reach (NocoDB here, the API in ~/bgc-api) is also on n8n's network, where the tunnel lives; n8n and the
+# other projects on it can't reach Postgres, the jobs worker or the page service. deploy.sh creates the network once.
 # Secrets live in ./.env on the server (see .env.example); never commit them. The API (~/bgc-api) reads the same .env.
 # Memory limits are caps against one container starving the others on a small box, not sizes it needs: Postgres uses
 # ~200 MB at rest, NocoDB ~650 MB, the backup job a few MB except while pg_dump runs.
@@ -26,7 +29,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init:/docker-entrypoint-initdb.d:ro
-    networks: [default, n8n]
+    networks: [bgc]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bgc -d bgc"]
       interval: 10s
@@ -50,7 +53,7 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - ncdata:/usr/app/data
-    networks: [default, n8n]   # the n8n network is where the Cloudflare tunnel lives
+    networks: [bgc, n8n]   # the n8n network is where the Cloudflare tunnel lives
     healthcheck:               # NocoDB's own health endpoint; the image is Alpine, so busybox wget is there
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/v1/health >/dev/null || exit 1"]
       interval: 30s
@@ -78,6 +81,7 @@ services:
       - ./restore.sh:/restore.sh:ro   # docker exec -it bgc-backup sh /restore.sh <database> [date]
       - ./keys:/keys:ro
       - backuprepo:/repo
+    networks: [bgc]
     entrypoint: ["/bin/sh", "/backup.sh"]
 
   # Rulebook pages: holds an uploaded PDF only while Nathan reads it (never backed up; no published ports)
@@ -88,7 +92,7 @@ services:
     mem_limit: 1g
     volumes:
       - pagework:/work
-    networks: [n8n]
+    networks: [bgc]
     healthcheck:               # GET /health (pages/app.py); the image is python-slim with no wget or curl, so Python asks
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
       interval: 30s
@@ -103,6 +107,9 @@ volumes:
   pagework:
 
 networks:
+  bgc:
+    external: true
+    name: bgc
   n8n:
     external: true
     name: n8n-ckq4_default

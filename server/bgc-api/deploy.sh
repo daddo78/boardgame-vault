@@ -31,6 +31,7 @@ DC="docker compose --env-file ../bgc-db/.env"
 # The serving API containers (not one-off trial runs)
 ids() { docker ps -aq --filter label=com.docker.compose.project=bgc-api --filter label=com.docker.compose.service=bgc-api --filter label=com.docker.compose.oneoff=False; }
 
+docker network inspect bgc >/dev/null 2>&1 || docker network create bgc >/dev/null   # Board Game Curator's own network (also made by ../bgc-db/deploy.sh)
 $DC build --quiet bgc-api
 if [ "$TRIAL" = --trial ]; then echo "built bgc-api:$API_TAG (trial: nothing started)"; exit 0; fi
 old=$(ids)
@@ -88,5 +89,5 @@ for i in $(seq 1 15); do
   [ "$code" = 200 ] && { echo "public health check OK ($PUBLIC)"; exit 0; }
   sleep 2
 done
-echo "PUBLIC HEALTH CHECK FAILING ($code from $PUBLIC): members can't reach Nathan's service; the page falls back to n8n" >&2
+echo "PUBLIC HEALTH CHECK FAILING ($code from $PUBLIC): members can't reach the site's API" >&2
 exit 1

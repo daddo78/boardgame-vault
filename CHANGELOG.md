@@ -2,6 +2,12 @@
 
 Release notes for testers. Newest first. Post one to Discord with `node tools/post-update.js v0.11`.
 
+## v0.29 · November 16, 2026
+
+- **A new friend code whenever you want one:** Friends now has a *New code* button. Your old code stops working, and the friends you already have stay. New codes are longer, so they can't be guessed.
+
+*Behind the scenes: plays and changes going to BoardGameGeek can no longer be sent twice, and a change you make while one is on its way isn't lost. Board Game Curator now runs apart from the other things on its server, with a database login that can only do what the site needs, and with a daily limit on what its AI can spend. Admin's most powerful buttons are Dan's alone.*
+
 ## v0.28.1 · November 16, 2026
 
 *Behind the scenes: the move to Board Game Curator's own server is finished. Everything you do on the site now goes to one place, with no older backup system behind it, and the switches Dan used to move each part over one at a time are gone from Admin. Nothing looks different; tell Dan if anything stops working.*

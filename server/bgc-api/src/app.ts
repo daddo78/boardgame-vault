@@ -2,6 +2,7 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { cors } from 'hono/cors';
+import { secureHeaders } from 'hono/secure-headers';
 import { memberGate, tokenGate, type AuthEnv, type VerifyToken } from './auth.js';
 import { Bgg } from './bgg.js';
 import type { Config } from './config.js';
@@ -45,6 +46,14 @@ export function createApp({ db, verify, config, now, fetch: f0, signInCacheMs, j
   const app = new Hono<AuthEnv>();
   app.onError(onError);
   app.notFound((c) => c.json({ ok: false, message: 'There’s nothing here' }, 404));
+  // Security headers on every answer (review, Nov 16): HTTPS only (HSTS), never framed, no sniffing, no referrer, and a
+  // policy that lets nothing load: the API only sends JSON and event streams, which a browser never renders as a page
+  app.use(secureHeaders({
+    strictTransportSecurity: 'max-age=31536000; includeSubDomains',
+    contentSecurityPolicy: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
+    crossOriginResourcePolicy: false,   // the site at bg.ondorilabo.com reads these answers (CORS decides who may)
+    crossOriginOpenerPolicy: false,
+  }));
 
   // One line per request: route, status, time, member id. Never emails, questions or other content.
   app.use(async (c, next) => {

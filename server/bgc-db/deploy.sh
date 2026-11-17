@@ -25,7 +25,11 @@ $SSH "cd ~/bgc-db/schema && bash apply.sh --dry-run"
 echo "--- applying ---"
 $SSH "cd ~/bgc-db/schema && bash apply.sh"
 
+# The API's own login (060): its password comes from BGC_APP_PASSWORD in ~/bgc-db/.env and never leaves the server
+$SSH 'pw=$(grep -E "^BGC_APP_PASSWORD=[0-9a-f]{32,}$" ~/bgc-db/.env | cut -d= -f2); if [ -n "$pw" ]; then echo "ALTER ROLE bgc_app PASSWORD '"'"'$pw'"'"';" | docker exec -i bgc-postgres psql -U bgc -d bgc -q && echo "bgc_app password set"; else echo "BGC_APP_PASSWORD not in .env: the API keeps using bgc"; fi'
+
 echo "--- compose ---"
+$SSH "docker network inspect bgc >/dev/null 2>&1 || docker network create bgc >/dev/null"   # Board Game Curator's own network
 $SSH "cd ~/bgc-db && docker compose up -d --build 2>&1 | tail -8 && docker ps --format '{{.Names}}: {{.Status}}' | grep bgc-"
 
 echo "--- checks ---"

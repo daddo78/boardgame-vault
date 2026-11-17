@@ -92,3 +92,12 @@ test('settings: a missing database address stops the service at start, with a pl
   assert.throws(() => loadConfig({ PGHOST: 'x', RATE_PER_MINUTE: 'lots' }), /RATE_PER_MINUTE/);
   assert.equal(loadConfig({ PGHOST: 'x' }).allowLocalhost, false, 'the server never sets ALLOW_LOCALHOST, so only the site may call');
 });
+
+test('security headers on every answer: HTTPS only, never framed, no sniffing, nothing loads', async () => {
+  const { app } = makeApp();
+  const r = await app.request('/health');
+  assert.match(r.headers.get('strict-transport-security') || '', /max-age=31536000/);
+  assert.equal(r.headers.get('x-content-type-options'), 'nosniff');
+  assert.match(r.headers.get('content-security-policy') || '', /default-src 'none'.*frame-ancestors 'none'/);
+  assert.equal(r.headers.get('referrer-policy'), 'no-referrer');
+});
