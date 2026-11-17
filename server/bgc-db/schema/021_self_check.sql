@@ -242,6 +242,13 @@ BEGIN
     res := res || jsonb_build_object('what', 'a member can make a new code', 'ok', coalesce(((SELECT friend_code FROM members WHERE google_email = 'check.member@example.invalid') <> (bgc.friend_code_reset('check.member@example.invalid') ->> 'code') AND (SELECT length(friend_code) FROM members WHERE google_email = 'check.member@example.invalid') = 10), false));
     res := res || jsonb_build_object('what', 'codes that match nobody are refused', 'ok', coalesce(((SELECT bool_and(NOT (bgc.add_friend('check.member@example.invalid', 'ZZZZZZZZ' || n) ->> 'ok')::boolean) FROM generate_series(10, 19) n)), false));
     res := res || jsonb_build_object('what', 'after 10 wrong codes in an hour, even a right one waits', 'ok', coalesce(((bgc.add_friend('check.member@example.invalid', (SELECT friend_code FROM members WHERE google_email = 'nathan.schmidt@curator.invalid')) ->> 'status') = '429'), false));
+    UPDATE members SET is_admin = true WHERE google_email = 'check.member@example.invalid';
+    res := res || jsonb_build_object('what', 'an admin who isn''t Dan can''t remove members', 'ok', coalesce(((bgc.admin_action('check.member@example.invalid', 'remove', bgc.member_id('nathan.schmidt@curator.invalid'), '{}') ->> 'status') = '403' AND bgc.member_id('nathan.schmidt@curator.invalid') IS NOT NULL), false));
+    res := res || jsonb_build_object('what', 'or make admins', 'ok', coalesce(((bgc.admin_action('check.member@example.invalid', 'admin', bgc.member_id('nathan.schmidt@curator.invalid'), '{"on": true}') ->> 'status') = '403'), false));
+    res := res || jsonb_build_object('what', 'or change the question limit', 'ok', coalesce(((bgc.admin_action('check.member@example.invalid', 'askLimit', NULL, '{"value": 500}') ->> 'status') = '403'), false));
+    res := res || jsonb_build_object('what', 'games new to the catalog are added', 'ok', coalesce((bgc.catalog_game(999977, 'Check Pixel Game', 'https://tracker.example/pixel.gif') > 0 AND bgc.catalog_game(999978, 'Check Art Game', 'https://cf.geekdo-images.com/abc/pic1.jpg') > 0), false));
+    res := res || jsonb_build_object('what', 'a cover from anywhere but BGG isn''t kept', 'ok', coalesce(((SELECT cover_card IS NULL FROM games WHERE bgg_id = 999977)), false));
+    res := res || jsonb_build_object('what', 'a BGG cover is', 'ok', coalesce(((SELECT cover_card FROM games WHERE bgg_id = 999978) = 'https://cf.geekdo-images.com/abc/pic1.jpg'), false));
     RAISE EXCEPTION 'self-check done' USING ERRCODE = 'P0001'; -- undo everything the checks did
   EXCEPTION WHEN raise_exception THEN
     IF SQLERRM <> 'self-check done' THEN res := res || jsonb_build_object('what', 'the checks crashed: ' || SQLERRM, 'ok', false); END IF;

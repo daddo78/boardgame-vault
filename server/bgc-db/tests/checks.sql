@@ -295,4 +295,12 @@ SELECT pg_temp.check(bgc.new_friend_code() ~ '^[A-HJ-KM-NP-Z2-9]{10}$', 'a new f
 SELECT pg_temp.check((SELECT friend_code FROM members WHERE google_email = 'check.member@example.invalid') <> (bgc.friend_code_reset('check.member@example.invalid') ->> 'code') AND (SELECT length(friend_code) FROM members WHERE google_email = 'check.member@example.invalid') = 10, 'a member can make a new code');
 SELECT pg_temp.check((SELECT bool_and(NOT (bgc.add_friend('check.member@example.invalid', 'ZZZZZZZZ' || n) ->> 'ok')::boolean) FROM generate_series(10, 19) n), 'codes that match nobody are refused');
 SELECT pg_temp.check((bgc.add_friend('check.member@example.invalid', (SELECT friend_code FROM members WHERE google_email = 'nathan.schmidt@curator.invalid')) ->> 'status') = '429', 'after 10 wrong codes in an hour, even a right one waits');
+-- Owner-only powers, BGG-only covers (059)
+UPDATE members SET is_admin = true WHERE google_email = 'check.member@example.invalid';
+SELECT pg_temp.check((bgc.admin_action('check.member@example.invalid', 'remove', bgc.member_id('nathan.schmidt@curator.invalid'), '{}') ->> 'status') = '403' AND bgc.member_id('nathan.schmidt@curator.invalid') IS NOT NULL, 'an admin who isn''t Dan can''t remove members');
+SELECT pg_temp.check((bgc.admin_action('check.member@example.invalid', 'admin', bgc.member_id('nathan.schmidt@curator.invalid'), '{"on": true}') ->> 'status') = '403', 'or make admins');
+SELECT pg_temp.check((bgc.admin_action('check.member@example.invalid', 'askLimit', NULL, '{"value": 500}') ->> 'status') = '403', 'or change the question limit');
+SELECT pg_temp.check(bgc.catalog_game(999977, 'Check Pixel Game', 'https://tracker.example/pixel.gif') > 0 AND bgc.catalog_game(999978, 'Check Art Game', 'https://cf.geekdo-images.com/abc/pic1.jpg') > 0, 'games new to the catalog are added');
+SELECT pg_temp.check((SELECT cover_card IS NULL FROM games WHERE bgg_id = 999977), 'a cover from anywhere but BGG isn''t kept');
+SELECT pg_temp.check((SELECT cover_card FROM games WHERE bgg_id = 999978) = 'https://cf.geekdo-images.com/abc/pic1.jpg', 'a BGG cover is');
 ROLLBACK;
