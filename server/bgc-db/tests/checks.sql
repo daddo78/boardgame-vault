@@ -290,4 +290,9 @@ SELECT pg_temp.check((bgc.use_ai('check.member@example.invalid', 'ask') ->> 'ok'
 UPDATE settings SET value = '0' WHERE key = 'ai_daily_cap_usd';
 SELECT pg_temp.check(NOT bgc.ai_budget_ok() AND NOT (bgc.use_ai('check.member@example.invalid', 'ask') ->> 'ok')::boolean, 'with the day''s AI budget spent, Nathan rests');
 SELECT pg_temp.check(NOT (bgc.use_ai('stranger@example.invalid', 'ask') ->> 'ok')::boolean, 'only members use AI');
+-- Friend codes (058)
+SELECT pg_temp.check(bgc.new_friend_code() ~ '^[A-HJ-KM-NP-Z2-9]{10}$', 'a new friend code is 10 characters');
+SELECT pg_temp.check((SELECT friend_code FROM members WHERE google_email = 'check.member@example.invalid') <> (bgc.friend_code_reset('check.member@example.invalid') ->> 'code') AND (SELECT length(friend_code) FROM members WHERE google_email = 'check.member@example.invalid') = 10, 'a member can make a new code');
+SELECT pg_temp.check((SELECT bool_and(NOT (bgc.add_friend('check.member@example.invalid', 'ZZZZZZZZ' || n) ->> 'ok')::boolean) FROM generate_series(10, 19) n), 'codes that match nobody are refused');
+SELECT pg_temp.check((bgc.add_friend('check.member@example.invalid', (SELECT friend_code FROM members WHERE google_email = 'nathan.schmidt@curator.invalid')) ->> 'status') = '429', 'after 10 wrong codes in an hour, even a right one waits');
 ROLLBACK;

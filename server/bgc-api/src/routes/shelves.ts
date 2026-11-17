@@ -82,13 +82,17 @@ export function shelfRoutes(db: Db) {
       const b = await body(c);
       return c.json(fromDb(await db.one<Record<string, any>>('SELECT bgc.shelf_remove($1, $2)', [c.get('auth').email, String(b.id || '')])));
     })
-    // POST /vault/friends { action: 'add', code } | { action: 'remove', id }: entering a code connects you both right away
+    // POST /vault/friends { action: 'add', code } | { action: 'remove', id } | { action: 'newCode' }: entering a code
+    // connects you both right away; a new code of your own makes the old one stop working (058)
     .post('/friends', async (c) => {
       const b = await body(c);
       const email = c.get('auth').email;
-      const r = String(b.action || 'add') === 'remove'
+      const action = String(b.action || 'add');
+      const r = action === 'remove'
         ? await db.one<Record<string, any>>("SELECT bgc.remove_friend($1, nullif($2, '')::bigint)", [email, String(Number(b.id) || '')])
-        : await db.one<Record<string, any>>('SELECT bgc.add_friend($1, $2)', [email, String(b.code || '')]);
+        : action === 'newCode'
+          ? await db.one<Record<string, any>>('SELECT bgc.friend_code_reset($1)', [email])
+          : await db.one<Record<string, any>>('SELECT bgc.add_friend($1, $2)', [email, String(b.code || '')]);
       return c.json(fromDb(r));
     });
 }

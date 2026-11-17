@@ -238,6 +238,10 @@ BEGIN
     UPDATE settings SET value = '0' WHERE key = 'ai_daily_cap_usd';
     res := res || jsonb_build_object('what', 'with the day''s AI budget spent, Nathan rests', 'ok', coalesce((NOT bgc.ai_budget_ok() AND NOT (bgc.use_ai('check.member@example.invalid', 'ask') ->> 'ok')::boolean), false));
     res := res || jsonb_build_object('what', 'only members use AI', 'ok', coalesce((NOT (bgc.use_ai('stranger@example.invalid', 'ask') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'a new friend code is 10 characters', 'ok', coalesce((bgc.new_friend_code() ~ '^[A-HJ-KM-NP-Z2-9]{10}$'), false));
+    res := res || jsonb_build_object('what', 'a member can make a new code', 'ok', coalesce(((SELECT friend_code FROM members WHERE google_email = 'check.member@example.invalid') <> (bgc.friend_code_reset('check.member@example.invalid') ->> 'code') AND (SELECT length(friend_code) FROM members WHERE google_email = 'check.member@example.invalid') = 10), false));
+    res := res || jsonb_build_object('what', 'codes that match nobody are refused', 'ok', coalesce(((SELECT bool_and(NOT (bgc.add_friend('check.member@example.invalid', 'ZZZZZZZZ' || n) ->> 'ok')::boolean) FROM generate_series(10, 19) n)), false));
+    res := res || jsonb_build_object('what', 'after 10 wrong codes in an hour, even a right one waits', 'ok', coalesce(((bgc.add_friend('check.member@example.invalid', (SELECT friend_code FROM members WHERE google_email = 'nathan.schmidt@curator.invalid')) ->> 'status') = '429'), false));
     RAISE EXCEPTION 'self-check done' USING ERRCODE = 'P0001'; -- undo everything the checks did
   EXCEPTION WHEN raise_exception THEN
     IF SQLERRM <> 'self-check done' THEN res := res || jsonb_build_object('what', 'the checks crashed: ' || SQLERRM, 'ok', false); END IF;

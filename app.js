@@ -2967,6 +2967,7 @@ function renderFriendsPanel() {
   codeEl.className = friendsData.code ? '' : friendsFailed ? 'failed' : 'loading';
   codeEl.innerHTML = friendsData.code ? esc(friendsData.code) : friendsFailed ? 'Couldn’t load your code · <button type="button" class="add-asis" data-retry-friends style="display:inline; margin:0;">Try again</button>' : 'Loading…';
   document.getElementById('copyFriendCode').hidden = !friendsData.code;
+  document.getElementById('newFriendCode').hidden = !friendsData.code;
   const list = friendsData.friends || [];
   document.getElementById('friendsList').innerHTML = list.length ? list.map(f =>
     '<div class="fr-row"><div class="who"><b>' + esc(f.name) + '</b><span>' + f.games + (f.games === 1 ? ' game' : ' games') + '</span></div>' +
@@ -2981,6 +2982,19 @@ document.getElementById('copyFriendCode').addEventListener('click', async () => 
   const code = friendsData.code;
   if (!code) return;
   try { await navigator.clipboard.writeText(code); toast('Copied your code: ' + code); } catch (e) { toast('Your code is ' + code); }
+});
+// A new code (058): the old one stops working for anyone who hasn't used it yet; friends you already have stay
+document.getElementById('newFriendCode').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  if (!confirm('Make a new friend code? Your old code stops working. Friends you already have stay friends.')) return;
+  btn.disabled = true;
+  try {
+    const r = await vaultFetch('/friends', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'newCode' }) });
+    friendsData.code = r.code;
+    renderFriendsPanel();
+    toast('Your new code is ' + r.code);
+  } catch (err) { toast(err.message.replace(/^Request failed \(\d+\) /, ''), true); }
+  finally { btn.disabled = false; }
 });
 document.getElementById('friendAddForm').addEventListener('submit', async (e) => {
   e.preventDefault();
