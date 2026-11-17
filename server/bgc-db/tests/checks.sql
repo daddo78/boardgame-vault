@@ -15,6 +15,9 @@ INSERT INTO members (google_email, display_name) VALUES ('check.member@example.i
 -- Sign-in: membership comes from the member list
 SELECT pg_temp.check((bgc.sign_in('check.member@example.invalid') ->> 'member')::boolean, 'a member who isn''t in Dan''s plays can sign in');
 SELECT pg_temp.check(NOT (bgc.sign_in('stranger@example.invalid') ->> 'member')::boolean, 'a stranger can''t sign in');
+-- An invited person with the same name as one of Dan's people isn't given that card (056)
+INSERT INTO members (google_email, display_name) SELECT 'check.namesake@example.invalid', name FROM players WHERE owner_id = at.admin_id() AND linked_member_id IS NULL AND NOT hidden ORDER BY id LIMIT 1;
+SELECT pg_temp.check((bgc.sign_in('check.namesake@example.invalid') ->> 'playerId') IS NULL AND NOT EXISTS (SELECT 1 FROM players WHERE linked_member_id = bgc.member_id('check.namesake@example.invalid')), 'a namesake of one of Dan''s people isn''t linked to that card');
 SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM players p JOIN members m ON m.id = p.linked_member_id
   WHERE p.owner_id = at.admin_id() AND m.google_email = 'check.member@example.invalid'), 'signing in doesn''t add someone to Dan''s people');
 SELECT pg_temp.check((bgc.sign_in('dandehaan@gmail.com') ->> 'isAdmin')::boolean, 'Dan signs in as an admin');

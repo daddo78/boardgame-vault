@@ -11,6 +11,8 @@ BEGIN
     INSERT INTO members (google_email, display_name) VALUES ('check.member@example.invalid', 'Check Member');
     res := res || jsonb_build_object('what', 'a member who isn''t in Dan''s plays can sign in', 'ok', coalesce(((bgc.sign_in('check.member@example.invalid') ->> 'member')::boolean), false));
     res := res || jsonb_build_object('what', 'a stranger can''t sign in', 'ok', coalesce((NOT (bgc.sign_in('stranger@example.invalid') ->> 'member')::boolean), false));
+    INSERT INTO members (google_email, display_name) SELECT 'check.namesake@example.invalid', name FROM players WHERE owner_id = at.admin_id() AND linked_member_id IS NULL AND NOT hidden ORDER BY id LIMIT 1;
+    res := res || jsonb_build_object('what', 'a namesake of one of Dan''s people isn''t linked to that card', 'ok', coalesce(((bgc.sign_in('check.namesake@example.invalid') ->> 'playerId') IS NULL AND NOT EXISTS (SELECT 1 FROM players WHERE linked_member_id = bgc.member_id('check.namesake@example.invalid'))), false));
     res := res || jsonb_build_object('what', 'signing in doesn''t add someone to Dan''s people', 'ok', coalesce((NOT EXISTS (SELECT 1 FROM players p JOIN members m ON m.id = p.linked_member_id
   WHERE p.owner_id = at.admin_id() AND m.google_email = 'check.member@example.invalid')), false));
     res := res || jsonb_build_object('what', 'Dan signs in as an admin', 'ok', coalesce(((bgc.sign_in('dandehaan@gmail.com') ->> 'isAdmin')::boolean), false));
