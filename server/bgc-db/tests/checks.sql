@@ -163,6 +163,7 @@ SELECT pg_temp.check(jsonb_array_length(bgc.bgg_out_next(10)) >= 2, 'the worker 
 SELECT pg_temp.check(bgc.bgg_out_result((SELECT id FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'play' AND state = 'pending'), '{"outcome": "ok", "bggPlayId": 987654321}'), 'BGG took the play');
 SELECT pg_temp.check((SELECT bgg_play_id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_id = 999901 AND played_on = '2026-10-20') = 987654321, 'a play sent to BGG gets BGG''s id, so the nightly sync updates it instead of adding another');
 SELECT pg_temp.check(bgc.bgg_out_result((SELECT id FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'item' AND state = 'pending'), '{"outcome": "auth", "message": "You must login"}'), 'BGG asks for a new sign-in');
+UPDATE bgg_outbox SET claimed_until = NULL WHERE member_id = bgc.member_id('check.member@example.invalid');
 SELECT pg_temp.check((bgc.bgg_link_status('check.member@example.invalid') ->> 'state') = 'expired' AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.bgg_out_next(50)) x WHERE (x ->> 'memberId')::bigint = bgc.member_id('check.member@example.invalid')), 'when BGG wants a new sign-in, the member''s changes wait for it');
 SELECT pg_temp.check((bgc.bgg_link_save('check.member@example.invalid', 'check_bgg_user', 'v1.sealed2', NULL) -> 'link' ->> 'state') = 'ok', 'signing in again picks them up');
 -- Logged here and also on BG Stats: the BGG copy stays, ours goes
@@ -255,8 +256,10 @@ SELECT pg_temp.check((at.save_plays('check.member@example.invalid', '[{"id": 987
 SELECT pg_temp.check((SELECT location FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_play_id = 987650001) = 'Check Den', 'a place set here survives the sync');
 SELECT pg_temp.check((bgc.bgg_link_save('check.member@example.invalid', 'check_bgg_user', 'v1.sealed4', NULL) -> 'link' ->> 'location') = 'false', 'sending where you played is off unless you turn it on');
 SELECT pg_temp.check((bgc.play_edit('check.member@example.invalid', (SELECT id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_play_id = 987650001), '{"date": "2026-10-15", "location": "Check Den", "players": [{"name": "Check Member"}]}') ->> 'ok')::boolean, 'edit that play');
+UPDATE bgg_outbox SET claimed_until = NULL WHERE member_id = bgc.member_id('check.member@example.invalid');
 SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.bgg_out_next(200)) x WHERE x -> 'play' ->> 'location' = 'H.' AND (x ->> 'memberId')::bigint = bgc.member_id('check.member@example.invalid')), 'with the switch off, BGG gets its own place back, unchanged');
 SELECT pg_temp.check((bgc.bgg_link_settings('check.member@example.invalid', '{"location": true}') -> 'link' ->> 'location') = 'true', 'turn it on');
+UPDATE bgg_outbox SET claimed_until = NULL WHERE member_id = bgc.member_id('check.member@example.invalid');
 SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.bgg_out_next(200)) x WHERE x -> 'play' ->> 'location' = 'Check Den' AND (x ->> 'memberId')::bigint = bgc.member_id('check.member@example.invalid')), 'then BGG gets the place you gave it');
 -- Scores and co-op (053)
 UPDATE games SET mechanics = ARRAY['Cooperative Game'] WHERE bgg_id = 999903;
@@ -265,6 +268,15 @@ SELECT pg_temp.check((SELECT string_agg(pp.name || ':' || pp.score, ',' ORDER BY
 SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.my_plays('check.member@example.invalid', 0, 200) -> 'plays') x WHERE x ->> 'date' = '2026-10-14' AND (x ->> 'coop')::boolean AND x -> 'players' -> 0 ->> 'score' = '42'), 'my plays show the scores, and that the game is co-op');
 SELECT pg_temp.check((bgc.play_edit('check.member@example.invalid', (SELECT id FROM plays WHERE owner_id = bgc.member_id('check.member@example.invalid') AND bgg_id = 999903 AND played_on = '2026-10-14'),
   '{"date": "2026-10-14", "players": [{"name": "Check Member", "score": "45"}, {"name": "Check Jo"}]}') -> 'play' -> 'players' -> 1 ->> 'score') = '37', 'an edit changes a score given and keeps one left out');
+UPDATE bgg_outbox SET claimed_until = NULL WHERE member_id = bgc.member_id('check.member@example.invalid');
 SELECT pg_temp.check(EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.bgg_out_next(200)) x WHERE x -> 'play' ->> 'date' = '2026-10-14' AND x -> 'play' -> 'players' -> 0 ->> 'score' = '45'), 'and the score goes to BGG');
+
+-- The outbox claims what it hands out, and resends what changed on its way (055)
+UPDATE bgg_outbox SET claimed_until = NULL WHERE member_id = bgc.member_id('check.member@example.invalid');
+SELECT pg_temp.check((SELECT count(*) FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND state = 'pending') >= 1, 'something is waiting to go');
+SELECT pg_temp.check(jsonb_array_length(bgc.bgg_out_next(200)) >= 1 AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(bgc.bgg_out_next(200)) x WHERE (x ->> 'memberId')::bigint = bgc.member_id('check.member@example.invalid')), 'a second run gets none of what the first one took');
+UPDATE plays SET minutes = 77 WHERE id = (SELECT play_id FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'play' AND state = 'pending' ORDER BY id LIMIT 1);
+SELECT pg_temp.check(bgc.bgg_out_result((SELECT o.id FROM bgg_outbox o JOIN plays p ON p.id = o.play_id WHERE o.member_id = bgc.member_id('check.member@example.invalid') AND o.kind = 'play' AND o.state = 'pending' AND p.minutes = 77), '{"outcome": "ok", "bggPlayId": 987650077}'), 'a send is recorded');
+SELECT pg_temp.check((SELECT state = 'pending' AND want ->> 'edit' = 'true' AND claimed_until IS NULL FROM bgg_outbox WHERE id = (SELECT o.id FROM bgg_outbox o JOIN plays p ON p.id = o.play_id WHERE o.member_id = bgc.member_id('check.member@example.invalid') AND o.kind = 'play' AND o.state = 'pending' AND p.minutes = 77)), 'a play changed while it was being sent goes again, as an edit');
 
 ROLLBACK;

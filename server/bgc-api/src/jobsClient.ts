@@ -21,6 +21,8 @@ export function jobsClient(config: Pick<Config, 'jobsUrl'>, f: Fetch, local: Run
             signal: AbortSignal.timeout(opts.wait ? 95_000 : 5_000),
           });
           if (r.ok) { const j: any = await r.json().catch(() => ({})); return { where: 'worker', result: j.result }; }
+          // Already running on the worker: that run takes everything waiting, so a second one here would only race it
+          if (r.status === 409) return { where: 'worker', result: { skipped: 'running' } };
           console.error(JSON.stringify({ level: 'warn', where: 'jobs', job: name, status: r.status }));
         } catch (e) { console.error(JSON.stringify({ level: 'warn', where: 'jobs', job: name, error: String((e as Error)?.message || e) })); }
       }
