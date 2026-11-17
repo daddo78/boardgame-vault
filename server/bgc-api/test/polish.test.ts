@@ -181,3 +181,15 @@ test('POST /vault/rulebook: the PDF goes to the page service, the document is qu
   assert.equal(d.status, 400);
   assert.match(d.body.message, /page service didn’t answer/);
 });
+
+test('POST /vault/shelf-identify: over the daily photo limit or the site\'s AI budget, no AI is called (057)', async () => {
+  const { f, calls } = world({ things: {}, vision: { items: [] } });
+  const db = fakeDb({ 'bgc.use_ai': () => ({ ok: false, status: 429, message: 'That\'s 10 photos today, the most for one day. Try again tomorrow, or add games by name.' }) });
+  const app = makeAppWith({ db, fetch: f, env: ENV });
+  const photo = new File([new Uint8Array([1, 2, 3])], 'shelf.jpg', { type: 'image/jpeg' });
+  const r = await json(await upload(app, '/vault/shelf-identify', { photo }, await amy()));
+  assert.equal(r.status, 429);
+  assert.match(r.body.message, /10 photos today/);
+  assert.equal(calls.filter((c) => c.url.includes('openrouter')).length, 0, 'the vision model is never asked');
+  assert.deepEqual(db.calls.find((c) => c.sql.includes('bgc.use_ai'))!.params, ['amy@example.com', 'photo']);
+});

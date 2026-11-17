@@ -211,3 +211,13 @@ test('ask: bad input gets n8n’s own messages; no key means not set up; OpenRou
     assert.deepEqual([r.status, ((await r.json()) as any).message], [502, 'Nathan couldn’t answer just now. Try again in a moment.']);
   } finally { console.error = orig; }
 });
+
+test('ask: when the site\'s AI budget for today is spent, Nathan says so and uses nobody\'s allowance (057)', async () => {
+  const or = fakeOpenRouter();
+  const db = nathanDb({ 'bgc.use_ai': () => ({ ok: false, status: 429, message: 'Board Game Curator has used its AI budget for today. Try again tomorrow.' }) });
+  const app = makeAppWith({ db, fetch: or.f });
+  const r = await app.request('/vault/ask', { method: 'POST', headers: { ...bearer(await token()), 'Content-Type': 'application/json' }, body: JSON.stringify({ question: 'a co-op for 3 under an hour' }) });
+  assert.equal(r.status, 429);
+  assert.match(((await r.json()) as any).message, /AI budget for today/);
+  assert.equal(or.bodies.length, 0, 'OpenRouter is never asked');
+});

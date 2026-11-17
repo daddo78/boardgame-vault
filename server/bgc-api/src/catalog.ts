@@ -78,6 +78,8 @@ type ToPolish = { ok: boolean; title?: string; genre?: string; type?: string; de
 export async function polishGame(d: PolishDeps, email: string, skey: string, thing: Thing | null, given: Partial<Blurb> = {}): Promise<Record<string, string> | null> {
   const costs: AiCost[] = [];
   try {
+    // The site's daily AI budget (057): when it's spent, the game is added without its blurb and icon for now
+    if (!(await d.db.one<boolean>('SELECT bgc.ai_budget_ok()', []))) return null;
     const g = await d.db.one<ToPolish>('SELECT bgc.game_to_polish($1, $2)', [email, skey]);
     if (!g?.ok) return null;
     const p: Record<string, string> = {};

@@ -37,6 +37,9 @@ export function fakeDb(overrides: Partial<Record<string, (params: unknown[]) => 
     'bgc.profile_page': ([email, friend]) => (friend === 99
       ? { ok: false, status: 403, message: 'You can see a profile once you’re friends' }
       : { ok: true, id: friend ?? MEMBERS[email as string]?.id, self: friend == null }),
+    // The daily AI caps (057): allowed unless a test says otherwise
+    'bgc.use_ai': () => ({ ok: true }),
+    'bgc.ai_budget_ok': () => true,
     ...overrides,
   };
   let up = true;

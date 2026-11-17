@@ -282,4 +282,12 @@ UPDATE plays SET minutes = 77 WHERE id = (SELECT play_id FROM bgg_outbox WHERE m
 SELECT pg_temp.check(bgc.bgg_out_result((SELECT o.id FROM bgg_outbox o JOIN plays p ON p.id = o.play_id WHERE o.member_id = bgc.member_id('check.member@example.invalid') AND o.kind = 'play' AND o.state = 'pending' AND p.minutes = 77), '{"outcome": "ok", "bggPlayId": 987650077}'), 'a send is recorded');
 SELECT pg_temp.check((SELECT state = 'pending' AND want ->> 'edit' = 'true' AND claimed_until IS NULL FROM bgg_outbox WHERE id = (SELECT o.id FROM bgg_outbox o JOIN plays p ON p.id = o.play_id WHERE o.member_id = bgc.member_id('check.member@example.invalid') AND o.kind = 'play' AND o.state = 'pending' AND p.minutes = 77)), 'a play changed while it was being sent goes again, as an edit');
 
+-- Caps on AI (057)
+UPDATE settings SET value = '2' WHERE key = 'ai_photo_per_member';
+SELECT pg_temp.check((bgc.use_ai('check.member@example.invalid', 'photo') ->> 'ok')::boolean AND (bgc.use_ai('check.member@example.invalid', 'photo') ->> 'ok')::boolean, 'photos up to the daily limit are fine');
+SELECT pg_temp.check(NOT (bgc.use_ai('check.member@example.invalid', 'photo') ->> 'ok')::boolean, 'one more photo than the limit is refused');
+SELECT pg_temp.check((bgc.use_ai('check.member@example.invalid', 'ask') ->> 'ok')::boolean, 'Nathan is checked against the budget only');
+UPDATE settings SET value = '0' WHERE key = 'ai_daily_cap_usd';
+SELECT pg_temp.check(NOT bgc.ai_budget_ok() AND NOT (bgc.use_ai('check.member@example.invalid', 'ask') ->> 'ok')::boolean, 'with the day''s AI budget spent, Nathan rests');
+SELECT pg_temp.check(NOT (bgc.use_ai('stranger@example.invalid', 'ask') ->> 'ok')::boolean, 'only members use AI');
 ROLLBACK;

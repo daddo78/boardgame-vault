@@ -73,6 +73,9 @@ export function shelfPhotoRoutes(d: PhotoDeps) {
       if (!d.openrouterKey) throw new ApiError(503, 'The AI service isn’t set up on this server yet');
       const photo = await photoIn(c);
       const email = c.get('auth').email;
+      // A daily number of photos per member, and the site's daily AI budget (057)
+      const use = await d.db.one<{ ok: boolean; status?: number; message?: string }>('SELECT bgc.use_ai($1, $2)', [email, 'photo']);
+      if (!use?.ok) throw new ApiError((use?.status as any) || 429, use?.message || 'Try again tomorrow');
       const shelf = (await d.db.one<Record<string, any>>('SELECT bgc.shelf($1)', [email])) || {};
       const games = (Array.isArray(shelf.records) ? shelf.records : []).map(toGame);
       const costs: AiCost[] = [];

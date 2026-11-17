@@ -69,6 +69,8 @@ export const ruleReader: Job<{}> = {
   schedule: { everyMinutes: 2 },
   async run(ctx) {
     const { db, fetch: f, config } = ctx;
+    // The site's daily AI budget (057): when it's spent, documents wait (unclaimed) and are read after midnight
+    if (!(await db.one<boolean>('SELECT bgc.ai_budget_ok()', []))) return { document: null, waiting: 'AI budget for today is used up' };
     const d = await db.one<Claimed>('SELECT bgc.rule_doc_claim()', []);
     if (!d || !d.id) return { document: null };
     if (!config.openrouterKey) throw new Error('OPENROUTER_API_KEY is not set: can\'t read rulebooks');

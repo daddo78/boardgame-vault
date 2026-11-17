@@ -231,6 +231,13 @@ BEGIN
     UPDATE plays SET minutes = 77 WHERE id = (SELECT play_id FROM bgg_outbox WHERE member_id = bgc.member_id('check.member@example.invalid') AND kind = 'play' AND state = 'pending' ORDER BY id LIMIT 1);
     res := res || jsonb_build_object('what', 'a send is recorded', 'ok', coalesce((bgc.bgg_out_result((SELECT o.id FROM bgg_outbox o JOIN plays p ON p.id = o.play_id WHERE o.member_id = bgc.member_id('check.member@example.invalid') AND o.kind = 'play' AND o.state = 'pending' AND p.minutes = 77), '{"outcome": "ok", "bggPlayId": 987650077}')), false));
     res := res || jsonb_build_object('what', 'a play changed while it was being sent goes again, as an edit', 'ok', coalesce(((SELECT state = 'pending' AND want ->> 'edit' = 'true' AND claimed_until IS NULL FROM bgg_outbox WHERE id = (SELECT o.id FROM bgg_outbox o JOIN plays p ON p.id = o.play_id WHERE o.member_id = bgc.member_id('check.member@example.invalid') AND o.kind = 'play' AND o.state = 'pending' AND p.minutes = 77))), false));
+    UPDATE settings SET value = '2' WHERE key = 'ai_photo_per_member';
+    res := res || jsonb_build_object('what', 'photos up to the daily limit are fine', 'ok', coalesce(((bgc.use_ai('check.member@example.invalid', 'photo') ->> 'ok')::boolean AND (bgc.use_ai('check.member@example.invalid', 'photo') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'one more photo than the limit is refused', 'ok', coalesce((NOT (bgc.use_ai('check.member@example.invalid', 'photo') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'Nathan is checked against the budget only', 'ok', coalesce(((bgc.use_ai('check.member@example.invalid', 'ask') ->> 'ok')::boolean), false));
+    UPDATE settings SET value = '0' WHERE key = 'ai_daily_cap_usd';
+    res := res || jsonb_build_object('what', 'with the day''s AI budget spent, Nathan rests', 'ok', coalesce((NOT bgc.ai_budget_ok() AND NOT (bgc.use_ai('check.member@example.invalid', 'ask') ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'only members use AI', 'ok', coalesce((NOT (bgc.use_ai('stranger@example.invalid', 'ask') ->> 'ok')::boolean), false));
     RAISE EXCEPTION 'self-check done' USING ERRCODE = 'P0001'; -- undo everything the checks did
   EXCEPTION WHEN raise_exception THEN
     IF SQLERRM <> 'self-check done' THEN res := res || jsonb_build_object('what', 'the checks crashed: ' || SQLERRM, 'ok', false); END IF;

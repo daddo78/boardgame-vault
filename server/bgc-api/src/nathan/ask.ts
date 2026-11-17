@@ -71,6 +71,9 @@ export async function askNathan(deps: NathanDeps, auth: Auth, body: unknown, ev:
 
   // Today's allowance (test runs from inside the container don't use anyone's)
   if (!v.test) {
+    // The site's daily AI budget first (057): when it's spent, Nathan rests until midnight and nobody's allowance is used
+    const budget = await db.one<{ ok: boolean; status?: number; message?: string }>('SELECT bgc.use_ai($1, $2)', [v.email, 'ask']);
+    if (!budget?.ok) throw new ApiError((budget?.status as any) || 429, budget?.message || 'Try again tomorrow');
     const used = await db.row('SELECT bgc.use_ask($1) AS questions, bgc.ask_limit() AS lim', [v.email]);
     put('Use Allowance', used);
     const left = step('Allowance Left?', items(used))[0].json;
