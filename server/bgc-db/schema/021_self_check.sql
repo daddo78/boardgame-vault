@@ -249,6 +249,9 @@ BEGIN
     res := res || jsonb_build_object('what', 'games new to the catalog are added', 'ok', coalesce((bgc.catalog_game(999977, 'Check Pixel Game', 'https://tracker.example/pixel.gif') > 0 AND bgc.catalog_game(999978, 'Check Art Game', 'https://cf.geekdo-images.com/abc/pic1.jpg') > 0), false));
     res := res || jsonb_build_object('what', 'a cover from anywhere but BGG isn''t kept', 'ok', coalesce(((SELECT cover_card IS NULL FROM games WHERE bgg_id = 999977)), false));
     res := res || jsonb_build_object('what', 'a BGG cover is', 'ok', coalesce(((SELECT cover_card FROM games WHERE bgg_id = 999978) = 'https://cf.geekdo-images.com/abc/pic1.jpg'), false));
+    res := res || jsonb_build_object('what', 'a friend can stop being one', 'ok', coalesce(((bgc.remove_friend('check.member@example.invalid', at.admin_id()) ->> 'ok')::boolean), false));
+    res := res || jsonb_build_object('what', 'a member who isn''t Dan''s friend never gets his shelf, by name or by id', 'ok', coalesce((NOT bgc.are_friends(bgc.member_id('check.member@example.invalid'), at.admin_id()) AND (bgc.shelf_view('check.member@example.invalid', 'main', NULL) ->> 'shelf') = 'mine' AND (bgc.shelf_view('check.member@example.invalid', 'friend:' || at.admin_id(), NULL) ->> 'shelf') = 'mine'), false));
+    res := res || jsonb_build_object('what', 'or his shelf or profile through Friends', 'ok', coalesce(((bgc.friend_shelf('check.member@example.invalid', at.admin_id()) ->> 'status') = '403' AND (bgc.profile_page('check.member@example.invalid', at.admin_id()) ->> 'ok')::boolean IS NOT TRUE), false));
     RAISE EXCEPTION 'self-check done' USING ERRCODE = 'P0001'; -- undo everything the checks did
   EXCEPTION WHEN raise_exception THEN
     IF SQLERRM <> 'self-check done' THEN res := res || jsonb_build_object('what', 'the checks crashed: ' || SQLERRM, 'ok', false); END IF;

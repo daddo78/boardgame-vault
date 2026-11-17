@@ -303,4 +303,8 @@ SELECT pg_temp.check((bgc.admin_action('check.member@example.invalid', 'askLimit
 SELECT pg_temp.check(bgc.catalog_game(999977, 'Check Pixel Game', 'https://tracker.example/pixel.gif') > 0 AND bgc.catalog_game(999978, 'Check Art Game', 'https://cf.geekdo-images.com/abc/pic1.jpg') > 0, 'games new to the catalog are added');
 SELECT pg_temp.check((SELECT cover_card IS NULL FROM games WHERE bgg_id = 999977), 'a cover from anywhere but BGG isn''t kept');
 SELECT pg_temp.check((SELECT cover_card FROM games WHERE bgg_id = 999978) = 'https://cf.geekdo-images.com/abc/pic1.jpg', 'a BGG cover is');
+-- Dan's shelf is for his friends only (Dan, Nov 16)
+SELECT pg_temp.check((bgc.remove_friend('check.member@example.invalid', at.admin_id()) ->> 'ok')::boolean, 'a friend can stop being one');
+SELECT pg_temp.check(NOT bgc.are_friends(bgc.member_id('check.member@example.invalid'), at.admin_id()) AND (bgc.shelf_view('check.member@example.invalid', 'main', NULL) ->> 'shelf') = 'mine' AND (bgc.shelf_view('check.member@example.invalid', 'friend:' || at.admin_id(), NULL) ->> 'shelf') = 'mine', 'a member who isn''t Dan''s friend never gets his shelf, by name or by id');
+SELECT pg_temp.check((bgc.friend_shelf('check.member@example.invalid', at.admin_id()) ->> 'status') = '403' AND (bgc.profile_page('check.member@example.invalid', at.admin_id()) ->> 'ok')::boolean IS NOT TRUE, 'or his shelf or profile through Friends');
 ROLLBACK;
