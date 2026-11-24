@@ -4,6 +4,7 @@ Release notes for testers. Newest first. Post one to Discord with `node tools/po
 
 ## v0.29 · November 16, 2026
 
+- **You stay signed in.** No more signing in with Google again every hour or so, including from the home-screen app on iPhone. Sign in once and you stay signed in for as long as you keep using the site (60 days without a visit signs you out). You'll be asked to sign in one more time after this update.
 - **A new friend code whenever you want one:** Friends now has a *New code* button. Your old code stops working, and the friends you already have stay. New codes are longer, so they can't be guessed.
 
 *Behind the scenes: plays and changes going to BoardGameGeek can no longer be sent twice, and a change you make while one is on its way isn't lost. Board Game Curator now runs apart from the other things on its server, with a database login that can only do what the site needs, and with a daily limit on what its AI can spend. Admin's most powerful buttons are Dan's alone.*

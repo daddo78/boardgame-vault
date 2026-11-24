@@ -307,4 +307,20 @@ SELECT pg_temp.check((SELECT cover_card FROM games WHERE bgg_id = 999978) = 'htt
 SELECT pg_temp.check((bgc.remove_friend('check.member@example.invalid', at.admin_id()) ->> 'ok')::boolean, 'a friend can stop being one');
 SELECT pg_temp.check(NOT bgc.are_friends(bgc.member_id('check.member@example.invalid'), at.admin_id()) AND (bgc.shelf_view('check.member@example.invalid', 'main', NULL) ->> 'shelf') = 'mine' AND (bgc.shelf_view('check.member@example.invalid', 'friend:' || at.admin_id(), NULL) ->> 'shelf') = 'mine', 'a member who isn''t Dan''s friend never gets his shelf, by name or by id');
 SELECT pg_temp.check((bgc.friend_shelf('check.member@example.invalid', at.admin_id()) ->> 'status') = '403' AND (bgc.profile_page('check.member@example.invalid', at.admin_id()) ->> 'ok')::boolean IS NOT TRUE, 'or his shelf or profile through Friends');
+-- The site's own sign-in sessions (061)
+SELECT pg_temp.check((SELECT true FROM (SELECT bgc.session_start('Check.Member@example.invalid', repeat('a', 64), 60)) x), 'a session starts');
+SELECT pg_temp.check(bgc.session_check(repeat('a', 64), 60) ->> 'email' = 'check.member@example.invalid', 'a new session knows whose it is (email in lower case)');
+SELECT pg_temp.check(NOT (bgc.session_check(repeat('a', 64), 60) ->> 'renewed')::boolean, 'a fresh session isn''t renewed on every request');
+SELECT pg_temp.check(bgc.session_check(repeat('b', 64), 60) IS NULL, 'a token nobody was given is no session');
+UPDATE sessions SET renewed_at = now() - interval '3 days', expires_at = now() + interval '57 days' WHERE token_hash = repeat('a', 64);
+SELECT pg_temp.check((bgc.session_check(repeat('a', 64), 60) ->> 'renewed')::boolean, 'a session last renewed days ago is renewed');
+SELECT pg_temp.check((SELECT expires_at > now() + interval '59 days' FROM sessions WHERE token_hash = repeat('a', 64)), 'using a session pushes its end back to 60 days');
+UPDATE sessions SET expires_at = now() - interval '1 second' WHERE token_hash = repeat('a', 64);
+SELECT pg_temp.check(bgc.session_check(repeat('a', 64), 60) IS NULL, 'an expired session doesn''t sign anyone in');
+SELECT pg_temp.check((SELECT true FROM (SELECT bgc.session_start('check.member@example.invalid', repeat('c', 64), 60)) x), 'a second session starts');
+SELECT pg_temp.check((SELECT true FROM (SELECT bgc.session_end(repeat('c', 64))) x), 'and signs out');
+SELECT pg_temp.check(bgc.session_check(repeat('c', 64), 60) IS NULL, 'signing out ends the session');
+SELECT pg_temp.check((SELECT count(*) = 22 FROM (SELECT bgc.session_start('check.member@example.invalid', lpad(to_hex(n), 64, 'd'), 60) FROM generate_series(1, 22) n) x), '22 more sessions start');
+SELECT pg_temp.check((SELECT count(*) FROM sessions WHERE email = 'check.member@example.invalid') = 20, 'at most 20 sessions per person');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM sessions WHERE token_hash = repeat('a', 64)), 'expired sessions are cleared when a new one starts');
 ROLLBACK;

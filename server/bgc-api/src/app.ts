@@ -21,14 +21,15 @@ import { bggLinkRoutes } from './routes/bggLink.js';
 import { feedbackRoutes } from './routes/feedback.js';
 import { importRoutes } from './routes/imports.js';
 import { peopleRoutes } from './routes/people.js';
-import { profileRoutes } from './routes/profile.js';
+import { profileRoutes, whoami } from './routes/profile.js';
 import { rulebookUploadRoutes } from './routes/rulebookUpload.js';
 import { rulebookRoutes } from './routes/rulebooks.js';
 import { shelfPhotoRoutes } from './routes/shelfPhoto.js';
 import { shelfRoutes } from './routes/shelves.js';
 import { wishlistRoutes } from './routes/wishlist.js';
+import { clearSessionCookie, fromSite, sessionCookie, sessionStore, setSessionCookie, SITE_HEADER } from './sessions.js';
 
-// now and signInCacheMs are for the tests: a clock to move, and how long a sign-in is remembered (0: never).
+// now and signInCacheMs are for the tests: a clock to move, and how long a sign-in (and a session) is remembered (0: never).
 // jobs: where background work goes (tests hand in a stand-in); bggGapMs: the pause between BGG requests (tests: 0)
 export type Deps = { db: Db; verify: VerifyToken; config: Config; now?: () => number; fetch?: Fetch; signInCacheMs?: number; jobs?: JobsClient; bggGapMs?: number };
 
@@ -64,11 +65,12 @@ export function createApp({ db, verify, config, now, fetch: f0, signInCacheMs, j
     console.log(JSON.stringify({ at: new Date().toISOString(), method: c.req.method, path: c.req.path, status: c.res.status, ms: Date.now() - t, member: a?.memberId ?? null }));
   });
 
-  // Only the site (and localhost while testing) may call from a browser
+  // Only the site (and localhost while testing) may call from a browser, with its session cookie (credentials)
   app.use(cors({
     origin: (origin) => (config.allowedOrigins.includes(origin.toLowerCase()) || (config.allowLocalhost && LOCALHOST.test(origin)) ? origin : null),
     allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['Authorization', 'Content-Type'],
+    allowHeaders: ['Authorization', 'Content-Type', SITE_HEADER],
+    credentials: true,
     maxAge: 600,
   }));
   const tooBig = () => { throw new ApiError(413, 'That’s too big to send in one go'); };
@@ -80,12 +82,37 @@ export function createApp({ db, verify, config, now, fetch: f0, signInCacheMs, j
     catch { return c.json({ ok: false, message: 'Can’t reach the database', version: config.version }, 503); }
   });
 
+  const sessions = sessionStore(db, { days: config.sessionDays, cacheMs: signInCacheMs, now });
+  const rate = perMember(rateLimiter(config.ratePerMinute, now));
+  const members = memberGate({ db, ownerEmails: config.ownerEmails, cacheMs: signInCacheMs, now });
+
+  // POST /vault/session: right after Google sign-in, trade the Google token for the site's own session (a cookie that
+  // lasts SESSION_DAYS without use). Only for members; answers what /vault/whoami does.
+  // Registered before the /vault routes below, so their own sign-in check doesn't run first.
+  app.post('/vault/session', async (c, next) => {
+    if (!fromSite(c)) throw new ApiError(403, 'That request didn’t come from the site');
+    await next();
+  }, tokenGate(verify), rate, members, async (c) => {
+    const old = sessionCookie(c);
+    if (old) await sessions.end(old); // signing in again in the same browser: one session, not two
+    setSessionCookie(c, await sessions.start(c.get('email')), sessions.days);
+    return c.json(whoami(c.get('auth')));
+  });
+  // POST /vault/session/end: signing out ends the session here too, so a copy of the cookie stops working
+  app.post('/vault/session/end', async (c) => {
+    if (!fromSite(c)) throw new ApiError(403, 'That request didn’t come from the site');
+    const t = sessionCookie(c);
+    if (t) await sessions.end(t);
+    clearSessionCookie(c);
+    return c.json({ ok: true });
+  });
+
   // Everything under /vault is for signed-in members, each with their own rate limit. The limit comes right after the
   // token check and before the membership lookup (two database writes), so a flood of requests costs no database time.
   const vault = new Hono<AuthEnv>();
-  vault.use(tokenGate(verify));
-  vault.use(perMember(rateLimiter(config.ratePerMinute, now)));
-  vault.use(memberGate({ db, ownerEmails: config.ownerEmails, cacheMs: signInCacheMs, now }));
+  vault.use(tokenGate(verify, sessions));
+  vault.use(rate);
+  vault.use(members);
   vault.route('/', profileRoutes(db));
   vault.route('/', shelfRoutes(db));
   vault.route('/', wishlistRoutes(db));

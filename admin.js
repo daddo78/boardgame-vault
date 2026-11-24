@@ -1,9 +1,6 @@
 // The admin portal: dashboard, members, Nathan, rulebooks, feedback and costs. api.js (loaded first) holds the server addresses and shared helpers.
 const app = document.getElementById('app');
 const nav = document.getElementById('nav');
-const claims = (t) => { try { return decodeJwt(t); } catch (e) { return null; } }; // null rather than a throw: a missing token is normal here
-const fresh = (t) => { const c = t && claims(t); return !!(c && c.exp * 1000 > Date.now() + 30000); };
-const token = () => { try { return localStorage.getItem(LS_TOKEN); } catch (e) { return null; } };
 const ago = (iso) => { if (!iso) return 'never'; const m = (Date.now() - Date.parse(iso)) / 60000; return m < 2 ? 'just now' : m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
 const num = (n) => n == null ? '–' : Number(n).toLocaleString();
 const KIND = { recommend: 'What to play', browse: 'Lists & top tens', person: 'About people', game: 'About a game', buy: 'Buy ideas', rules: 'Rules', 'off-topic': 'Off-topic', other: 'Other' };
@@ -16,7 +13,7 @@ function toast(msg, err) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 4500);
 }
 
-// ---- Signing in (only when the shelf's sign-in has expired)
+// ---- Signing in (only when there's no session yet: the shelf's sign-in is Admin's too)
 function gate(msg, withButton) {
   nav.hidden = true;
   app.innerHTML = '<div class="gate"><h1><i class="fa-solid fa-shield-halved"></i> Admin</h1><p>' + msg + '</p>' + (withButton ? '<div class="gbtn" id="gbtn"></div>' : '') +
@@ -24,20 +21,28 @@ function gate(msg, withButton) {
   if (!withButton) return;
   const draw = () => {
     if (!(window.google && google.accounts)) return setTimeout(draw, 300);
-    google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: (r) => { try { localStorage.setItem(LS_TOKEN, r.credential); } catch (e) {} start(); }, auto_select: true, use_fedcm_for_prompt: true });
+    google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: signedIn, auto_select: true, use_fedcm_for_prompt: true });
     google.accounts.id.renderButton(document.getElementById('gbtn'), { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with' });
     google.accounts.id.prompt();
   };
   draw();
 }
+// Google's answer: start a session with it, then open Admin
+async function signedIn(r) {
+  let res = null;
+  try { res = await startSession(r.credential); } catch (e) {}
+  if (!res) return gate('Couldn’t reach the server. Check your connection and refresh.', false);
+  if (res.status === 401) return gate('That Google account isn’t on the invite list.', false);
+  if (!res.ok) return gate('Couldn’t sign you in (' + res.status + '). Try again in a moment.', true);
+  try { localStorage.setItem(LS_PROFILE, JSON.stringify(profileOf(decodeJwt(r.credential)))); localStorage.removeItem(LS_TOKEN); } catch (e) {}
+  start();
+}
 class Gate extends Error { constructor(msg, button) { super(msg); this.button = button; } }
 async function call(path, opts = {}) {
-  const t = token();
-  if (!fresh(t)) throw new Gate('Sign in with your Google account to open Admin. It’s for admins only.', true);
   let res;
-  try { res = await fetch(API + path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + t } }); }
+  try { res = await fetch(API + path, withSession(opts)); }
   catch (e) { throw new Gate('Couldn’t reach the server. Check your connection and refresh.', false); }
-  if (res.status === 401) { try { localStorage.removeItem(LS_TOKEN); } catch (e) {} throw new Gate('Your sign-in expired. Sign in again to open Admin.', true); }
+  if (res.status === 401) throw new Gate('Sign in with your Google account to open Admin. It’s for admins only.', true);
   if (res.status === 403) throw new Gate('Admin is for admins only.', false);
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body.ok === false) throw new Error(body.message || 'Something went wrong (' + res.status + '). Try again in a moment.');
@@ -77,11 +82,9 @@ async function show() {
   }
 }
 async function start() {
-  const t = token();
-  if (!fresh(t)) return gate('Sign in with your Google account to open Admin. It’s for admins only.', true);
-  const c = claims(t);
-  document.getElementById('who').textContent = c.name || c.email || '';
   try { await loadA(); } catch (e) { if (e instanceof Gate) return gate(e.message, e.button); }
+  const c = savedProfile() || {};
+  document.getElementById('who').textContent = c.name || c.email || '';
   nav.hidden = false;
   show();
 }
@@ -221,7 +224,7 @@ function renderAdoption() {
 // ================= Members =================
 let memberQuery = '', armed = null; // armed: the "Remove" waiting for a second tap
 function renderMembers(a) {
-  const me = (claims(token()) || {}).email || '';
+  const me = (savedProfile() || {}).email || '';
   const list = (a.members || []).filter((m) => !memberQuery || (m.name + ' ' + m.email).toLowerCase().includes(memberQuery.toLowerCase()));
   app.innerHTML =
     '<h1><i class="fa-solid fa-users"></i> Members</h1><div class="sub">' + (a.members || []).length + ' members · the site is invite-only</div>' +
@@ -263,7 +266,7 @@ async function adminAct(payload) {
 app.addEventListener('input', (e) => {
   if (e.target.id !== 'memberSearch') return;
   memberQuery = e.target.value;
-  const me = (claims(token()) || {}).email || '';
+  const me = (savedProfile() || {}).email || '';
   const list = (A.members || []).filter((m) => !memberQuery || (m.name + ' ' + m.email).toLowerCase().includes(memberQuery.toLowerCase()));
   document.getElementById('memberList').innerHTML = list.length ? list.map((m) => memberCard(m, me)).join('') : '<p class="empty">Nobody matches that.</p>';
 });
@@ -472,8 +475,6 @@ async function rbUpload(form) {
   if (file.size > 60 * 1024 * 1024) return toast('That PDF is over 60 MB. Try the publisher’s smaller version.', true);
   const source = form.querySelector('[name=source]').value.trim();
   if (source && !/^https:\/\/\S{4,}$/.test(source)) return toast('The link should start with https://', true);
-  const t = token();
-  if (!fresh(t)) return gate('Your sign-in expired. Sign in again to open Admin.', true);
   const g = rbNew.game;
   const fd = new FormData();
   fd.append('file', file, file.name); fd.append('bggId', String(g.bggId)); fd.append('gameTitle', g.title);
@@ -481,7 +482,8 @@ async function rbUpload(form) {
   const btn = form.querySelector('[type=submit]');
   rbNew.busy = true; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-upload"></i> Uploading…';
   try {
-    const res = await fetch(API + '/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + t }, body: fd });
+    const res = await fetch(API + '/rulebook', withSession({ method: 'POST', body: fd }));
+    if (res.status === 401) { rbNew.busy = false; return gate('Your sign-in has ended. Sign in again to open Admin.', true); }
     const r = await res.json().catch(() => ({}));
     if (!res.ok || !r.ok) throw new Error(r.message || 'Upload failed (' + res.status + ')');
     rbNew = null;

@@ -15,6 +15,8 @@ const Env = z.object({
   ALLOW_LOCALHOST: z.enum(['true', 'false']).default('false'),
   // Requests per member per minute (a burst of this many, then refilling over the minute)
   RATE_PER_MINUTE: z.coerce.number().int().positive().default(120),
+  // How long a sign-in lasts without being used (sessions.ts); using it pushes the end back, once a day
+  SESSION_DAYS: z.coerce.number().int().min(1).max(400).default(60),
   VERSION: z.string().default('dev'),
   LOG_REQUESTS: z.enum(['true', 'false']).default('true'),
   // Nathan: without the OpenRouter key his routes say he isn't set up; without the BGG token he can't look up games we don't know
@@ -43,6 +45,7 @@ export type Config = {
   allowedOrigins: string[];
   allowLocalhost: boolean;
   ratePerMinute: number;
+  sessionDays: number;
   version: string;
   logRequests: boolean;
   openrouterKey: string | undefined;
@@ -72,6 +75,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     allowedOrigins: list(e.ALLOWED_ORIGINS),
     allowLocalhost: e.ALLOW_LOCALHOST === 'true',
     ratePerMinute: e.RATE_PER_MINUTE,
+    sessionDays: e.SESSION_DAYS,
     version: e.VERSION,
     logRequests: e.LOG_REQUESTS === 'true',
     openrouterKey: e.OPENROUTER_API_KEY || undefined,

@@ -252,6 +252,21 @@ BEGIN
     res := res || jsonb_build_object('what', 'a friend can stop being one', 'ok', coalesce(((bgc.remove_friend('check.member@example.invalid', at.admin_id()) ->> 'ok')::boolean), false));
     res := res || jsonb_build_object('what', 'a member who isn''t Dan''s friend never gets his shelf, by name or by id', 'ok', coalesce((NOT bgc.are_friends(bgc.member_id('check.member@example.invalid'), at.admin_id()) AND (bgc.shelf_view('check.member@example.invalid', 'main', NULL) ->> 'shelf') = 'mine' AND (bgc.shelf_view('check.member@example.invalid', 'friend:' || at.admin_id(), NULL) ->> 'shelf') = 'mine'), false));
     res := res || jsonb_build_object('what', 'or his shelf or profile through Friends', 'ok', coalesce(((bgc.friend_shelf('check.member@example.invalid', at.admin_id()) ->> 'status') = '403' AND (bgc.profile_page('check.member@example.invalid', at.admin_id()) ->> 'ok')::boolean IS NOT TRUE), false));
+    res := res || jsonb_build_object('what', 'a session starts', 'ok', coalesce(((SELECT true FROM (SELECT bgc.session_start('Check.Member@example.invalid', repeat('a', 64), 60)) x)), false));
+    res := res || jsonb_build_object('what', 'a new session knows whose it is (email in lower case)', 'ok', coalesce((bgc.session_check(repeat('a', 64), 60) ->> 'email' = 'check.member@example.invalid'), false));
+    res := res || jsonb_build_object('what', 'a fresh session isn''t renewed on every request', 'ok', coalesce((NOT (bgc.session_check(repeat('a', 64), 60) ->> 'renewed')::boolean), false));
+    res := res || jsonb_build_object('what', 'a token nobody was given is no session', 'ok', coalesce((bgc.session_check(repeat('b', 64), 60) IS NULL), false));
+    UPDATE sessions SET renewed_at = now() - interval '3 days', expires_at = now() + interval '57 days' WHERE token_hash = repeat('a', 64);
+    res := res || jsonb_build_object('what', 'a session last renewed days ago is renewed', 'ok', coalesce(((bgc.session_check(repeat('a', 64), 60) ->> 'renewed')::boolean), false));
+    res := res || jsonb_build_object('what', 'using a session pushes its end back to 60 days', 'ok', coalesce(((SELECT expires_at > now() + interval '59 days' FROM sessions WHERE token_hash = repeat('a', 64))), false));
+    UPDATE sessions SET expires_at = now() - interval '1 second' WHERE token_hash = repeat('a', 64);
+    res := res || jsonb_build_object('what', 'an expired session doesn''t sign anyone in', 'ok', coalesce((bgc.session_check(repeat('a', 64), 60) IS NULL), false));
+    res := res || jsonb_build_object('what', 'a second session starts', 'ok', coalesce(((SELECT true FROM (SELECT bgc.session_start('check.member@example.invalid', repeat('c', 64), 60)) x)), false));
+    res := res || jsonb_build_object('what', 'and signs out', 'ok', coalesce(((SELECT true FROM (SELECT bgc.session_end(repeat('c', 64))) x)), false));
+    res := res || jsonb_build_object('what', 'signing out ends the session', 'ok', coalesce((bgc.session_check(repeat('c', 64), 60) IS NULL), false));
+    res := res || jsonb_build_object('what', '22 more sessions start', 'ok', coalesce(((SELECT count(*) = 22 FROM (SELECT bgc.session_start('check.member@example.invalid', lpad(to_hex(n), 64, 'd'), 60) FROM generate_series(1, 22) n) x)), false));
+    res := res || jsonb_build_object('what', 'at most 20 sessions per person', 'ok', coalesce(((SELECT count(*) FROM sessions WHERE email = 'check.member@example.invalid') = 20), false));
+    res := res || jsonb_build_object('what', 'expired sessions are cleared when a new one starts', 'ok', coalesce((NOT EXISTS (SELECT 1 FROM sessions WHERE token_hash = repeat('a', 64))), false));
     RAISE EXCEPTION 'self-check done' USING ERRCODE = 'P0001'; -- undo everything the checks did
   EXCEPTION WHEN raise_exception THEN
     IF SQLERRM <> 'self-check done' THEN res := res || jsonb_build_object('what', 'the checks crashed: ' || SQLERRM, 'ok', false); END IF;

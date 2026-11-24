@@ -1,7 +1,9 @@
-// One sign-in check for every route, in two steps with the rate limit between them (app.ts). The page sends
-// "Authorization: Bearer <Google ID token>".
-// 1. tokenGate: the token is checked with Google's public keys (fetched once and cached, so no call to Google per request):
-//    signed by Google, for our client, not expired, email verified. Sets the email; the database isn't asked yet.
+// One sign-in check for every route, in two steps with the rate limit between them (app.ts). The page signs in with
+// Google once and then sends the site's own session cookie (sessions.ts); a Google ID token in
+// "Authorization: Bearer <token>" still works on every route, and is how POST /vault/session starts a session.
+// 1. tokenGate: who is this? A Bearer token is checked with Google's public keys (fetched once and cached, so no call to
+//    Google per request): signed by Google, for our client, not expired, email verified. A session cookie is looked up
+//    in bgc.sessions (with the X-BGC header, which only the site can send). Sets the email.
 // 2. memberGate: bgc.sign_in(email) says whether they're a member (on the invite list), their role and card, and counts
 //    the visit. Same outcome as addMemberAuth in n8n/gen.js: owner, friend (any member), or 401.
 import type { MiddlewareHandler } from 'hono';
@@ -9,6 +11,7 @@ import { createRemoteJWKSet, errors, jwtVerify, type JWTVerifyGetKey } from 'jos
 import { z } from 'zod';
 import { signIn, type Db } from './db.js';
 import { ApiError } from './errors.js';
+import { clearSessionCookie, fromSite, sessionCookie, setSessionCookie, type Sessions } from './sessions.js';
 
 export type Auth = {
   role: 'owner' | 'friend';
@@ -50,9 +53,21 @@ export function keysUnavailable(e: unknown): boolean {
 
 const Bearer = z.string().regex(/^Bearer [A-Za-z0-9_.-]{20,4096}$/);
 
-export function tokenGate(verify: VerifyToken): MiddlewareHandler<AuthEnv> {
+// sessions: also accept the session cookie (every /vault route); without it only a Google token will do (POST /vault/session)
+export function tokenGate(verify: VerifyToken, sessions?: Sessions): MiddlewareHandler<AuthEnv> {
   return async (c, next) => {
-    const header = Bearer.safeParse(c.req.header('authorization') ?? '');
+    const auth = c.req.header('authorization');
+    const cookie = sessions && !auth ? sessionCookie(c) : undefined;
+    if (cookie && sessions) {
+      if (!fromSite(c)) throw new ApiError(403, 'That request didn’t come from the site');
+      const s = await sessions.check(cookie);
+      if (!s) { clearSessionCookie(c); throw new ApiError(401, 'Your sign-in has expired. Sign in again.'); }
+      c.set('email', s.email);
+      await next();
+      if (s.renewed) setSessionCookie(c, cookie, sessions.days); // the daily renewal: 60 days from today
+      return;
+    }
+    const header = Bearer.safeParse(auth ?? '');
     if (!header.success) throw new ApiError(401, 'Sign in to do that');
     try { c.set('email', (await verify(header.data.slice(7))).email); }
     catch (e) {

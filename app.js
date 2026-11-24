@@ -21,13 +21,12 @@ function toast(msg, isErr) {
 }
 
 // ---------- Google sign-in ----------
-// The ID token (a signed JWT, valid ~1 hour) is sent with every request; the API verifies it with Google's keys and
-// only answers members.
+// Google is asked once: its ID token starts a session with the API (api.js: startSession), and the session cookie signs
+// every request in after that, for 60 days without use. profile is the Google account's name, email and picture.
 const LS_ROLE = 'vault_role'; // { sub, role: 'owner' | 'friend', admin, playerId, playerName } as confirmed by the API
-let idToken = null, profile = null;
-const credentialWaiters = [];
-const tokenFresh = () => !!(profile && profile.exp * 1000 > Date.now() + 60 * 1000);
-const signedIn = () => !!profile; // an expired token is renewed on the next change
+let profile = null;
+let renewOnLoad = false; // signed in before sessions, with Google's token since expired: try Google One Tap once
+const signedIn = () => !!profile;
 const savedRole = () => { try { return JSON.parse(localStorage.getItem(LS_ROLE) || 'null'); } catch (e) { return null; } };
 const myRole = () => { const r = savedRole(); return signedIn() && r && r.sub === profile.sub ? r : null; };
 // Owner: everything. Friend (Google email on a player card): can rate games for themselves. Others: view-only.
@@ -39,9 +38,9 @@ const myPlayerId = () => (myRole() || {}).playerId || null;
 // to a home-screen app on iPhone (the pop-up is a separate Safari), so there every sign-in goes through Google's own
 // page and comes back in the address (googleRedirectSignIn), which iOS does return to the app.
 const standalone = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } };
-function setToken(t) {
-  try { profile = t ? decodeJwt(t) : null; idToken = t || null; } catch (e) { profile = null; idToken = null; }
-  try { idToken ? localStorage.setItem(LS_TOKEN, idToken) : localStorage.removeItem(LS_TOKEN); } catch (e) {}
+function setProfile(claims) {
+  profile = claims ? profileOf(claims) : null;
+  try { profile ? localStorage.setItem(LS_PROFILE, JSON.stringify(profile)) : localStorage.removeItem(LS_PROFILE); } catch (e) {}
   updateAuthUi();
 }
 function updateAuthUi() {
@@ -60,44 +59,40 @@ function updateAuthUi() {
   btn.title = signedIn() ? 'Signed in as ' + (profile.name || profile.email) : 'Sign in to make changes';
   if (collection.length) render();
 }
-function onCredential(resp) {
+// Google's answer (One Tap, its button, or its sign-in page): start a session with it. The API says who this is here:
+// the owner, a member, or nobody (view-only). The owner's email never appears in this page.
+// quiet: moving an old sign-in over to a session on load, so no messages
+async function onCredential(resp, quiet) {
   const wasMember = isMember();
-  setToken(resp.credential);
+  let claims;
+  try { claims = decodeJwt(resp.credential); } catch (e) { return; }
   document.getElementById('signInModal').classList.remove('open');
-  verifyMember(wasMember).then(() => credentialWaiters.splice(0).forEach(w => w(isMember() ? idToken : null)));
-}
-// Ask the API who this Google account is here: the owner, a friend with a player card, or nobody (view-only).
-// The owner's email never appears in this page.
-async function verifyMember(wasMember) {
-  const who = profile && (profile.email || profile.name);
+  const who = claims.email || claims.name;
   let res;
-  try {
-    res = await fetch(API + '/whoami', { headers: { Authorization: 'Bearer ' + idToken } });
-  } catch (e) {
-    toast('Couldn’t confirm your sign-in. Check your connection and try again.', true);
-    setToken(null);
-    return;
-  }
+  try { res = await startSession(resp.credential); }
+  catch (e) { if (!quiet) toast('Couldn’t confirm your sign-in. Check your connection and try again.', true); return; }
   if (res.ok) {
     const w = await res.json().catch(() => ({}));
     try {
-      localStorage.setItem(LS_ROLE, JSON.stringify({ sub: profile.sub, role: w.role === 'owner' ? 'owner' : 'friend', admin: !!w.admin, playerId: w.playerId || null, playerName: w.playerName || null }));
+      localStorage.setItem(LS_ROLE, JSON.stringify({ sub: claims.sub, role: w.role === 'owner' ? 'owner' : 'friend', admin: !!w.admin, playerId: w.playerId || null, playerName: w.playerName || null }));
     } catch (e) {}
-    updateAuthUi();
+    setProfile(claims);
     landingNotice('');
     // Reload after signing in: always for a new sign-in, and when the last load failed because the sign-in had expired ("Offline")
     const failed = document.getElementById('totalBadge').classList.contains('err');
     if (!wasMember || failed) {
-      if (!wasMember) toast(w.role === 'owner' ? 'Signed in. Welcome back!' : 'Welcome, ' + (w.playerName || who).split(' ')[0] + '!');
+      if (!wasMember && !quiet) toast(w.role === 'owner' ? 'Signed in. Welcome back!' : 'Welcome, ' + (w.playerName || who).split(' ')[0] + '!');
       loadCollection();
       loadPeople();
       loadFriends();
     }
-  } else {
+  } else if (res.status === 401) {
     try { localStorage.removeItem(LS_ROLE); } catch (e) {}
     if (gisReady) google.accounts.id.disableAutoSelect();
-    setToken(null);
-    landingNotice((who || 'That account') + ' isn’t on the invite list yet. Ask Dan to add you, then sign in again.');
+    setProfile(null);
+    if (!quiet) landingNotice((who || 'That account') + ' isn’t on the invite list yet. Ask Dan to add you, then sign in again.');
+  } else if (!quiet) {
+    toast('Couldn’t confirm your sign-in (' + res.status + '). Try again in a moment.', true);
   }
 }
 let gisReady = false;
@@ -124,8 +119,8 @@ function initGoogle() {
   if (gisReady || !window.google || !google.accounts) return;
   gisReady = true;
   google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: onCredential, auto_select: true, cancel_on_tap_outside: true, use_fedcm_for_prompt: true, itp_support: true });
-  // Returning owner with an expired token: renew quietly (One Tap auto sign-in)
-  if (profile && !tokenFresh()) google.accounts.id.prompt();
+  // Signed in before sessions, and that sign-in has expired: Google One Tap once, quietly when it can
+  if (renewOnLoad) { renewOnLoad = false; google.accounts.id.prompt(); }
 }
 function openSignIn(note) {
   document.getElementById('signInNote').textContent = note || '';
@@ -197,34 +192,19 @@ function finishRedirectSignIn() {
   } catch (e) { return; }
   onCredential({ credential: token });
 }
-// A fresh token, renewed silently when possible; otherwise asks the owner to sign in
-async function ensureToken() {
-  if (tokenFresh()) return idToken;
-  initGoogle();
-  if (gisReady && !standalone()) {
-    const renewed = await new Promise((resolve) => {
-      credentialWaiters.push(resolve);
-      google.accounts.id.prompt();
-      setTimeout(() => resolve(null), 6000);
-    });
-    if (renewed && tokenFresh()) return idToken;
-  }
-  openSignIn('Your sign-in expired. Sign in again, then repeat that change.');
-  throw new Error('Sign in to make changes.');
-}
+// A 401: the session ended (60 days unused, signed out elsewhere, or removed from the invite list)
 function handleUnauthorized() {
   try { localStorage.removeItem(LS_ROLE); } catch (e) {}
-  setToken(null);
-  openSignIn('That account can’t change this collection, or the sign-in expired.');
-  return new Error('Sign in as the collection owner to make changes.');
+  setProfile(null);
+  openSignIn('Your sign-in has ended. Sign in again, then repeat that.');
+  return new Error('Sign in to do that.');
 }
 
-// A request to the API (api.ondorilabo.com) with the member's Google token.
+// A request to the API (api.ondorilabo.com) with the member's session.
 // Gives up after 20 s unless the caller brings its own signal (Nathan, BGG lookups and play syncs take longer);
 // uploads and photo identification use fetch directly and have no limit
 async function vaultFetch(path, opts, auth = true) {
-  const o = { ...(opts || {}) };
-  if (auth) o.headers = { ...(o.headers || {}), Authorization: 'Bearer ' + await ensureToken() };
+  const o = auth ? withSession(opts) : { ...(opts || {}) };
   if (!o.signal) o.signal = AbortSignal.timeout(20000);
   let res;
   try { res = await fetch(API + path, o); }
@@ -244,7 +224,7 @@ async function vaultFetch(path, opts, auth = true) {
 
 // The same, for answers shaped { ok, ... }: linking BGG, logging a play, players and places
 async function apiFetch(path, opts) {
-  const o = { ...(opts || {}), headers: { ...((opts || {}).headers || {}), Authorization: 'Bearer ' + await ensureToken() } };
+  const o = withSession(opts);
   if (!o.signal) o.signal = AbortSignal.timeout(30000);
   let res;
   try { res = await fetch(API + path, o); }
@@ -835,7 +815,8 @@ async function uploadRulebook(form) {
   fd.append('kind', form.querySelector('[name=kind]').value); fd.append('title', form.querySelector('[name=title]').value.trim()); fd.append('source', source);
   form.querySelector('.hint').textContent = 'Uploading "' + file.name + '"…';
   try {
-    const res = await fetch(API + '/rulebook', { method: 'POST', headers: { Authorization: 'Bearer ' + await ensureToken() }, body: fd });
+    const res = await fetch(API + '/rulebook', withSession({ method: 'POST', body: fd }));
+    if (res.status === 401) throw handleUnauthorized();
     const r = await res.json().catch(() => ({}));
     if (!res.ok || !r.ok) throw new Error(r.message || 'Upload failed (' + res.status + ')');
     rbCache[bggId] = r;
@@ -1570,7 +1551,7 @@ document.getElementById('identifyBtn').addEventListener('click', async () => {
     const form = new FormData();
     form.append('photo', await shrinkPhoto(file), 'boxes.jpg');
     // Onto your own shelf
-    const res = await fetch(API + '/shelf-identify', { method: 'POST', body: form, headers: { Authorization: 'Bearer ' + await ensureToken() } });
+    const res = await fetch(API + '/shelf-identify', withSession({ method: 'POST', body: form }));
     if (res.status === 401) throw handleUnauthorized();
     let result = {};
     try { result = await res.json(); } catch (e) {}
@@ -2416,8 +2397,8 @@ async function askViaApi(payload, turn) {
   try {
     let res;
     try {
-      res = await fetch(API + '/ask/stream', { method: 'POST', signal: ctl.signal,
-        headers: { Authorization: 'Bearer ' + await ensureToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      res = await fetch(API + '/ask/stream', withSession({ method: 'POST', signal: ctl.signal,
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }));
     } catch (e) { if (ctl.signal.aborted) throw cut(true); return null; }
     if (res.status === 401) throw handleUnauthorized();
     if (res.status >= 500 || !res.body) return null;
@@ -2641,9 +2622,10 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setMenu(
 document.getElementById('menuSignOut').addEventListener('click', () => {
   setMenu(false);
   if (gisReady) google.accounts.id.disableAutoSelect();
+  endSession(); // ends it on the server too
   clearTimeout(cacheTimer);
   try { localStorage.removeItem(LS_ROLE); localStorage.removeItem(LS_CACHE); } catch (e) {}
-  setToken(null);
+  setProfile(null);
   collection = []; people = { players: [], ratings: {} }; bggLink = null; playPlaces = null;
   render();
   window.scrollTo(0, 0);
@@ -3312,9 +3294,19 @@ document.getElementById('signInCancel').addEventListener('click', () => document
 finishRedirectSignIn(); // back from Google's sign-in page
 window.addEventListener('load', () => { initGoogle(); renderLandingSignIn(); }); // the Google script loads async
 
-try { setToken(localStorage.getItem(LS_TOKEN)); } catch (e) { setToken(null); }
-// Signed in before the owner check existed: confirm once instead of asking to sign in again
-if (signedIn() && !isMember() && tokenFresh()) verifyMember(false);
-else if (isMember() && !myPlayerId() && tokenFresh()) verifyMember(true);
+profile = savedProfile();
+// Signed in before sessions (Nov 24), with Google's token kept here: still good, it starts a session quietly; expired,
+// Google One Tap is tried once. Either way the token is forgotten.
+try {
+  const old = localStorage.getItem(LS_TOKEN);
+  if (old) {
+    localStorage.removeItem(LS_TOKEN);
+    localStorage.removeItem(LS_ROLE);
+    const c = decodeJwt(old);
+    if (c.exp * 1000 > Date.now() + 60 * 1000) onCredential({ credential: old }, true);
+    else renewOnLoad = true;
+  }
+} catch (e) {}
+updateAuthUi();
 // Members get the collection and people; visitors see the welcome page and nothing is fetched
 if (isMember()) { loadCollection(); loadPeople(); loadFriends(); }

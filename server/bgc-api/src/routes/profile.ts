@@ -2,7 +2,7 @@
 // Profile Page and Nathan Memory (n8n/gen.js sections 11, 19, 30 and 36); the answers are the same JSON the page reads today.
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { AuthEnv } from '../auth.js';
+import type { Auth, AuthEnv } from '../auth.js';
 import { myProfile, profilePage, type Db } from '../db.js';
 import { fromDb } from '../errors.js';
 import { FriendQuery, parse } from '../request.js';
@@ -10,13 +10,13 @@ import { validated } from '../writes.js';
 
 const MemoryQuery = z.object({ chat: z.string().optional() });
 
+// What this person may do here (GET /vault/whoami, and the answer to starting a session)
+export const whoami = (a: Auth) => ({ ok: true, role: a.role, owner: a.role === 'owner', playerId: a.playerId, playerName: a.playerName, admin: a.admin });
+
 export function profileRoutes(db: Db) {
   return new Hono<AuthEnv>()
     // GET /vault/whoami: right after Google sign-in, what this person may do
-    .get('/whoami', (c) => {
-      const a = c.get('auth');
-      return c.json({ ok: true, role: a.role, owner: a.role === 'owner', playerId: a.playerId, playerName: a.playerName, admin: a.admin });
-    })
+    .get('/whoami', (c) => c.json(whoami(c.get('auth'))))
     // GET /vault/me: the signed-in person's own profile
     .get('/me', async (c) => c.json({ ok: true, profile: (await myProfile(db, c.get('auth').email)) ?? null }))
     // GET /vault/profile[?friend=<member id>]: your own profile, or a friend's (bgc.profile_page says who may see whom)
